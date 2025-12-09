@@ -123,7 +123,7 @@ export function BaselineCard({ profile }: BaselineCardProps) {
           <div className="space-y-1.5">
             {projection.breakdown.slice(0, 6).map((decade) => (
               <div key={decade.ageDecade} className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground w-12">
+                <span className="text-xs text-muted-foreground w-10 shrink-0">
                   {decade.ageDecade}s
                 </span>
                 <div className="flex-1 h-3 bg-muted/30 rounded-full overflow-hidden">
@@ -134,7 +134,7 @@ export function BaselineCard({ profile }: BaselineCardProps) {
                     }}
                   />
                 </div>
-                <span className="text-xs text-muted-foreground w-16 text-right">
+                <span className="text-xs text-muted-foreground w-20 shrink-0 text-right">
                   {decade.qalysInDecade.toFixed(1)} QALYs
                 </span>
               </div>
