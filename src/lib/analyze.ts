@@ -83,7 +83,7 @@ CHOICE TO ANALYZE:
 Please estimate the QALY impact of this choice for this specific person. Consider their baseline health behaviors and conditions when estimating marginal benefits. Respond with the JSON object only.`;
 
   const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-opus-4-5-20251101",
     max_tokens: 4096,
     messages: [{ role: "user", content: userMessage }],
     system: SYSTEM_PROMPT,

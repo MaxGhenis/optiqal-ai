@@ -64,11 +64,12 @@ export interface AnalysisResponse {
   disclaimer: string;
 }
 
+// Default: 5'9", 165 lbs (roughly average US male)
 export const DEFAULT_PROFILE: UserProfile = {
   age: 35,
   sex: "male",
-  weight: 75,
-  height: 175,
+  weight: 75, // ~165 lbs
+  height: 175, // ~5'9"
   smoker: false,
   exerciseHoursPerWeek: 3,
   sleepHoursPerNight: 7,
