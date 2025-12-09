@@ -9,10 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { ResultCard } from "@/components/analyze/result-card";
+import { StructuredResultCard } from "@/components/analyze/structured-result-card";
 import { BaselineCard } from "@/components/analyze/baseline-card";
-import { analyzeChoice } from "@/lib/analyze";
-import type { UserProfile, ChoiceAnalysis } from "@/types";
+import { analyzeStructured, type StructuredAnalysisResult } from "@/lib/analyze-structured";
+import type { UserProfile } from "@/types";
 import { DEFAULT_PROFILE } from "@/types";
 import {
   Activity,
@@ -35,7 +35,7 @@ function AnalyzePageContent() {
   const [choice, setChoice] = useState(initialQuery);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<ChoiceAnalysis | null>(null);
+  const [result, setResult] = useState<StructuredAnalysisResult | null>(null);
   const [showProfile, setShowProfile] = useState(false);
   const [useImperial, setUseImperial] = useState(true); // Default to imperial for US users
 
@@ -102,8 +102,8 @@ function AnalyzePageContent() {
     setResult(null);
 
     try {
-      const response = await analyzeChoice(profile, choice, apiKey);
-      setResult(response.analysis);
+      const response = await analyzeStructured(profile, choice, apiKey);
+      setResult(response);
     } catch (e) {
       setError(e instanceof Error ? e.message : "An error occurred");
     } finally {
@@ -457,7 +457,7 @@ function AnalyzePageContent() {
           )}
 
           {/* Result */}
-          {result && <ResultCard analysis={result} />}
+          {result && <StructuredResultCard result={result} />}
 
           {/* Disclaimer */}
           <p className="text-xs text-muted-foreground text-center max-w-2xl mx-auto">
