@@ -1,0 +1,172 @@
+# Walking 30 Minutes Daily
+# Evidence-based intervention definition using OptiqAL DSL
+#
+# Sources: Hamer & Chida 2008, Cornelissen & Smart 2013, Kelly et al 2014
+
+id: walking_30min_daily
+name: Walk 30 minutes daily
+description: Moderate-paced walking for 30 minutes per day
+category: exercise
+
+keywords:
+  - walk
+  - walking
+  - 30 minutes
+  - daily walk
+  - steps
+  - 10000 steps
+  - 10k steps
+
+# ============================================
+# EVIDENCE QUALITY & CONFOUNDING
+# ============================================
+
+evidence:
+  quality: high
+  primary_study_type: meta-analysis
+  sources:
+    - citation: "Hamer & Chida 2008. Walking and primary prevention: meta-analysis"
+      year: 2008
+      sample_size: 459833
+      contribution: "All-cause mortality HR"
+
+    - citation: "Cornelissen & Smart 2013. Exercise training for blood pressure"
+      year: 2013
+      contribution: "Blood pressure effect sizes"
+
+    - citation: "Kelly et al 2014. Walking on mortality in cohorts"
+      year: 2014
+      sample_size: 280000
+      contribution: "Dose-response relationship"
+
+confounding:
+  # Exercise shows strong healthy user bias
+  # RCT effects typically 30-50% of observational estimates
+  prior:
+    type: beta
+    alpha: 2.5
+    beta: 5.0
+
+  rationale: |
+    Walking studies show substantial healthy user bias.
+    Sibling comparisons (Hamer & Stamatakis 2012) suggest ~33% causal.
+    Device-measured PA studies (Ekelund 2019) show attenuated effects.
+    Beta(2.5, 5.0) → mean 33%, 95% CI: 8-65%
+
+  calibration_sources:
+    - "Hamer & Stamatakis 2012 (sibling comparison)"
+    - "Arem et al 2015 (dose-response modeling)"
+    - "Ekelund et al 2019 (device-measured PA)"
+
+# ============================================
+# MECHANISM EFFECTS
+# ============================================
+
+mechanisms:
+  blood_pressure:
+    effect: Normal(-4, 2)  # Shorthand syntax
+    direction: decrease
+    units: mmHg
+    evidence: strong
+    source: "Cornelissen & Smart 2013"
+
+  lipid_profile:
+    effect:
+      type: normal
+      mean: -5
+      sd: 3
+    direction: decrease
+    units: "% LDL"
+    evidence: moderate
+    source: "Mann et al 2014"
+
+  insulin_sensitivity:
+    effect: Normal(15, 8)
+    direction: increase
+    units: "%"
+    evidence: strong
+    source: "Colberg et al 2016"
+
+  systemic_inflammation:
+    effect: Normal(-15, 8)
+    direction: decrease
+    units: "% CRP"
+    evidence: moderate
+
+  adiposity:
+    effect: Normal(-2, 1.5)
+    direction: decrease
+    units: "% body fat"
+    evidence: moderate
+
+  sleep_quality:
+    effect: Normal(0.3, 0.15)
+    direction: increase
+    units: SD
+    evidence: moderate
+
+  neurotransmitter_balance:
+    effect: Normal(0.25, 0.15)
+    direction: increase
+    units: SD
+    evidence: moderate
+
+  cardiac_output:
+    effect: Normal(8, 4)
+    direction: increase
+    units: "%"
+    evidence: moderate
+
+# ============================================
+# MORTALITY EFFECT
+# ============================================
+
+mortality:
+  # HR ~0.84 from meta-analyses
+  # LogNormal(-0.18, 0.08) → median 0.84, 95% CI: 0.72-0.97
+  hazard_ratio: LogNormal(-0.18, 0.08)
+  onset_delay: 0
+  ramp_up: 0.5
+  decay_rate: 0
+
+# ============================================
+# QUALITY OF LIFE
+# ============================================
+
+quality:
+  subjective_wellbeing: Normal(0.02, 0.01)
+
+  dimension_effects:
+    - dimension: mobility
+      change: Normal(0.03, 0.02)
+
+    - dimension: anxiety_depression
+      change: Normal(0.02, 0.01)
+
+# ============================================
+# COSTS
+# ============================================
+
+costs:
+  hours_per_week: Normal(3.5, 0.5)  # 30 min × 7 days
+  annual_cost_usd: Normal(0, 50)    # Just shoes
+  activity_disutility: Normal(0, 0.01)  # Walking is pleasant for most
+
+# ============================================
+# CAVEATS & ADJUSTMENTS
+# ============================================
+
+caveats:
+  - "Benefits may plateau with higher baseline activity"
+  - "Effect size assumes currently sedentary individuals"
+  - "Hot/cold weather may affect adherence"
+
+profile_adjustments:
+  - condition: "age > 70"
+    adjustment: "Reduce HR effect by 15% (less mortality headroom)"
+
+  - condition: "baseline_activity == 'active'"
+    adjustment: "Reduce HR effect by 50% (diminishing returns)"
+
+  - condition: "bmi > 30"
+    adjustment: "Increase weight loss effect by 30%"

@@ -38,4 +38,63 @@ export {
 } from "./prompt";
 
 // Simulation
-export { simulateQALYImpact, qalyYearsToMinutes } from "./simulate";
+export {
+  simulateQALYImpact,
+  simulateQALYImpactRigorous,
+  qalyYearsToMinutes,
+  type RigorousSimulationResult,
+  type RigorousSimulationOptions,
+} from "./simulate";
+
+// Precomputed interventions
+export {
+  PRECOMPUTED_INTERVENTIONS,
+  matchIntervention,
+  getPrecomputedEffect,
+  type PrecomputedIntervention,
+  type MatchResult,
+} from "./precomputed";
+
+// Confounding adjustment (whatnut methodology)
+export {
+  CONFOUNDING_BY_CATEGORY,
+  EVIDENCE_ADJUSTMENTS,
+  getConfoundingConfig,
+  sampleCausalFraction,
+  getExpectedCausalFraction,
+  getCausalFractionCI,
+  adjustHazardRatio,
+  adjustDistribution,
+  calculateEValue,
+  calculateEValueForCI,
+  analyzeConfounding,
+  type ConfoundingConfig,
+  type ConfoundingAnalysis,
+} from "./confounding";
+
+// DSL parser for YAML intervention definitions
+export {
+  parseDistribution,
+  parseIntervention,
+  parseConfounding,
+  formatDistribution,
+  getDistributionMean,
+  getDistributionSD,
+  type YAMLIntervention,
+} from "./dsl-parser";
+
+// Rigorous lifecycle model (whatnut methodology)
+export {
+  CDC_LIFE_TABLE,
+  getSurvivalProbability,
+  getAnnualMortalityRate,
+  CAUSE_FRACTIONS,
+  getCauseFraction,
+  applyDiscount,
+  getDiscountedQALY,
+  calculateLifecycleQALYs,
+  hrToPathwayHRs,
+  STANDARD_PATHWAY_HRS,
+  type PathwayHRs,
+  type LifecycleResult,
+} from "./lifecycle";

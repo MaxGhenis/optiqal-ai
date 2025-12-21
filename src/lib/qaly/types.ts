@@ -186,7 +186,7 @@ export interface InterventionEffect {
   description: string;
 
   /** Category for grouping */
-  category: "exercise" | "diet" | "sleep" | "substance" | "medical" | "other";
+  category: "exercise" | "diet" | "sleep" | "substance" | "medical" | "stress" | "social" | "other";
 
   /** PRIMARY: Effects on biological mechanisms */
   mechanismEffects: MechanismEffect[];
@@ -216,6 +216,54 @@ export interface InterventionEffect {
 
   /** How user profile affects this estimate */
   profileAdjustments: string[];
+}
+
+/**
+ * Simulation options
+ */
+export interface SimulationOptions {
+  /** Number of Monte Carlo iterations */
+  nSimulations?: number;
+
+  /** Apply confounding adjustment (default: true) */
+  applyConfounding?: boolean;
+
+  /** Override confounding config (uses category default if not provided) */
+  confoundingOverride?: {
+    alpha: number;
+    beta: number;
+  };
+
+  /** Primary evidence type for confounding adjustment */
+  evidenceType?: "meta-analysis" | "rct" | "cohort" | "case-control" | "review" | "other";
+}
+
+/**
+ * Confounding analysis included in simulation result
+ */
+export interface ConfoundingResult {
+  /** Was confounding adjustment applied? */
+  applied: boolean;
+
+  /** Expected causal fraction (mean of Beta prior) */
+  expectedCausalFraction: number;
+
+  /** 95% CI for causal fraction */
+  causalFractionCI: { low: number; high: number };
+
+  /** E-value for the unadjusted mortality HR */
+  eValue: {
+    point: number;
+    ciLow: number;
+    interpretation: string;
+  };
+
+  /** Comparison of adjusted vs unadjusted estimates */
+  comparison: {
+    unadjustedMedian: number;
+    adjustedMedian: number;
+    reductionPercent: number;
+  };
 }
 
 /**
@@ -249,6 +297,9 @@ export interface QALYSimulationResult {
     qualityQALYs: { median: number; ci95: { low: number; high: number } };
     costQALYs: { median: number; ci95: { low: number; high: number } };
   };
+
+  /** Confounding analysis (if applied) */
+  confounding?: ConfoundingResult;
 
   /** Number of simulations run */
   nSimulations: number;

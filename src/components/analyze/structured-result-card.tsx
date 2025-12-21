@@ -17,6 +17,9 @@ import {
   Beaker,
   Target,
   BarChart3,
+  Zap,
+  Sparkles,
+  Database,
 } from "lucide-react";
 
 interface StructuredResultCardProps {
@@ -45,6 +48,27 @@ function ConfidenceBadge({ level }: { level: "low" | "medium" | "high" }) {
       />
       {level} confidence
     </span>
+  );
+}
+
+function SourceBadge({ source }: { source: StructuredAnalysisResult["source"] }) {
+  if (source.type === "precomputed") {
+    return (
+      <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1">
+        <Zap className="w-3 h-3" />
+        <span>Instant result</span>
+        {source.precomputedName && (
+          <span className="text-emerald-400/70">• {source.precomputedName}</span>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-center gap-1.5 text-xs text-primary bg-primary/10 border border-primary/20 rounded-full px-3 py-1">
+      <Sparkles className="w-3 h-3" />
+      <span>AI-synthesized analysis</span>
+    </div>
   );
 }
 
@@ -123,12 +147,15 @@ export function StructuredResultCard({ result }: StructuredResultCardProps) {
   const [showMechanisms, setShowMechanisms] = useState(false);
   const [showEvidence, setShowEvidence] = useState(false);
 
-  const { summary, simulation, affectedMechanisms, evidence, baseline } = result;
+  const { summary, simulation, affectedMechanisms, evidence, baseline, source } = result;
   const isPositive = summary.totalQALYs.median >= 0;
 
   return (
     <Card className="mesh-gradient-card border-border/50 card-highlight overflow-hidden">
       <CardContent className="p-8 space-y-8">
+        {/* Source indicator */}
+        <SourceBadge source={source} />
+
         {/* Main Impact */}
         <div className="text-center space-y-3">
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">

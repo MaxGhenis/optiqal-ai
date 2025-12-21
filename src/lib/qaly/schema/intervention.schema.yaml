@@ -1,0 +1,245 @@
+# OptiqAL Intervention Schema
+#
+# This YAML-based DSL defines lifestyle interventions with full uncertainty
+# quantification. Designed for:
+# - Human readability (researchers can contribute)
+# - Git versioning (track evidence updates)
+# - Multi-language support (TypeScript web app + Python package)
+# - JSON Schema validation
+
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://optiqal.ai/schemas/intervention.yaml
+
+type: object
+required: [id, name, category, mechanisms, mortality]
+
+properties:
+  id:
+    type: string
+    pattern: "^[a-z][a-z0-9_]*$"
+    description: Unique identifier (snake_case)
+
+  name:
+    type: string
+    description: Human-readable name
+
+  description:
+    type: string
+    description: What this intervention involves
+
+  category:
+    type: string
+    enum: [exercise, diet, sleep, stress, substance, medical, social, other]
+
+  keywords:
+    type: array
+    items: { type: string }
+    description: For matching user queries
+
+  # ============================================
+  # EVIDENCE & CONFOUNDING
+  # ============================================
+
+  evidence:
+    type: object
+    properties:
+      quality:
+        type: string
+        enum: [high, moderate, low, very-low]
+        description: GRADE-style evidence quality
+
+      primary_study_type:
+        type: string
+        enum: [meta-analysis, rct, cohort, case-control, review, expert]
+
+      sources:
+        type: array
+        items:
+          type: object
+          properties:
+            citation: { type: string }
+            year: { type: integer }
+            sample_size: { type: integer }
+            contribution: { type: string }
+
+  confounding:
+    type: object
+    description: Confounding adjustment using Beta prior for causal fraction
+    properties:
+      prior:
+        $ref: "#/$defs/distribution"
+        description: Beta distribution for causal fraction [0,1]
+
+      calibration_sources:
+        type: array
+        items: { type: string }
+        description: Studies used to calibrate the confounding prior
+
+      rationale:
+        type: string
+
+  # ============================================
+  # MECHANISM EFFECTS
+  # ============================================
+
+  mechanisms:
+    type: object
+    description: Effects on biological mechanisms (primary causal pathway)
+    additionalProperties:
+      type: object
+      required: [effect, direction, evidence]
+      properties:
+        effect:
+          $ref: "#/$defs/distribution"
+          description: Effect size (Cohen's d or relative change)
+
+        direction:
+          type: string
+          enum: [increase, decrease]
+
+        units:
+          type: string
+          description: e.g., "mmHg", "% LDL", "SD"
+
+        evidence:
+          type: string
+          enum: [strong, moderate, weak]
+
+        source:
+          type: string
+          description: Key citation for this specific mechanism
+
+  # ============================================
+  # MORTALITY EFFECT
+  # ============================================
+
+  mortality:
+    type: object
+    required: [hazard_ratio]
+    properties:
+      hazard_ratio:
+        $ref: "#/$defs/distribution"
+        description: HR < 1 means reduced mortality
+
+      affected_causes:
+        type: array
+        items: { type: string }
+        description: null = all-cause
+
+      onset_delay:
+        type: number
+        default: 0
+        description: Years before effect begins
+
+      ramp_up:
+        type: number
+        default: 0.5
+        description: Years to reach full effect
+
+      decay_rate:
+        type: number
+        default: 0
+        description: Effect decay per year (0 = permanent)
+
+  # ============================================
+  # QUALITY OF LIFE EFFECT
+  # ============================================
+
+  quality:
+    type: object
+    properties:
+      subjective_wellbeing:
+        $ref: "#/$defs/distribution"
+        description: Direct utility change
+
+      condition_effects:
+        type: array
+        items:
+          type: object
+          properties:
+            condition: { type: string }
+            incidence_rr: { $ref: "#/$defs/distribution" }
+            severity_change: { $ref: "#/$defs/distribution" }
+
+      dimension_effects:
+        type: array
+        items:
+          type: object
+          properties:
+            dimension:
+              type: string
+              enum: [mobility, self_care, usual_activities, pain_discomfort, anxiety_depression]
+            change: { $ref: "#/$defs/distribution" }
+
+  # ============================================
+  # COSTS & TIME
+  # ============================================
+
+  costs:
+    type: object
+    properties:
+      hours_per_week: { $ref: "#/$defs/distribution" }
+      annual_cost_usd: { $ref: "#/$defs/distribution" }
+      activity_disutility: { $ref: "#/$defs/distribution" }
+
+  # ============================================
+  # CAVEATS & PROFILE ADJUSTMENTS
+  # ============================================
+
+  caveats:
+    type: array
+    items: { type: string }
+
+  profile_adjustments:
+    type: array
+    items:
+      type: object
+      properties:
+        condition: { type: string }  # e.g., "age > 65"
+        adjustment: { type: string } # e.g., "reduce HR effect by 20%"
+
+# ============================================
+# DISTRIBUTION DEFINITIONS
+# ============================================
+
+$defs:
+  distribution:
+    oneOf:
+      - type: object
+        required: [type, value]
+        properties:
+          type: { const: point }
+          value: { type: number }
+
+      - type: object
+        required: [type, mean, sd]
+        properties:
+          type: { const: normal }
+          mean: { type: number }
+          sd: { type: number }
+
+      - type: object
+        required: [type, log_mean, log_sd]
+        properties:
+          type: { const: lognormal }
+          log_mean: { type: number }
+          log_sd: { type: number }
+
+      - type: object
+        required: [type, alpha, beta]
+        properties:
+          type: { const: beta }
+          alpha: { type: number }
+          beta: { type: number }
+
+      - type: object
+        required: [type, min, max]
+        properties:
+          type: { const: uniform }
+          min: { type: number }
+          max: { type: number }
+
+      # Squiggle-style shorthand (parsed to above types)
+      - type: string
+        pattern: "^(Normal|LogNormal|Beta|Uniform)\\([^)]+\\)$"
+        description: "Shorthand: Normal(-4, 2) or LogNormal(-0.18, 0.08)"

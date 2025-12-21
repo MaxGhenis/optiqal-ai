@@ -20,6 +20,8 @@ import {
   MECHANISM_CONDITION_LINKS,
   simulateQALYImpact,
   qalyYearsToMinutes,
+  matchIntervention,
+  getPrecomputedEffect,
 } from "@/lib/qaly";
 import { calculateBaselineQALYs } from "@/lib/evidence/baseline";
 
@@ -73,6 +75,14 @@ export interface StructuredAnalysisResult {
   // Original input
   intervention: string;
   profile: UserProfile;
+
+  // Data source
+  source: {
+    type: "precomputed" | "claude";
+    precomputedId?: string;
+    precomputedName?: string;
+    confidence?: number; // 0-1 for precomputed match confidence
+  };
 
   // Baseline projection
   baseline: {
@@ -319,9 +329,107 @@ function getAffectedConditions(mechanisms: MechanismEffect[]): Map<string, strin
 }
 
 /**
- * Main entry point: analyze an intervention with full mechanism decomposition
+ * Analyze using precomputed intervention data (instant, no API call)
  */
-export async function analyzeStructured(
+function analyzePrecomputed(
+  profile: UserProfile,
+  intervention: string,
+  matchId: string,
+  matchConfidence: number
+): StructuredAnalysisResult {
+  const precomputedEffect = getPrecomputedEffect(matchId);
+  if (!precomputedEffect) {
+    throw new Error(`Precomputed effect not found for ${matchId}`);
+  }
+
+  // Get the full intervention data for metadata
+  const match = matchIntervention(intervention);
+  const precomputedIntervention = match?.intervention;
+
+  // 1. Get baseline projection
+  const baseline = calculateBaselineQALYs(profile);
+
+  // 2. Run Monte Carlo simulation with precomputed effect
+  // Use primary study type from sources for confounding adjustment
+  const primaryStudyType = precomputedIntervention?.sources?.[0]?.studyType as
+    | "meta-analysis" | "rct" | "cohort" | "case-control" | "review" | "other"
+    | undefined;
+
+  const simulation = simulateQALYImpact(profile, precomputedEffect, {
+    nSimulations: 10000,
+    applyConfounding: true,
+    evidenceType: primaryStudyType,
+  });
+
+  // 3. Get affected conditions for display
+  const mechanismConditions = getAffectedConditions(precomputedEffect.mechanismEffects);
+
+  // 4. Determine confidence level from evidence quality
+  let confidenceLevel: "high" | "medium" | "low" = "medium";
+  if (precomputedEffect.evidenceQuality === "high") {
+    confidenceLevel = "high";
+  } else if (precomputedEffect.evidenceQuality === "low" || precomputedEffect.evidenceQuality === "very-low") {
+    confidenceLevel = "low";
+  }
+
+  return {
+    intervention,
+    profile,
+
+    source: {
+      type: "precomputed",
+      precomputedId: matchId,
+      precomputedName: precomputedIntervention?.name,
+      confidence: matchConfidence,
+    },
+
+    baseline: {
+      remainingLifeExpectancy: baseline.remainingLifeExpectancy,
+      remainingQALYs: baseline.remainingQALYs,
+    },
+
+    mechanismEffects: precomputedEffect.mechanismEffects,
+
+    simulation,
+
+    summary: {
+      totalQALYs: {
+        median: simulation.median,
+        ci95Low: simulation.ci95.low,
+        ci95High: simulation.ci95.high,
+      },
+      totalMinutes: {
+        median: qalyYearsToMinutes(simulation.median),
+        ci95Low: qalyYearsToMinutes(simulation.ci95.low),
+        ci95High: qalyYearsToMinutes(simulation.ci95.high),
+      },
+      probPositive: simulation.probPositive,
+      confidenceLevel,
+    },
+
+    evidence: {
+      quality: precomputedEffect.evidenceQuality as "high" | "moderate" | "low" | "very-low",
+      keyStudies: precomputedEffect.keySources?.map((s) => ({
+        citation: s.citation,
+        studyType: s.studyType,
+        relevance: s.contribution || "Key evidence source",
+      })) || [],
+      caveats: precomputedEffect.caveats || [],
+    },
+
+    affectedMechanisms: precomputedEffect.mechanismEffects.map((m) => ({
+      mechanism: m.mechanism,
+      direction: m.direction,
+      evidenceQuality: m.evidenceQuality,
+      affectedConditions: mechanismConditions.get(m.mechanism) || [],
+    })),
+  };
+}
+
+/**
+ * Analyze using Claude API (more flexible, but costs money and takes time)
+ */
+async function analyzeWithClaude(
   profile: UserProfile,
   intervention: string,
   apiKey: string
@@ -335,8 +443,19 @@ export async function analyzeStructured(
   // 3. Convert to our types
   const interventionEffect = convertToInterventionEffect(claudeResponse);
 
-  // 4. Run Monte Carlo simulation
-  const simulation = simulateQALYImpact(profile, interventionEffect, 10000);
+  // 4. Run Monte Carlo simulation with confounding adjustment
+  // For Claude-generated estimates, use the evidence quality to infer study type
+  const evidenceType = claudeResponse.overallEvidenceQuality === "high"
+    ? "meta-analysis"
+    : claudeResponse.overallEvidenceQuality === "moderate"
+    ? "cohort"
+    : "other";
+
+  const simulation = simulateQALYImpact(profile, interventionEffect, {
+    nSimulations: 10000,
+    applyConfounding: true,
+    evidenceType: evidenceType as "meta-analysis" | "cohort" | "other",
+  });
 
   // 5. Get affected conditions for display
   const mechanismConditions = getAffectedConditions(interventionEffect.mechanismEffects);
@@ -349,10 +468,13 @@ export async function analyzeStructured(
     confidenceLevel = "low";
   }
 
-  // 7. Build result
   return {
     intervention,
     profile,
+
+    source: {
+      type: "claude",
+    },
 
     baseline: {
       remainingLifeExpectancy: baseline.remainingLifeExpectancy,
@@ -395,6 +517,47 @@ export async function analyzeStructured(
       affectedConditions: mechanismConditions.get(m.mechanism) || [],
     })),
   };
+}
+
+/** Confidence threshold for using precomputed data */
+const PRECOMPUTED_CONFIDENCE_THRESHOLD = 0.5;
+
+/**
+ * Main entry point: analyze an intervention with full mechanism decomposition
+ *
+ * Tries precomputed interventions first for instant results,
+ * falls back to Claude for novel queries.
+ */
+export async function analyzeStructured(
+  profile: UserProfile,
+  intervention: string,
+  apiKey: string,
+  options?: { forceSource?: "precomputed" | "claude" }
+): Promise<StructuredAnalysisResult> {
+  // Option to force a specific source (useful for testing)
+  if (options?.forceSource === "claude") {
+    return analyzeWithClaude(profile, intervention, apiKey);
+  }
+
+  // Try to match against precomputed interventions
+  const match = matchIntervention(intervention);
+
+  // Use precomputed if:
+  // 1. Match found with sufficient confidence
+  // 2. Not forcing Claude
+  if (match && match.confidence >= PRECOMPUTED_CONFIDENCE_THRESHOLD) {
+    console.log(`[Optiqal] Using precomputed data for "${match.intervention.name}" (confidence: ${(match.confidence * 100).toFixed(0)}%)`);
+    return analyzePrecomputed(profile, intervention, match.id, match.confidence);
+  }
+
+  // Fall back to Claude for novel queries
+  if (match) {
+    console.log(`[Optiqal] Low confidence match (${(match.confidence * 100).toFixed(0)}%), using Claude instead`);
+  } else {
+    console.log(`[Optiqal] No precomputed match found, using Claude`);
+  }
+
+  return analyzeWithClaude(profile, intervention, apiKey);
 }
 
 /**

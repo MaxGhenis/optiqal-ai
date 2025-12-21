@@ -3,6 +3,11 @@
  *
  * Given structured intervention effects and a user profile,
  * simulates QALY outcomes with proper uncertainty propagation.
+ *
+ * Includes confounding adjustment based on whatnut methodology:
+ * - Category-specific Beta priors for causal fraction
+ * - Evidence type adjustments (RCT vs cohort)
+ * - E-value calculation for robustness assessment
  */
 
 import type {
@@ -11,6 +16,8 @@ import type {
   MortalityEffect,
   QualityEffect,
   QALYSimulationResult,
+  SimulationOptions,
+  ConfoundingResult,
 } from "./types";
 import type { UserProfile } from "@/types";
 import {
@@ -18,6 +25,15 @@ import {
   getRemainingLifeExpectancy,
   getAgeQualityWeight,
 } from "@/lib/evidence/baseline";
+import {
+  getConfoundingConfig,
+  sampleCausalFraction,
+  getExpectedCausalFraction,
+  getCausalFractionCI,
+  adjustHazardRatio,
+  calculateEValue,
+  type ConfoundingConfig,
+} from "./confounding";
 
 /**
  * Sample from a distribution
@@ -146,16 +162,24 @@ function getQualityEffectAtYear(
 
 /**
  * Run single simulation to get QALY impact
+ *
+ * @param causalFraction - If provided, applies confounding adjustment to mortality HR
  */
 function runSingleSimulation(
   profile: UserProfile,
   effect: InterventionEffect,
-  baselineLE: number
+  baselineLE: number,
+  causalFraction?: number
 ): number {
   // Sample effect parameters
-  const sampledMortalityHR = effect.mortality
+  let sampledMortalityHR = effect.mortality
     ? sampleDistribution(effect.mortality.hazardRatio)
     : 1.0;
+
+  // Apply confounding adjustment if causal fraction provided
+  if (causalFraction !== undefined && sampledMortalityHR !== 1.0) {
+    sampledMortalityHR = adjustHazardRatio(sampledMortalityHR, causalFraction);
+  }
 
   // For quality, we sum up subjective wellbeing and direct dimension effects
   let sampledQualityChange = 0;
@@ -225,21 +249,59 @@ function runSingleSimulation(
 }
 
 /**
- * Run Monte Carlo simulation
+ * Run Monte Carlo simulation with optional confounding adjustment
+ *
+ * By default, applies category-specific confounding adjustment based on
+ * intervention type and evidence quality. This adjusts mortality hazard
+ * ratios to account for healthy user bias in observational studies.
  */
 export function simulateQALYImpact(
   profile: UserProfile,
   effect: InterventionEffect,
-  nSimulations: number = 10000
+  options: SimulationOptions = {}
 ): QALYSimulationResult {
+  const {
+    nSimulations = 10000,
+    applyConfounding = true,
+    confoundingOverride,
+    evidenceType,
+  } = options;
+
   const baselineProjection = calculateBaselineQALYs(profile);
   const baselineLE = baselineProjection.remainingLifeExpectancy;
 
-  // Run simulations
-  const results: number[] = [];
+  // Set up confounding config
+  let confoundingConfig: ConfoundingConfig | null = null;
+  if (applyConfounding) {
+    if (confoundingOverride) {
+      confoundingConfig = {
+        causalFraction: confoundingOverride,
+        rationale: "User-provided override",
+        calibrationSources: [],
+      };
+    } else {
+      confoundingConfig = getConfoundingConfig(effect.category, evidenceType);
+    }
+  }
 
+  // Run adjusted simulations
+  const results: number[] = [];
   for (let i = 0; i < nSimulations; i++) {
-    results.push(runSingleSimulation(profile, effect, baselineLE));
+    // Sample causal fraction for each simulation (propagates uncertainty)
+    const causalFraction = confoundingConfig
+      ? sampleCausalFraction(confoundingConfig)
+      : undefined;
+    results.push(runSingleSimulation(profile, effect, baselineLE, causalFraction));
+  }
+
+  // Also run unadjusted simulations for comparison (smaller sample for speed)
+  const unadjustedResults: number[] = [];
+  if (confoundingConfig) {
+    const unadjustedN = Math.min(1000, nSimulations);
+    for (let i = 0; i < unadjustedN; i++) {
+      unadjustedResults.push(runSingleSimulation(profile, effect, baselineLE));
+    }
+    unadjustedResults.sort((a, b) => a - b);
   }
 
   // Sort for percentile calculations
@@ -288,6 +350,43 @@ export function simulateQALYImpact(
     },
   };
 
+  // Build confounding result if applicable
+  let confounding: ConfoundingResult | undefined;
+  if (confoundingConfig && effect.mortality) {
+    // Get the expected (median) HR from the mortality distribution
+    const expectedHR = getDistributionMean(effect.mortality.hazardRatio);
+    const { eValue, interpretation } = calculateEValue(expectedHR);
+
+    // Calculate E-value for CI bound (approximate from lognormal)
+    const hrSD = getDistributionSD(effect.mortality.hazardRatio);
+    const ciHighHR = expectedHR * Math.exp(1.96 * Math.log(1 + hrSD / expectedHR));
+    const { eValue: eValueCI } = calculateEValue(ciHighHR);
+
+    const unadjustedMedian = unadjustedResults.length > 0
+      ? unadjustedResults[Math.floor(unadjustedResults.length / 2)]
+      : median;
+
+    const reductionPercent = unadjustedMedian !== 0
+      ? ((unadjustedMedian - median) / unadjustedMedian) * 100
+      : 0;
+
+    confounding = {
+      applied: true,
+      expectedCausalFraction: getExpectedCausalFraction(confoundingConfig),
+      causalFractionCI: getCausalFractionCI(confoundingConfig),
+      eValue: {
+        point: eValue,
+        ciLow: eValueCI,
+        interpretation,
+      },
+      comparison: {
+        unadjustedMedian,
+        adjustedMedian: median,
+        reductionPercent,
+      },
+    };
+  }
+
   return {
     median,
     mean,
@@ -297,8 +396,52 @@ export function simulateQALYImpact(
     probMoreThanOneYear,
     percentiles,
     breakdown,
+    confounding,
     nSimulations,
   };
+}
+
+/**
+ * Get mean/expected value of a distribution (local helper)
+ */
+function getDistributionMean(dist: Distribution): number {
+  switch (dist.type) {
+    case "point":
+      return dist.value;
+    case "normal":
+      return dist.mean;
+    case "lognormal":
+      return Math.exp(dist.logMean + (dist.logSd * dist.logSd) / 2);
+    case "beta":
+      return dist.alpha / (dist.alpha + dist.beta);
+    case "uniform":
+      return (dist.min + dist.max) / 2;
+  }
+}
+
+/**
+ * Get standard deviation of a distribution (local helper)
+ */
+function getDistributionSD(dist: Distribution): number {
+  switch (dist.type) {
+    case "point":
+      return 0;
+    case "normal":
+      return dist.sd;
+    case "lognormal": {
+      const variance =
+        (Math.exp(dist.logSd * dist.logSd) - 1) *
+        Math.exp(2 * dist.logMean + dist.logSd * dist.logSd);
+      return Math.sqrt(variance);
+    }
+    case "beta": {
+      const a = dist.alpha;
+      const b = dist.beta;
+      return Math.sqrt((a * b) / ((a + b) ** 2 * (a + b + 1)));
+    }
+    case "uniform":
+      return (dist.max - dist.min) / Math.sqrt(12);
+  }
 }
 
 /**
@@ -306,4 +449,263 @@ export function simulateQALYImpact(
  */
 export function qalyYearsToMinutes(years: number): number {
   return years * 525600; // 365.25 * 24 * 60
+}
+
+// ============================================
+// RIGOROUS LIFECYCLE SIMULATION
+// ============================================
+
+import {
+  calculateLifecycleQALYs,
+  STANDARD_PATHWAY_HRS,
+  type PathwayHRs,
+  type LifecycleResult,
+} from "./lifecycle";
+
+/**
+ * Extended simulation result with lifecycle details
+ */
+export interface RigorousSimulationResult extends QALYSimulationResult {
+  /** Lifecycle model details */
+  lifecycle: {
+    /** Pathway-specific QALY contributions */
+    pathwayContributions: {
+      cvd: { median: number; ci95: { low: number; high: number } };
+      cancer: { median: number; ci95: { low: number; high: number } };
+      other: { median: number; ci95: { low: number; high: number } };
+    };
+
+    /** Life years gained (undiscounted) */
+    lifeYearsGained: { median: number; ci95: { low: number; high: number } };
+
+    /** Discount rate used */
+    discountRate: number;
+
+    /** Whether lifecycle model was used */
+    used: boolean;
+  };
+}
+
+/**
+ * Options for rigorous simulation
+ */
+export interface RigorousSimulationOptions extends SimulationOptions {
+  /** Use rigorous lifecycle model (default: true) */
+  useLifecycleModel?: boolean;
+
+  /** Discount rate (default: 0.03 = 3%) */
+  discountRate?: number;
+
+  /** Pathway-specific HRs (if not provided, derived from overall HR) */
+  pathwayHRs?: PathwayHRs;
+}
+
+/**
+ * Run rigorous Monte Carlo simulation with lifecycle model
+ *
+ * This version uses:
+ * - CDC life tables for survival curves
+ * - Pathway decomposition (CVD, cancer, other)
+ * - Age-varying cause fractions
+ * - Proper discounting
+ * - Confounding adjustment
+ */
+export function simulateQALYImpactRigorous(
+  profile: UserProfile,
+  effect: InterventionEffect,
+  options: RigorousSimulationOptions = {}
+): RigorousSimulationResult {
+  const {
+    nSimulations = 10000,
+    applyConfounding = true,
+    confoundingOverride,
+    evidenceType,
+    useLifecycleModel = true,
+    discountRate = 0.03,
+    pathwayHRs: customPathwayHRs,
+  } = options;
+
+  // If not using lifecycle model, fall back to basic simulation
+  if (!useLifecycleModel) {
+    const basicResult = simulateQALYImpact(profile, effect, options);
+    return {
+      ...basicResult,
+      lifecycle: {
+        pathwayContributions: {
+          cvd: { median: 0, ci95: { low: 0, high: 0 } },
+          cancer: { median: 0, ci95: { low: 0, high: 0 } },
+          other: { median: 0, ci95: { low: 0, high: 0 } },
+        },
+        lifeYearsGained: { median: 0, ci95: { low: 0, high: 0 } },
+        discountRate,
+        used: false,
+      },
+    };
+  }
+
+  // Set up confounding config
+  let confoundingConfig: ConfoundingConfig | null = null;
+  if (applyConfounding) {
+    if (confoundingOverride) {
+      confoundingConfig = {
+        causalFraction: confoundingOverride,
+        rationale: "User-provided override",
+        calibrationSources: [],
+      };
+    } else {
+      confoundingConfig = getConfoundingConfig(effect.category, evidenceType);
+    }
+  }
+
+  // Get base mortality HR from effect
+  const baseHR = effect.mortality
+    ? getDistributionMean(effect.mortality.hazardRatio)
+    : 1.0;
+
+  // Derive pathway HRs from overall HR if not provided
+  // Using standard pathway weights from Aune et al.
+  const basePathwayHRs: PathwayHRs = customPathwayHRs || {
+    cvd: Math.exp(Math.log(baseHR) * 1.3), // CVD gets stronger effect
+    cancer: Math.exp(Math.log(baseHR) * 0.8),
+    other: Math.exp(Math.log(baseHR) * 0.6),
+  };
+
+  // Run Monte Carlo simulations
+  const results: number[] = [];
+  const cvdContributions: number[] = [];
+  const cancerContributions: number[] = [];
+  const otherContributions: number[] = [];
+  const lifeYearsResults: number[] = [];
+
+  const sex = profile.sex === "female" ? "female" : "male";
+
+  for (let i = 0; i < nSimulations; i++) {
+    // Sample causal fraction
+    const causalFraction = confoundingConfig
+      ? sampleCausalFraction(confoundingConfig)
+      : 1.0;
+
+    // Sample HR uncertainty
+    const hrMultiplier = effect.mortality
+      ? sampleDistribution(effect.mortality.hazardRatio) / baseHR
+      : 1.0;
+
+    // Adjust pathway HRs by causal fraction and sampled uncertainty
+    const adjustedPathwayHRs: PathwayHRs = {
+      cvd: adjustHazardRatio(basePathwayHRs.cvd * hrMultiplier, causalFraction),
+      cancer: adjustHazardRatio(basePathwayHRs.cancer * hrMultiplier, causalFraction),
+      other: adjustHazardRatio(basePathwayHRs.other * hrMultiplier, causalFraction),
+    };
+
+    // Run lifecycle calculation
+    const lifecycleResult = calculateLifecycleQALYs({
+      startAge: profile.age,
+      sex,
+      pathwayHRs: adjustedPathwayHRs,
+      discountRate,
+    });
+
+    results.push(lifecycleResult.qalyGain);
+    cvdContributions.push(lifecycleResult.pathwayContributions.cvd);
+    cancerContributions.push(lifecycleResult.pathwayContributions.cancer);
+    otherContributions.push(lifecycleResult.pathwayContributions.other);
+    lifeYearsResults.push(lifecycleResult.lifeYearsGained);
+  }
+
+  // Sort for percentile calculations
+  results.sort((a, b) => a - b);
+  cvdContributions.sort((a, b) => a - b);
+  cancerContributions.sort((a, b) => a - b);
+  otherContributions.sort((a, b) => a - b);
+  lifeYearsResults.sort((a, b) => a - b);
+
+  // Calculate statistics
+  const mean = results.reduce((a, b) => a + b, 0) / nSimulations;
+  const median = results[Math.floor(nSimulations / 2)];
+
+  const ci95Low = results[Math.floor(nSimulations * 0.025)];
+  const ci95High = results[Math.floor(nSimulations * 0.975)];
+
+  const ci50Low = results[Math.floor(nSimulations * 0.25)];
+  const ci50High = results[Math.floor(nSimulations * 0.75)];
+
+  const probPositive = results.filter((r) => r > 0).length / nSimulations;
+  const probMoreThanOneYear = results.filter((r) => r > 1).length / nSimulations;
+
+  const percentiles = [1, 5, 10, 25, 50, 75, 90, 95, 99].map((p) => ({
+    p,
+    value: results[Math.floor((nSimulations * p) / 100)],
+  }));
+
+  // Build confounding result
+  let confounding: ConfoundingResult | undefined;
+  if (confoundingConfig && effect.mortality) {
+    const expectedHR = getDistributionMean(effect.mortality.hazardRatio);
+    const { eValue, interpretation } = calculateEValue(expectedHR);
+    const hrSD = getDistributionSD(effect.mortality.hazardRatio);
+    const ciHighHR = expectedHR * Math.exp(1.96 * Math.log(1 + hrSD / expectedHR));
+    const { eValue: eValueCI } = calculateEValue(ciHighHR);
+
+    confounding = {
+      applied: true,
+      expectedCausalFraction: getExpectedCausalFraction(confoundingConfig),
+      causalFractionCI: getCausalFractionCI(confoundingConfig),
+      eValue: {
+        point: eValue,
+        ciLow: eValueCI,
+        interpretation,
+      },
+      comparison: {
+        unadjustedMedian: median / getExpectedCausalFraction(confoundingConfig),
+        adjustedMedian: median,
+        reductionPercent:
+          (1 - getExpectedCausalFraction(confoundingConfig)) * 100,
+      },
+    };
+  }
+
+  // Helper to get CI from sorted array
+  const getCI = (arr: number[]) => ({
+    median: arr[Math.floor(arr.length / 2)],
+    ci95: {
+      low: arr[Math.floor(arr.length * 0.025)],
+      high: arr[Math.floor(arr.length * 0.975)],
+    },
+  });
+
+  return {
+    median,
+    mean,
+    ci95: { low: ci95Low, high: ci95High },
+    ci50: { low: ci50Low, high: ci50High },
+    probPositive,
+    probMoreThanOneYear,
+    percentiles,
+    breakdown: {
+      mortalityQALYs: {
+        median: median,
+        ci95: { low: ci95Low, high: ci95High },
+      },
+      qualityQALYs: {
+        median: 0,
+        ci95: { low: 0, high: 0 },
+      },
+      costQALYs: {
+        median: 0,
+        ci95: { low: 0, high: 0 },
+      },
+    },
+    confounding,
+    nSimulations,
+    lifecycle: {
+      pathwayContributions: {
+        cvd: getCI(cvdContributions),
+        cancer: getCI(cancerContributions),
+        other: getCI(otherContributions),
+      },
+      lifeYearsGained: getCI(lifeYearsResults),
+      discountRate,
+      used: true,
+    },
+  };
 }
