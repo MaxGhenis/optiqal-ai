@@ -295,4 +295,28 @@ describe("simulateQALYImpactRigorous", () => {
       result.lifecycle.pathwayContributions.other.median
     );
   });
+
+  it("should widen CI for low evidence quality (not change point estimate)", () => {
+    // High quality evidence
+    const highQuality = simulateQALYImpactRigorous(mockProfile, walkingIntervention, {
+      nSimulations: 5000,
+      evidenceQuality: "high",
+    });
+
+    // Low quality evidence - should have wider CI, similar median
+    const lowQuality = simulateQALYImpactRigorous(mockProfile, walkingIntervention, {
+      nSimulations: 5000,
+      evidenceQuality: "low",
+    });
+
+    // Medians should be similar (within 50%)
+    const medianRatio = lowQuality.median / highQuality.median;
+    expect(medianRatio).toBeGreaterThan(0.5);
+    expect(medianRatio).toBeLessThan(1.5);
+
+    // CI width should be larger for low quality
+    const highCIWidth = highQuality.ci95.high - highQuality.ci95.low;
+    const lowCIWidth = lowQuality.ci95.high - lowQuality.ci95.low;
+    expect(lowCIWidth).toBeGreaterThan(highCIWidth * 1.2); // At least 20% wider
+  });
 });

@@ -991,6 +991,253 @@ export const PRECOMPUTED_INTERVENTIONS: Record<string, PrecomputedIntervention> 
       },
     ],
   },
+
+  // ==================== FOOD/SUPPLEMENTS ====================
+  daily_nut_consumption: {
+    id: "daily_nut_consumption",
+    name: "Eat a handful of nuts daily",
+    description: "One ounce (28g) of mixed nuts per day",
+    keywords: [
+      "nuts",
+      "nut",
+      "almonds",
+      "walnuts",
+      "cashews",
+      "pistachios",
+      "peanuts",
+      "handful of nuts",
+      "daily nuts",
+      "tree nuts",
+    ],
+    category: "diet",
+    effect: {
+      description: "Daily nut consumption (1 oz/28g)",
+      category: "diet",
+      mechanismEffects: [
+        mech("lipid_profile", "decrease", normal(-8, 4), "strong", "% LDL", "Aune 2016"),
+        mech("systemic_inflammation", "decrease", normal(-10, 5), "moderate", "% CRP"),
+        mech("blood_pressure", "decrease", normal(-2, 1.5), "moderate", "mmHg"),
+        mech("insulin_sensitivity", "increase", normal(10, 5), "moderate", "%"),
+        mech("adiposity", "decrease", normal(-0.5, 0.3), "weak", "kg"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.22, 0.06), // HR ~0.80, from Aune meta-analysis
+        onsetDelay: 0,
+        rampUpPeriod: 0.5,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: null,
+      evidenceQuality: "high",
+      keySources: [],
+      caveats: [
+        "Observational evidence primarily; PREDIMED provides RCT support",
+        "Healthy user bias possible but RCT-calibrated prior used",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Aune et al., 2016. Nut consumption and mortality",
+        studyType: "meta-analysis",
+        year: 2016,
+        sampleSize: 819000,
+      },
+      {
+        citation: "PREDIMED, 2013. Mediterranean diet with nuts",
+        studyType: "rct",
+        year: 2013,
+        sampleSize: 7447,
+      },
+    ],
+  },
+
+  walnut_consumption: {
+    id: "walnut_consumption",
+    name: "Eat walnuts regularly",
+    description: "Walnuts 3-4 times per week or daily",
+    keywords: [
+      "walnuts",
+      "walnut",
+      "omega-3 nuts",
+      "brain nuts",
+    ],
+    category: "diet",
+    effect: {
+      description: "Regular walnut consumption",
+      category: "diet",
+      mechanismEffects: [
+        mech("lipid_profile", "decrease", normal(-10, 5), "strong", "% LDL"),
+        mech("systemic_inflammation", "decrease", normal(-12, 6), "moderate", "% CRP"),
+        mech("blood_pressure", "decrease", normal(-3, 2), "moderate", "mmHg"),
+        mech("neurotransmitter_balance", "increase", normal(0.15, 0.1), "weak", "SD"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.24, 0.08), // HR ~0.78
+        onsetDelay: 0,
+        rampUpPeriod: 0.5,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: null,
+      evidenceQuality: "moderate",
+      keySources: [],
+      caveats: ["Walnut-specific evidence sparser than general nut meta-analyses"],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Guasch-Ferré et al., 2017. Frequency of nut consumption and mortality",
+        studyType: "cohort",
+        year: 2017,
+      },
+    ],
+  },
+
+  fish_twice_weekly: {
+    id: "fish_twice_weekly",
+    name: "Eat fish twice per week",
+    description: "Fatty fish (salmon, mackerel, sardines) 2x weekly",
+    keywords: [
+      "fish",
+      "salmon",
+      "mackerel",
+      "sardines",
+      "omega-3",
+      "fatty fish",
+      "seafood",
+      "fish oil",
+    ],
+    category: "diet",
+    effect: {
+      description: "Fatty fish 2x per week",
+      category: "diet",
+      mechanismEffects: [
+        mech("lipid_profile", "decrease", normal(-5, 3), "strong", "% triglycerides"),
+        mech("systemic_inflammation", "decrease", normal(-8, 4), "moderate", "% CRP"),
+        mech("blood_pressure", "decrease", normal(-2, 1.5), "moderate", "mmHg"),
+        mech("cardiac_output", "increase", normal(3, 2), "moderate", "%"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.12, 0.05), // HR ~0.89
+        onsetDelay: 0,
+        rampUpPeriod: 0.5,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: null,
+      evidenceQuality: "high",
+      keySources: [],
+      caveats: [
+        "Mercury concerns for some fish types",
+        "Benefits mainly from replacing red meat",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Zheng et al., 2012. Fish consumption and mortality",
+        studyType: "meta-analysis",
+        year: 2012,
+        sampleSize: 672000,
+      },
+    ],
+  },
+
+  berry_consumption: {
+    id: "berry_consumption",
+    name: "Eat berries daily",
+    description: "Blueberries, strawberries, or mixed berries daily",
+    keywords: [
+      "berries",
+      "blueberries",
+      "strawberries",
+      "raspberries",
+      "blackberries",
+      "antioxidants",
+      "polyphenols",
+    ],
+    category: "diet",
+    effect: {
+      description: "Daily berry consumption",
+      category: "diet",
+      mechanismEffects: [
+        mech("systemic_inflammation", "decrease", normal(-10, 6), "moderate", "% CRP"),
+        mech("blood_pressure", "decrease", normal(-3, 2), "moderate", "mmHg"),
+        mech("insulin_sensitivity", "increase", normal(8, 5), "weak", "%"),
+        mech("neurotransmitter_balance", "increase", normal(0.1, 0.08), "weak", "SD"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.08, 0.06), // HR ~0.92
+        onsetDelay: 0,
+        rampUpPeriod: 0.5,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: null,
+      evidenceQuality: "moderate",
+      keySources: [],
+      caveats: [
+        "Evidence primarily from cohort studies",
+        "Specific berry types may have different effects",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Aune et al., 2017. Fruit and vegetable intake and mortality",
+        studyType: "meta-analysis",
+        year: 2017,
+      },
+    ],
+  },
+
+  olive_oil_daily: {
+    id: "olive_oil_daily",
+    name: "Use olive oil as primary fat",
+    description: "Extra virgin olive oil as main cooking/dressing fat",
+    keywords: [
+      "olive oil",
+      "evoo",
+      "extra virgin",
+      "mediterranean fat",
+    ],
+    category: "diet",
+    effect: {
+      description: "Olive oil as primary fat source",
+      category: "diet",
+      mechanismEffects: [
+        mech("lipid_profile", "decrease", normal(-6, 3), "strong", "% LDL"),
+        mech("systemic_inflammation", "decrease", normal(-12, 6), "moderate", "% CRP"),
+        mech("blood_pressure", "decrease", normal(-3, 2), "moderate", "mmHg"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.15, 0.06), // HR ~0.86
+        onsetDelay: 0,
+        rampUpPeriod: 0.5,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: null,
+      evidenceQuality: "high",
+      keySources: [],
+      caveats: ["PREDIMED provides strong RCT evidence for CVD outcomes"],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "PREDIMED, 2018. Olive oil and cardiovascular events",
+        studyType: "rct",
+        year: 2018,
+        sampleSize: 7447,
+      },
+      {
+        citation: "Guasch-Ferré et al., 2022. Olive oil consumption and mortality",
+        studyType: "cohort",
+        year: 2022,
+      },
+    ],
+  },
 };
 
 /**

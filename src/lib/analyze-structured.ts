@@ -566,6 +566,176 @@ export async function analyzeStructured(
 }
 
 /**
+ * Result for comparing two interventions (A vs B)
+ */
+export interface ComparisonAnalysisResult {
+  // The original query
+  query: string;
+
+  // Both interventions analyzed
+  interventionA: {
+    name: string;
+    result: StructuredAnalysisResult;
+  };
+  interventionB: {
+    name: string;
+    result: StructuredAnalysisResult;
+  };
+
+  // Comparison summary
+  comparison: {
+    // Which is better (or "similar" if difference < threshold)
+    winner: "A" | "B" | "similar";
+    // Absolute difference in median QALYs
+    differenceQALYs: number;
+    // Difference in minutes
+    differenceMinutes: number;
+    // Is the difference practically significant? (> 0.1 QALYs)
+    practicallySignificant: boolean;
+    // Key insight for user
+    insight: string;
+  };
+
+  // Whether both interventions are beneficial
+  bothBeneficial: boolean;
+}
+
+/**
+ * Patterns that indicate a comparison query
+ */
+const COMPARISON_PATTERNS = [
+  /^(.+?)\s+(?:vs\.?|versus|or|compared to|against)\s+(.+?)$/i,
+  /^(?:should i (?:do|eat|take|use|try))\s+(.+?)\s+(?:or|vs\.?)\s+(.+?)\??$/i,
+  /^(.+?)\s+(?:better than|worse than)\s+(.+?)$/i,
+  /^(?:which is better[,:]?)\s*(.+?)\s+(?:or|vs\.?)\s+(.+?)\??$/i,
+  /^(?:compare)\s+(.+?)\s+(?:to|with|and|vs\.?)\s+(.+?)$/i,
+];
+
+/**
+ * Check if a query is asking for a comparison
+ */
+export function isComparisonQuery(query: string): boolean {
+  return COMPARISON_PATTERNS.some((pattern) => pattern.test(query.trim()));
+}
+
+/**
+ * Parse comparison query into two interventions
+ */
+export function parseComparisonQuery(query: string): { a: string; b: string } | null {
+  const trimmed = query.trim();
+
+  for (const pattern of COMPARISON_PATTERNS) {
+    const match = trimmed.match(pattern);
+    if (match) {
+      return {
+        a: match[1].trim(),
+        b: match[2].trim(),
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Generate insight message for comparison
+ */
+function generateComparisonInsight(
+  aName: string,
+  bName: string,
+  aMedian: number,
+  bMedian: number,
+  bothBeneficial: boolean,
+  practicallySignificant: boolean
+): string {
+  const diffMinutes = Math.abs(qalyYearsToMinutes(aMedian) - qalyYearsToMinutes(bMedian));
+  const diffDays = diffMinutes / (24 * 60);
+
+  if (!bothBeneficial) {
+    if (aMedian > 0 && bMedian <= 0) {
+      return `${aName} is beneficial while ${bName} appears neutral or harmful.`;
+    } else if (bMedian > 0 && aMedian <= 0) {
+      return `${bName} is beneficial while ${aName} appears neutral or harmful.`;
+    } else {
+      return `Neither intervention shows clear benefit in this analysis.`;
+    }
+  }
+
+  if (!practicallySignificant) {
+    return `Both are beneficial with similar effects (~${diffDays.toFixed(0)} days difference). ` +
+      `Choose based on preference and what you'll actually stick with - consistency matters more than the marginal difference.`;
+  }
+
+  const better = aMedian > bMedian ? aName : bName;
+  const worse = aMedian > bMedian ? bName : aName;
+  return `${better} shows a larger benefit (~${diffDays.toFixed(0)} days more), ` +
+    `but both are worthwhile. If you prefer ${worse}, it's still a good choice.`;
+}
+
+/**
+ * Compare two interventions (A vs B)
+ *
+ * Useful when user asks "X vs Y" or "should I do X or Y"
+ */
+export async function analyzeComparison(
+  profile: UserProfile,
+  query: string,
+  apiKey: string
+): Promise<ComparisonAnalysisResult> {
+  const parsed = parseComparisonQuery(query);
+  if (!parsed) {
+    throw new Error(`Could not parse comparison query: "${query}"`);
+  }
+
+  // Analyze both interventions in parallel
+  const [resultA, resultB] = await Promise.all([
+    analyzeStructured(profile, parsed.a, apiKey),
+    analyzeStructured(profile, parsed.b, apiKey),
+  ]);
+
+  const medianA = resultA.summary.totalQALYs.median;
+  const medianB = resultB.summary.totalQALYs.median;
+  const differenceQALYs = medianA - medianB;
+  const differenceMinutes = qalyYearsToMinutes(Math.abs(differenceQALYs));
+
+  // Practical significance threshold: 0.05 QALYs (~26 days)
+  const PRACTICAL_THRESHOLD = 0.05;
+  const practicallySignificant = Math.abs(differenceQALYs) > PRACTICAL_THRESHOLD;
+
+  const bothBeneficial = medianA > 0 && medianB > 0;
+
+  let winner: "A" | "B" | "similar";
+  if (!practicallySignificant) {
+    winner = "similar";
+  } else {
+    winner = differenceQALYs > 0 ? "A" : "B";
+  }
+
+  const insight = generateComparisonInsight(
+    parsed.a,
+    parsed.b,
+    medianA,
+    medianB,
+    bothBeneficial,
+    practicallySignificant
+  );
+
+  return {
+    query,
+    interventionA: { name: parsed.a, result: resultA },
+    interventionB: { name: parsed.b, result: resultB },
+    comparison: {
+      winner,
+      differenceQALYs: Math.abs(differenceQALYs),
+      differenceMinutes,
+      practicallySignificant,
+      insight,
+    },
+    bothBeneficial,
+  };
+}
+
+/**
  * Format QALY years for display
  */
 export function formatQALYs(years: number): string {

@@ -125,6 +125,108 @@ function MechanismBadge({
   );
 }
 
+function ConfoundingSection({
+  confounding,
+}: {
+  confounding: NonNullable<StructuredAnalysisResult["simulation"]["confounding"]>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  const causalPct = Math.round(confounding.expectedCausalFraction * 100);
+  const ciLow = Math.round(confounding.causalFractionCI.low * 100);
+  const ciHigh = Math.round(confounding.causalFractionCI.high * 100);
+
+  return (
+    <div className="space-y-3">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between text-foreground bg-amber-500/10 hover:bg-amber-500/20 transition-colors rounded-xl px-5 py-4 border border-amber-500/20"
+      >
+        <span className="flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-amber-400" />
+          <span className="text-sm font-medium">
+            Confounding adjustment applied
+          </span>
+          <span className="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-400">
+            ~{causalPct}% causal
+          </span>
+        </span>
+        {expanded ? (
+          <ChevronUp className="w-4 h-4 text-amber-400" />
+        ) : (
+          <ChevronDown className="w-4 h-4 text-amber-400" />
+        )}
+      </button>
+
+      {expanded && (
+        <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-5 space-y-4">
+          {/* Causal fraction */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-foreground">
+                Estimated causal fraction
+              </span>
+              <span className="text-lg font-semibold text-amber-400">
+                {causalPct}%
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Of the observed association, ~{causalPct}% is estimated to be causal
+              (95% CI: {ciLow}–{ciHigh}%). The rest may be due to confounding.
+            </p>
+            <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-amber-500/70 to-amber-400/70 rounded-full"
+                style={{ width: `${causalPct}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Comparison */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-muted/20 rounded-lg p-3">
+              <div className="text-xs text-muted-foreground mb-1">
+                Unadjusted estimate
+              </div>
+              <div className="text-sm font-medium line-through opacity-60">
+                {formatQALYs(confounding.comparison.unadjustedMedian)}
+              </div>
+            </div>
+            <div className="bg-amber-500/10 rounded-lg p-3 border border-amber-500/20">
+              <div className="text-xs text-amber-400 mb-1">
+                After confounding adjustment
+              </div>
+              <div className="text-sm font-medium text-amber-400">
+                {formatQALYs(confounding.comparison.adjustedMedian)}
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Estimate reduced by {confounding.comparison.reductionPercent.toFixed(0)}%
+            to account for potential confounding.
+          </p>
+
+          {/* E-value */}
+          <div className="bg-muted/10 rounded-lg p-3 space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-medium text-muted-foreground">
+                E-value (robustness to unmeasured confounding)
+              </span>
+              <span className="text-sm font-semibold">
+                {confounding.eValue.point.toFixed(2)}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {confounding.eValue.interpretation}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ProbabilityBar({ probability, label }: { probability: number; label: string }) {
   const pct = Math.round(probability * 100);
   return (
@@ -213,6 +315,11 @@ export function StructuredResultCard({ result }: StructuredResultCardProps) {
             />
           </div>
         </div>
+
+        {/* Confounding Adjustment (if applied) */}
+        {simulation.confounding?.applied && (
+          <ConfoundingSection confounding={simulation.confounding} />
+        )}
 
         {/* Pathway Breakdown (from rigorous lifecycle model) */}
         {simulation.lifecycle?.used && (

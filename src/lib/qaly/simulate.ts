@@ -36,35 +36,68 @@ import {
 } from "./confounding";
 
 /**
- * Sample from a distribution
+ * Uncertainty multipliers based on evidence quality
+ *
+ * Weaker evidence → wider confidence intervals (inflated SD)
+ * This keeps the point estimate the same but increases uncertainty.
+ *
+ * Based on GRADE methodology and Cochrane guidelines:
+ * - High quality: 1x (no inflation)
+ * - Moderate: 1.5x
+ * - Low: 2x
+ * - Very low: 3x
  */
-function sampleDistribution(dist: Distribution): number {
+export const EVIDENCE_UNCERTAINTY_MULTIPLIERS: Record<string, number> = {
+  high: 1.0,
+  strong: 1.0,
+  moderate: 1.5,
+  low: 2.0,
+  weak: 2.0,
+  "very-low": 3.0,
+};
+
+/**
+ * Sample from a distribution with optional uncertainty inflation
+ *
+ * @param dist - The distribution to sample from
+ * @param uncertaintyMultiplier - Multiplier for SD (1.0 = no inflation)
+ */
+function sampleDistribution(dist: Distribution, uncertaintyMultiplier: number = 1.0): number {
   switch (dist.type) {
     case "point":
+      // Point estimates can't be inflated; return as-is
       return dist.value;
 
     case "normal":
-      // Box-Muller transform
+      // Box-Muller transform with inflated SD
       const u1 = Math.random();
       const u2 = Math.random();
       const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-      return dist.mean + z * dist.sd;
+      return dist.mean + z * (dist.sd * uncertaintyMultiplier);
 
     case "lognormal":
-      // Sample normal, then exponentiate
+      // Sample normal, then exponentiate - inflate logSd
       const u1ln = Math.random();
       const u2ln = Math.random();
       const zln = Math.sqrt(-2 * Math.log(u1ln)) * Math.cos(2 * Math.PI * u2ln);
-      return Math.exp(dist.logMean + zln * dist.logSd);
+      return Math.exp(dist.logMean + zln * (dist.logSd * uncertaintyMultiplier));
 
     case "beta":
-      // Use Gamma sampling: Beta(a,b) = Gamma(a,1) / (Gamma(a,1) + Gamma(b,1))
-      const gammaA = sampleGamma(dist.alpha, 1);
-      const gammaB = sampleGamma(dist.beta, 1);
+      // For Beta, reduce concentration to widen while keeping mean
+      // mean = α/(α+β), so we scale both by 1/multiplier² to widen
+      const scale = 1 / (uncertaintyMultiplier * uncertaintyMultiplier);
+      const scaledAlpha = Math.max(0.5, dist.alpha * scale);
+      const scaledBeta = Math.max(0.5, dist.beta * scale);
+      const gammaA = sampleGamma(scaledAlpha, 1);
+      const gammaB = sampleGamma(scaledBeta, 1);
       return gammaA / (gammaA + gammaB);
 
     case "uniform":
-      return dist.min + Math.random() * (dist.max - dist.min);
+      // Widen the range symmetrically around the midpoint
+      const mid = (dist.min + dist.max) / 2;
+      const halfRange = (dist.max - dist.min) / 2;
+      const inflatedHalfRange = halfRange * uncertaintyMultiplier;
+      return mid + (Math.random() * 2 - 1) * inflatedHalfRange;
   }
 }
 
@@ -498,6 +531,9 @@ export interface RigorousSimulationOptions extends SimulationOptions {
 
   /** Pathway-specific HRs (if not provided, derived from overall HR) */
   pathwayHRs?: PathwayHRs;
+
+  /** Evidence quality - affects CI width, NOT point estimate */
+  evidenceQuality?: "high" | "moderate" | "low" | "very-low" | "strong" | "weak";
 }
 
 /**
@@ -523,7 +559,16 @@ export function simulateQALYImpactRigorous(
     useLifecycleModel = true,
     discountRate = 0.03,
     pathwayHRs: customPathwayHRs,
+    evidenceQuality,
   } = options;
+
+  // Get uncertainty multiplier based on evidence quality
+  // Weaker evidence → wider CIs (same point estimate)
+  const uncertaintyMultiplier = evidenceQuality
+    ? EVIDENCE_UNCERTAINTY_MULTIPLIERS[evidenceQuality] || 1.0
+    : effect.evidenceQuality
+      ? EVIDENCE_UNCERTAINTY_MULTIPLIERS[effect.evidenceQuality] || 1.0
+      : 1.0;
 
   // If not using lifecycle model, fall back to basic simulation
   if (!useLifecycleModel) {
@@ -585,9 +630,9 @@ export function simulateQALYImpactRigorous(
       ? sampleCausalFraction(confoundingConfig)
       : 1.0;
 
-    // Sample HR uncertainty
+    // Sample HR uncertainty (inflated by evidence quality)
     const hrMultiplier = effect.mortality
-      ? sampleDistribution(effect.mortality.hazardRatio) / baseHR
+      ? sampleDistribution(effect.mortality.hazardRatio, uncertaintyMultiplier) / baseHR
       : 1.0;
 
     // Adjust pathway HRs by causal fraction and sampled uncertainty
