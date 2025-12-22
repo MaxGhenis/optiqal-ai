@@ -214,6 +214,44 @@ export function StructuredResultCard({ result }: StructuredResultCardProps) {
           </div>
         </div>
 
+        {/* Pathway Breakdown (from rigorous lifecycle model) */}
+        {simulation.lifecycle?.used && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Activity className="w-4 h-4" />
+              <span className="text-xs uppercase tracking-wider">Mortality Pathway Contributions</span>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-rose-500/10 rounded-xl p-4 border border-rose-500/20">
+                <div className="text-xs text-rose-400 mb-1">Cardiovascular</div>
+                <p className="text-lg font-semibold text-rose-400">
+                  {formatQALYs(simulation.lifecycle.pathwayContributions.cvd.median)}
+                </p>
+              </div>
+              <div className="bg-purple-500/10 rounded-xl p-4 border border-purple-500/20">
+                <div className="text-xs text-purple-400 mb-1">Cancer</div>
+                <p className="text-lg font-semibold text-purple-400">
+                  {formatQALYs(simulation.lifecycle.pathwayContributions.cancer.median)}
+                </p>
+              </div>
+              <div className="bg-blue-500/10 rounded-xl p-4 border border-blue-500/20">
+                <div className="text-xs text-blue-400 mb-1">Other</div>
+                <p className="text-lg font-semibold text-blue-400">
+                  {formatQALYs(simulation.lifecycle.pathwayContributions.other.median)}
+                </p>
+              </div>
+            </div>
+            <div className="bg-muted/20 rounded-lg p-3 flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">
+                Life years gained (undiscounted):
+              </span>
+              <span className="font-medium">
+                {simulation.lifecycle.lifeYearsGained.median.toFixed(2)} years
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Breakdown */}
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-muted/20 rounded-xl p-5 border border-border/30 hover-lift">
@@ -397,8 +435,19 @@ export function StructuredResultCard({ result }: StructuredResultCardProps) {
         <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/20 rounded-lg p-3">
           <BarChart3 className="w-3.5 h-3.5 shrink-0" />
           <p>
-            Results computed via {simulation.nSimulations.toLocaleString()}-iteration Monte Carlo
-            simulation, propagating uncertainty through biological mechanism pathways.
+            {simulation.lifecycle?.used ? (
+              <>
+                Rigorous lifecycle model with CDC life tables, pathway decomposition,
+                {simulation.lifecycle.discountRate > 0 && ` ${(simulation.lifecycle.discountRate * 100).toFixed(0)}% annual discounting,`}
+                {" "}and confounding adjustment.
+                {" "}{simulation.nSimulations.toLocaleString()} Monte Carlo iterations.
+              </>
+            ) : (
+              <>
+                Results computed via {simulation.nSimulations.toLocaleString()}-iteration Monte Carlo
+                simulation, propagating uncertainty through biological mechanism pathways.
+              </>
+            )}
           </p>
         </div>
       </CardContent>

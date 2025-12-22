@@ -18,7 +18,8 @@ import {
   type QALYSimulationResult,
   type Mechanism,
   MECHANISM_CONDITION_LINKS,
-  simulateQALYImpact,
+  simulateQALYImpactRigorous,
+  type RigorousSimulationResult,
   qalyYearsToMinutes,
   matchIntervention,
   getPrecomputedEffect,
@@ -93,8 +94,8 @@ export interface StructuredAnalysisResult {
   // Mechanism-level effects from Claude
   mechanismEffects: MechanismEffect[];
 
-  // Monte Carlo simulation results
-  simulation: QALYSimulationResult;
+  // Monte Carlo simulation results (with lifecycle model)
+  simulation: RigorousSimulationResult;
 
   // Human-readable summary
   summary: {
@@ -355,10 +356,12 @@ function analyzePrecomputed(
     | "meta-analysis" | "rct" | "cohort" | "case-control" | "review" | "other"
     | undefined;
 
-  const simulation = simulateQALYImpact(profile, precomputedEffect, {
+  const simulation = simulateQALYImpactRigorous(profile, precomputedEffect, {
     nSimulations: 10000,
     applyConfounding: true,
     evidenceType: primaryStudyType,
+    useLifecycleModel: true,
+    discountRate: 0.03,
   });
 
   // 3. Get affected conditions for display
@@ -451,10 +454,12 @@ async function analyzeWithClaude(
     ? "cohort"
     : "other";
 
-  const simulation = simulateQALYImpact(profile, interventionEffect, {
+  const simulation = simulateQALYImpactRigorous(profile, interventionEffect, {
     nSimulations: 10000,
     applyConfounding: true,
     evidenceType: evidenceType as "meta-analysis" | "cohort" | "other",
+    useLifecycleModel: true,
+    discountRate: 0.03,
   });
 
   // 5. Get affected conditions for display
