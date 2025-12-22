@@ -98,3 +98,13 @@ export {
   type PathwayHRs,
   type LifecycleResult,
 } from "./lifecycle";
+
+// Calibrated confounding priors (RCT vs observational calibration)
+export {
+  CALIBRATION_DATA,
+  CALIBRATED_PRIORS,
+  INTERVENTION_SPECIFIC_PRIORS,
+  getCalibratedPrior,
+  PRIOR_COMPARISON,
+  type CalibrationPoint,
+} from "./confounding-calibrated";

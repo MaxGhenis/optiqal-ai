@@ -42,14 +42,14 @@ describe("getExpectedCausalFraction", () => {
     expect(getExpectedCausalFraction(config)).toBeCloseTo(2 / 6, 4);
   });
 
-  it("should return ~0.33 for exercise", () => {
+  it("should return ~0.17 for exercise (calibrated: RCTs show ~0 effect)", () => {
     const expected = getExpectedCausalFraction(CONFOUNDING_BY_CATEGORY.exercise);
-    expect(expected).toBeCloseTo(0.33, 1);
+    expect(expected).toBeCloseTo(0.17, 1);
   });
 
-  it("should return ~0.57 for medical", () => {
+  it("should return ~0.38 for medical (calibrated: statin RCT vs obs)", () => {
     const expected = getExpectedCausalFraction(CONFOUNDING_BY_CATEGORY.medical);
-    expect(expected).toBeCloseTo(0.57, 1);
+    expect(expected).toBeCloseTo(0.38, 1);
   });
 });
 

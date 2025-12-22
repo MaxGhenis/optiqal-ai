@@ -33,113 +33,119 @@ export interface ConfoundingConfig {
 /**
  * Category-specific confounding priors
  *
- * These reflect the expected healthy user bias for each intervention type.
- * More "lifestyle" interventions have stronger confounding (people who exercise
- * are healthier for many reasons beyond exercise itself).
+ * CALIBRATED against actual RCT vs observational discrepancies:
+ * - Exercise: Ballin 2021 RCT review shows ~0 causal effect, Finnish Twin Cohort confirms
+ * - Diet: PREDIMED RCT confirms substantial causal effect (~70% of observational)
+ * - Medical: Statin studies show ~28% causal fraction (HR 0.54 obs vs 0.84 RCT)
  *
  * Priors are Beta(α, β) distributions for the causal fraction [0,1].
  * Mean = α/(α+β), with lower values indicating more confounding.
  */
 export const CONFOUNDING_BY_CATEGORY: Record<string, ConfoundingConfig> = {
-  // Exercise: Strong healthy user bias - people who exercise are healthier overall
-  // RCT vs observational discrepancy suggests ~30-40% of observed effect is causal
+  // Exercise: VERY skeptical - RCTs and twin studies show ~0 causal effect
+  // Ballin 2021: "exercise does not reduce all-cause mortality" (n=50k RCT participants)
+  // Finnish Twin Cohort 2024: identical twins discordant for PA show no mortality difference
   exercise: {
-    causalFraction: { alpha: 2.5, beta: 5.0 },
+    causalFraction: { alpha: 1.2, beta: 6.0 },
     rationale:
-      "Exercise studies show strong healthy user bias. " +
-      "RCT effects typically 30-50% of observational estimates. " +
-      "Beta(2.5, 5.0) → mean 33%, 95% CI: 8-65%",
+      "CALIBRATED: RCTs show exercise does not reduce mortality (Ballin 2021, n=50k). " +
+      "Twin studies confirm: identical twins discordant for PA show no mortality difference. " +
+      "Observational HR 0.50-0.66 likely entirely due to healthy user bias. " +
+      "Beta(1.2, 6.0) → mean 17%, 95% CI: 2-45%",
     calibrationSources: [
-      "Hamer & Stamatakis 2012 (sibling comparison)",
-      "Arem et al 2015 (dose-response modeling)",
-      "Ekelund et al 2019 (device-measured PA)",
+      "Ballin et al. 2021 (RCT critical review, n=50k)",
+      "Finnish Twin Cohort 2024 (twin discordance)",
+      "Mendelian randomization studies (null for mortality)",
     ],
   },
 
-  // Diet: Moderate healthy user bias, but better RCT evidence available
+  // Diet: Less skeptical - PREDIMED RCT confirms substantial causal effect
   diet: {
-    causalFraction: { alpha: 2.0, beta: 4.0 },
+    causalFraction: { alpha: 3.0, beta: 3.0 },
     rationale:
-      "Dietary studies have moderate confounding. " +
-      "PREDIMED and other RCTs suggest ~35% causal effect. " +
-      "Beta(2.0, 4.0) → mean 33%, 95% CI: 6-70%",
+      "CALIBRATED: PREDIMED RCT confirms 30% CVD reduction, consistent with observational. " +
+      "Nuts, olive oil have RCT backing. Diet has higher causal fraction than exercise. " +
+      "Beta(3.0, 3.0) → mean 50%, 95% CI: 15-85%",
     calibrationSources: [
-      "PREDIMED-Plus (RCT)",
-      "Aune et al 2016 (nut meta-analysis)",
-      "Golestan Cohort (cross-cultural validation)",
+      "PREDIMED Trial 2018 (RCT, n=7447, 30% CVD reduction)",
+      "Aune et al. 2016 (nut meta-analysis)",
     ],
   },
 
-  // Sleep: Less healthy user bias than exercise, but still significant
+  // Sleep: Skeptical - no RCT evidence for mortality, high reverse causation
   sleep: {
-    causalFraction: { alpha: 2.5, beta: 4.5 },
-    rationale:
-      "Sleep interventions have moderate confounding. " +
-      "CBT-I RCTs show robust effects, but observational sleep studies " +
-      "confounded by comorbidities. Beta(2.5, 4.5) → mean 36%, 95% CI: 10-68%",
-    calibrationSources: [
-      "Trauer et al 2015 (CBT-I meta-analysis)",
-      "Cappuccio et al 2010 (sleep duration cohort)",
-    ],
-  },
-
-  // Stress: Difficult to separate from confounders, lower causal fraction
-  stress: {
     causalFraction: { alpha: 1.5, beta: 4.5 },
     rationale:
-      "Stress reduction studies have high confounding. " +
-      "Meditation/mindfulness RCTs show smaller effects than observational. " +
-      "Beta(1.5, 4.5) → mean 25%, 95% CI: 3-60%",
+      "No RCTs for sleep duration and mortality. High reverse causation risk: " +
+      "illness affects sleep patterns. CBT-I shows causal quality-of-life effects. " +
+      "Beta(1.5, 4.5) → mean 25%, 95% CI: 3-58%",
     calibrationSources: [
-      "Goyal et al 2014 (meditation meta-analysis)",
-      "Khoury et al 2015 (mindfulness-based therapy)",
+      "Cappuccio et al. 2010 (observational only)",
+      "No mortality RCTs available",
     ],
   },
 
-  // Substance: Strong confounding from selection effects
+  // Stress: Very skeptical - RCTs show smaller effects
+  stress: {
+    causalFraction: { alpha: 1.2, beta: 5.0 },
+    rationale:
+      "Meditation/mindfulness RCTs show much smaller effects than observational. " +
+      "Stress levels heavily confounded with SES, health behaviors. " +
+      "Beta(1.2, 5.0) → mean 19%, 95% CI: 2-50%",
+    calibrationSources: [
+      "Goyal et al. 2014 (meditation RCT meta-analysis)",
+      "Khoury et al. 2015 (mindfulness-based therapy)",
+    ],
+  },
+
+  // Substance: Mixed - smoking has RCT backing, alcohol J-curve is confounded
   substance: {
-    causalFraction: { alpha: 2.0, beta: 4.5 },
+    causalFraction: { alpha: 2.0, beta: 4.0 },
     rationale:
-      "Substance use studies have selection confounding. " +
-      "Smoking cessation RCTs vs observational show ~30-40% causal. " +
-      "Alcohol J-curve likely confounded. Beta(2.0, 4.5) → mean 31%, 95% CI: 6-64%",
+      "CALIBRATED: Smoking cessation has strong RCT backing (causal fraction ~56%). " +
+      "Alcohol J-curve is entirely confounded (MR shows no benefit). " +
+      "Beta(2.0, 4.0) → mean 33%, 95% CI: 6-68%",
     calibrationSources: [
-      "Taylor et al 2014 (smoking cessation RCT meta)",
-      "Stockwell et al 2016 (alcohol J-curve bias)",
+      "Taylor et al. 2014 (smoking cessation RCT meta, ~56% causal)",
+      "Stockwell et al. 2016 (alcohol J-curve is bias)",
+      "MR studies (alcohol shows no protective effect)",
     ],
   },
 
-  // Medical: Generally RCT-based, less confounding adjustment needed
+  // Medical: Moderate skepticism - even RCT-based drugs show observational inflation
+  // Statins: HR 0.54 observational vs 0.84 RCT → only 28% causal
   medical: {
-    causalFraction: { alpha: 4.0, beta: 3.0 },
+    causalFraction: { alpha: 2.5, beta: 4.0 },
     rationale:
-      "Medical interventions usually have RCT evidence. " +
-      "Less healthy user bias; randomization controls confounding. " +
-      "Beta(4.0, 3.0) → mean 57%, 95% CI: 22-88%",
+      "CALIBRATED: Even RCT-based drugs show observational inflation. " +
+      "Statins: HR 0.54 observational vs 0.84 RCT (causal fraction ~28%). " +
+      "Aspirin: ARRIVE/ASPREE show smaller effect than observational. " +
+      "Beta(2.5, 4.0) → mean 38%, 95% CI: 8-73%",
     calibrationSources: [
-      "Cochrane systematic reviews",
-      "FDA approval trials",
+      "Danaei et al. 2012 (statin RCT vs observational)",
+      "ARRIVE/ASPREE trials (aspirin less effective)",
     ],
   },
 
-  // Social: Strong confounding from social selection
+  // Social: Very skeptical - strong selection effects, no RCT possible
   social: {
-    causalFraction: { alpha: 1.5, beta: 5.0 },
+    causalFraction: { alpha: 1.0, beta: 5.5 },
     rationale:
-      "Social interventions have strong selection effects. " +
-      "People with more social connections differ systematically. " +
-      "Beta(1.5, 5.0) → mean 23%, 95% CI: 3-55%",
+      "Social relationships heavily confounded with SES, mental health, physical health. " +
+      "No RCT evidence possible for mortality endpoints. " +
+      "Beta(1.0, 5.5) → mean 15%, 95% CI: 1-42%",
     calibrationSources: [
-      "Holt-Lunstad et al 2010 (social relationships meta)",
+      "Holt-Lunstad et al. 2010 (observational only)",
     ],
   },
 
   // Other: Conservative prior when category unclear
   other: {
-    causalFraction: { alpha: 1.5, beta: 4.5 },
+    causalFraction: { alpha: 1.2, beta: 4.8 },
     rationale:
-      "Unknown intervention type; using conservative prior. " +
-      "Beta(1.5, 4.5) → mean 25%, 95% CI: 3-60%",
+      "Unknown intervention type; using conservative prior " +
+      "reflecting general observational bias from calibration data. " +
+      "Beta(1.2, 4.8) → mean 20%, 95% CI: 2-50%",
     calibrationSources: [],
   },
 };
