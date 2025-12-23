@@ -1238,6 +1238,352 @@ export const PRECOMPUTED_INTERVENTIONS: Record<string, PrecomputedIntervention> 
       },
     ],
   },
+
+  // ==================== SUPPLEMENTS ====================
+  vitamin_d_supplement: {
+    id: "vitamin_d_supplement",
+    name: "Take vitamin D supplement",
+    description: "Daily vitamin D3 supplementation (1000-4000 IU)",
+    keywords: [
+      "vitamin d",
+      "vitamin d3",
+      "cholecalciferol",
+      "sunshine vitamin",
+      "d3 supplement",
+    ],
+    category: "medical",
+    effect: {
+      description: "Daily vitamin D supplementation",
+      category: "medical",
+      mechanismEffects: [
+        mech("bone_density", "increase", normal(2, 1), "strong", "%"),
+        mech("immune_function", "increase", normal(0.15, 0.1), "moderate", "SD"),
+        mech("systemic_inflammation", "decrease", normal(-5, 4), "weak", "% CRP"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.06, 0.04), // HR ~0.94 - modest effect
+        onsetDelay: 0,
+        rampUpPeriod: 0.5,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: {
+        hoursPerWeek: { type: "point", value: 0 },
+        annualCost: normal(50, 20),
+        activityDisutility: { type: "point", value: 0 },
+      },
+      evidenceQuality: "moderate",
+      keySources: [],
+      caveats: [
+        "Most benefit seen in those deficient at baseline",
+        "Mega-doses not more effective and potentially harmful",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Autier et al., 2014. Vitamin D and health outcomes meta-analysis",
+        studyType: "meta-analysis",
+        year: 2014,
+      },
+    ],
+  },
+
+  omega3_supplement: {
+    id: "omega3_supplement",
+    name: "Take omega-3 fish oil supplement",
+    description: "Daily omega-3 fatty acid supplement (1-2g EPA+DHA)",
+    keywords: [
+      "omega-3",
+      "omega 3",
+      "fish oil",
+      "epa",
+      "dha",
+      "fatty acids",
+      "fish oil supplement",
+    ],
+    category: "medical",
+    effect: {
+      description: "Daily omega-3 fish oil supplement",
+      category: "medical",
+      mechanismEffects: [
+        mech("lipid_profile", "decrease", normal(-8, 4), "strong", "% triglycerides"),
+        mech("systemic_inflammation", "decrease", normal(-10, 5), "moderate", "% CRP"),
+        mech("blood_pressure", "decrease", normal(-2, 1.5), "moderate", "mmHg"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.08, 0.05), // HR ~0.92
+        onsetDelay: 0,
+        rampUpPeriod: 0.5,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: {
+        hoursPerWeek: { type: "point", value: 0 },
+        annualCost: normal(150, 50),
+        activityDisutility: { type: "point", value: 0 },
+      },
+      evidenceQuality: "moderate",
+      keySources: [],
+      caveats: [
+        "RCT evidence mixed; dietary fish may be more effective",
+        "Benefits may be larger for those not eating fish",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Aung et al., 2018. Omega-3 fatty acids and cardiovascular disease",
+        studyType: "meta-analysis",
+        year: 2018,
+      },
+    ],
+  },
+
+  magnesium_supplement: {
+    id: "magnesium_supplement",
+    name: "Take magnesium supplement",
+    description: "Daily magnesium supplementation (200-400mg)",
+    keywords: [
+      "magnesium",
+      "mag",
+      "magnesium supplement",
+      "magnesium glycinate",
+      "magnesium citrate",
+    ],
+    category: "medical",
+    effect: {
+      description: "Daily magnesium supplementation",
+      category: "medical",
+      mechanismEffects: [
+        mech("blood_pressure", "decrease", normal(-2, 1.5), "moderate", "mmHg"),
+        mech("sleep_quality", "increase", normal(0.15, 0.1), "moderate", "SD"),
+        mech("insulin_sensitivity", "increase", normal(5, 3), "weak", "%"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.05, 0.04), // HR ~0.95 - modest
+        onsetDelay: 0,
+        rampUpPeriod: 0.25,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: {
+        hoursPerWeek: { type: "point", value: 0 },
+        annualCost: normal(60, 25),
+        activityDisutility: { type: "point", value: 0 },
+      },
+      evidenceQuality: "moderate",
+      keySources: [],
+      caveats: ["Benefits most clear in those with low dietary intake"],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Fang et al., 2016. Magnesium intake and mortality meta-analysis",
+        studyType: "meta-analysis",
+        year: 2016,
+      },
+    ],
+  },
+
+  // ==================== FASTING/CALORIC RESTRICTION ====================
+  intermittent_fasting: {
+    id: "intermittent_fasting",
+    name: "Practice intermittent fasting",
+    description: "16:8 or similar time-restricted eating pattern",
+    keywords: [
+      "intermittent fasting",
+      "fasting",
+      "16:8",
+      "time restricted eating",
+      "skip breakfast",
+      "eating window",
+      "IF",
+    ],
+    category: "diet",
+    effect: {
+      description: "Intermittent fasting (16:8 pattern)",
+      category: "diet",
+      mechanismEffects: [
+        mech("insulin_sensitivity", "increase", normal(15, 8), "moderate", "%"),
+        mech("adiposity", "decrease", normal(-2, 1.5), "moderate", "% body fat"),
+        mech("systemic_inflammation", "decrease", normal(-10, 6), "weak", "% CRP"),
+        mech("autophagy", "increase", normal(0.2, 0.15), "weak", "SD"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.08, 0.08), // HR ~0.92 - uncertain
+        onsetDelay: 0,
+        rampUpPeriod: 0.25,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: null,
+      evidenceQuality: "low",
+      keySources: [],
+      caveats: [
+        "Long-term mortality evidence is limited",
+        "Not suitable for everyone (diabetics, eating disorders, pregnant)",
+        "Benefits may be mainly from caloric reduction",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Mattson et al., 2017. Impact of intermittent fasting on health",
+        studyType: "review",
+        year: 2017,
+      },
+    ],
+  },
+
+  caloric_restriction: {
+    id: "caloric_restriction",
+    name: "Practice caloric restriction",
+    description: "Moderate caloric restriction (10-20% below maintenance)",
+    keywords: [
+      "caloric restriction",
+      "eat less",
+      "calorie deficit",
+      "CR",
+      "calorie restriction",
+      "reduce calories",
+    ],
+    category: "diet",
+    effect: {
+      description: "Moderate caloric restriction (10-20%)",
+      category: "diet",
+      mechanismEffects: [
+        mech("adiposity", "decrease", normal(-5, 3), "strong", "% body fat"),
+        mech("insulin_sensitivity", "increase", normal(20, 10), "strong", "%"),
+        mech("systemic_inflammation", "decrease", normal(-15, 8), "moderate", "% CRP"),
+        mech("blood_pressure", "decrease", normal(-4, 2), "strong", "mmHg"),
+        mech("cellular_senescence", "decrease", normal(-0.1, 0.08), "weak", "SD"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.12, 0.1), // HR ~0.89 - extrapolated from animal/observational
+        onsetDelay: 0,
+        rampUpPeriod: 1,
+        decayRate: 0.1, // Hard to maintain
+      },
+      quality: null,
+      costs: null,
+      evidenceQuality: "low",
+      keySources: [],
+      caveats: [
+        "Human mortality evidence extrapolated from animal studies",
+        "Adherence is challenging long-term",
+        "Not recommended for elderly or underweight individuals",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Most et al., 2017. CALERIE study (human CR trial)",
+        studyType: "rct",
+        year: 2017,
+      },
+    ],
+  },
+
+  // ==================== MORE SPECIFIC EXERCISES ====================
+  hiit_training: {
+    id: "hiit_training",
+    name: "Do HIIT workouts",
+    description: "High-intensity interval training 2-3x per week",
+    keywords: [
+      "hiit",
+      "high intensity",
+      "interval training",
+      "tabata",
+      "sprint intervals",
+      "intense workout",
+    ],
+    category: "exercise",
+    effect: {
+      description: "HIIT training 2-3x per week",
+      category: "exercise",
+      mechanismEffects: [
+        mech("cardiac_output", "increase", normal(18, 8), "strong", "%"),
+        mech("insulin_sensitivity", "increase", normal(25, 12), "strong", "%"),
+        mech("adiposity", "decrease", normal(-4, 2), "strong", "% body fat"),
+        mech("lung_function", "increase", normal(12, 6), "strong", "% VO2max"),
+        mech("mitochondrial_function", "increase", normal(0.3, 0.15), "moderate", "SD"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.22, 0.1), // HR ~0.80
+        onsetDelay: 0,
+        rampUpPeriod: 0.5,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: null,
+      evidenceQuality: "moderate",
+      keySources: [],
+      caveats: [
+        "Higher injury risk than moderate exercise",
+        "May not be suitable for all fitness levels",
+        "Recovery time important",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Weston et al., 2014. HIIT for cardiometabolic health",
+        studyType: "meta-analysis",
+        year: 2014,
+      },
+    ],
+  },
+
+  standing_desk: {
+    id: "standing_desk",
+    name: "Use a standing desk",
+    description: "Alternate sitting and standing while working",
+    keywords: [
+      "standing desk",
+      "stand up desk",
+      "sit stand desk",
+      "stand while working",
+      "less sitting",
+    ],
+    category: "exercise",
+    effect: {
+      description: "Standing desk (alternating sit/stand)",
+      category: "exercise",
+      mechanismEffects: [
+        mech("metabolic_rate", "increase", normal(3, 2), "weak", "%"),
+        mech("blood_pressure", "decrease", normal(-1, 1), "weak", "mmHg"),
+        mech("insulin_sensitivity", "increase", normal(5, 4), "weak", "%"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.04, 0.05), // HR ~0.96 - modest
+        onsetDelay: 0,
+        rampUpPeriod: 0,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: {
+        hoursPerWeek: { type: "point", value: 0 },
+        annualCost: normal(300, 150), // One-time desk cost amortized
+        activityDisutility: { type: "point", value: 0 },
+      },
+      evidenceQuality: "low",
+      keySources: [],
+      caveats: [
+        "Evidence for mortality reduction is weak",
+        "Breaking up sitting may matter more than total standing time",
+        "Doesn't replace actual exercise",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Buckley et al., 2015. Standing-based office work",
+        studyType: "review",
+        year: 2015,
+      },
+    ],
+  },
 };
 
 /**

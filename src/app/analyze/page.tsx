@@ -10,8 +10,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { StructuredResultCard } from "@/components/analyze/structured-result-card";
+import { ComparisonResultCard } from "@/components/analyze/comparison-result-card";
 import { BaselineCard } from "@/components/analyze/baseline-card";
-import { analyzeStructured, type StructuredAnalysisResult } from "@/lib/analyze-structured";
+import {
+  analyzeStructured,
+  analyzeComparison,
+  isComparisonQuery,
+  type StructuredAnalysisResult,
+  type ComparisonAnalysisResult,
+} from "@/lib/analyze-structured";
 import type { UserProfile } from "@/types";
 import { DEFAULT_PROFILE } from "@/types";
 import {
@@ -36,6 +43,7 @@ function AnalyzePageContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<StructuredAnalysisResult | null>(null);
+  const [comparisonResult, setComparisonResult] = useState<ComparisonAnalysisResult | null>(null);
   const [showProfile, setShowProfile] = useState(false);
   const [useImperial, setUseImperial] = useState(true); // Default to imperial for US users
 
@@ -100,10 +108,17 @@ function AnalyzePageContent() {
     setIsLoading(true);
     setError(null);
     setResult(null);
+    setComparisonResult(null);
 
     try {
-      const response = await analyzeStructured(profile, choice, apiKey);
-      setResult(response);
+      // Check if this is a comparison query (A vs B)
+      if (isComparisonQuery(choice)) {
+        const response = await analyzeComparison(profile, choice, apiKey);
+        setComparisonResult(response);
+      } else {
+        const response = await analyzeStructured(profile, choice, apiKey);
+        setResult(response);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "An error occurred");
     } finally {
@@ -458,6 +473,7 @@ function AnalyzePageContent() {
 
           {/* Result */}
           {result && <StructuredResultCard result={result} />}
+          {comparisonResult && <ComparisonResultCard result={comparisonResult} />}
 
           {/* Disclaimer */}
           <p className="text-xs text-muted-foreground text-center max-w-2xl mx-auto">

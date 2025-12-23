@@ -88,7 +88,7 @@ describe("precomputed interventions library", () => {
 
     it("should return null for unrecognized interventions", () => {
       expect(matchIntervention("take lion's mane mushroom")).toBeNull();
-      expect(matchIntervention("do cryotherapy")).toBeNull();
+      expect(matchIntervention("do laughter therapy")).toBeNull();
       expect(matchIntervention("random gibberish xyz")).toBeNull();
     });
 
