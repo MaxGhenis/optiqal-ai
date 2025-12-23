@@ -209,3 +209,19 @@ export {
   type CounterfactualOptions,
   simulateCausalIntervention,
 } from "./counterfactual";
+
+// Paper results (single source of truth for documentation)
+export {
+  type InterventionResult,
+  type ConfoundingParams,
+  type PaperResults,
+  PAPER_RESULTS,
+  SEED,
+  formatQaly,
+  formatLifeYears,
+  formatMonths,
+  formatCI,
+  getIntervention,
+  getTopInterventions,
+  getInterventionsByCategory,
+} from "./paper-results";

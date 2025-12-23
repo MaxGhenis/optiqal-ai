@@ -1,0 +1,34 @@
+version: 1
+project:
+  title: "Optiqal: A State-Based Framework for Personalized QALY Estimation"
+  description: "Quantify the impact of lifestyle choices on quality-adjusted life using causal inference"
+  authors:
+    - name: Max Ghenis
+      email: max@maxghenis.com
+  github: https://github.com/MaxGhenis/optiqal-ai
+  license: MIT
+  keywords:
+    - QALY
+    - lifestyle interventions
+    - causal inference
+    - health economics
+    - Monte Carlo
+    - Bayesian
+    - personalized medicine
+  exports:
+    - format: pdf
+      template: plain_latex
+      output: exports/optiqal.pdf
+  bibliography:
+    - references.bib
+  toc:
+    - file: index.md
+    - file: appendix.md
+
+site:
+  template: book-theme
+  title: Optiqal
+  options:
+    logo_text: Max Ghenis
+    logo_url: https://github.com/maxghenis
+    hide_outline: true
