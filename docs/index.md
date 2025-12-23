@@ -21,7 +21,24 @@ from optiqal_results import r
 
 ## Abstract
 
-Lifestyle interventions show heterogeneous effects across individuals, yet existing tools provide population-average estimates without personalization. I present Optiqal, a state-based framework for estimating quality-adjusted life year (QALY) impacts of lifestyle changes. The framework models individuals as complete *states*—comprising demographics, biomarkers, behaviors, and conditions—and computes intervention effects as differences between states. Using imputation-based causal inference with a directed acyclic graph (DAG) of downstream effects, the framework isolates causal impacts from confounding. For a {eval}`r.target_age`-year-old with average baseline characteristics ({eval}`f"{r.baseline_qalys:.0f}"` expected remaining QALYs), smoking cessation yields {eval}`r.quit_smoking.life_years_fmt` additional life years ({eval}`r.quit_smoking.months_fmt` months), followed by exercise at 150 min/week ({eval}`r.exercise.life_years_fmt` years) and Mediterranean diet ({eval}`r.mediterranean_diet.life_years_fmt` years). Across {eval}`r.intervention_count` precomputed interventions spanning {eval}`r.category_count` categories, QALY impacts range from {eval}`r.qaly_range`.
+Lifestyle interventions show heterogeneous effects across individuals, yet existing tools provide population-average estimates without personalization. I present Optiqal, a state-based framework for estimating quality-adjusted life year (QALY) impacts of lifestyle changes. The framework models individuals as complete *states*—comprising demographics, biomarkers, behaviors, and conditions—and computes intervention effects as differences between states. Using imputation-based causal inference with a directed acyclic graph (DAG) of downstream effects, the framework isolates causal impacts from confounding. For the reference case—a {eval}`r.reference.description`—exercise at 150 min/week yields {eval}`r.exercise.life_years_fmt` additional life years ({eval}`r.exercise.months_fmt` months), followed by Mediterranean diet ({eval}`r.mediterranean_diet.life_years_fmt` years) and improved sleep ({eval}`r.sleep.life_years_fmt` years). For a current smoker, cessation yields {eval}`r.quit_smoking.life_years_fmt` years. Across {eval}`r.intervention_count` precomputed interventions spanning {eval}`r.category_count` categories, QALY impacts range from {eval}`r.qaly_range`.
+
+### Reference Case
+
+All estimates in this paper use a reference case representing an average American adult:
+
+| Characteristic | Value | Interpretation |
+|----------------|-------|----------------|
+| Age | {eval}`r.reference.age` | Middle-aged |
+| Sex | {eval}`r.reference.sex` | Male |
+| BMI | {eval}`r.reference.bmi` | Overweight (US average) |
+| Blood pressure | {eval}`r.reference.systolic_bp` mmHg | Elevated |
+| Exercise | {eval}`r.reference.exercise_min` min/week | Below guideline |
+| Diet adherence | {eval}`f"{r.reference.diet_adherence:.0%}"` | Below average |
+| Sleep | {eval}`r.reference.sleep_hours` hours | Suboptimal |
+| Smoking | {eval}`r.reference.smoking` | Non-smoker |
+
+This reference case has {eval}`f"{r.baseline_qalys:.1f}"` expected remaining QALYs. Estimates would differ for other profiles—a current smoker would see larger benefits from cessation; someone already exercising 150 min/week would see no benefit from that intervention.
 
 ## Introduction
 

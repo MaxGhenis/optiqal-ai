@@ -69,13 +69,51 @@ class ConfoundingParams:
     ci_upper: float
 
 
+@dataclass
+class ReferenceCase:
+    """Reference person for estimates."""
+
+    age: int
+    sex: str
+    bmi: float
+    systolic_bp: int
+    smoking: str
+    exercise_min: int
+    diet_adherence: float
+    drinks_per_week: int
+    sleep_hours: float
+    social_connections: int
+
+    @property
+    def description(self) -> str:
+        return (
+            f"{self.age}-year-old {self.sex}, BMI {self.bmi}, "
+            f"BP {self.systolic_bp}, {self.smoking} smoker, "
+            f"{self.exercise_min} min/week exercise"
+        )
+
+
 class PaperResults:
     """Container for all paper results."""
 
     def __init__(self):
+        # Reference person: average American adult (less healthy than default)
+        self.reference = ReferenceCase(
+            age=40,
+            sex="male",
+            bmi=28.5,           # US average (overweight)
+            systolic_bp=128,    # Elevated
+            smoking="never",
+            exercise_min=50,    # Below guideline (sedentary-ish)
+            diet_adherence=0.35,  # Below average
+            drinks_per_week=5,
+            sleep_hours=6.5,    # Below optimal
+            social_connections=3,
+        )
+
         # Target population
-        self.target_age = 40
-        self.baseline_qalys = 35.2
+        self.target_age = self.reference.age
+        self.baseline_qalys = 33.8  # Lower due to less healthy baseline
 
         # Confounding calibration
         self.confounding = ConfoundingParams(
