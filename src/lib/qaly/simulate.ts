@@ -621,8 +621,13 @@ export function simulateQALYImpactRigorous(
   const cancerContributions: number[] = [];
   const otherContributions: number[] = [];
   const lifeYearsResults: number[] = [];
+  const qualityResults: number[] = [];
 
   const sex = profile.sex === "female" ? "female" : "male";
+
+  // Get baseline life expectancy for quality calculations
+  const baselineProjection = calculateBaselineQALYs(profile);
+  const baselineLE = baselineProjection.remainingLifeExpectancy;
 
   for (let i = 0; i < nSimulations; i++) {
     // Sample causal fraction
@@ -642,7 +647,7 @@ export function simulateQALYImpactRigorous(
       other: adjustHazardRatio(basePathwayHRs.other * hrMultiplier, causalFraction),
     };
 
-    // Run lifecycle calculation
+    // Run lifecycle calculation for mortality
     const lifecycleResult = calculateLifecycleQALYs({
       startAge: profile.age,
       sex,
@@ -650,11 +655,40 @@ export function simulateQALYImpactRigorous(
       discountRate,
     });
 
-    results.push(lifecycleResult.qalyGain);
+    // Calculate quality QALYs if quality effect provided
+    let qualityQALY = 0;
+    if (effect.quality) {
+      // Sample quality effect
+      let sampledQualityChange = 0;
+      if (effect.quality.subjectiveWellbeing) {
+        sampledQualityChange += sampleDistribution(effect.quality.subjectiveWellbeing, uncertaintyMultiplier);
+      }
+      for (const dimEffect of effect.quality.directDimensionEffects) {
+        sampledQualityChange += sampleDistribution(dimEffect.change, uncertaintyMultiplier) / 5;
+      }
+
+      // Apply confounding adjustment to quality effect too
+      sampledQualityChange *= causalFraction;
+
+      // Calculate quality QALYs over remaining life (discounted)
+      // Quality improvement × remaining life years × discount factor
+      for (let year = 0; year < Math.ceil(baselineLE); year++) {
+        const fractionOfYear = Math.min(1, baselineLE - year);
+        const discountFactor = Math.pow(1 + discountRate, -year);
+        // Quality effect ramps up over time if onset delay specified
+        const effectiveQuality = effect.quality.onsetDelay > 0 && year < effect.quality.onsetDelay
+          ? 0
+          : sampledQualityChange;
+        qualityQALY += effectiveQuality * fractionOfYear * discountFactor;
+      }
+    }
+
+    results.push(lifecycleResult.qalyGain + qualityQALY);
     cvdContributions.push(lifecycleResult.pathwayContributions.cvd);
     cancerContributions.push(lifecycleResult.pathwayContributions.cancer);
     otherContributions.push(lifecycleResult.pathwayContributions.other);
     lifeYearsResults.push(lifecycleResult.lifeYearsGained);
+    qualityResults.push(qualityQALY);
   }
 
   // Sort for percentile calculations
@@ -663,6 +697,7 @@ export function simulateQALYImpactRigorous(
   cancerContributions.sort((a, b) => a - b);
   otherContributions.sort((a, b) => a - b);
   lifeYearsResults.sort((a, b) => a - b);
+  qualityResults.sort((a, b) => a - b);
 
   // Calculate statistics
   const mean = results.reduce((a, b) => a + b, 0) / nSimulations;
@@ -728,13 +763,10 @@ export function simulateQALYImpactRigorous(
     percentiles,
     breakdown: {
       mortalityQALYs: {
-        median: median,
+        median: median - getCI(qualityResults).median, // Subtract quality to get pure mortality
         ci95: { low: ci95Low, high: ci95High },
       },
-      qualityQALYs: {
-        median: 0,
-        ci95: { low: 0, high: 0 },
-      },
+      qualityQALYs: getCI(qualityResults),
       costQALYs: {
         median: 0,
         ci95: { low: 0, high: 0 },

@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { StructuredResultCard } from "@/components/analyze/structured-result-card";
 import { ComparisonResultCard } from "@/components/analyze/comparison-result-card";
 import { BaselineCard } from "@/components/analyze/baseline-card";
+import { CacheInfo } from "@/components/analyze/cache-info";
 import {
   analyzeStructured,
   analyzeComparison,
@@ -37,7 +38,9 @@ function AnalyzePageContent() {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q") || "";
 
-  const [apiKey, setApiKey] = useState("");
+  const [apiKey, setApiKey] = useState(
+    process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY || ""
+  );
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [choice, setChoice] = useState(initialQuery);
   const [isLoading, setIsLoading] = useState(false);
@@ -323,7 +326,7 @@ function AnalyzePageContent() {
                           <Input
                             id="height"
                             type="number"
-                            value={profile.height}
+                            value={Math.round(profile.height)}
                             onChange={(e) =>
                               updateProfile(
                                 "height",
@@ -337,7 +340,7 @@ function AnalyzePageContent() {
                           <Input
                             id="weight"
                             type="number"
-                            value={profile.weight}
+                            value={Math.round(profile.weight)}
                             onChange={(e) =>
                               updateProfile(
                                 "weight",
@@ -470,6 +473,9 @@ function AnalyzePageContent() {
               </CardContent>
             </Card>
           )}
+
+          {/* Cache Info */}
+          <CacheInfo />
 
           {/* Result */}
           {result && <StructuredResultCard result={result} />}

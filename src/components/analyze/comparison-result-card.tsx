@@ -21,12 +21,14 @@ function InterventionSummary({
   ci95Low,
   ci95High,
   isWinner,
+  counterfactual,
 }: {
   name: string;
   median: number;
   ci95Low: number;
   ci95High: number;
   isWinner: boolean;
+  counterfactual: string;
 }) {
   return (
     <div
@@ -54,6 +56,9 @@ function InterventionSummary({
       </div>
       <p className="text-xs text-muted-foreground mt-1">
         95% CI: {formatQALYs(ci95Low)} to {formatQALYs(ci95High)}
+      </p>
+      <p className="text-xs text-muted-foreground/70 mt-2 italic">
+        vs. {counterfactual}
       </p>
     </div>
   );
@@ -86,6 +91,7 @@ export function ComparisonResultCard({ result }: ComparisonResultCardProps) {
             ci95Low={interventionA.result.summary.totalQALYs.ci95Low}
             ci95High={interventionA.result.summary.totalQALYs.ci95High}
             isWinner={comparison.winner === "A"}
+            counterfactual={interventionA.result.counterfactual}
           />
 
           <div className="flex items-center">
@@ -110,6 +116,7 @@ export function ComparisonResultCard({ result }: ComparisonResultCardProps) {
             ci95Low={interventionB.result.summary.totalQALYs.ci95Low}
             ci95High={interventionB.result.summary.totalQALYs.ci95High}
             isWinner={comparison.winner === "B"}
+            counterfactual={interventionB.result.counterfactual}
           />
         </div>
 

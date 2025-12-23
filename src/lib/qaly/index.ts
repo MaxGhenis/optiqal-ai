@@ -46,6 +46,22 @@ export {
   type RigorousSimulationOptions,
 } from "./simulate";
 
+// Derive mortality from mechanisms
+export {
+  deriveMortalityFromMechanisms,
+  deriveMortalityWithBreakdown,
+  type MechanismMortalityBreakdown,
+  type MortalityWithBreakdown,
+} from "./derive-mortality";
+
+// Derive quality of life from mechanisms
+export {
+  deriveQualityFromMechanisms,
+  deriveQualityWithBreakdown,
+  type MechanismQualityBreakdown,
+  type QualityWithBreakdown,
+} from "./derive-quality";
+
 // Precomputed interventions
 export {
   PRECOMPUTED_INTERVENTIONS,

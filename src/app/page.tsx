@@ -297,16 +297,16 @@ export default function Home() {
               },
               {
                 icon: BookOpen,
-                title: "Evidence synthesis",
+                title: "Search the evidence",
                 description:
                   "AI searches meta-analyses, RCTs, and cohort studies to find the best causal evidence for your specific question.",
                 delay: "delay-200",
               },
               {
                 icon: TrendingUp,
-                title: "Personalized estimate",
+                title: "Get your estimate",
                 description:
-                  "Get a QALY impact estimate tailored to your age, health, and baseline behaviors—with confidence intervals.",
+                  "Receive a QALY impact tailored to your age, health, and baseline behaviors—with confidence intervals.",
                 delay: "delay-300",
               },
             ].map((step, index) => (

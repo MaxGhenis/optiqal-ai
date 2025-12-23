@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Activity } from "lucide-react";
+import { Activity, ArrowRight, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 type Section = "problem" | "gap" | "solution" | "science" | "markets" | "model" | "traction" | "team" | "risks" | "vision";
 
@@ -135,13 +136,18 @@ function Cite({ id }: { id: number }) {
 
 export default function ThesisPage() {
   const [activeSection, setActiveSection] = useState<Section>("problem");
+  const [showStickyBar, setShowStickyBar] = useState(false);
   const sectionRefs = useRef<Record<Section, HTMLElement | null>>(
     Object.fromEntries(sections.map(s => [s, null])) as Record<Section, HTMLElement | null>
   );
 
-  // Scroll spy
+  // Scroll spy and sticky bar visibility
   useEffect(() => {
     const handleScroll = () => {
+      // Show sticky bar after scrolling past hero (approximately 70vh)
+      setShowStickyBar(window.scrollY > window.innerHeight * 0.7);
+
+      // Section highlighting
       for (const section of sections) {
         const el = sectionRefs.current[section];
         if (el) {
@@ -206,7 +212,19 @@ export default function ThesisPage() {
         <p className="text-xl text-muted-foreground max-w-xl relative z-10 leading-relaxed">
           We&apos;re building the tool that helps anyone understand how their choices affect their healthspan—grounded in the best causal evidence.
         </p>
-        <p className="text-sm text-muted-foreground mt-8 relative z-10">
+        <div className="mt-8 relative z-10">
+          <Button
+            size="lg"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/25 h-12 px-8"
+            asChild
+          >
+            <Link href="/analyze">
+              Try it now
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+        <p className="text-sm text-muted-foreground mt-6 relative z-10">
           Every claim in this document is corroborated with a primary source.<br />
           Hover over citations to see details. Click to open.
         </p>
@@ -337,6 +355,15 @@ export default function ThesisPage() {
               ))}
             </div>
           </div>
+
+          <Link
+            href="/analyze"
+            className="mt-8 flex items-center justify-center gap-2 p-6 bg-primary/5 border border-primary/20 rounded-xl hover:bg-primary/10 hover:border-primary/30 transition-all group"
+          >
+            <Sparkles className="h-5 w-5 text-primary" />
+            <span className="text-primary font-medium">See this in action</span>
+            <ArrowRight className="h-4 w-4 text-primary group-hover:translate-x-1 transition-transform" />
+          </Link>
         </div>
       </section>
 
@@ -400,6 +427,15 @@ export default function ThesisPage() {
               We propagate uncertainty through Monte Carlo simulation. Every estimate comes with a credible interval reflecting genuine scientific uncertainty—not false precision.
             </p>
           </div>
+
+          <Link
+            href="/analyze"
+            className="mt-8 flex items-center justify-center gap-2 p-6 bg-primary/5 border border-primary/20 rounded-xl hover:bg-primary/10 hover:border-primary/30 transition-all group"
+          >
+            <Sparkles className="h-5 w-5 text-primary" />
+            <span className="text-primary font-medium">See this in action</span>
+            <ArrowRight className="h-4 w-4 text-primary group-hover:translate-x-1 transition-transform" />
+          </Link>
         </div>
       </section>
 
@@ -697,25 +733,67 @@ export default function ThesisPage() {
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="w-[600px] h-[300px] bg-primary/10 rounded-full blur-3xl opacity-50" />
         </div>
-        <h2 className="font-serif text-4xl font-bold mb-4 relative z-10">Interested?</h2>
+        <h2 className="font-serif text-4xl font-bold mb-4 relative z-10">Ready to try it?</h2>
         <p className="text-lg text-muted-foreground mb-8 relative z-10">
-          We&apos;re building the future of evidence-based health decisions.
+          Experience the future of evidence-based health decisions today.
         </p>
-        <div className="flex justify-center gap-4 relative z-10">
-          <a
-            href="mailto:max@optiqal.ai"
-            className="px-6 py-3 bg-primary text-primary-foreground rounded-full font-medium hover:opacity-90 transition-opacity shadow-lg shadow-primary/25"
+        <div className="flex flex-wrap justify-center gap-4 relative z-10">
+          <Button
+            size="lg"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/25 h-12 px-8"
+            asChild
           >
-            Get in Touch
-          </a>
-          <Link
-            href="/"
-            className="px-6 py-3 bg-transparent border border-border text-foreground rounded-full font-medium hover:bg-muted transition-colors"
+            <Link href="/analyze">
+              Try OptiqAL Free
+              <Sparkles className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            className="h-12 px-8"
+            asChild
           >
-            ← Back to Home
-          </Link>
+            <a href="mailto:max@optiqal.ai">
+              Get in Touch
+            </a>
+          </Button>
+          <Button
+            variant="ghost"
+            size="lg"
+            className="h-12 px-8"
+            asChild
+          >
+            <Link href="/">
+              ← Back to Home
+            </Link>
+          </Button>
         </div>
       </section>
+
+      {/* Sticky bottom bar */}
+      <div
+        className={`fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border shadow-2xl transition-transform duration-300 ${
+          showStickyBar ? "translate-y-0" : "translate-y-full"
+        }`}
+      >
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+          <div className="hidden sm:block">
+            <p className="text-sm font-medium">Ready to quantify your life choices?</p>
+            <p className="text-xs text-muted-foreground">Get started with OptiqAL for free</p>
+          </div>
+          <Button
+            size="lg"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/25 h-11 px-6 sm:px-8"
+            asChild
+          >
+            <Link href="/analyze">
+              Try it free
+              <Sparkles className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -296,6 +296,31 @@ describe("simulateQALYImpactRigorous", () => {
     );
   });
 
+  it("should return non-zero qualityQALYs when quality effect is provided", () => {
+    // Intervention with quality effect (e.g., Ozempic improves mobility)
+    const interventionWithQuality: InterventionEffect = {
+      ...walkingIntervention,
+      quality: {
+        conditionEffects: [],
+        directDimensionEffects: [],
+        subjectiveWellbeing: {
+          type: "normal",
+          mean: 0.03, // 3% utility improvement
+          sd: 0.01,
+        },
+        onsetDelay: 0,
+        decayRate: 0,
+      },
+    };
+
+    const result = simulateQALYImpactRigorous(mockProfile, interventionWithQuality, {
+      nSimulations: 1000,
+    });
+
+    // Quality QALYs should be non-zero
+    expect(result.breakdown.qualityQALYs.median).toBeGreaterThan(0);
+  });
+
   it("should widen CI for low evidence quality (not change point estimate)", () => {
     // High quality evidence
     const highQuality = simulateQALYImpactRigorous(mockProfile, walkingIntervention, {

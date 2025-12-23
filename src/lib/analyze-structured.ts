@@ -23,17 +23,21 @@ import {
   qalyYearsToMinutes,
   matchIntervention,
   getPrecomputedEffect,
+  deriveMortalityFromMechanisms,
+  deriveQualityFromMechanisms,
 } from "@/lib/qaly";
 import { calculateBaselineQALYs } from "@/lib/evidence/baseline";
+import { getCachedResult, setCachedResult } from "./cache";
 
 /**
  * Response from Claude's mechanism elicitation
  */
 interface ClaudeMechanismResponse {
   intervention: string;
+  counterfactual: string;
   mechanismEffects: {
     mechanism: string;
-    affected: boolean;
+    affected?: boolean; // optional - if present, mechanism is affected
     direction: "increase" | "decrease";
     effectSize: {
       type: "normal" | "lognormal" | "uniform" | "point";
@@ -47,8 +51,6 @@ interface ClaudeMechanismResponse {
     };
     units?: string;
     evidenceQuality: "strong" | "moderate" | "weak";
-    source?: string;
-    reasoning?: string;
   }[];
   directMortalityEffect?: {
     hasDirectEffect: boolean;
@@ -57,15 +59,12 @@ interface ClaudeMechanismResponse {
       logMean: number;
       logSd: number;
     };
-    source?: string;
   };
   overallEvidenceQuality: "high" | "moderate" | "low" | "very-low";
   caveats: string[];
   keyStudies: {
     citation: string;
     studyType: string;
-    sampleSize?: number;
-    relevance: string;
   }[];
 }
 
@@ -75,14 +74,16 @@ interface ClaudeMechanismResponse {
 export interface StructuredAnalysisResult {
   // Original input
   intervention: string;
+  counterfactual: string; // What this is being compared against
   profile: UserProfile;
 
   // Data source
   source: {
-    type: "precomputed" | "claude";
+    type: "precomputed" | "claude" | "cache";
     precomputedId?: string;
     precomputedName?: string;
     confidence?: number; // 0-1 for precomputed match confidence
+    cacheHit?: boolean; // True if result came from cache
   };
 
   // Baseline projection
@@ -118,62 +119,28 @@ export interface StructuredAnalysisResult {
     direction: "increase" | "decrease";
     evidenceQuality: string;
     affectedConditions: string[];
+    effectSize?: { type: "normal"; mean: number; sd: number };
+    units?: string;
   }[];
 }
 
-const MECHANISM_ELICITATION_SYSTEM = `You are a biomedical evidence synthesizer. Analyze interventions by estimating their effects on specific biological mechanisms.
+const MECHANISM_ELICITATION_SYSTEM = `You are a biomedical evidence synthesizer. Return COMPACT JSON only.
 
-For each AFFECTED mechanism, provide:
-- Direction (increase/decrease)
-- Effect size as a distribution (mean + SD for normal, or logMean + logSD for lognormal)
-- Evidence quality (strong/moderate/weak)
-- Key source
+COUNTERFACTUAL: State what this is compared against (be specific, e.g., "no coffee" not "baseline").
 
-MECHANISMS TO CONSIDER:
+MECHANISMS (include TOP 5 most affected):
+blood_pressure, lipid_profile, insulin_sensitivity, systemic_inflammation, adiposity, sleep_quality, muscle_mass, bone_density, stress_hormones, neuroplasticity, cardiac_output, lung_function
 
-Cardiovascular: blood_pressure, lipid_profile, endothelial_function, arterial_stiffness, heart_rate_variability, cardiac_output
-Metabolic: insulin_sensitivity, glucose_regulation, adiposity, metabolic_rate, mitochondrial_function
-Inflammatory: systemic_inflammation, oxidative_stress, immune_function, gut_microbiome
-Neurological: neuroplasticity, bdnf_levels, neurotransmitter_balance, sleep_quality, stress_hormones, cognitive_reserve
-Musculoskeletal: muscle_mass, bone_density, joint_health, balance_proprioception
-Cellular: telomere_length, cellular_senescence, autophagy, dna_repair
-Respiratory: lung_function, oxygen_delivery
+EFFECT SIZES: blood_pressure in mmHg, others as % or Cohen's d. Conservative estimates, wider SD for weak evidence.
 
-EFFECT SIZE GUIDANCE:
-- blood_pressure: express in mmHg (e.g., -5 mmHg with SD 2)
-- lipid_profile, inflammation, etc.: express as % change (e.g., -15% with SD 8%)
-- For other mechanisms: use standardized effect sizes (Cohen's d)
-- Use CONSERVATIVE estimates - don't overstate evidence
-- Larger SD when evidence is weak or heterogeneous
+JSON FORMAT:
+{"intervention":"brief","counterfactual":"vs what","mechanismEffects":[{"mechanism":"blood_pressure","direction":"decrease","effectSize":{"type":"normal","mean":5,"sd":2},"evidenceQuality":"strong"}],"directMortalityEffect":{"hasDirectEffect":false},"overallEvidenceQuality":"moderate","caveats":["caveat1","caveat2"],"keyStudies":[{"citation":"Author Year","studyType":"meta-analysis"}]}
 
-RESPONSE FORMAT (JSON only):
-{
-  "intervention": "description",
-  "mechanismEffects": [
-    {
-      "mechanism": "blood_pressure",
-      "affected": true,
-      "direction": "decrease",
-      "effectSize": { "type": "normal", "mean": -5.0, "sd": 2.0 },
-      "units": "mmHg",
-      "evidenceQuality": "strong",
-      "source": "Cornelissen 2013 meta-analysis",
-      "reasoning": "Why this effect size"
-    }
-  ],
-  "directMortalityEffect": {
-    "hasDirectEffect": true,
-    "hazardRatio": { "type": "lognormal", "logMean": -0.15, "logSd": 0.08 },
-    "source": "Source if direct mortality evidence exists"
-  },
-  "overallEvidenceQuality": "moderate",
-  "caveats": ["Important limitations"],
-  "keyStudies": [
-    { "citation": "Author, Year", "studyType": "meta-analysis", "sampleSize": 10000, "relevance": "Why relevant" }
-  ]
-}
-
-Only include mechanisms that ARE affected. Be Bayesian: conservative priors, update with evidence, wide uncertainty when evidence is weak.`;
+RULES:
+- Max 5 mechanisms, 3 caveats, 2 studies
+- effectSize.mean is MAGNITUDE (positive), direction indicates sign
+- Only include mechanisms actually affected
+- Be Bayesian: conservative estimates`;
 
 /**
  * Call Claude to elicit mechanism effects
@@ -204,7 +171,7 @@ Return ONLY valid JSON.`;
 
   const response = await client.messages.create({
     model: "claude-opus-4-5-20251101",
-    max_tokens: 4096,
+    max_tokens: 1500,
     messages: [{ role: "user", content: userMessage }],
     system: MECHANISM_ELICITATION_SYSTEM,
   });
@@ -266,19 +233,21 @@ function convertToInterventionEffect(
   response: ClaudeMechanismResponse
 ): InterventionEffect {
   const mechanismEffects: MechanismEffect[] = response.mechanismEffects
-    .filter((m) => m.affected)
+    .filter((m) => m.affected !== false) // include if affected is true or undefined
     .map((m) => ({
       mechanism: m.mechanism as Mechanism,
       effectSize: parseDistribution(m.effectSize),
       direction: m.direction,
       units: m.units,
       evidenceQuality: m.evidenceQuality,
-      source: m.source,
     }));
 
-  // Build mortality effect if Claude provided direct evidence
+  // Build mortality effect:
+  // 1. Use Claude's direct mortality estimate if provided
+  // 2. Otherwise derive from mechanism effects
   let mortality = null;
   if (response.directMortalityEffect?.hasDirectEffect && response.directMortalityEffect.hazardRatio) {
+    // Claude provided direct mortality evidence (e.g., from RCTs)
     mortality = {
       hazardRatio: {
         type: "lognormal" as const,
@@ -291,21 +260,28 @@ function convertToInterventionEffect(
       persistenceAfterStopping: undefined,
       decayRate: 0,
     };
+  } else if (mechanismEffects.length > 0) {
+    // Derive mortality from mechanism effects
+    mortality = deriveMortalityFromMechanisms(mechanismEffects);
   }
+
+  // Derive quality of life effects from mechanism effects
+  const quality = mechanismEffects.length > 0
+    ? deriveQualityFromMechanisms(mechanismEffects)
+    : null;
 
   return {
     description: response.intervention,
     category: "other",
     mechanismEffects,
     mortality,
-    quality: null, // Will be derived from mechanisms
+    quality,
     costs: null,
     evidenceQuality: response.overallEvidenceQuality,
     keySources: response.keyStudies.map((s) => ({
       citation: s.citation,
       studyType: s.studyType as "meta-analysis" | "rct" | "cohort" | "case-control" | "other",
-      sampleSize: s.sampleSize,
-      contribution: s.relevance,
+      contribution: "Key evidence source",
     })),
     caveats: response.caveats,
     profileAdjustments: [],
@@ -375,8 +351,19 @@ function analyzePrecomputed(
     confidenceLevel = "low";
   }
 
+  // Derive counterfactual: use explicit if available, otherwise generate from category
+  const counterfactual = precomputedIntervention?.counterfactual ||
+    (precomputedIntervention?.category === "exercise"
+      ? "not doing this exercise / sedentary behavior"
+      : precomputedIntervention?.category === "diet"
+      ? "typical diet without this food/change"
+      : precomputedIntervention?.category === "substance"
+      ? "not using this substance"
+      : "not making this change");
+
   return {
     intervention,
+    counterfactual,
     profile,
 
     source: {
@@ -425,6 +412,8 @@ function analyzePrecomputed(
       direction: m.direction,
       evidenceQuality: m.evidenceQuality,
       affectedConditions: mechanismConditions.get(m.mechanism) || [],
+      effectSize: m.effectSize.type === "normal" ? { type: "normal" as const, mean: m.effectSize.mean, sd: m.effectSize.sd } : undefined,
+      units: m.units,
     })),
   };
 }
@@ -475,6 +464,7 @@ async function analyzeWithClaude(
 
   return {
     intervention,
+    counterfactual: claudeResponse.counterfactual || "current behavior / not doing this intervention",
     profile,
 
     source: {
@@ -510,7 +500,7 @@ async function analyzeWithClaude(
       keyStudies: claudeResponse.keyStudies.map((s) => ({
         citation: s.citation,
         studyType: s.studyType,
-        relevance: s.relevance,
+        relevance: "Key evidence source",
       })),
       caveats: claudeResponse.caveats,
     },
@@ -520,6 +510,8 @@ async function analyzeWithClaude(
       direction: m.direction,
       evidenceQuality: m.evidenceQuality,
       affectedConditions: mechanismConditions.get(m.mechanism) || [],
+      effectSize: m.effectSize.type === "normal" ? { type: "normal" as const, mean: m.effectSize.mean, sd: m.effectSize.sd } : undefined,
+      units: m.units,
     })),
   };
 }
@@ -530,18 +522,39 @@ const PRECOMPUTED_CONFIDENCE_THRESHOLD = 0.5;
 /**
  * Main entry point: analyze an intervention with full mechanism decomposition
  *
- * Tries precomputed interventions first for instant results,
- * falls back to Claude for novel queries.
+ * Flow:
+ * 1. Check cache for existing result
+ * 2. Try precomputed interventions for instant results
+ * 3. Fall back to Claude for novel queries
+ * 4. Cache the result
  */
 export async function analyzeStructured(
   profile: UserProfile,
   intervention: string,
   apiKey: string,
-  options?: { forceSource?: "precomputed" | "claude" }
+  options?: { forceSource?: "precomputed" | "claude"; skipCache?: boolean }
 ): Promise<StructuredAnalysisResult> {
+  // Check cache first (unless skipCache is true)
+  if (!options?.skipCache) {
+    const cached = getCachedResult(intervention, profile);
+    if (cached) {
+      console.log(`[Optiqal] Cache hit for "${intervention}"`);
+      // Mark as cache hit
+      return {
+        ...cached,
+        source: {
+          ...cached.source,
+          cacheHit: true,
+        },
+      };
+    }
+  }
+
   // Option to force a specific source (useful for testing)
   if (options?.forceSource === "claude") {
-    return analyzeWithClaude(profile, intervention, apiKey);
+    const result = await analyzeWithClaude(profile, intervention, apiKey);
+    setCachedResult(intervention, profile, result);
+    return result;
   }
 
   // Try to match against precomputed interventions
@@ -552,7 +565,9 @@ export async function analyzeStructured(
   // 2. Not forcing Claude
   if (match && match.confidence >= PRECOMPUTED_CONFIDENCE_THRESHOLD) {
     console.log(`[Optiqal] Using precomputed data for "${match.intervention.name}" (confidence: ${(match.confidence * 100).toFixed(0)}%)`);
-    return analyzePrecomputed(profile, intervention, match.id, match.confidence);
+    const result = analyzePrecomputed(profile, intervention, match.id, match.confidence);
+    setCachedResult(intervention, profile, result);
+    return result;
   }
 
   // Fall back to Claude for novel queries
@@ -562,7 +577,9 @@ export async function analyzeStructured(
     console.log(`[Optiqal] No precomputed match found, using Claude`);
   }
 
-  return analyzeWithClaude(profile, intervention, apiKey);
+  const result = await analyzeWithClaude(profile, intervention, apiKey);
+  setCachedResult(intervention, profile, result);
+  return result;
 }
 
 /**
