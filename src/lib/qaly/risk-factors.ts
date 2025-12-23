@@ -182,7 +182,7 @@ const bmiHazard: RiskFactorHazard = {
   },
   notes:
     "J-shaped relationship with optimal BMI 20-25. Risk increases at both extremes. Never-smokers only.",
-  getHazardRatio: (value: number): HazardValue => {
+  getHazardRatio: (value: number | string): HazardValue => {
     const bmi = value as number;
 
     // BMI categories and their HRs from Global BMI Mortality Collaboration 2016
@@ -215,7 +215,7 @@ const exerciseHazard: RiskFactorHazard = {
   },
   notes:
     "Dose-response relationship. Reference: 150-299 min/week moderate activity. Benefits continue beyond recommended levels.",
-  getHazardRatio: (value: number): HazardValue => {
+  getHazardRatio: (value: number | string): HazardValue => {
     const minutesPerWeek = value as number;
 
     // Categories from Arem et al 2015
@@ -245,7 +245,7 @@ const alcoholHazard: RiskFactorHazard = {
   },
   notes:
     "Slight J-curve for all-cause mortality, though no level is 'safe' for cardiovascular outcomes. 1 drink = 10g ethanol.",
-  getHazardRatio: (value: number): HazardValue => {
+  getHazardRatio: (value: number | string): HazardValue => {
     const drinksPerWeek = value as number;
 
     // Categories from Wood et al 2018
@@ -283,7 +283,7 @@ const sleepHazard: RiskFactorHazard = {
   },
   notes:
     "U-shaped relationship. Optimal sleep 7-8 hours. Both short and long sleep associated with increased mortality.",
-  getHazardRatio: (value: number): HazardValue => {
+  getHazardRatio: (value: number | string): HazardValue => {
     const hours = value as number;
 
     // Categories from Cappuccio et al 2010
@@ -312,7 +312,7 @@ const bloodPressureHazard: RiskFactorHazard = {
   },
   notes:
     "Log-linear relationship. HR doubles for each 20 mmHg increase above 115 mmHg for CVD. Effect starts at SBP ~115.",
-  getHazardRatio: (value: number, context?: RiskContext): HazardValue => {
+  getHazardRatio: (value: number | string, context?: RiskContext): HazardValue => {
     const sbp = value as number;
     const reference = 115; // Theoretical minimum
 
@@ -346,7 +346,7 @@ const mediterraneanDietHazard: RiskFactorHazard = {
   },
   notes:
     "Per 2-point increase in Mediterranean Diet Score (0-9 scale), mortality risk decreases by ~9%.",
-  getHazardRatio: (value: number): HazardValue => {
+  getHazardRatio: (value: number | string): HazardValue => {
     const score = value as number;
     const reference = 4.5; // Mid-point
 
@@ -376,7 +376,7 @@ const processedMeatHazard: RiskFactorHazard = {
     studyType: "meta-analysis",
   },
   notes: "Per 50g/day increase in processed meat, mortality risk increases by 18%.",
-  getHazardRatio: (value: number): HazardValue => {
+  getHazardRatio: (value: number | string): HazardValue => {
     const gramsPerDay = value as number;
 
     // HR = 1.18 per 50g/day
@@ -406,7 +406,7 @@ const fruitsVegetablesHazard: RiskFactorHazard = {
   },
   notes:
     "Per 200g/day increase, mortality risk decreases by ~10%. Benefits plateau around 800g/day.",
-  getHazardRatio: (value: number): HazardValue => {
+  getHazardRatio: (value: number | string): HazardValue => {
     const gramsPerDay = value as number;
     const reference = 400; // Recommended amount
 

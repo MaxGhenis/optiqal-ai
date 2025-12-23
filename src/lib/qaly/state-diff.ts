@@ -7,6 +7,43 @@
  * - QALY impact = E[QALY | State_B] - E[QALY | State_A]
  *
  * This module compares PersonStates and computes QALY impact.
+ *
+ * Example usage:
+ *
+ * ```typescript
+ * import { createDefaultState, computeInterventionImpact, compareInterventions } from './qaly';
+ *
+ * // Create baseline state
+ * const myState = createDefaultState(40, "male");
+ *
+ * // Compare single intervention
+ * const exerciseImpact = computeInterventionImpact(myState, {
+ *   behaviors: {
+ *     exercise: {
+ *       aerobicMinutesPerWeek: 300  // Increase from 150 to 300
+ *     }
+ *   }
+ * });
+ *
+ * console.log(`Expected QALY gain: ${exerciseImpact.qalyDifference.mean.toFixed(2)}`);
+ * console.log(`95% CI: [${exerciseImpact.qalyDifference.ci95.low.toFixed(2)}, ${exerciseImpact.qalyDifference.ci95.high.toFixed(2)}]`);
+ *
+ * // Compare multiple interventions
+ * const results = compareInterventions(myState, {
+ *   "exercise_300min": { behaviors: { exercise: { aerobicMinutesPerWeek: 300 } } },
+ *   "quit_smoking": { behaviors: { smoking: { status: "never" } } },
+ *   "mediterranean_diet": { behaviors: { diet: { mediterraneanAdherence: 0.8 } } }
+ * });
+ *
+ * // Rank by impact
+ * const ranked = Object.entries(results)
+ *   .sort((a, b) => b[1].qalyDifference.mean - a[1].qalyDifference.mean)
+ *   .map(([name, result]) => ({
+ *     intervention: name,
+ *     qalys: result.qalyDifference.mean,
+ *     lifeYears: result.lifeExpectancyDifference.mean
+ *   }));
+ * ```
  */
 
 import type { PersonState, DeepPartial } from "./state";
@@ -88,13 +125,13 @@ function stateToRiskFactorState(state: PersonState): {
   const age = getAge(state);
 
   // Map smoking status to risk factor categories
-  let smokingStatus = state.behaviors.smoking.status;
-  if (smokingStatus === "current") {
+  let smokingStatus: string = state.behaviors.smoking.status;
+  if (state.behaviors.smoking.status === "current") {
     const cpd = state.behaviors.smoking.cigarettesPerDay || 10;
     if (cpd <= 10) smokingStatus = "current_1_10";
     else if (cpd <= 20) smokingStatus = "current_11_20";
     else smokingStatus = "current_21_plus";
-  } else if (smokingStatus === "former") {
+  } else if (state.behaviors.smoking.status === "former") {
     const yearsQuit = state.behaviors.smoking.yearsQuit || 0;
     if (yearsQuit < 5) smokingStatus = "former_0_5_years";
     else if (yearsQuit < 10) smokingStatus = "former_5_10_years";

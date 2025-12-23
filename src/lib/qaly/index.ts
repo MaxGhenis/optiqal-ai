@@ -188,3 +188,24 @@ export {
   compareInterventions,
   identifyStateChanges,
 } from "./state-diff";
+
+// Imputation (behavior imputation and causal DAG)
+export {
+  type PartialObservation,
+  type ImputationResult,
+  type ImputationInput,
+  type ImputedBehaviors,
+  type CausalEffect,
+  imputeFullState,
+  createTypicalStateWithBehavior,
+  deepCopy,
+  CAUSAL_DAG,
+} from "./imputation";
+
+// Counterfactual simulation (causal intervention with imputation)
+export {
+  type CounterfactualResult,
+  type Intervention,
+  type CounterfactualOptions,
+  simulateCausalIntervention,
+} from "./counterfactual";
