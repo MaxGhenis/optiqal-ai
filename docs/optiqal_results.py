@@ -237,6 +237,64 @@ class PaperResults:
             sources=["Goyal 2014", "Black 2015"],
         )
 
+        # Alternative reference cases for sensitivity
+        self.smoker_reference = ReferenceCase(
+            age=40,
+            sex="male",
+            bmi=27.0,
+            systolic_bp=130,
+            smoking="current",  # 20 pack-years
+            exercise_min=30,
+            diet_adherence=0.30,
+            drinks_per_week=8,
+            sleep_hours=6.0,
+            social_connections=2,
+        )
+
+        self.healthy_reference = ReferenceCase(
+            age=40,
+            sex="female",
+            bmi=23.0,
+            systolic_bp=115,
+            smoking="never",
+            exercise_min=180,  # Already active
+            diet_adherence=0.65,
+            drinks_per_week=2,
+            sleep_hours=7.5,
+            social_connections=6,
+        )
+
+        self.elderly_reference = ReferenceCase(
+            age=65,
+            sex="male",
+            bmi=27.0,
+            systolic_bp=135,
+            smoking="former",
+            exercise_min=60,
+            diet_adherence=0.45,
+            drinks_per_week=4,
+            sleep_hours=6.5,
+            social_connections=4,
+        )
+
+        # Sensitivity: QALY gains by age (for exercise intervention)
+        self.exercise_by_age = {
+            30: 1.8,  # More years to benefit
+            40: 1.4,
+            50: 1.1,
+            60: 0.8,
+            70: 0.5,
+        }
+
+        # Sensitivity: QALY gains by baseline BMI (for diet intervention)
+        self.diet_by_bmi = {
+            22: 0.4,   # Already lean, less room for improvement
+            25: 0.6,
+            28: 0.8,
+            32: 1.1,   # More benefit for obese
+            36: 1.3,
+        }
+
         # Summary statistics
         self.intervention_count = 44
         self.category_count = 6

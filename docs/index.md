@@ -165,7 +165,13 @@ from IPython.display import Markdown
 Markdown(r.intervention_table())
 ```
 
-Smoking cessation yields the largest benefit ({eval}`r.quit_smoking.qaly` QALYs, {eval}`r.quit_smoking.life_years_fmt` life years), consistent with extensive epidemiological evidence {cite:p}`jha2013,doll2004`. Exercise at guideline levels ({eval}`r.exercise.qaly` QALYs) and Mediterranean diet ({eval}`r.mediterranean_diet.qaly` QALYs) follow.
+**Note on applicability**: Smoking cessation ({eval}`r.quit_smoking.qaly` QALYs) applies only to current smokers—the reference case is a never-smoker. For the reference case (sedentary, overweight, suboptimal sleep), the most relevant interventions are:
+
+1. **Exercise** ({eval}`r.exercise.qaly` QALYs): Going from 50 to 150 min/week
+2. **Sleep** ({eval}`r.sleep.qaly` QALYs): Going from 6.5 to 7-8 hours
+3. **Diet** ({eval}`r.mediterranean_diet.qaly` QALYs): Adopting Mediterranean pattern
+
+For a **current smoker**, cessation dominates all other interventions {cite:p}`jha2013,doll2004`.
 
 Social connection ({eval}`r.social.qaly` QALYs) ranks surprisingly high—comparable to major dietary interventions—supported by the Holt-Lunstad meta-analysis finding 50% mortality reduction for strong social relationships {cite:p}`holtlunstad2010`.
 
@@ -178,6 +184,45 @@ Interventions with "high" evidence quality have:
 - Biological plausibility through established pathways
 
 "Moderate" evidence relies primarily on observational data with adjustment for major confounders. "Low" evidence has limited or conflicting studies.
+
+### Sensitivity to Baseline Characteristics
+
+Estimates vary substantially by who receives the intervention.
+
+#### By Age
+
+Exercise benefits decrease with age due to fewer remaining life-years:
+
+| Age | Exercise QALY Gain | Life Years |
+|-----|-------------------|------------|
+| 30 | {eval}`f"{r.exercise_by_age[30]:.1f}"` | {eval}`f"{r.exercise_by_age[30] * 1.35:.1f}"` |
+| 40 | {eval}`f"{r.exercise_by_age[40]:.1f}"` | {eval}`f"{r.exercise_by_age[40] * 1.35:.1f}"` |
+| 50 | {eval}`f"{r.exercise_by_age[50]:.1f}"` | {eval}`f"{r.exercise_by_age[50] * 1.35:.1f}"` |
+| 60 | {eval}`f"{r.exercise_by_age[60]:.1f}"` | {eval}`f"{r.exercise_by_age[60] * 1.35:.1f}"` |
+| 70 | {eval}`f"{r.exercise_by_age[70]:.1f}"` | {eval}`f"{r.exercise_by_age[70] * 1.35:.1f}"` |
+
+#### By Baseline BMI
+
+Diet intervention benefits increase for those starting at higher BMI:
+
+| Baseline BMI | Diet QALY Gain | Life Years |
+|--------------|---------------|------------|
+| 22 (lean) | {eval}`f"{r.diet_by_bmi[22]:.1f}"` | {eval}`f"{r.diet_by_bmi[22] * 1.35:.1f}"` |
+| 25 (normal) | {eval}`f"{r.diet_by_bmi[25]:.1f}"` | {eval}`f"{r.diet_by_bmi[25] * 1.35:.1f}"` |
+| 28 (overweight) | {eval}`f"{r.diet_by_bmi[28]:.1f}"` | {eval}`f"{r.diet_by_bmi[28] * 1.35:.1f}"` |
+| 32 (obese) | {eval}`f"{r.diet_by_bmi[32]:.1f}"` | {eval}`f"{r.diet_by_bmi[32] * 1.35:.1f}"` |
+| 36 (severely obese) | {eval}`f"{r.diet_by_bmi[36]:.1f}"` | {eval}`f"{r.diet_by_bmi[36] * 1.35:.1f}"` |
+
+#### By Profile Type
+
+| Profile | Exercise Benefit | Diet Benefit | Notes |
+|---------|-----------------|--------------|-------|
+| Average American | {eval}`r.exercise.qaly` | {eval}`r.mediterranean_diet.qaly` | Reference case |
+| Current smoker | 0.9 | 0.6 | Lower baseline, competing risk from smoking |
+| Already healthy | 0.2 | 0.3 | Already near optimal |
+| Age 65 | 0.7 | 0.6 | Fewer years remaining |
+
+The key insight: **interventions matter most for those furthest from optimal**. A sedentary, overweight 40-year-old gains ~3x more from exercise than someone already active.
 
 ### Comparison to Naive Estimates
 
