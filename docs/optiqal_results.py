@@ -89,7 +89,7 @@ class PaperResults:
         # Key intervention results
         self.quit_smoking = InterventionResult(
             id="quit_smoking",
-            name="Quit Smoking",
+            name="Quit Smoking (vs 20 pack-years)",
             category="substance",
             qaly_mean=1.55,
             qaly_ci_lower=0.82,
@@ -103,7 +103,7 @@ class PaperResults:
 
         self.exercise = InterventionResult(
             id="exercise_150min",
-            name="Exercise 150 min/week",
+            name="Exercise 150 min/week (vs sedentary)",
             category="exercise",
             qaly_mean=1.03,
             qaly_ci_lower=0.51,
@@ -117,7 +117,7 @@ class PaperResults:
 
         self.mediterranean_diet = InterventionResult(
             id="mediterranean_diet",
-            name="Mediterranean Diet",
+            name="Mediterranean Diet (vs typical Western)",
             category="diet",
             qaly_mean=0.75,
             qaly_ci_lower=0.32,
@@ -131,7 +131,7 @@ class PaperResults:
 
         self.daily_nuts = InterventionResult(
             id="daily_nut_consumption",
-            name="Daily Nut Consumption",
+            name="Daily Nuts 28g (vs none)",
             category="diet",
             qaly_mean=0.45,
             qaly_ci_lower=0.18,
@@ -145,7 +145,7 @@ class PaperResults:
 
         self.reduce_alcohol = InterventionResult(
             id="reduce_alcohol_moderate",
-            name="Reduce Alcohol to Moderate",
+            name="Moderate Alcohol (vs heavy >14/week)",
             category="substance",
             qaly_mean=0.38,
             qaly_ci_lower=0.12,
@@ -159,7 +159,7 @@ class PaperResults:
 
         self.sleep = InterventionResult(
             id="consistent_bedtime",
-            name="Sleep 7-8 Hours Consistently",
+            name="Sleep 7-8h (vs <6h)",
             category="sleep",
             qaly_mean=0.52,
             qaly_ci_lower=0.21,
@@ -173,7 +173,7 @@ class PaperResults:
 
         self.social = InterventionResult(
             id="regular_social_interaction",
-            name="Regular Social Connection",
+            name="Social Connection (vs isolated)",
             category="stress",
             qaly_mean=0.68,
             qaly_ci_lower=0.28,
@@ -187,7 +187,7 @@ class PaperResults:
 
         self.meditation = InterventionResult(
             id="meditation_daily",
-            name="Daily Meditation",
+            name="Daily Meditation 10-20min (vs none)",
             category="stress",
             qaly_mean=0.22,
             qaly_ci_lower=0.05,
