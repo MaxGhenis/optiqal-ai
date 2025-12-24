@@ -1,0 +1,20 @@
+category: medical
+confounding_prior:
+  alpha: 3.0
+  beta: 3.0
+  mean: 0.5
+description: Daily application of SPF 30+ sunscreen to exposed skin
+id: daily_sunscreen
+mortality:
+  hazard_ratio:
+    params:
+      log_mean: -0.02
+      log_sd: 0.15
+    type: lognormal
+  sources:
+  - Green 2011 Lancet
+  - van der Pols 2006
+name: Daily Sunscreen SPF 30+
+quality:
+  mean: 0.01
+  sd: 0.005
