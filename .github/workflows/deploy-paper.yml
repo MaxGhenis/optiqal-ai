@@ -41,7 +41,7 @@ jobs:
       - name: Install Python dependencies
         working-directory: docs
         run: |
-          pip install ipykernel jupyter
+          pip install ipykernel jupyter matplotlib numpy
 
       - name: Build MyST site
         working-directory: docs
