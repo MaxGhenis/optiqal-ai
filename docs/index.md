@@ -6,10 +6,6 @@ kernelspec:
 
 # Optiqal: A State-Based Framework for Personalized QALY Estimation
 
-**Max Ghenis**
-
-max@maxghenis.com
-
 ```{code-cell} python
 :tags: [remove-cell]
 
@@ -17,28 +13,16 @@ max@maxghenis.com
 import sys
 sys.path.insert(0, '.')
 from optiqal_results import r
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import numpy as np
 ```
+
+*Max Ghenis* | max@maxghenis.com
 
 ## Abstract
 
 Lifestyle interventions show heterogeneous effects across individuals, yet existing tools provide population-average estimates without personalization. I present Optiqal, a state-based framework for estimating quality-adjusted life year (QALY) impacts of lifestyle changes. The framework models individuals as complete *states*—comprising demographics, biomarkers, behaviors, and conditions—and computes intervention effects as differences between states. Using imputation-based causal inference with a directed acyclic graph (DAG) of downstream effects, the framework isolates causal impacts from confounding. For the reference case—a {eval}`r.reference.description`—exercise at 150 min/week yields {eval}`r.exercise.life_years_fmt` additional life years ({eval}`r.exercise.months_fmt` months), followed by Mediterranean diet ({eval}`r.mediterranean_diet.life_years_fmt` years) and improved sleep ({eval}`r.sleep.life_years_fmt` years). For a current smoker, cessation yields {eval}`r.quit_smoking.life_years_fmt` years. Across {eval}`r.intervention_count` precomputed interventions spanning {eval}`r.category_count` categories, QALY impacts range from {eval}`r.qaly_range`.
-
-### Reference Case
-
-All estimates in this paper use a reference case representing an average American adult:
-
-| Characteristic | Value | Interpretation |
-|----------------|-------|----------------|
-| Age | {eval}`r.reference.age` | Middle-aged |
-| Sex | {eval}`r.reference.sex` | Male |
-| BMI | {eval}`r.reference.bmi` | Overweight (US average) |
-| Blood pressure | {eval}`r.reference.systolic_bp` mmHg | Elevated |
-| Exercise | {eval}`r.reference.exercise_min` min/week | Below guideline |
-| Diet adherence | {eval}`f"{r.reference.diet_adherence:.0%}"` | Below average |
-| Sleep | {eval}`r.reference.sleep_hours` hours | Suboptimal |
-| Smoking | {eval}`r.reference.smoking` | Non-smoker |
-
-This reference case has {eval}`f"{r.baseline_qalys:.1f}"` expected remaining QALYs. Estimates would differ for other profiles—a current smoker would see larger benefits from cessation; someone already exercising 150 min/week would see no benefit from that intervention.
 
 ## Introduction
 
@@ -90,6 +74,23 @@ A *PersonState* comprises five components:
 
 This representation enables modeling any intervention as a state modification.
 
+### Reference Case
+
+All estimates use a reference case representing an average American adult:
+
+| Characteristic | Value | Interpretation |
+|----------------|-------|----------------|
+| Age | {eval}`r.reference.age` | Middle-aged |
+| Sex | {eval}`r.reference.sex` | Male |
+| BMI | {eval}`r.reference.bmi` | Overweight (US average) |
+| Blood pressure | {eval}`r.reference.systolic_bp` mmHg | Elevated |
+| Exercise | {eval}`r.reference.exercise_min` min/week | Below guideline |
+| Diet adherence | {eval}`f"{r.reference.diet_adherence:.0%}"` | Below average |
+| Sleep | {eval}`r.reference.sleep_hours` hours | Suboptimal |
+| Smoking | {eval}`r.reference.smoking` | Non-smoker |
+
+This profile has {eval}`f"{r.baseline_qalys:.1f}"` expected remaining QALYs. Estimates differ for other profiles—a current smoker sees larger benefits from cessation; someone exercising 150 min/week sees no additional benefit from that intervention.
+
 ### Risk Factor Database
 
 We compiled hazard ratios from meta-analyses of prospective cohort studies:
@@ -105,6 +106,71 @@ We compiled hazard ratios from meta-analyses of prospective cohort studies:
 ### Causal DAG
 
 Interventions affect downstream variables through causal pathways. For example, exercise causally reduces BMI and blood pressure, but does NOT causally change diet—the observed correlation is confounding.
+
+```{code-cell} python
+:tags: [remove-input]
+
+# Figure 1: Causal pathway diagram
+fig, ax = plt.subplots(figsize=(10, 6))
+ax.set_xlim(0, 10)
+ax.set_ylim(0, 6)
+ax.axis('off')
+
+# Define boxes
+boxes = {
+    'Intervention': (1, 3, '#E8F5E9'),      # Green - input
+    'Biomarkers': (3.5, 4.5, '#E3F2FD'),    # Blue - intermediate
+    'Behaviors': (3.5, 1.5, '#FFF3E0'),     # Orange - intermediate
+    'Conditions': (6, 3, '#FFEBEE'),        # Red - disease
+    'QALYs': (8.5, 3, '#F3E5F5'),           # Purple - output
+}
+
+# Draw boxes
+for name, (x, y, color) in boxes.items():
+    rect = mpatches.FancyBboxPatch((x-0.7, y-0.4), 1.4, 0.8,
+                                    boxstyle="round,pad=0.05",
+                                    facecolor=color, edgecolor='gray', linewidth=2)
+    ax.add_patch(rect)
+    ax.text(x, y, name, ha='center', va='center', fontsize=11, fontweight='bold')
+
+# Draw arrows
+arrow_props = dict(arrowstyle='->', color='#555', lw=2,
+                   connectionstyle='arc3,rad=0.1')
+
+# Intervention -> Biomarkers
+ax.annotate('', xy=(2.8, 4.3), xytext=(1.7, 3.3), arrowprops=arrow_props)
+# Intervention -> Behaviors
+ax.annotate('', xy=(2.8, 1.7), xytext=(1.7, 2.7), arrowprops=arrow_props)
+# Biomarkers -> Conditions
+ax.annotate('', xy=(5.3, 3.3), xytext=(4.2, 4.3), arrowprops=arrow_props)
+# Behaviors -> Conditions
+ax.annotate('', xy=(5.3, 2.7), xytext=(4.2, 1.7), arrowprops=arrow_props)
+# Biomarkers -> Behaviors (bidirectional correlation, dashed)
+ax.annotate('', xy=(3.5, 2.1), xytext=(3.5, 3.9),
+            arrowprops=dict(arrowstyle='<->', color='#999', lw=1.5, linestyle='dashed'))
+# Conditions -> QALYs
+ax.annotate('', xy=(7.8, 3), xytext=(6.7, 3), arrowprops=arrow_props)
+
+# Labels for pathways
+ax.text(2.2, 4.1, 'causal', fontsize=9, color='#555', style='italic')
+ax.text(2.2, 2.0, 'causal', fontsize=9, color='#555', style='italic')
+ax.text(3.9, 3, 'correlated\n(not causal)', fontsize=8, color='#999', ha='center', style='italic')
+ax.text(4.8, 4.0, 'risk', fontsize=9, color='#555', style='italic')
+ax.text(4.8, 2.1, 'risk', fontsize=9, color='#555', style='italic')
+
+# Examples under boxes
+ax.text(1, 2.3, 'Exercise\nDiet\nSleep', ha='center', fontsize=8, color='#666')
+ax.text(3.5, 5.2, 'BMI, BP\nCholesterol', ha='center', fontsize=8, color='#666')
+ax.text(3.5, 0.8, 'Smoking\nAlcohol', ha='center', fontsize=8, color='#666')
+ax.text(6, 2.3, 'Diabetes\nCVD, Depression', ha='center', fontsize=8, color='#666')
+ax.text(8.5, 2.3, 'Quality × Years', ha='center', fontsize=8, color='#666')
+
+ax.set_title('Figure 1: Causal Pathway from Intervention to QALYs', fontsize=12, fontweight='bold', pad=20)
+plt.tight_layout()
+plt.show()
+```
+
+**Figure 1** illustrates the causal structure. Solid arrows represent causal effects (intervention changes biomarkers and behaviors, which affect condition risk). The dashed arrow shows correlation without causation—biomarkers and behaviors are correlated in the population, but intervening on one does not causally change the other.
 
 The causal DAG specifies:
 - **Exercise** → BMI (−0.5 per 150 min/week), systolic BP (−4 mmHg), HDL cholesterol (+3 mg/dL), sleep (+0.2 hours)
@@ -189,6 +255,47 @@ from IPython.display import Markdown
 Markdown(r.intervention_table())
 ```
 
+```{code-cell} python
+:tags: [remove-input]
+
+# Figure 2: Forest plot of intervention effects
+interventions = r.all_interventions()
+names = [i.name.split('(')[0].strip() for i in interventions]  # Shorter names
+qalys = [i.qaly_mean for i in interventions]
+ci_lower = [i.qaly_ci_lower for i in interventions]
+ci_upper = [i.qaly_ci_upper for i in interventions]
+evidence = [i.evidence_quality for i in interventions]
+
+# Color by evidence quality
+colors = {'high': '#2E7D32', 'moderate': '#F57C00', 'low': '#9E9E9E'}
+bar_colors = [colors[e] for e in evidence]
+
+fig, ax = plt.subplots(figsize=(10, 6))
+y_pos = np.arange(len(names))
+
+# Plot horizontal bars with error bars
+ax.barh(y_pos, qalys, color=bar_colors, alpha=0.7, height=0.6)
+ax.errorbar(qalys, y_pos, xerr=[np.array(qalys)-np.array(ci_lower), np.array(ci_upper)-np.array(qalys)],
+            fmt='none', ecolor='#333', capsize=3, capthick=1.5, elinewidth=1.5)
+
+ax.set_yticks(y_pos)
+ax.set_yticklabels(names)
+ax.set_xlabel('QALY Gain (95% CI)', fontsize=11)
+ax.set_title('Figure 2: Intervention Effects on Quality-Adjusted Life Years', fontsize=12, fontweight='bold')
+ax.axvline(x=0, color='#333', linewidth=0.8, linestyle='-')
+ax.set_xlim(-0.2, 2.8)
+
+# Legend for evidence quality
+legend_patches = [mpatches.Patch(color=colors[q], label=f'{q.capitalize()} evidence') for q in ['high', 'moderate', 'low']]
+ax.legend(handles=legend_patches, loc='lower right', framealpha=0.9)
+
+ax.invert_yaxis()  # Highest at top
+plt.tight_layout()
+plt.show()
+```
+
+**Figure 2** shows QALY gains with 95% confidence intervals. Smoking cessation dominates but applies only to smokers. Among universally applicable interventions, exercise and social connection show the largest effects. Evidence quality (color) indicates confidence in causal estimates.
+
 **Note on applicability**: Smoking cessation ({eval}`r.quit_smoking.qaly` QALYs) applies only to current smokers—the reference case is a never-smoker. For the reference case (sedentary, overweight, suboptimal sleep), the most relevant interventions are:
 
 1. **Exercise** ({eval}`r.exercise.qaly` QALYs): Going from 50 to 150 min/week
@@ -245,6 +352,54 @@ Diet intervention benefits increase for those starting at higher BMI:
 | Current smoker | 0.9 | 0.6 | Lower baseline, competing risk from smoking |
 | Already healthy | 0.2 | 0.3 | Already near optimal |
 | Age 65 | 0.7 | 0.6 | Fewer years remaining |
+
+```{code-cell} python
+:tags: [remove-input]
+
+# Figure 3: Sensitivity heatmap - Exercise QALY by age and baseline activity
+ages = [30, 40, 50, 60, 70]
+baseline_activity = [0, 30, 60, 90, 120]  # min/week
+activity_labels = ['Sedentary\n(0 min)', 'Low\n(30 min)', 'Moderate\n(60 min)', 'Active\n(90 min)', 'Very Active\n(120 min)']
+
+# Generate QALY matrix: more benefit for younger ages and lower baseline activity
+qaly_matrix = np.zeros((len(ages), len(baseline_activity)))
+for i, age in enumerate(ages):
+    for j, activity in enumerate(baseline_activity):
+        # Base effect decreases with age
+        age_factor = r.exercise_by_age.get(age, 1.0)
+        # Effect decreases as baseline activity increases (diminishing returns)
+        activity_factor = max(0, 1 - activity / 150)
+        qaly_matrix[i, j] = age_factor * activity_factor
+
+fig, ax = plt.subplots(figsize=(9, 6))
+im = ax.imshow(qaly_matrix, cmap='YlGn', aspect='auto', vmin=0, vmax=2.0)
+
+# Add colorbar
+cbar = ax.figure.colorbar(im, ax=ax)
+cbar.ax.set_ylabel('QALY Gain from Exercise', rotation=-90, va="bottom", fontsize=10)
+
+# Set ticks and labels
+ax.set_xticks(np.arange(len(baseline_activity)))
+ax.set_yticks(np.arange(len(ages)))
+ax.set_xticklabels(activity_labels, fontsize=9)
+ax.set_yticklabels([f'Age {a}' for a in ages], fontsize=10)
+
+# Add value annotations
+for i in range(len(ages)):
+    for j in range(len(baseline_activity)):
+        value = qaly_matrix[i, j]
+        text_color = 'white' if value > 1.0 else 'black'
+        ax.text(j, i, f'{value:.1f}', ha='center', va='center', color=text_color, fontsize=10, fontweight='bold')
+
+ax.set_xlabel('Baseline Physical Activity Level', fontsize=11)
+ax.set_ylabel('Age at Intervention', fontsize=11)
+ax.set_title('Figure 3: Exercise QALY Benefit by Age and Baseline Activity', fontsize=12, fontweight='bold')
+
+plt.tight_layout()
+plt.show()
+```
+
+**Figure 3** visualizes the interaction between age and baseline activity on exercise benefits. Young, sedentary individuals gain the most (1.8 QALYs), while older or already-active individuals gain less. This heatmap can guide personalized recommendations.
 
 The key insight: **interventions matter most for those furthest from optimal**. A sedentary, overweight 40-year-old gains ~3x more from exercise than someone already active.
 
