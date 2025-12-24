@@ -146,12 +146,34 @@ We apply a confounding adjustment factor calibrated to three evidence sources:
 
 The calibrated prior has mean {eval}`r.confounding_mean` (95% CI: {eval}`r.confounding_ci`), representing the fraction of observed effects that are causal.
 
+### Condition Incidence Models
+
+Interventions affect quality of life through condition incidence. Rather than using age-based EQ-5D population norms (which would double-count age-related morbidity already captured in condition prevalence), we model conditions directly:
+
+**Incidence models** for key conditions:
+- **Type 2 diabetes**: Based on FINDRISC + CDC National Diabetes Statistics, with BMI (RR 1.87/5 kg/m²), physical activity (RR 0.74 at 150 min/week), and hypertension (RR 1.5) adjustments
+- **CVD (CHD + stroke)**: Framingham-style model with age, blood pressure (2x per 20 mmHg SBP), cholesterol, smoking (RR 2.0), and diabetes (RR 2.5)
+- **Depression**: NIMH base rates with sex (female RR 1.6), exercise (RR 0.75 at 150 min/week), and obesity (RR 1.3) adjustments
+
+**Quality decrements** from literature:
+| Condition | Utility Decrement | Source |
+|-----------|------------------|--------|
+| Stroke | −0.16 | UKPDS 62 |
+| Heart failure | −0.12 | Sullivan catalog |
+| Depression | −0.10 | Sullivan catalog |
+| CHD | −0.09 | UKPDS 62 |
+| Type 2 diabetes | −0.06 | UKPDS 62 |
+
+**Pure aging effect**: Residual decline of 0.002/year after age 50 (0.06 by age 80), representing frailty and sensory decline not captured by specific diagnoses.
+
+This approach separates the causal pathway: Intervention → Biomarkers → Condition Risk → Quality Loss.
+
 ### Lifecycle Integration
 
-We propagate mortality effects through a lifecycle model:
+We propagate mortality and quality effects through a lifecycle model:
 - CDC life tables for age-specific mortality
 - Age-varying cause fractions (CVD, cancer, other)
-- EQ-5D population norms for quality weights {cite:p}`sullivan2005eq5d`
+- Condition-based quality weights (see above)
 - 3% annual discounting (for ICER calculations)
 
 ## Results
