@@ -74,7 +74,7 @@ Optiqal addresses these gaps through three innovations:
 
 2. **Imputation-based causal inference**: Unobserved behaviors are imputed from demographics. When intervening, only the target variable and its causal downstream effects change—correlated behaviors remain fixed.
 
-3. **Explicit uncertainty propagation**: Monte Carlo simulation propagates uncertainty from evidence to final QALY estimates.
+3. **Explicit uncertainty propagation**: Monte Carlo simulation with calibrated priors propagates uncertainty from evidence to final QALY estimates.
 
 ## Methods
 
@@ -165,6 +165,8 @@ Interventions affect quality of life through condition incidence. Rather than us
 | Type 2 diabetes | −0.06 | UKPDS 62 |
 
 **Pure aging effect**: Residual decline of 0.002/year after age 50 (0.06 by age 80), representing frailty and sensory decline not captured by specific diagnoses.
+
+**Comorbidity handling**: Quality decrements are applied multiplicatively following UKPDS 62 methodology {cite:p}`clarke2002ukpds62`. For example, a person with both diabetes (utility 0.94) and depression (utility 0.90) has combined utility 0.94 × 0.90 = 0.85, rather than the additive 0.94 + 0.90 − 1 = 0.84. This multiplicative approach avoids utilities below zero for patients with multiple conditions.
 
 This approach separates the causal pathway: Intervention → Biomarkers → Condition Risk → Quality Loss.
 
@@ -279,7 +281,7 @@ The naive approach compares a person who exercises to a "typical exerciser"—wh
 1. **Bayesian updating**: Incorporate user-provided observations to reduce imputation uncertainty
 2. **Dynamic modeling**: Track state evolution over time with behavior persistence
 3. **Intervention combinations**: Model synergies and conflicts between multiple changes
-4. **Validation**: Compare predictions to longitudinal cohort outcomes
+4. **External validation**: Compare predictions to longitudinal cohort outcomes from UK Biobank and NHANES follow-up studies. Key validation targets include: (a) all-cause mortality predictions vs observed deaths, (b) condition-specific incidence vs diagnoses in follow-up periods, and (c) quality-of-life trajectories vs repeated EQ-5D measurements
 
 ## Conclusion
 
