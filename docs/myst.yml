@@ -28,7 +28,6 @@ project:
 site:
   template: book-theme
   title: Optiqal
-  base_url: /optiqal-ai
   options:
     logo_text: Max Ghenis
     logo_url: https://github.com/maxghenis
