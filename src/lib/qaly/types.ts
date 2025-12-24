@@ -83,6 +83,8 @@ export type HealthCondition =
   | "osteoporosis"
   // Cancer
   | "cancer"
+  | "melanoma"
+  | "non_melanoma_skin_cancer"
   // Sensory
   | "vision_loss"
   | "hearing_loss"

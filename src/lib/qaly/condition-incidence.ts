@@ -171,9 +171,8 @@ export interface RiskFactors {
  */
 export function extractRiskFactors(state: PersonState): RiskFactors {
   // Check if person has diabetes diagnosis in conditions array
-  const hasDiabetes = state.conditions.some(
-    (c) => c.type === "type2_diabetes" || c.type === "type1_diabetes"
-  );
+  // HealthCondition type uses "diabetes" not "type2_diabetes"
+  const hasDiabetes = state.conditions.some((c) => c.type === "diabetes");
 
   return {
     age: getAge(state),
