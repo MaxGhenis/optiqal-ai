@@ -1,0 +1,179 @@
+# Omega-3 Fish Oil Supplementation
+# Evidence-based intervention definition using OptiqAL DSL
+#
+# Sources: VITAL trial 2019, Abdelhamid et al 2020 (Cochrane), Manson et al 2019
+
+id: fish_oil_supplement
+name: Omega-3 Fish Oil Supplement
+description: Daily supplementation with 1g EPA+DHA omega-3 fatty acids from fish oil
+category: medical
+
+keywords:
+  - fish oil
+  - omega-3
+  - omega 3
+  - EPA
+  - DHA
+  - supplements
+  - fatty acids
+
+# ============================================
+# EVIDENCE QUALITY & CONFOUNDING
+# ============================================
+
+evidence:
+  quality: high
+  primary_study_type: rct
+  sources:
+    - citation: "Manson JE et al. Marine n-3 fatty acids and prevention of CVD and cancer. NEJM 2019;380:23-32"
+      year: 2019
+      sample_size: 25871
+      contribution: "VITAL trial - primary prevention RCT"
+
+    - citation: "Bhatt DL et al. Cardiovascular risk reduction with icosapent ethyl. NEJM 2019;380:11-22"
+      year: 2019
+      sample_size: 8179
+      contribution: "REDUCE-IT trial - high-dose EPA"
+
+    - citation: "Abdelhamid AS et al. Omega-3 fatty acids for primary and secondary prevention of CVD. Cochrane Database 2020"
+      year: 2020
+      sample_size: 143000
+      contribution: "Cochrane systematic review"
+
+confounding:
+  # RCT evidence available, so confounding should be minimal
+  # However, large RCTs (VITAL, Cochrane) show null/small effects
+  # Observational studies showed larger benefits (likely confounded)
+  prior:
+    type: beta
+    alpha: 7.0
+    beta: 2.0
+
+  rationale: |
+    Multiple large RCTs now available (VITAL, REDUCE-IT, Cochrane review).
+    Early observational studies showed larger benefits (healthy user bias).
+    RCTs show null to small effects in general population.
+    REDUCE-IT showed benefit but used high-dose purified EPA (4g/day).
+    Standard dose fish oil (1g EPA+DHA) shows minimal CV benefit.
+    Beta(7.0, 2.0) → mean 78%, 95% CI: 50-94%
+
+  calibration_sources:
+    - "VITAL trial 2019 (RCT)"
+    - "Cochrane review 2020 (RCT meta-analysis)"
+    - "REDUCE-IT 2019 (high-dose EPA RCT)"
+
+# ============================================
+# MECHANISM EFFECTS
+# ============================================
+
+mechanisms:
+  triglycerides:
+    effect: Normal(-15, 5)
+    direction: decrease
+    units: "%"
+    evidence: strong
+    source: "Skulas-Ray et al 2019"
+
+  systemic_inflammation:
+    effect: Normal(-8, 5)
+    direction: decrease
+    units: "% CRP"
+    evidence: moderate
+    source: "Li et al 2014"
+
+  blood_pressure:
+    effect: Normal(-2, 1.5)
+    direction: decrease
+    units: mmHg
+    evidence: moderate
+    source: "Miller et al 2014"
+
+  endothelial_function:
+    effect: Normal(8, 5)
+    direction: increase
+    units: "% flow-mediated dilation"
+    evidence: moderate
+    source: "Wang et al 2012"
+
+  platelet_aggregation:
+    effect: Normal(-10, 6)
+    direction: decrease
+    units: "%"
+    evidence: moderate
+
+  arrhythmia_risk:
+    effect: Normal(-12, 8)
+    direction: decrease
+    units: "% sudden cardiac death risk"
+    evidence: moderate
+    source: "GISSI-Prevenzione 1999"
+
+  oxidative_stress:
+    effect: Normal(-8, 5)
+    direction: decrease
+    units: "%"
+    evidence: moderate
+
+# ============================================
+# MORTALITY EFFECT
+# ============================================
+
+mortality:
+  # VITAL trial: HR 0.96 (0.87-1.07) for major CV events - essentially null
+  # Cochrane meta-analysis: little to no effect on all-cause mortality
+  # Small potential benefit for CV death: HR ~0.92-0.95
+  # LogNormal(-0.03, 0.08) → median 0.97, 95% CI: 0.83-1.13
+  hazard_ratio: LogNormal(-0.03, 0.08)
+  onset_delay: 1.0
+  ramp_up: 1.0
+  decay_rate: 0
+
+# ============================================
+# QUALITY OF LIFE
+# ============================================
+
+quality:
+  # Minimal QoL impact for standard dose fish oil
+  subjective_wellbeing: Normal(0.005, 0.005)
+
+  dimension_effects:
+    - dimension: anxiety_depression
+      change: Normal(0.01, 0.01)  # Weak evidence for mood
+
+# ============================================
+# COSTS
+# ============================================
+
+costs:
+  hours_per_week: Normal(0.05, 0.02)  # Minimal time to take pill
+  annual_cost_usd: Normal(150, 50)  # Quality fish oil supplement
+  activity_disutility: Normal(0.002, 0.005)  # Fishy aftertaste for some
+
+# ============================================
+# CAVEATS & ADJUSTMENTS
+# ============================================
+
+caveats:
+  - "Large RCTs (VITAL) show minimal benefit in general population"
+  - "Benefits may be greater in those with low dietary fish intake"
+  - "High-dose EPA (4g REDUCE-IT) shows benefit but is prescription, costly"
+  - "Standard 1g dose has minimal mortality benefit based on RCT evidence"
+  - "May increase bleeding risk in those on anticoagulants"
+  - "Dietary fish consumption preferred over supplements"
+  - "Quality varies by brand (oxidation, contamination)"
+
+profile_adjustments:
+  - condition: "dietary_fish == 'high'"
+    adjustment: "Reduce all effects by 70% (already adequate omega-3 intake)"
+
+  - condition: "triglycerides > 200"
+    adjustment: "Increase triglyceride effect by 50%"
+
+  - condition: "heart_disease == true"
+    adjustment: "Increase mortality benefit to HR 0.91 (secondary prevention)"
+
+  - condition: "on_anticoagulants == true"
+    adjustment: "Add bleeding risk consideration, reduce net benefit"
+
+  - condition: "vegan_vegetarian == true"
+    adjustment: "Consider algae-based DHA/EPA as alternative source"

@@ -1,0 +1,181 @@
+# Moderate Alcohol Consumption
+# Evidence-based intervention definition using OptiqAL DSL
+#
+# Sources: Wood et al 2018, Zhao et al 2017, Holmes et al 2014 (Mendelian randomization)
+
+id: moderate_alcohol
+name: Limit Alcohol to 1-2 Drinks/Day
+description: Reduce alcohol consumption from heavy/moderate to 1-2 standard drinks per day (or abstinence)
+category: substance
+
+keywords:
+  - alcohol
+  - moderate drinking
+  - limit alcohol
+  - reduce drinking
+  - drinks per day
+
+# ============================================
+# EVIDENCE QUALITY & CONFOUNDING
+# ============================================
+
+evidence:
+  quality: moderate
+  primary_study_type: meta-analysis
+  sources:
+    - citation: "Wood AM et al. Risk thresholds for alcohol consumption. Lancet 2018;391:1513-23"
+      year: 2018
+      sample_size: 599912
+      contribution: "Individual participant meta-analysis"
+
+    - citation: "Zhao J et al. Alcohol consumption and mortality from coronary heart disease. J Stud Alcohol Drugs 2017;78:375-86"
+      year: 2017
+      contribution: "Meta-analysis CVD outcomes"
+
+    - citation: "Holmes MV et al. Association between alcohol and CVD. BMJ 2014;349:g4164"
+      year: 2014
+      contribution: "Mendelian randomization questioning J-curve"
+
+confounding:
+  # Alcohol shows strong confounding - the "J-curve" largely artifact
+  # Mendelian randomization (Holmes 2014, Millwood 2019) shows linear harm
+  # Abstainers include sick quitters (reverse causation)
+  # Light drinkers tend to be healthier, wealthier
+  prior:
+    type: beta
+    alpha: 2.0
+    beta: 6.0
+
+  rationale: |
+    Observational studies show J-curve (benefit at 1-2 drinks/day).
+    Mendelian randomization studies (Holmes 2014, Millwood 2019) show:
+    - No cardioprotective effect
+    - Linear increase in BP, stroke risk with any alcohol
+    Confounding by abstainer characteristics (sick quitters, religious).
+    Benefits largely artifact. Harm reduction is real benefit.
+    Beta(2.0, 6.0) → mean 25%, 95% CI: 5-56%
+
+  calibration_sources:
+    - "Holmes et al 2014 (Mendelian randomization)"
+    - "Millwood et al 2019 (China Kadoorie Biobank MR)"
+    - "Stockwell et al 2016 (abstainer bias review)"
+
+# ============================================
+# MECHANISM EFFECTS
+# ============================================
+
+mechanisms:
+  blood_pressure:
+    effect: Normal(-4, 2)  # Reduction from heavy/moderate to light
+    direction: decrease
+    units: mmHg
+    evidence: strong
+    source: "Roerecke et al 2017"
+
+  liver_function:
+    effect: Normal(20, 8)
+    direction: increase
+    units: "% improved markers"
+    evidence: strong
+    source: "Rehm et al 2010"
+
+  systemic_inflammation:
+    effect: Normal(-10, 5)
+    direction: decrease
+    units: "% CRP"
+    evidence: moderate
+
+  triglycerides:
+    effect: Normal(-12, 6)
+    direction: decrease
+    units: "%"
+    evidence: moderate
+    source: "Brien et al 2011"
+
+  cancer_risk_markers:
+    effect: Normal(-15, 8)
+    direction: decrease
+    units: "% DNA damage, acetaldehyde"
+    evidence: moderate
+    source: "Bagnardi et al 2015"
+
+  cognitive_function:
+    effect: Normal(0.15, 0.1)
+    direction: increase
+    units: SD
+    evidence: moderate
+    source: "Topiwala et al 2017"
+
+  sleep_quality:
+    effect: Normal(0.2, 0.1)
+    direction: increase
+    units: SD
+    evidence: moderate
+
+# ============================================
+# MORTALITY EFFECT
+# ============================================
+
+mortality:
+  # Effect is harm REDUCTION from heavy drinking (>3 drinks/day) to moderate
+  # Heavy drinking HR ~1.3-1.5, moderate ~1.0-1.1
+  # Reduction to light/none: HR ~0.85 vs continuing heavy
+  # LogNormal(-0.16, 0.12) → median 0.85, 95% CI: 0.67-1.08
+  hazard_ratio: LogNormal(-0.16, 0.12)
+  onset_delay: 0.25
+  ramp_up: 1.0
+  decay_rate: 0
+
+# ============================================
+# QUALITY OF LIFE
+# ============================================
+
+quality:
+  subjective_wellbeing: Normal(0.02, 0.015)
+
+  dimension_effects:
+    - dimension: anxiety_depression
+      change: Normal(0.02, 0.01)
+
+    - dimension: vitality
+      change: Normal(0.03, 0.015)
+
+    - dimension: cognitive_function
+      change: Normal(0.02, 0.01)
+
+# ============================================
+# COSTS
+# ============================================
+
+costs:
+  hours_per_week: Normal(0.5, 0.5)  # Some effort to change habits
+  annual_cost_usd: Normal(-800, 300)  # NEGATIVE: save money from drinking less
+  activity_disutility: Normal(0.01, 0.01)  # Social adjustment, some miss drinking
+
+# ============================================
+# CAVEATS & ADJUSTMENTS
+# ============================================
+
+caveats:
+  - "Effect assumes reduction FROM heavy/moderate drinking (>2-3 drinks/day)"
+  - "Never-drinkers should NOT start drinking for health"
+  - "J-curve in observational data likely confounded"
+  - "Mendelian randomization suggests no safe level"
+  - "Benefits are harm reduction, not true health improvement"
+  - "Individual variation in alcohol metabolism (e.g., ALDH2 variants)"
+
+profile_adjustments:
+  - condition: "baseline_alcohol == 'none'"
+    adjustment: "Set HR to 1.0 (no benefit from staying abstinent vs starting light drinking)"
+
+  - condition: "baseline_alcohol == 'light'"
+    adjustment: "Set HR to 0.98 (minimal change)"
+
+  - condition: "baseline_alcohol == 'heavy'"
+    adjustment: "Increase benefit by 40% (larger reduction)"
+
+  - condition: "liver_disease == true"
+    adjustment: "Increase liver pathway benefit by 100%"
+
+  - condition: "family_history_alcoholism == true"
+    adjustment: "Increase QoL benefit by 30% (avoid addiction risk)"

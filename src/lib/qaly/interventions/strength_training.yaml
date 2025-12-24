@@ -1,0 +1,195 @@
+# Strength Training 2x/Week
+# Evidence-based intervention definition using OptiqAL DSL
+#
+# Sources: Liu et al 2019, Momma et al 2022, Westcott 2012
+
+id: strength_training
+name: Strength Training 2x/Week
+description: Resistance exercise training 2-3 times per week, targeting major muscle groups
+category: exercise
+
+keywords:
+  - strength training
+  - resistance training
+  - weight lifting
+  - muscle
+  - resistance exercise
+  - weights
+  - gym
+
+# ============================================
+# EVIDENCE QUALITY & CONFOUNDING
+# ============================================
+
+evidence:
+  quality: moderate
+  primary_study_type: meta-analysis
+  sources:
+    - citation: "Liu Y et al. Associations of resistance exercise with CVD morbidity and mortality. Med Sci Sports Exerc 2019;51:499-508"
+      year: 2019
+      sample_size: 12591
+      contribution: "Mortality meta-analysis"
+
+    - citation: "Momma H et al. Muscle-strengthening activities are associated with lower risk and mortality. Am J Epidemiol 2022;191:771-83"
+      year: 2022
+      sample_size: 390000
+      contribution: "Updated meta-analysis all-cause mortality"
+
+    - citation: "Westcott WL. Resistance training is medicine. Curr Sports Med Rep 2012;11:209-16"
+      year: 2012
+      contribution: "Review of mechanisms"
+
+confounding:
+  # Strength training shows even stronger healthy user bias than aerobic exercise
+  # Those who lift weights tend to be more health-conscious, younger, male
+  # Limited RCT data on mortality outcomes
+  prior:
+    type: beta
+    alpha: 2.5
+    beta: 6.0
+
+  rationale: |
+    Resistance training observational studies show strong healthy user effect.
+    Population that lifts weights highly selected for health consciousness.
+    Limited long-term RCT data (too expensive, compliance issues).
+    Mechanisms well-established but mortality effects uncertain.
+    Beta(2.5, 6.0) → mean 29%, 95% CI: 7-61%
+
+  calibration_sources:
+    - "Liu et al 2019 (sensitivity analyses)"
+    - "Momma et al 2022 (dose-response)"
+    - "Westcott 2012 (mechanism review)"
+
+# ============================================
+# MECHANISM EFFECTS
+# ============================================
+
+mechanisms:
+  muscle_mass:
+    effect: Normal(8, 3)
+    direction: increase
+    units: "% lean mass"
+    evidence: strong
+    source: "Westcott 2012"
+
+  insulin_sensitivity:
+    effect: Normal(25, 10)
+    direction: increase
+    units: "%"
+    evidence: strong
+    source: "Strasser et al 2010"
+
+  bone_density:
+    effect: Normal(2, 1)
+    direction: increase
+    units: "% BMD"
+    evidence: strong
+    source: "Layne & Nelson 1999"
+
+  resting_metabolic_rate:
+    effect: Normal(7, 3)
+    direction: increase
+    units: "%"
+    evidence: strong
+    source: "Hunter et al 2015"
+
+  adiposity:
+    effect: Normal(-3, 2)
+    direction: decrease
+    units: "% body fat"
+    evidence: moderate
+    source: "Strasser & Schobersberger 2011"
+
+  blood_pressure:
+    effect: Normal(-3, 2)
+    direction: decrease
+    units: mmHg
+    evidence: moderate
+    source: "MacDonald et al 2016"
+
+  lipid_profile:
+    effect: Normal(-5, 3)
+    direction: decrease
+    units: "% LDL"
+    evidence: moderate
+    source: "Kelley & Kelley 2009"
+
+  systemic_inflammation:
+    effect: Normal(-12, 6)
+    direction: decrease
+    units: "% CRP"
+    evidence: moderate
+
+  functional_capacity:
+    effect: Normal(0.4, 0.15)
+    direction: increase
+    units: SD
+    evidence: strong
+
+# ============================================
+# MORTALITY EFFECT
+# ============================================
+
+mortality:
+  # Meta-analysis shows HR ~0.85 for regular strength training vs none
+  # LogNormal(-0.16, 0.12) → median 0.85, 95% CI: 0.67-1.08
+  hazard_ratio: LogNormal(-0.16, 0.12)
+  onset_delay: 0
+  ramp_up: 0.75
+  decay_rate: 0
+
+# ============================================
+# QUALITY OF LIFE
+# ============================================
+
+quality:
+  subjective_wellbeing: Normal(0.025, 0.015)
+
+  dimension_effects:
+    - dimension: mobility
+      change: Normal(0.04, 0.02)
+
+    - dimension: self_care
+      change: Normal(0.02, 0.01)
+
+    - dimension: usual_activities
+      change: Normal(0.03, 0.015)
+
+    - dimension: anxiety_depression
+      change: Normal(0.02, 0.01)
+
+# ============================================
+# COSTS
+# ============================================
+
+costs:
+  hours_per_week: Normal(2, 0.5)  # 2-3 sessions × 45 min
+  annual_cost_usd: Normal(400, 200)  # Gym membership or home equipment
+  activity_disutility: Normal(0.01, 0.01)  # Effort, muscle soreness
+
+# ============================================
+# CAVEATS & ADJUSTMENTS
+# ============================================
+
+caveats:
+  - "Requires proper form to avoid injury"
+  - "Benefits greatest for sarcopenic individuals"
+  - "Can be combined with aerobic exercise for additive benefits"
+  - "Progressive overload needed for continued gains"
+  - "Injury risk if poor technique or excessive load"
+
+profile_adjustments:
+  - condition: "age > 65"
+    adjustment: "Increase muscle mass and bone density benefits by 40% (sarcopenia prevention)"
+
+  - condition: "age > 65"
+    adjustment: "Increase fall prevention benefit (20% fall risk reduction)"
+
+  - condition: "diabetes == true"
+    adjustment: "Increase insulin sensitivity benefit by 30%"
+
+  - condition: "baseline_strength_training == true"
+    adjustment: "Reduce HR effect by 70% (already doing it)"
+
+  - condition: "gender == 'female' AND age > 50"
+    adjustment: "Increase bone density benefit by 50% (osteoporosis prevention)"

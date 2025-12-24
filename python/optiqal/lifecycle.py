@@ -6,7 +6,9 @@ Based on whatnut methodology.
 """
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, Optional
+import json
+from pathlib import Path
 import numpy as np
 
 # CDC National Vital Statistics Life Tables (2021)
@@ -169,6 +171,68 @@ def get_quality_weight(age: float) -> float:
     )
 
 
+# Precomputed baselines cache
+_PRECOMPUTED_BASELINES: Optional[dict] = None
+
+
+def load_precomputed_baselines() -> dict:
+    """Load precomputed baseline data from JSON file."""
+    global _PRECOMPUTED_BASELINES
+
+    if _PRECOMPUTED_BASELINES is None:
+        data_path = Path(__file__).parent / "data" / "baselines.json"
+        with open(data_path, "r") as f:
+            _PRECOMPUTED_BASELINES = json.load(f)
+
+    return _PRECOMPUTED_BASELINES
+
+
+def get_precomputed_baseline_qalys(
+    age: int, sex: Literal["male", "female"]
+) -> Optional[float]:
+    """
+    Get precomputed baseline QALYs for a given age and sex.
+
+    Args:
+        age: Integer age (0-100)
+        sex: "male" or "female"
+
+    Returns:
+        Remaining QALYs if available, None otherwise
+    """
+    if age < 0 or age > 100:
+        return None
+
+    try:
+        baselines = load_precomputed_baselines()
+        return baselines["remaining_qalys"][sex][str(age)]
+    except (KeyError, FileNotFoundError):
+        return None
+
+
+def get_precomputed_life_expectancy(
+    age: int, sex: Literal["male", "female"]
+) -> Optional[float]:
+    """
+    Get precomputed life expectancy for a given age and sex.
+
+    Args:
+        age: Integer age (0-100)
+        sex: "male" or "female"
+
+    Returns:
+        Remaining life expectancy if available, None otherwise
+    """
+    if age < 0 or age > 100:
+        return None
+
+    try:
+        baselines = load_precomputed_baselines()
+        return baselines["life_expectancy"][sex][str(age)]
+    except (KeyError, FileNotFoundError):
+        return None
+
+
 @dataclass
 class PathwayHRs:
     """Pathway-specific hazard ratios."""
@@ -211,11 +275,20 @@ class LifecycleModel:
         sex: Literal["male", "female"],
         discount_rate: float = 0.03,
         max_age: int = 100,
+        use_precomputed: bool = True,
     ):
         self.start_age = start_age
         self.sex = sex
         self.discount_rate = discount_rate
         self.max_age = max_age
+        self.use_precomputed = use_precomputed
+
+        # Cache precomputed baseline if available
+        self._precomputed_baseline_qalys = None
+        if use_precomputed and discount_rate == 0.03:
+            self._precomputed_baseline_qalys = get_precomputed_baseline_qalys(
+                start_age, sex
+            )
 
     def calculate(self, pathway_hrs: PathwayHRs) -> LifecycleResult:
         """
@@ -228,9 +301,42 @@ class LifecycleModel:
         Returns:
             LifecycleResult with baseline, intervention, and gain QALYs.
         """
-        baseline_qalys = 0.0
+        # Use precomputed baseline if available (fast path)
+        if self._precomputed_baseline_qalys is not None:
+            baseline_qalys = self._precomputed_baseline_qalys
+            # Still need to compute baseline_life_years
+            baseline_survival = 1.0
+            baseline_life_years = 0.0
+            for year in range(self.max_age - self.start_age):
+                current_age = self.start_age + year
+                base_qx = get_mortality_rate(current_age, self.sex)
+                baseline_life_years += baseline_survival
+                baseline_survival *= 1 - base_qx
+                if baseline_survival < 0.001:
+                    break
+        else:
+            # Full computation path
+            baseline_qalys = 0.0
+            baseline_survival = 1.0
+            baseline_life_years = 0.0
+
+            for year in range(self.max_age - self.start_age):
+                current_age = self.start_age + year
+                base_qx = get_mortality_rate(current_age, self.sex)
+                quality = get_quality_weight(current_age)
+                discount = 1 / (1 + self.discount_rate) ** year
+
+                baseline_qaly = baseline_survival * quality * discount
+                baseline_qalys += baseline_qaly
+                baseline_life_years += baseline_survival
+
+                baseline_survival *= 1 - base_qx
+
+                if baseline_survival < 0.001:
+                    break
+
+        # Always compute intervention path
         intervention_qalys = 0.0
-        baseline_life_years = 0.0
         intervention_life_years = 0.0
 
         cvd_contribution = 0.0
@@ -247,10 +353,8 @@ class LifecycleModel:
             quality = get_quality_weight(current_age)
             discount = 1 / (1 + self.discount_rate) ** year
 
-            # Baseline QALY
+            # Baseline QALY (for pathway contribution tracking)
             baseline_qaly = baseline_survival * quality * discount
-            baseline_qalys += baseline_qaly
-            baseline_life_years += baseline_survival
 
             # Intervention mortality rate
             intervention_qx = base_qx * (

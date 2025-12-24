@@ -4,7 +4,13 @@
  * Data: United States Life Tables, 2022
  *
  * e(x) = remaining life expectancy at age x
+ *
+ * NOTE: For production use, consider using precomputed baselines from
+ * precomputed.ts for faster O(1) lookups instead of interpolation.
  */
+
+import type { PrecomputedBaselines } from "./precomputed";
+import { getPrecomputedLifeExpectancy } from "./precomputed";
 
 export interface LifeTableEntry {
   age: number;
@@ -42,11 +48,25 @@ export const US_LIFE_TABLE_2022: LifeTableEntry[] = [
 /**
  * Get remaining life expectancy for a given age and sex
  * Uses linear interpolation between table entries
+ *
+ * @param age - Age in years
+ * @param sex - Sex
+ * @param precomputed - Optional precomputed baselines for O(1) lookup
  */
 export function getRemainingLifeExpectancy(
   age: number,
-  sex: "male" | "female" | "other"
+  sex: "male" | "female" | "other",
+  precomputed?: PrecomputedBaselines
 ): number {
+  // Fast path: use precomputed if available
+  if (precomputed) {
+    const result = getPrecomputedLifeExpectancy(age, sex, precomputed);
+    if (result !== null) {
+      return result;
+    }
+  }
+
+  // Fallback: interpolation
   // Use average for "other"
   const sexKey = sex === "other" ? null : sex;
 
@@ -83,10 +103,15 @@ export function getRemainingLifeExpectancy(
 
 /**
  * Get expected age at death
+ *
+ * @param currentAge - Current age in years
+ * @param sex - Sex
+ * @param precomputed - Optional precomputed baselines for O(1) lookup
  */
 export function getLifeExpectancy(
   currentAge: number,
-  sex: "male" | "female" | "other"
+  sex: "male" | "female" | "other",
+  precomputed?: PrecomputedBaselines
 ): number {
-  return currentAge + getRemainingLifeExpectancy(currentAge, sex);
+  return currentAge + getRemainingLifeExpectancy(currentAge, sex, precomputed);
 }

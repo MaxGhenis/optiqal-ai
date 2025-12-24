@@ -199,3 +199,11 @@ export {
   getQualityWeightWithConditions,
   CONDITION_DISABILITY_WEIGHTS,
 } from "./quality-weights";
+export {
+  loadPrecomputedBaselines,
+  getPrecomputedLifeExpectancy,
+  getPrecomputedRemainingQALYs,
+  getPrecomputedCauseFractions,
+  getPrecomputedQualityWeight,
+  type PrecomputedBaselines,
+} from "./precomputed";

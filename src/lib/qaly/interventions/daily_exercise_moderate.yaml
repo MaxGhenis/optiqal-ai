@@ -1,0 +1,192 @@
+# Moderate Exercise 150 Minutes/Week
+# Evidence-based intervention definition using OptiqAL DSL
+#
+# Sources: Wen et al 2011, Moore et al 2012, Warburton et al 2006
+
+id: daily_exercise_moderate
+name: 150 Minutes/Week Moderate Exercise
+description: Achieve WHO guidelines of 150 minutes/week moderate-intensity aerobic activity (e.g., brisk walking, cycling, swimming)
+category: exercise
+
+keywords:
+  - exercise
+  - 150 minutes
+  - WHO guidelines
+  - moderate exercise
+  - physical activity
+  - aerobic exercise
+  - cardio
+
+# ============================================
+# EVIDENCE QUALITY & CONFOUNDING
+# ============================================
+
+evidence:
+  quality: high
+  primary_study_type: meta-analysis
+  sources:
+    - citation: "Wen CP et al. Minimum amount of physical activity for reduced mortality. Lancet 2011;378:1244-53"
+      year: 2011
+      sample_size: 416175
+      contribution: "Dose-response mortality by activity level"
+
+    - citation: "Moore SC et al. Leisure time physical activity of moderate to vigorous intensity and mortality. PLoS Med 2012;9:e1001335"
+      year: 2012
+      sample_size: 654827
+      contribution: "Pooled cohort analysis"
+
+    - citation: "Warburton DE et al. Health benefits of physical activity. CMAJ 2006;174:801-9"
+      year: 2006
+      contribution: "Systematic review mechanisms"
+
+confounding:
+  # Exercise shows strong healthy user bias, similar to walking
+  # Device-measured PA (Ekelund 2019) shows ~40% of observational effect
+  # RCT effects typically 30-50% of observational
+  prior:
+    type: beta
+    alpha: 3.0
+    beta: 5.0
+
+  rationale: |
+    Exercise studies show substantial healthy user effect.
+    Those who exercise differ in many unmeasured ways (diet, stress, genetics).
+    Device-measured PA studies show attenuated effects vs self-report.
+    RCTs limited by short duration but support causality.
+    Beta(3.0, 5.0) → mean 38%, 95% CI: 11-70%
+
+  calibration_sources:
+    - "Ekelund et al 2019 (accelerometer-measured PA)"
+    - "Arem et al 2015 (dose-response with covariate adjustment)"
+    - "Hupin et al 2015 (older adults, sensitivity analyses)"
+
+# ============================================
+# MECHANISM EFFECTS
+# ============================================
+
+mechanisms:
+  blood_pressure:
+    effect: Normal(-5, 2.5)
+    direction: decrease
+    units: mmHg
+    evidence: strong
+    source: "Cornelissen & Smart 2013"
+
+  lipid_profile:
+    effect: Normal(-8, 3)
+    direction: decrease
+    units: "% LDL"
+    evidence: strong
+    source: "Mann et al 2014"
+
+  insulin_sensitivity:
+    effect: Normal(20, 8)
+    direction: increase
+    units: "%"
+    evidence: strong
+    source: "Colberg et al 2016"
+
+  systemic_inflammation:
+    effect: Normal(-18, 8)
+    direction: decrease
+    units: "% CRP"
+    evidence: strong
+    source: "Kasapis & Thompson 2005"
+
+  adiposity:
+    effect: Normal(-4, 2)
+    direction: decrease
+    units: "% body fat"
+    evidence: strong
+    source: "Donnelly et al 2009"
+
+  cardiac_output:
+    effect: Normal(12, 5)
+    direction: increase
+    units: "%"
+    evidence: strong
+
+  endothelial_function:
+    effect: Normal(20, 8)
+    direction: increase
+    units: "% flow-mediated dilation"
+    evidence: strong
+    source: "Green et al 2017"
+
+  neurotransmitter_balance:
+    effect: Normal(0.3, 0.15)
+    direction: increase
+    units: SD
+    evidence: moderate
+
+  mitochondrial_function:
+    effect: Normal(25, 10)
+    direction: increase
+    units: "%"
+    evidence: strong
+    source: "Hood et al 2011"
+
+# ============================================
+# MORTALITY EFFECT
+# ============================================
+
+mortality:
+  # Meta-analyses show HR ~0.70 for meeting guidelines vs sedentary
+  # LogNormal(-0.36, 0.10) → median 0.70, 95% CI: 0.57-0.85
+  hazard_ratio: LogNormal(-0.36, 0.10)
+  onset_delay: 0
+  ramp_up: 0.5
+  decay_rate: 0
+
+# ============================================
+# QUALITY OF LIFE
+# ============================================
+
+quality:
+  subjective_wellbeing: Normal(0.03, 0.015)
+
+  dimension_effects:
+    - dimension: mobility
+      change: Normal(0.04, 0.02)
+
+    - dimension: anxiety_depression
+      change: Normal(0.03, 0.015)
+
+    - dimension: vitality
+      change: Normal(0.04, 0.02)
+
+# ============================================
+# COSTS
+# ============================================
+
+costs:
+  hours_per_week: Normal(2.5, 0.5)  # 150 min / 60
+  annual_cost_usd: Normal(200, 100)  # Gym membership or equipment
+  activity_disutility: Normal(0.005, 0.01)  # Mild effort, but many enjoy it
+
+# ============================================
+# CAVEATS & ADJUSTMENTS
+# ============================================
+
+caveats:
+  - "Effect assumes currently sedentary baseline (<30 min/week)"
+  - "Dose-response: more exercise = greater benefit (up to ~300 min/week)"
+  - "Benefits plateau above 300-400 min/week"
+  - "Vigorous activity can achieve similar benefits in less time"
+  - "Injury risk increases with intensity and volume"
+
+profile_adjustments:
+  - condition: "baseline_activity == 'sedentary'"
+    adjustment: "Use full effect"
+
+  - condition: "baseline_activity == 'moderate'"
+    adjustment: "Reduce HR effect by 60% (already partially active)"
+
+  - condition: "baseline_activity == 'active'"
+    adjustment: "Reduce HR effect by 80% (diminishing returns)"
+
+  - condition: "age > 70"
+    adjustment: "Reduce HR effect by 20%, increase mobility benefit by 30%"
+
+  - condition: "bmi > 30"
+    adjustment: "Increase adiposity effect by 40%"

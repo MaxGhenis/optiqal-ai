@@ -1,0 +1,188 @@
+# Smoking Cessation
+# Evidence-based intervention definition using OptiqAL DSL
+#
+# Sources: Jha et al 2013, Pirie et al 2013, Kenfield et al 2008
+
+id: quit_smoking
+name: Smoking Cessation
+description: Complete cessation of cigarette smoking with sustained abstinence
+category: substance
+
+keywords:
+  - quit smoking
+  - stop smoking
+  - smoking cessation
+  - tobacco
+  - cigarettes
+  - nicotine
+
+# ============================================
+# EVIDENCE QUALITY & CONFOUNDING
+# ============================================
+
+evidence:
+  quality: high
+  primary_study_type: cohort
+  sources:
+    - citation: "Jha P et al. 21st-century hazards of smoking and benefits of cessation. NEJM 2013;368:341-50"
+      year: 2013
+      sample_size: 113752
+      contribution: "Contemporary smoking mortality estimates"
+
+    - citation: "Pirie K et al. The 21st century hazards of smoking. Lancet 2013;381:133-41"
+      year: 2013
+      sample_size: 1300000
+      contribution: "Million Women Study - UK cohort"
+
+    - citation: "Kenfield SA et al. Smoking and smoking cessation in relation to mortality. JAMA 2008;299:2037-47"
+      year: 2008
+      sample_size: 104519
+      contribution: "Nurses Health Study mortality"
+
+confounding:
+  # Smoking cessation has high causal evidence
+  # Minimal healthy user bias (smokers who quit similar to continuing smokers)
+  # Dose-response very strong, reversibility supports causation
+  prior:
+    type: beta
+    alpha: 9.0
+    beta: 1.0
+
+  rationale: |
+    Smoking causation extremely well-established through:
+    - Dose-response (pack-years)
+    - Temporality (reversal of risk after cessation)
+    - Biological plausibility (multiple mechanisms)
+    - Animal models and biochemical evidence
+    Confounding minimal due to strong causal evidence.
+    Beta(9.0, 1.0) → mean 90%, 95% CI: 71-99%
+
+  calibration_sources:
+    - "Surgeon General Reports (1964-2020)"
+    - "Doll & Hill 1950s physician studies"
+    - "Multiple RCTs of cessation interventions"
+
+# ============================================
+# MECHANISM EFFECTS
+# ============================================
+
+mechanisms:
+  systemic_inflammation:
+    effect: Normal(-35, 10)
+    direction: decrease
+    units: "% CRP"
+    evidence: strong
+    source: "Bazzano et al 2003"
+
+  endothelial_function:
+    effect: Normal(40, 12)
+    direction: increase
+    units: "% flow-mediated dilation"
+    evidence: strong
+    source: "Johnson et al 2010"
+
+  blood_pressure:
+    effect: Normal(-4, 2)
+    direction: decrease
+    units: mmHg
+    evidence: strong
+    source: "Primatesta et al 2001"
+
+  lipid_profile:
+    effect: Normal(10, 4)
+    direction: increase
+    units: "% HDL increase"
+    evidence: strong
+    source: "Gepner et al 2011"
+
+  lung_function:
+    effect: Normal(15, 8)
+    direction: increase
+    units: "% FEV1 improvement"
+    evidence: strong
+    source: "Anthonisen et al 2005"
+
+  oxidative_stress:
+    effect: Normal(-40, 12)
+    direction: decrease
+    units: "%"
+    evidence: strong
+
+  thrombotic_factors:
+    effect: Normal(-30, 10)
+    direction: decrease
+    units: "% platelet aggregation"
+    evidence: strong
+    source: "Morita et al 2005"
+
+  cancer_risk_markers:
+    effect: Normal(-25, 10)
+    direction: decrease
+    units: "% DNA damage markers"
+    evidence: strong
+
+# ============================================
+# MORTALITY EFFECT
+# ============================================
+
+mortality:
+  # Current smokers HR ~2.8 vs never smokers
+  # Cessation brings HR from 2.8 → ~1.6 (quit age 40-50)
+  # Relative reduction ~0.57, but vs continuing smoking ~0.57
+  # After 15+ years, approaches never-smoker risk
+  # LogNormal(-0.51, 0.12) → median 0.60, 95% CI: 0.47-0.76
+  hazard_ratio: LogNormal(-0.51, 0.12)
+  onset_delay: 0  # Benefits start immediately
+  ramp_up: 5.0   # Full benefits take 5-15 years
+  decay_rate: 0
+
+# ============================================
+# QUALITY OF LIFE
+# ============================================
+
+quality:
+  subjective_wellbeing: Normal(0.04, 0.02)
+
+  dimension_effects:
+    - dimension: anxiety_depression
+      change: Normal(0.02, 0.015)  # Withdrawal initially negative, then positive
+
+    - dimension: vitality
+      change: Normal(0.05, 0.02)
+
+    - dimension: respiratory_function
+      change: Normal(0.06, 0.025)
+
+# ============================================
+# COSTS
+# ============================================
+
+costs:
+  hours_per_week: Normal(1, 0.5)  # Cessation support, managing cravings
+  annual_cost_usd: Normal(-2500, 500)  # NEGATIVE: save money from not buying cigarettes (~$7/pack × 365)
+  activity_disutility: Normal(0.03, 0.02)  # Withdrawal and cravings (first 3-6 months)
+
+# ============================================
+# CAVEATS & ADJUSTMENTS
+# ============================================
+
+caveats:
+  - "Benefits increase with duration of abstinence"
+  - "Earlier cessation (younger age) yields greater benefit"
+  - "Initial withdrawal period has negative QoL impact"
+  - "Requires sustained abstinence for full benefit"
+  - "May require pharmacotherapy or behavioral support"
+  - "Weight gain common (5-10 lbs average)"
+
+profile_adjustments:
+  - condition: "quit_age < 35"
+    adjustment: "Increase benefit by 30% (nearly eliminate excess mortality)"
+
+  - condition: "quit_age > 60"
+    adjustment: "Reduce benefit by 25% (less time to benefit, more damage done)"
+
+  - condition: "pack_years > 30"
+    adjustment: "Reduce lung cancer benefit by 20% (irreversible damage)"
+
+  - condition: "copd_present == true"
+    adjustment: "Increase respiratory pathway benefit by 40%"

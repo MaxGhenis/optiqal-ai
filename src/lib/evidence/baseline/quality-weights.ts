@@ -8,7 +8,13 @@
  *
  * Quality weight of 1.0 = perfect health
  * Quality weight of 0.0 = death-equivalent state
+ *
+ * NOTE: For production use, consider using precomputed baselines from
+ * precomputed.ts for faster O(1) lookups instead of interpolation.
  */
+
+import type { PrecomputedBaselines } from "./precomputed";
+import { getPrecomputedQualityWeight } from "./precomputed";
 
 /**
  * Average quality weight by age
@@ -157,8 +163,23 @@ export const CONDITION_DISABILITY_WEIGHTS: Record<
 
 /**
  * Get baseline quality weight for age (linear interpolation)
+ *
+ * @param age - Age in years
+ * @param precomputed - Optional precomputed baselines for O(1) lookup
  */
-export function getAgeQualityWeight(age: number): number {
+export function getAgeQualityWeight(
+  age: number,
+  precomputed?: PrecomputedBaselines
+): number {
+  // Fast path: use precomputed if available
+  if (precomputed) {
+    const result = getPrecomputedQualityWeight(age, precomputed);
+    if (result !== null) {
+      return result;
+    }
+  }
+
+  // Fallback: interpolation
   const clampedAge = Math.max(0, Math.min(90, age));
 
   let lower = AGE_QUALITY_WEIGHTS[0];
@@ -182,12 +203,17 @@ export function getAgeQualityWeight(age: number): number {
 /**
  * Calculate combined quality weight with conditions
  * Uses multiplicative model: Q_total = Q_age × (1 - DW1) × (1 - DW2) × ...
+ *
+ * @param age - Age in years
+ * @param conditionKeys - Array of condition keys
+ * @param precomputed - Optional precomputed baselines for O(1) lookup
  */
 export function getQualityWeightWithConditions(
   age: number,
-  conditionKeys: string[]
+  conditionKeys: string[],
+  precomputed?: PrecomputedBaselines
 ): number {
-  let weight = getAgeQualityWeight(age);
+  let weight = getAgeQualityWeight(age, precomputed);
 
   for (const key of conditionKeys) {
     const condition = CONDITION_DISABILITY_WEIGHTS[key];
