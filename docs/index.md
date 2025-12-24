@@ -16,6 +16,34 @@ from optiqal_results import r
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
+
+# Academic figure styling - cohesive palette inspired by medical journals
+plt.rcParams.update({
+    'font.family': 'serif',
+    'font.size': 10,
+    'axes.titlesize': 12,
+    'axes.titleweight': 'bold',
+    'axes.labelsize': 11,
+    'axes.spines.top': False,
+    'axes.spines.right': False,
+    'axes.linewidth': 0.8,
+    'figure.facecolor': 'white',
+    'figure.dpi': 150,
+    'savefig.dpi': 300,
+    'savefig.bbox': 'tight',
+})
+
+# Cohesive color palette - deep teal dominant with warm accents
+COLORS = {
+    'primary': '#1a5f7a',      # Deep teal - main elements
+    'secondary': '#57837b',    # Sage - supporting elements
+    'accent': '#c96f53',       # Terracotta - highlights/warnings
+    'neutral': '#4a5568',      # Slate gray - text/lines
+    'light': '#e8f4f3',        # Pale teal - backgrounds
+    'high_evidence': '#1a5f7a',    # Deep teal
+    'moderate_evidence': '#d4a574', # Warm sand
+    'low_evidence': '#9ca3af',      # Cool gray
+}
 ```
 
 *Max Ghenis* | max@maxghenis.com
@@ -110,62 +138,63 @@ Interventions affect downstream variables through causal pathways. For example, 
 ```{code-cell} python
 :tags: [remove-input]
 
-# Figure 1: Causal pathway diagram
-fig, ax = plt.subplots(figsize=(10, 6))
+# Figure 1: Causal pathway diagram - refined academic style
+fig, ax = plt.subplots(figsize=(10, 5.5))
 ax.set_xlim(0, 10)
 ax.set_ylim(0, 6)
 ax.axis('off')
+fig.patch.set_facecolor('white')
 
-# Define boxes
+# Define boxes with cohesive palette
 boxes = {
-    'Intervention': (1, 3, '#E8F5E9'),      # Green - input
-    'Biomarkers': (3.5, 4.5, '#E3F2FD'),    # Blue - intermediate
-    'Behaviors': (3.5, 1.5, '#FFF3E0'),     # Orange - intermediate
-    'Conditions': (6, 3, '#FFEBEE'),        # Red - disease
-    'QALYs': (8.5, 3, '#F3E5F5'),           # Purple - output
+    'Intervention': (1, 3, COLORS['light'], COLORS['primary']),
+    'Biomarkers': (3.5, 4.5, '#f0f7f4', COLORS['secondary']),
+    'Behaviors': (3.5, 1.5, '#fdf6f0', COLORS['accent']),
+    'Conditions': (6, 3, '#fef2f0', '#b85c4a'),
+    'QALYs': (8.5, 3, COLORS['light'], COLORS['primary']),
 }
 
-# Draw boxes
-for name, (x, y, color) in boxes.items():
-    rect = mpatches.FancyBboxPatch((x-0.7, y-0.4), 1.4, 0.8,
-                                    boxstyle="round,pad=0.05",
-                                    facecolor=color, edgecolor='gray', linewidth=2)
+# Draw boxes with refined styling
+for name, (x, y, facecolor, edgecolor) in boxes.items():
+    rect = mpatches.FancyBboxPatch((x-0.75, y-0.4), 1.5, 0.8,
+                                    boxstyle="round,pad=0.08,rounding_size=0.15",
+                                    facecolor=facecolor, edgecolor=edgecolor,
+                                    linewidth=2.5, alpha=0.95)
     ax.add_patch(rect)
-    ax.text(x, y, name, ha='center', va='center', fontsize=11, fontweight='bold')
+    ax.text(x, y, name, ha='center', va='center', fontsize=11,
+            fontweight='bold', color=COLORS['neutral'])
 
-# Draw arrows
-arrow_props = dict(arrowstyle='->', color='#555', lw=2,
-                   connectionstyle='arc3,rad=0.1')
+# Draw arrows with consistent styling
+arrow_props = dict(arrowstyle='-|>', color=COLORS['neutral'], lw=2,
+                   connectionstyle='arc3,rad=0.08', mutation_scale=15)
 
-# Intervention -> Biomarkers
-ax.annotate('', xy=(2.8, 4.3), xytext=(1.7, 3.3), arrowprops=arrow_props)
-# Intervention -> Behaviors
-ax.annotate('', xy=(2.8, 1.7), xytext=(1.7, 2.7), arrowprops=arrow_props)
-# Biomarkers -> Conditions
-ax.annotate('', xy=(5.3, 3.3), xytext=(4.2, 4.3), arrowprops=arrow_props)
-# Behaviors -> Conditions
-ax.annotate('', xy=(5.3, 2.7), xytext=(4.2, 1.7), arrowprops=arrow_props)
-# Biomarkers -> Behaviors (bidirectional correlation, dashed)
+# Causal arrows
+ax.annotate('', xy=(2.75, 4.3), xytext=(1.75, 3.3), arrowprops=arrow_props)
+ax.annotate('', xy=(2.75, 1.7), xytext=(1.75, 2.7), arrowprops=arrow_props)
+ax.annotate('', xy=(5.25, 3.3), xytext=(4.25, 4.3), arrowprops=arrow_props)
+ax.annotate('', xy=(5.25, 2.7), xytext=(4.25, 1.7), arrowprops=arrow_props)
+ax.annotate('', xy=(7.75, 3), xytext=(6.75, 3), arrowprops=arrow_props)
+
+# Correlation arrow (dashed, muted)
 ax.annotate('', xy=(3.5, 2.1), xytext=(3.5, 3.9),
-            arrowprops=dict(arrowstyle='<->', color='#999', lw=1.5, linestyle='dashed'))
-# Conditions -> QALYs
-ax.annotate('', xy=(7.8, 3), xytext=(6.7, 3), arrowprops=arrow_props)
+            arrowprops=dict(arrowstyle='<->', color='#adb5bd', lw=1.5, linestyle='--'))
 
-# Labels for pathways
-ax.text(2.2, 4.1, 'causal', fontsize=9, color='#555', style='italic')
-ax.text(2.2, 2.0, 'causal', fontsize=9, color='#555', style='italic')
-ax.text(3.9, 3, 'correlated\n(not causal)', fontsize=8, color='#999', ha='center', style='italic')
-ax.text(4.8, 4.0, 'risk', fontsize=9, color='#555', style='italic')
-ax.text(4.8, 2.1, 'risk', fontsize=9, color='#555', style='italic')
+# Pathway labels - refined typography
+ax.text(2.1, 4.15, 'causal', fontsize=9, color=COLORS['secondary'], style='italic')
+ax.text(2.1, 1.95, 'causal', fontsize=9, color=COLORS['accent'], style='italic')
+ax.text(4.0, 3, 'correlated\n(confounding)', fontsize=8, color='#adb5bd', ha='center', style='italic')
+ax.text(4.85, 4.0, 'risk', fontsize=9, color=COLORS['neutral'], style='italic')
+ax.text(4.85, 2.1, 'risk', fontsize=9, color=COLORS['neutral'], style='italic')
 
-# Examples under boxes
-ax.text(1, 2.3, 'Exercise\nDiet\nSleep', ha='center', fontsize=8, color='#666')
-ax.text(3.5, 5.2, 'BMI, BP\nCholesterol', ha='center', fontsize=8, color='#666')
-ax.text(3.5, 0.8, 'Smoking\nAlcohol', ha='center', fontsize=8, color='#666')
-ax.text(6, 2.3, 'Diabetes\nCVD, Depression', ha='center', fontsize=8, color='#666')
-ax.text(8.5, 2.3, 'Quality × Years', ha='center', fontsize=8, color='#666')
+# Examples under boxes - subtle
+ax.text(1, 2.25, 'Exercise · Diet · Sleep', ha='center', fontsize=8, color='#6b7280')
+ax.text(3.5, 5.15, 'BMI · BP · Cholesterol', ha='center', fontsize=8, color='#6b7280')
+ax.text(3.5, 0.75, 'Smoking · Alcohol', ha='center', fontsize=8, color='#6b7280')
+ax.text(6, 2.25, 'Diabetes · CVD · Depression', ha='center', fontsize=8, color='#6b7280')
+ax.text(8.5, 2.25, 'Quality × Years', ha='center', fontsize=8, color='#6b7280')
 
-ax.set_title('Figure 1: Causal Pathway from Intervention to QALYs', fontsize=12, fontweight='bold', pad=20)
+ax.set_title('Figure 1: Causal Pathway from Intervention to QALYs',
+             fontsize=12, fontweight='bold', pad=15, color=COLORS['neutral'])
 plt.tight_layout()
 plt.show()
 ```
@@ -258,38 +287,55 @@ Markdown(r.intervention_table())
 ```{code-cell} python
 :tags: [remove-input]
 
-# Figure 2: Forest plot of intervention effects
+# Figure 2: Forest plot - refined academic style
 interventions = r.all_interventions()
-names = [i.name.split('(')[0].strip() for i in interventions]  # Shorter names
+names = [i.name.split('(')[0].strip() for i in interventions]
 qalys = [i.qaly_mean for i in interventions]
 ci_lower = [i.qaly_ci_lower for i in interventions]
 ci_upper = [i.qaly_ci_upper for i in interventions]
 evidence = [i.evidence_quality for i in interventions]
 
-# Color by evidence quality
-colors = {'high': '#2E7D32', 'moderate': '#F57C00', 'low': '#9E9E9E'}
-bar_colors = [colors[e] for e in evidence]
+# Color by evidence quality using cohesive palette
+evidence_colors = {
+    'high': COLORS['high_evidence'],
+    'moderate': COLORS['moderate_evidence'],
+    'low': COLORS['low_evidence']
+}
+bar_colors = [evidence_colors[e] for e in evidence]
 
-fig, ax = plt.subplots(figsize=(10, 6))
+fig, ax = plt.subplots(figsize=(9, 5.5))
 y_pos = np.arange(len(names))
 
-# Plot horizontal bars with error bars
-ax.barh(y_pos, qalys, color=bar_colors, alpha=0.7, height=0.6)
-ax.errorbar(qalys, y_pos, xerr=[np.array(qalys)-np.array(ci_lower), np.array(ci_upper)-np.array(qalys)],
-            fmt='none', ecolor='#333', capsize=3, capthick=1.5, elinewidth=1.5)
+# Plot horizontal bars with refined styling
+bars = ax.barh(y_pos, qalys, color=bar_colors, alpha=0.85, height=0.55, edgecolor='white', linewidth=0.5)
+
+# Error bars with refined styling
+ax.errorbar(qalys, y_pos,
+            xerr=[np.array(qalys)-np.array(ci_lower), np.array(ci_upper)-np.array(qalys)],
+            fmt='none', ecolor=COLORS['neutral'], capsize=4, capthick=1.5, elinewidth=1.5)
+
+# Point markers at mean
+ax.scatter(qalys, y_pos, color='white', s=25, zorder=5, edgecolor=COLORS['neutral'], linewidth=1)
 
 ax.set_yticks(y_pos)
-ax.set_yticklabels(names)
-ax.set_xlabel('QALY Gain (95% CI)', fontsize=11)
-ax.set_title('Figure 2: Intervention Effects on Quality-Adjusted Life Years', fontsize=12, fontweight='bold')
-ax.axvline(x=0, color='#333', linewidth=0.8, linestyle='-')
-ax.set_xlim(-0.2, 2.8)
+ax.set_yticklabels(names, fontsize=10)
+ax.set_xlabel('QALY Gain (95% CI)', fontsize=11, color=COLORS['neutral'])
+ax.set_title('Figure 2: Intervention Effects on Quality-Adjusted Life Years',
+             fontsize=12, fontweight='bold', color=COLORS['neutral'], pad=12)
+ax.axvline(x=0, color=COLORS['neutral'], linewidth=1, linestyle='-', alpha=0.3)
+ax.set_xlim(-0.1, 2.7)
 
-# Legend for evidence quality
-legend_patches = [mpatches.Patch(color=colors[q], label=f'{q.capitalize()} evidence') for q in ['high', 'moderate', 'low']]
-ax.legend(handles=legend_patches, loc='lower right', framealpha=0.9)
+# Subtle grid
+ax.xaxis.grid(True, linestyle='-', alpha=0.2, color=COLORS['neutral'])
+ax.set_axisbelow(True)
 
-ax.invert_yaxis()  # Highest at top
+# Refined legend
+legend_patches = [mpatches.Patch(color=evidence_colors[q], label=f'{q.capitalize()} evidence', alpha=0.85)
+                  for q in ['high', 'moderate', 'low']]
+ax.legend(handles=legend_patches, loc='lower right', framealpha=0.95, edgecolor='none',
+          fontsize=9, title='Evidence Quality', title_fontsize=9)
+
+ax.invert_yaxis()
 plt.tight_layout()
 plt.show()
 ```
@@ -356,27 +402,33 @@ Diet intervention benefits increase for those starting at higher BMI:
 ```{code-cell} python
 :tags: [remove-input]
 
-# Figure 3: Sensitivity heatmap - Exercise QALY by age and baseline activity
+# Figure 3: Sensitivity heatmap - refined academic style
+from matplotlib.colors import LinearSegmentedColormap
+
 ages = [30, 40, 50, 60, 70]
 baseline_activity = [0, 30, 60, 90, 120]  # min/week
 activity_labels = ['Sedentary\n(0 min)', 'Low\n(30 min)', 'Moderate\n(60 min)', 'Active\n(90 min)', 'Very Active\n(120 min)']
 
-# Generate QALY matrix: more benefit for younger ages and lower baseline activity
+# Generate QALY matrix
 qaly_matrix = np.zeros((len(ages), len(baseline_activity)))
 for i, age in enumerate(ages):
     for j, activity in enumerate(baseline_activity):
-        # Base effect decreases with age
         age_factor = r.exercise_by_age.get(age, 1.0)
-        # Effect decreases as baseline activity increases (diminishing returns)
         activity_factor = max(0, 1 - activity / 150)
         qaly_matrix[i, j] = age_factor * activity_factor
 
-fig, ax = plt.subplots(figsize=(9, 6))
-im = ax.imshow(qaly_matrix, cmap='YlGn', aspect='auto', vmin=0, vmax=2.0)
+# Custom colormap matching our palette (light teal to deep teal)
+cmap_colors = ['#f7fcfb', '#d4ede8', '#9dd4c8', '#57a99a', COLORS['primary'], '#0d3d4d']
+custom_cmap = LinearSegmentedColormap.from_list('optiqal', cmap_colors)
 
-# Add colorbar
-cbar = ax.figure.colorbar(im, ax=ax)
-cbar.ax.set_ylabel('QALY Gain from Exercise', rotation=-90, va="bottom", fontsize=10)
+fig, ax = plt.subplots(figsize=(9, 5.5))
+im = ax.imshow(qaly_matrix, cmap=custom_cmap, aspect='auto', vmin=0, vmax=2.0)
+
+# Refined colorbar
+cbar = ax.figure.colorbar(im, ax=ax, shrink=0.85, aspect=20)
+cbar.ax.set_ylabel('QALY Gain from Exercise', rotation=-90, va="bottom",
+                   fontsize=10, color=COLORS['neutral'], labelpad=15)
+cbar.outline.set_visible(False)
 
 # Set ticks and labels
 ax.set_xticks(np.arange(len(baseline_activity)))
@@ -384,16 +436,22 @@ ax.set_yticks(np.arange(len(ages)))
 ax.set_xticklabels(activity_labels, fontsize=9)
 ax.set_yticklabels([f'Age {a}' for a in ages], fontsize=10)
 
-# Add value annotations
+# Value annotations with refined styling
 for i in range(len(ages)):
     for j in range(len(baseline_activity)):
         value = qaly_matrix[i, j]
-        text_color = 'white' if value > 1.0 else 'black'
-        ax.text(j, i, f'{value:.1f}', ha='center', va='center', color=text_color, fontsize=10, fontweight='bold')
+        text_color = 'white' if value > 0.9 else COLORS['neutral']
+        ax.text(j, i, f'{value:.1f}', ha='center', va='center',
+                color=text_color, fontsize=11, fontweight='bold')
 
-ax.set_xlabel('Baseline Physical Activity Level', fontsize=11)
-ax.set_ylabel('Age at Intervention', fontsize=11)
-ax.set_title('Figure 3: Exercise QALY Benefit by Age and Baseline Activity', fontsize=12, fontweight='bold')
+ax.set_xlabel('Baseline Physical Activity Level', fontsize=11, color=COLORS['neutral'])
+ax.set_ylabel('Age at Intervention', fontsize=11, color=COLORS['neutral'])
+ax.set_title('Figure 3: Exercise QALY Benefit by Age and Baseline Activity',
+             fontsize=12, fontweight='bold', color=COLORS['neutral'], pad=12)
+
+# Remove cell borders for cleaner look
+for spine in ax.spines.values():
+    spine.set_visible(False)
 
 plt.tight_layout()
 plt.show()
