@@ -46,8 +46,6 @@ COLORS = {
 }
 ```
 
-*Max Ghenis* | max@maxghenis.com
-
 ## Abstract
 
 Lifestyle interventions show heterogeneous effects across individuals, yet existing tools provide population-average estimates without personalization. I present Optiqal, a state-based framework for estimating quality-adjusted life year (QALY) impacts of lifestyle changes. The framework models individuals as complete *states*—comprising demographics, biomarkers, behaviors, and conditions—and computes intervention effects as differences between states. Using imputation-based causal inference with a directed acyclic graph (DAG) of downstream effects, the framework isolates causal impacts from confounding. For the reference case—a {eval}`r.reference.description`—exercise at 150 min/week yields {eval}`r.exercise.life_years_fmt` additional life years ({eval}`r.exercise.months_fmt` months), followed by Mediterranean diet ({eval}`r.mediterranean_diet.life_years_fmt` years) and improved sleep ({eval}`r.sleep.life_years_fmt` years). For a current smoker, cessation yields {eval}`r.quit_smoking.life_years_fmt` years. Across {eval}`r.intervention_count` precomputed interventions spanning {eval}`r.category_count` categories, QALY impacts range from {eval}`r.qaly_range`.
@@ -86,7 +84,7 @@ Optiqal addresses these gaps through three innovations:
 
 2. **Imputation-based causal inference**: Unobserved behaviors are imputed from demographics. When intervening, only the target variable and its causal downstream effects change—correlated behaviors remain fixed.
 
-3. **Explicit uncertainty propagation**: Monte Carlo simulation with calibrated priors propagates uncertainty from evidence to final QALY estimates.
+3. **Bayesian confounding adjustment**: The framework uses calibrated Beta priors on the causal fraction of observed associations, derived from systematic RCT-observational discrepancies. These priors are propagated through Monte Carlo simulation to produce uncertainty-quantified QALY estimates.
 
 ## Methods
 
@@ -491,7 +489,7 @@ The naive approach compares a person who exercises to a "typical exerciser"—wh
 
 ### Future Directions
 
-1. **Bayesian updating**: Incorporate user-provided observations to reduce imputation uncertainty
+1. **Bayesian posterior updating**: As users provide personal observations (e.g., "I already exercise 100 min/week"), update imputation distributions using Bayes' rule: P(state | observation) ∝ P(observation | state) × P(state). This would sharpen QALY estimates by reducing uncertainty about the individual's true baseline
 2. **Dynamic modeling**: Track state evolution over time with behavior persistence
 3. **Intervention combinations**: Model synergies and conflicts between multiple changes
 4. **External validation**: Compare predictions to longitudinal cohort outcomes from UK Biobank and NHANES follow-up studies. Key validation targets include: (a) all-cause mortality predictions vs observed deaths, (b) condition-specific incidence vs diagnoses in follow-up periods, and (c) quality-of-life trajectories vs repeated EQ-5D measurements
