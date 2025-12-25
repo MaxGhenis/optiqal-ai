@@ -213,9 +213,11 @@ export function diabetesIncidence(rf: RiskFactors): number {
   let baseRate = baseRateByAge[ageGroup] / 1000;
 
   // BMI adjustment (relative risk)
-  // Source: Guh 2009 meta-analysis
-  // RR per 5 kg/m² increase ≈ 1.87 for men, 1.84 for women
-  const bmiRR = Math.pow(rf.sex === "male" ? 1.87 : 1.84, (rf.bmi - 25) / 5);
+  // Source: Guh 2009 meta-analysis, updated via Pan-UKB MR validation
+  // Original observational: RR ≈ 1.87 (men), 1.84 (women) per 5 kg/m²
+  // MR causal estimate: OR 2.52 per 1 SD (~4.5 kg/m²), suggesting RR ~2.3 per 5 units
+  // Using 2.3 to align with causal genetic evidence (see notebooks/pan-ukb-validation.ipynb)
+  const bmiRR = Math.pow(rf.sex === "male" ? 2.3 : 2.25, (rf.bmi - 25) / 5);
 
   // Physical activity adjustment
   // Source: Aune 2015 meta-analysis
