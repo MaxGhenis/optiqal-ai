@@ -278,32 +278,37 @@ class ProfilePrecomputedResult:
     bmi_category: str
     smoking_status: str
     has_diabetes: bool
+    has_hypertension: bool = False
+    activity_level: str = "light"
 
     # Point estimates
-    qaly_median: float
-    qaly_mean: float
-    qaly_ci95_low: float
-    qaly_ci95_high: float
+    qaly_median: float = 0.0
+    qaly_mean: float = 0.0
+    qaly_ci95_low: float = 0.0
+    qaly_ci95_high: float = 0.0
 
     # Pathway contributions
-    cvd_contribution: float
-    cancer_contribution: float
-    other_contribution: float
+    cvd_contribution: float = 0.0
+    cancer_contribution: float = 0.0
+    other_contribution: float = 0.0
 
     # Life years
-    life_years_gained: float
+    life_years_gained: float = 0.0
 
     # Confounding
-    causal_fraction_mean: float
-    causal_fraction_ci95_low: float
-    causal_fraction_ci95_high: float
+    causal_fraction_mean: float = 1.0
+    causal_fraction_ci95_low: float = 0.0
+    causal_fraction_ci95_high: float = 1.0
 
     # Baseline mortality context
-    baseline_mortality_multiplier: float
+    baseline_mortality_multiplier: float = 1.0
+
+    # Effect modifier applied
+    intervention_effect_modifier: float = 1.0
 
     # Metadata
-    n_samples: int
-    discount_rate: float
+    n_samples: int = 5000
+    discount_rate: float = 0.03
 
 
 @dataclass
@@ -365,7 +370,7 @@ class ProfilePrecomputedIntervention:
 def _simulate_single_profile(args):
     """Worker function for parallel profile simulation."""
     intervention, profile, n_samples, discount_rate, random_seed = args
-    from .profile import get_baseline_mortality_multiplier
+    from .profile import get_baseline_mortality_multiplier, get_intervention_modifier
 
     sim_result = simulate_qaly_profile(
         intervention,
@@ -383,6 +388,8 @@ def _simulate_single_profile(args):
         bmi_category=profile.bmi_category,
         smoking_status=profile.smoking_status,
         has_diabetes=profile.has_diabetes,
+        has_hypertension=profile.has_hypertension,
+        activity_level=profile.activity_level,
         qaly_median=sim_result.median,
         qaly_mean=sim_result.mean,
         qaly_ci95_low=sim_result.ci95[0],
@@ -395,6 +402,7 @@ def _simulate_single_profile(args):
         causal_fraction_ci95_low=cf_ci[0],
         causal_fraction_ci95_high=cf_ci[1],
         baseline_mortality_multiplier=get_baseline_mortality_multiplier(profile),
+        intervention_effect_modifier=get_intervention_modifier(profile, intervention.category),
         n_samples=n_samples,
         discount_rate=discount_rate,
     )
@@ -407,6 +415,8 @@ def precompute_intervention_profiles(
     bmi_categories: Optional[List[str]] = None,
     smoking_statuses: Optional[List[str]] = None,
     diabetes_statuses: Optional[List[bool]] = None,
+    hypertension_statuses: Optional[List[bool]] = None,
+    activity_levels: Optional[List[str]] = None,
     n_samples: int = 5000,
     discount_rate: float = 0.03,
     random_seed: Optional[int] = 42,
@@ -423,6 +433,8 @@ def precompute_intervention_profiles(
         bmi_categories: BMI categories
         smoking_statuses: Smoking statuses
         diabetes_statuses: Diabetes status (True/False)
+        hypertension_statuses: Hypertension status (True/False)
+        activity_levels: Activity levels (default: ["light"] only)
         n_samples: Number of Monte Carlo samples per profile
         discount_rate: Annual discount rate
         random_seed: Random seed for reproducibility
@@ -443,6 +455,10 @@ def precompute_intervention_profiles(
         smoking_statuses = ["never", "former", "current"]
     if diabetes_statuses is None:
         diabetes_statuses = [False, True]
+    if hypertension_statuses is None:
+        hypertension_statuses = [False, True]
+    if activity_levels is None:
+        activity_levels = ["light"]  # Keep grid manageable
 
     grid = {
         "ages": ages,
@@ -450,6 +466,8 @@ def precompute_intervention_profiles(
         "bmi_categories": bmi_categories,
         "smoking_statuses": smoking_statuses,
         "diabetes_statuses": diabetes_statuses,
+        "hypertension_statuses": hypertension_statuses,
+        "activity_levels": activity_levels,
     }
 
     # Generate all profiles
@@ -459,6 +477,8 @@ def precompute_intervention_profiles(
         bmi_categories=bmi_categories,
         smoking_statuses=smoking_statuses,
         diabetes_statuses=diabetes_statuses,
+        hypertension_statuses=hypertension_statuses,
+        activity_levels=activity_levels,
     ))
 
     total_profiles = len(profiles)

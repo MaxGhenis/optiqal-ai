@@ -7,6 +7,7 @@
 
 export type BmiCategory = "normal" | "overweight" | "obese" | "severely_obese";
 export type SmokingStatus = "never" | "former" | "current";
+export type ActivityLevel = "sedentary" | "light" | "moderate" | "active";
 
 export interface ProfileQuery {
   age: number;
@@ -14,6 +15,8 @@ export interface ProfileQuery {
   bmiCategory: BmiCategory;
   smokingStatus: SmokingStatus;
   hasDiabetes: boolean;
+  hasHypertension?: boolean;
+  activityLevel?: ActivityLevel;
 }
 
 export interface ProfileResult {
@@ -27,6 +30,7 @@ export interface ProfileResult {
   lifeYearsGained: number;
   causalFractionMean: number;
   baselineMortalityMultiplier: number;
+  interventionEffectModifier: number;
 }
 
 interface PrecomputedProfileData {
@@ -49,6 +53,8 @@ interface PrecomputedProfileData {
     bmi_categories: string[];
     smoking_statuses: string[];
     diabetes_statuses: boolean[];
+    hypertension_statuses?: boolean[];
+    activity_levels?: string[];
   };
 }
 
@@ -58,6 +64,8 @@ interface RawProfileResult {
   bmi_category: string;
   smoking_status: string;
   has_diabetes: boolean;
+  has_hypertension?: boolean;
+  activity_level?: string;
   qaly_median: number;
   qaly_mean: number;
   qaly_ci95_low: number;
@@ -70,6 +78,7 @@ interface RawProfileResult {
   causal_fraction_ci95_low: number;
   causal_fraction_ci95_high: number;
   baseline_mortality_multiplier: number;
+  intervention_effect_modifier?: number;
   n_samples: number;
   discount_rate: number;
 }
@@ -78,9 +87,25 @@ interface RawProfileResult {
 const profileCache: Map<string, PrecomputedProfileData> = new Map();
 
 /**
- * Generate profile key for lookup
+ * Generate profile key for lookup (v2 with hypertension)
  */
 function makeProfileKey(
+  age: number,
+  sex: string,
+  bmiCategory: string,
+  smokingStatus: string,
+  hasDiabetes: boolean,
+  hasHypertension: boolean = false
+): string {
+  const diabetesStr = hasDiabetes ? "diabetic" : "nondiabetic";
+  const hypertensionStr = hasHypertension ? "hypertensive" : "normotensive";
+  return `${age}_${sex}_${bmiCategory}_${smokingStatus}_${diabetesStr}_${hypertensionStr}`;
+}
+
+/**
+ * Generate legacy profile key (v1 without hypertension) for backward compatibility
+ */
+function makeProfileKeyV1(
   age: number,
   sex: string,
   bmiCategory: string,
@@ -106,6 +131,7 @@ function convertResult(raw: RawProfileResult): ProfileResult {
     lifeYearsGained: raw.life_years_gained,
     causalFractionMean: raw.causal_fraction_mean,
     baselineMortalityMultiplier: raw.baseline_mortality_multiplier,
+    interventionEffectModifier: raw.intervention_effect_modifier ?? 1.0,
   };
 }
 
@@ -133,7 +159,38 @@ function interpolateResults(
       lower.baselineMortalityMultiplier,
       upper.baselineMortalityMultiplier
     ),
+    interventionEffectModifier: lerp(
+      lower.interventionEffectModifier,
+      upper.interventionEffectModifier
+    ),
   };
+}
+
+/**
+ * Try to find a result using v2 key first, then fall back to v1 key
+ */
+function findResult(
+  data: PrecomputedProfileData,
+  age: number,
+  sex: string,
+  bmiCategory: string,
+  smokingStatus: string,
+  hasDiabetes: boolean,
+  hasHypertension: boolean
+): RawProfileResult | null {
+  // Try v2 key first (with hypertension)
+  const keyV2 = makeProfileKey(age, sex, bmiCategory, smokingStatus, hasDiabetes, hasHypertension);
+  if (data.results[keyV2]) {
+    return data.results[keyV2];
+  }
+
+  // Fall back to v1 key (without hypertension) for backward compatibility
+  const keyV1 = makeProfileKeyV1(age, sex, bmiCategory, smokingStatus, hasDiabetes);
+  if (data.results[keyV1]) {
+    return data.results[keyV1];
+  }
+
+  return null;
 }
 
 /**
@@ -169,7 +226,8 @@ export async function loadProfileData(
  * Get QALY estimate for a specific profile
  *
  * Supports exact lookup for grid points and linear interpolation for ages
- * between grid points.
+ * between grid points. Handles both v1 (without hypertension) and v2 (with
+ * hypertension) data formats.
  */
 export async function getProfileQALY(
   interventionId: string,
@@ -178,7 +236,14 @@ export async function getProfileQALY(
   const data = await loadProfileData(interventionId);
   if (!data) return null;
 
-  const { age, sex, bmiCategory, smokingStatus, hasDiabetes } = query;
+  const {
+    age,
+    sex,
+    bmiCategory,
+    smokingStatus,
+    hasDiabetes,
+    hasHypertension = false,
+  } = query;
   const ages = data.grid.ages;
 
   // Find surrounding ages for interpolation
@@ -186,21 +251,21 @@ export async function getProfileQALY(
 
   if (lowerAgeIdx < 0) {
     // Age below minimum - use minimum
-    const key = makeProfileKey(ages[0], sex, bmiCategory, smokingStatus, hasDiabetes);
-    const raw = data.results[key];
+    const raw = findResult(data, ages[0], sex, bmiCategory, smokingStatus, hasDiabetes, hasHypertension);
     return raw ? convertResult(raw) : null;
   }
 
   if (lowerAgeIdx >= ages.length - 1) {
     // Age above maximum - use maximum
-    const key = makeProfileKey(
+    const raw = findResult(
+      data,
       ages[ages.length - 1],
       sex,
       bmiCategory,
       smokingStatus,
-      hasDiabetes
+      hasDiabetes,
+      hasHypertension
     );
-    const raw = data.results[key];
     return raw ? convertResult(raw) : null;
   }
 
@@ -209,20 +274,16 @@ export async function getProfileQALY(
 
   // Exact match - no interpolation needed
   if (age === lowerAge) {
-    const key = makeProfileKey(lowerAge, sex, bmiCategory, smokingStatus, hasDiabetes);
-    const raw = data.results[key];
+    const raw = findResult(data, lowerAge, sex, bmiCategory, smokingStatus, hasDiabetes, hasHypertension);
     return raw ? convertResult(raw) : null;
   }
 
   // Interpolate between ages
-  const lowerKey = makeProfileKey(lowerAge, sex, bmiCategory, smokingStatus, hasDiabetes);
-  const upperKey = makeProfileKey(upperAge, sex, bmiCategory, smokingStatus, hasDiabetes);
-
-  const lowerRaw = data.results[lowerKey];
-  const upperRaw = data.results[upperKey];
+  const lowerRaw = findResult(data, lowerAge, sex, bmiCategory, smokingStatus, hasDiabetes, hasHypertension);
+  const upperRaw = findResult(data, upperAge, sex, bmiCategory, smokingStatus, hasDiabetes, hasHypertension);
 
   if (!lowerRaw || !upperRaw) {
-    console.warn(`Missing profile data for interpolation: ${lowerKey} or ${upperKey}`);
+    console.warn(`Missing profile data for interpolation at ages ${lowerAge} and ${upperAge}`);
     return lowerRaw ? convertResult(lowerRaw) : null;
   }
 
@@ -252,7 +313,9 @@ export async function getQALYForPerson(
   sex: "male" | "female",
   bmi: number,
   smokingStatus: SmokingStatus,
-  hasDiabetes: boolean
+  hasDiabetes: boolean,
+  hasHypertension: boolean = false,
+  activityLevel: ActivityLevel = "light"
 ): Promise<ProfileResult | null> {
   return getProfileQALY(interventionId, {
     age,
@@ -260,6 +323,8 @@ export async function getQALYForPerson(
     bmiCategory: getBmiCategory(bmi),
     smokingStatus,
     hasDiabetes,
+    hasHypertension,
+    activityLevel,
   });
 }
 
