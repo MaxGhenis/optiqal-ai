@@ -15,7 +15,8 @@ import {
   ResponsiveContainer,
   ReferenceLine,
   Area,
-  AreaChart,
+  Line,
+  ComposedChart,
 } from "recharts";
 
 interface BaselineCardProps {
@@ -40,16 +41,36 @@ export function BaselineCard({ profile }: BaselineCardProps) {
     [profile]
   );
 
+  // Calculate comparison projection (non-smoker scenario for smokers)
+  const comparisonProjection = useMemo(() => {
+    // Only show comparison if there's a meaningful difference
+    if (!profile.smoker) return null;
+    const comparisonProfile: UserProfile = {
+      ...profile,
+      smoker: false,
+    };
+    return calculateBaselineQALYs(comparisonProfile);
+  }, [profile]);
+
   // Combine data for chart
   const chartData = useMemo(() => {
-    return projection.survivalCurve.map((point) => ({
+    return projection.survivalCurve.map((point, i) => ({
       age: point.age,
-      expectedQALY: Math.round(point.expectedQALY * 100),
+      current: Math.round(point.expectedQALY * 100),
+      comparison: comparisonProjection
+        ? Math.round((comparisonProjection.survivalCurve[i]?.expectedQALY ?? point.expectedQALY) * 100)
+        : null,
       survival: Math.round(point.survivalProbability * 100),
+      survivalComparison: comparisonProjection
+        ? Math.round((comparisonProjection.survivalCurve[i]?.survivalProbability ?? point.survivalProbability) * 100)
+        : null,
     }));
-  }, [projection.survivalCurve]);
+  }, [projection.survivalCurve, comparisonProjection]);
 
   const bmi = profile.weight / Math.pow(profile.height / 100, 2);
+  const qalyDelta = comparisonProjection
+    ? comparisonProjection.remainingQALYs - projection.remainingQALYs
+    : 0;
   const [chartView, setChartView] = useState<"qaly" | "survival">("qaly");
 
   return (
@@ -160,12 +181,17 @@ export function BaselineCard({ profile }: BaselineCardProps) {
                 Survival Probability
               </button>
             </div>
+            {qalyDelta > 0.5 && (
+              <span className="text-xs text-muted-foreground">
+                Dashed line: non-smoker scenario (+{qalyDelta.toFixed(1)} QALYs)
+              </span>
+            )}
           </div>
 
           <div className="h-48 w-full">
             <ResponsiveContainer width="100%" height="100%">
               {chartView === "qaly" ? (
-                <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
                   <defs>
                     <linearGradient id="qalyGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.3} />
@@ -192,7 +218,10 @@ export function BaselineCard({ profile }: BaselineCardProps) {
                       borderRadius: "8px",
                       fontSize: "12px",
                     }}
-                    formatter={(value: number) => [`${value}%`, "Expected QALY rate"]}
+                    formatter={(value: number, name: string) => [
+                      `${value}%`,
+                      name === "current" ? "Current" : "Non-smoker scenario"
+                    ]}
                     labelFormatter={(age) => `Age ${age}`}
                   />
                   <ReferenceLine
@@ -203,14 +232,24 @@ export function BaselineCard({ profile }: BaselineCardProps) {
                   />
                   <Area
                     type="monotone"
-                    dataKey="expectedQALY"
+                    dataKey="current"
                     stroke="hsl(var(--accent))"
                     strokeWidth={2}
                     fill="url(#qalyGradient)"
                   />
-                </AreaChart>
+                  {comparisonProjection && (
+                    <Line
+                      type="monotone"
+                      dataKey="comparison"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      dot={false}
+                    />
+                  )}
+                </ComposedChart>
               ) : (
-                <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
                   <defs>
                     <linearGradient id="survivalGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
@@ -237,7 +276,10 @@ export function BaselineCard({ profile }: BaselineCardProps) {
                       borderRadius: "8px",
                       fontSize: "12px",
                     }}
-                    formatter={(value: number) => [`${value}%`, "Survival probability"]}
+                    formatter={(value: number, name: string) => [
+                      `${value}%`,
+                      name === "survival" ? "Current" : "Non-smoker scenario"
+                    ]}
                     labelFormatter={(age) => `Age ${age}`}
                   />
                   <ReferenceLine
@@ -253,7 +295,17 @@ export function BaselineCard({ profile }: BaselineCardProps) {
                     strokeWidth={2}
                     fill="url(#survivalGradient)"
                   />
-                </AreaChart>
+                  {comparisonProjection && (
+                    <Line
+                      type="monotone"
+                      dataKey="survivalComparison"
+                      stroke="hsl(var(--accent))"
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      dot={false}
+                    />
+                  )}
+                </ComposedChart>
               )}
             </ResponsiveContainer>
           </div>
