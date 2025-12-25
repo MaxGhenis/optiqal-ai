@@ -36,6 +36,14 @@ from .precompute import (
     PrecomputedResult,
     ProfilePrecomputedResult,
 )
+from .combination import (
+    combine_intervention_effects,
+    estimate_combined_qaly_from_singles,
+    find_optimal_portfolio,
+    find_optimal_portfolio_from_qalys,
+    CombinedEffect,
+    OVERLAP_MATRIX,
+)
 
 __all__ = [
     "Intervention",
@@ -54,6 +62,12 @@ __all__ = [
     "precompute_intervention_profiles",
     "PrecomputedResult",
     "ProfilePrecomputedResult",
+    "combine_intervention_effects",
+    "estimate_combined_qaly_from_singles",
+    "find_optimal_portfolio",
+    "find_optimal_portfolio_from_qalys",
+    "CombinedEffect",
+    "OVERLAP_MATRIX",
 ]
 
 
