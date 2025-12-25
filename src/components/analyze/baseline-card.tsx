@@ -118,7 +118,10 @@ export function BaselineCard({ profile }: BaselineCardProps) {
         {/* Decade Breakdown */}
         <div className="space-y-2">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">
-            QALY Projection by Decade
+            Expected QALYs per Decade
+          </p>
+          <p className="text-xs text-muted-foreground -mt-1">
+            Max 10 QALYs per decade (10 years × 100% quality)
           </p>
           <div className="space-y-1.5">
             {projection.breakdown.slice(0, 6).map((decade) => (
@@ -130,12 +133,13 @@ export function BaselineCard({ profile }: BaselineCardProps) {
                   <div
                     className="h-full bg-gradient-to-r from-primary/70 to-accent/70 rounded-full"
                     style={{
-                      width: `${(decade.avgQualityWeight * 100).toFixed(0)}%`,
+                      // Bar shows QALYs out of max 10 per decade
+                      width: `${Math.min((decade.qalysInDecade / 10) * 100, 100).toFixed(0)}%`,
                     }}
                   />
                 </div>
-                <span className="text-xs text-muted-foreground w-20 shrink-0 text-right">
-                  {decade.qalysInDecade.toFixed(1)} QALYs
+                <span className="text-xs text-muted-foreground w-24 shrink-0 text-right">
+                  {decade.qalysInDecade.toFixed(1)} / 10
                 </span>
               </div>
             ))}
