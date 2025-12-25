@@ -12,6 +12,7 @@ import {
 import type { MechanismEffect } from "@/lib/qaly/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { ShareButtons } from "./share-buttons";
+import { ProfileVisualizations } from "@/components/ProfileVisualizations";
 import {
   Clock,
   Heart,
@@ -679,6 +680,9 @@ export function StructuredResultCard({ result }: StructuredResultCardProps) {
             </ul>
           </div>
         )}
+
+        {/* Demographic visualizations */}
+        <ProfileVisualizations result={result} />
 
         {/* Evidence */}
         <div className="space-y-3">

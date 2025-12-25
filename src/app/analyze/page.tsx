@@ -13,6 +13,10 @@ import { StructuredResultCard } from "@/components/analyze/structured-result-car
 import { ComparisonResultCard } from "@/components/analyze/comparison-result-card";
 import { BaselineCard } from "@/components/analyze/baseline-card";
 import { CacheInfo } from "@/components/analyze/cache-info";
+import { InterventionComparison } from "@/components/InterventionComparison";
+import { CombinationCalculator } from "@/components/CombinationCalculator";
+import { PortfolioOptimizer } from "@/components/PortfolioOptimizer";
+import { PersonalizedResults } from "@/components/PersonalizedResults";
 import {
   analyzeStructured,
   analyzeComparison,
@@ -20,6 +24,7 @@ import {
   type StructuredAnalysisResult,
   type ComparisonAnalysisResult,
 } from "@/lib/analyze-structured";
+import { matchInterventionId } from "@/lib/qaly/intervention-matcher";
 import type { UserProfile } from "@/types";
 import { DEFAULT_PROFILE } from "@/types";
 import {
@@ -49,6 +54,10 @@ function AnalyzePageContent() {
   const [comparisonResult, setComparisonResult] = useState<ComparisonAnalysisResult | null>(null);
   const [showProfile, setShowProfile] = useState(false);
   const [useImperial, setUseImperial] = useState(true); // Default to imperial for US users
+  const [matchedIntervention, setMatchedIntervention] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   // Unit conversion helpers
   const cmToFeetInches = (cm: number) => {
@@ -112,8 +121,15 @@ function AnalyzePageContent() {
     setError(null);
     setResult(null);
     setComparisonResult(null);
+    setMatchedIntervention(null);
 
     try {
+      // Check for precomputed intervention match
+      const matched = matchInterventionId(choice);
+      if (matched) {
+        setMatchedIntervention(matched);
+      }
+
       // Check if this is a comparison query (A vs B)
       if (isComparisonQuery(choice)) {
         const response = await analyzeComparison(profile, choice, apiKey);
@@ -473,6 +489,15 @@ function AnalyzePageContent() {
           {/* Baseline Projection */}
           <BaselineCard profile={profile} />
 
+          {/* Intervention Comparison */}
+          <InterventionComparison profile={profile} />
+
+          {/* Portfolio Optimizer */}
+          <PortfolioOptimizer profile={profile} />
+
+          {/* Combination Calculator */}
+          <CombinationCalculator profile={profile} />
+
           {/* Choice Input */}
           <Card className="mesh-gradient-card border-border/50 card-highlight">
             <CardContent className="p-6 space-y-4">
@@ -524,7 +549,16 @@ function AnalyzePageContent() {
           {/* Cache Info */}
           <CacheInfo />
 
-          {/* Result */}
+          {/* Personalized Profile-Based Results */}
+          {matchedIntervention && (
+            <PersonalizedResults
+              profile={profile}
+              interventionId={matchedIntervention.id}
+              interventionName={matchedIntervention.name}
+            />
+          )}
+
+          {/* AI-Generated Results */}
           {result && <StructuredResultCard result={result} />}
           {comparisonResult && <ComparisonResultCard result={comparisonResult} />}
 

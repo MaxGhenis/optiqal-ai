@@ -459,9 +459,10 @@ export default function Home() {
             </span>
           </div>
           <p className="text-xs text-muted-foreground max-w-lg text-center md:text-right leading-relaxed">
-            Optiqal provides estimates based on published research and is not
-            medical advice. Consult healthcare professionals for medical
-            decisions.
+            <strong>For educational purposes only.</strong> Optiqal provides statistical estimates
+            based on population averages from published research. This is not medical advice and
+            cannot predict individual outcomes. Always consult healthcare professionals for
+            personal health decisions.
           </p>
         </div>
       </footer>

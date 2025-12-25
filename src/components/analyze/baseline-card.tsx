@@ -9,13 +9,10 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Heart, Clock, TrendingUp, Info } from "lucide-react";
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  Legend,
   ReferenceLine,
   Area,
   AreaChart,
@@ -43,35 +40,16 @@ export function BaselineCard({ profile }: BaselineCardProps) {
     [profile]
   );
 
-  // Calculate "improved" projection (e.g., optimal lifestyle)
-  const improvedProjection = useMemo(() => {
-    const improvedProfile: UserProfile = {
-      ...profile,
-      smoker: false,
-      exerciseHoursPerWeek: Math.max(profile.exerciseHoursPerWeek, 3),
-      sleepHoursPerNight: Math.min(Math.max(profile.sleepHoursPerNight, 7), 8),
-    };
-    return calculateBaselineQALYs(improvedProfile);
-  }, [profile]);
-
   // Combine data for chart
   const chartData = useMemo(() => {
-    const data: { age: number; current: number; improved: number; survival: number }[] = [];
-    for (let i = 0; i < projection.survivalCurve.length; i++) {
-      const current = projection.survivalCurve[i];
-      const improved = improvedProjection.survivalCurve[i];
-      data.push({
-        age: current.age,
-        current: Math.round(current.expectedQALY * 100),
-        improved: Math.round((improved?.expectedQALY ?? current.expectedQALY) * 100),
-        survival: Math.round(current.survivalProbability * 100),
-      });
-    }
-    return data;
-  }, [projection.survivalCurve, improvedProjection.survivalCurve]);
+    return projection.survivalCurve.map((point) => ({
+      age: point.age,
+      expectedQALY: Math.round(point.expectedQALY * 100),
+      survival: Math.round(point.survivalProbability * 100),
+    }));
+  }, [projection.survivalCurve]);
 
   const bmi = profile.weight / Math.pow(profile.height / 100, 2);
-  const qalyGain = improvedProjection.remainingQALYs - projection.remainingQALYs;
   const [chartView, setChartView] = useState<"qaly" | "survival">("qaly");
 
   return (
@@ -182,17 +160,18 @@ export function BaselineCard({ profile }: BaselineCardProps) {
                 Survival Probability
               </button>
             </div>
-            {chartView === "qaly" && qalyGain > 0.1 && (
-              <span className="text-xs text-emerald-400">
-                +{qalyGain.toFixed(1)} QALYs with optimal lifestyle
-              </span>
-            )}
           </div>
 
           <div className="h-48 w-full">
             <ResponsiveContainer width="100%" height="100%">
               {chartView === "qaly" ? (
-                <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="qalyGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(var(--accent))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
                   <XAxis
                     dataKey="age"
                     tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
@@ -213,19 +192,8 @@ export function BaselineCard({ profile }: BaselineCardProps) {
                       borderRadius: "8px",
                       fontSize: "12px",
                     }}
-                    formatter={(value: number, name: string) => [
-                      `${value}%`,
-                      name === "current" ? "Current lifestyle" :
-                      name === "improved" ? "Optimal lifestyle" : "Survival"
-                    ]}
+                    formatter={(value: number) => [`${value}%`, "Expected QALY rate"]}
                     labelFormatter={(age) => `Age ${age}`}
-                  />
-                  <Legend
-                    wrapperStyle={{ fontSize: "10px" }}
-                    formatter={(value) =>
-                      value === "current" ? "Current" :
-                      value === "improved" ? "Optimal" : "Survival"
-                    }
                   />
                   <ReferenceLine
                     x={Math.round(projection.expectedDeathAge)}
@@ -233,26 +201,14 @@ export function BaselineCard({ profile }: BaselineCardProps) {
                     strokeDasharray="3 3"
                     label={{ value: "Expected", fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
                   />
-                  <Line
+                  <Area
                     type="monotone"
-                    dataKey="current"
+                    dataKey="expectedQALY"
                     stroke="hsl(var(--accent))"
                     strokeWidth={2}
-                    dot={false}
-                    name="current"
+                    fill="url(#qalyGradient)"
                   />
-                  {qalyGain > 0.1 && (
-                    <Line
-                      type="monotone"
-                      dataKey="improved"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth={2}
-                      strokeDasharray="5 5"
-                      dot={false}
-                      name="improved"
-                    />
-                  )}
-                </LineChart>
+                </AreaChart>
               ) : (
                 <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
                   <defs>
@@ -308,12 +264,14 @@ export function BaselineCard({ profile }: BaselineCardProps) {
           </p>
         </div>
 
-        {/* Source note */}
-        <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/20 rounded-lg p-3">
-          <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+        {/* Disclaimer */}
+        <div className="flex items-start gap-2 text-xs text-muted-foreground bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
+          <Info className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-500" />
           <p>
-            Based on CDC 2022 Life Tables, GBD 2019 disability weights, and
-            risk factor meta-analyses. Individual outcomes vary significantly.
+            <strong className="text-amber-400">For educational purposes only.</strong>{" "}
+            These estimates are based on population averages from CDC life tables and
+            published research. They do not constitute medical advice and cannot predict
+            individual outcomes. Consult a healthcare professional for personal health decisions.
           </p>
         </div>
       </CardContent>
