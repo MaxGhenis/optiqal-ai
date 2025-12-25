@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { UserProfile } from "@/types";
 import {
   calculateBaselineQALYs,
@@ -17,6 +17,8 @@ import {
   ResponsiveContainer,
   Legend,
   ReferenceLine,
+  Area,
+  AreaChart,
 } from "recharts";
 
 interface BaselineCardProps {
@@ -70,6 +72,7 @@ export function BaselineCard({ profile }: BaselineCardProps) {
 
   const bmi = profile.weight / Math.pow(profile.height / 100, 2);
   const qalyGain = improvedProjection.remainingQALYs - projection.remainingQALYs;
+  const [chartView, setChartView] = useState<"qaly" | "survival">("qaly");
 
   return (
     <Card className="mesh-gradient-card border-border/50 overflow-hidden">
@@ -154,84 +157,154 @@ export function BaselineCard({ profile }: BaselineCardProps) {
         </div>
 
         {/* Survival & QALY Curve */}
-        <div className="space-y-2">
+        <div className="space-y-3">
+          {/* Tab Selector */}
           <div className="flex items-center justify-between">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">
-              Expected Quality-Adjusted Life by Age
-            </p>
-            {qalyGain > 0.1 && (
+            <div className="flex gap-1 p-1 bg-muted/30 rounded-lg">
+              <button
+                onClick={() => setChartView("qaly")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  chartView === "qaly"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Expected QALYs
+              </button>
+              <button
+                onClick={() => setChartView("survival")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  chartView === "survival"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Survival Probability
+              </button>
+            </div>
+            {chartView === "qaly" && qalyGain > 0.1 && (
               <span className="text-xs text-emerald-400">
                 +{qalyGain.toFixed(1)} QALYs with optimal lifestyle
               </span>
             )}
           </div>
+
           <div className="h-48 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                <XAxis
-                  dataKey="age"
-                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
-                  axisLine={{ stroke: "hsl(var(--border))" }}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
-                  axisLine={false}
-                  tickLine={false}
-                  domain={[0, 100]}
-                  tickFormatter={(v) => `${v}%`}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px",
-                    fontSize: "12px",
-                  }}
-                  formatter={(value: number, name: string) => [
-                    `${value}%`,
-                    name === "current" ? "Current lifestyle" :
-                    name === "improved" ? "Optimal lifestyle" : "Survival"
-                  ]}
-                  labelFormatter={(age) => `Age ${age}`}
-                />
-                <Legend
-                  wrapperStyle={{ fontSize: "10px" }}
-                  formatter={(value) =>
-                    value === "current" ? "Current" :
-                    value === "improved" ? "Optimal" : "Survival"
-                  }
-                />
-                <ReferenceLine
-                  x={Math.round(projection.expectedDeathAge)}
-                  stroke="hsl(var(--muted-foreground))"
-                  strokeDasharray="3 3"
-                  label={{ value: "Expected", fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="current"
-                  stroke="hsl(var(--accent))"
-                  strokeWidth={2}
-                  dot={false}
-                  name="current"
-                />
-                {qalyGain > 0.1 && (
+              {chartView === "qaly" ? (
+                <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                  <XAxis
+                    dataKey="age"
+                    tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                    axisLine={{ stroke: "hsl(var(--border))" }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                    axisLine={false}
+                    tickLine={false}
+                    domain={[0, 100]}
+                    tickFormatter={(v) => `${v}%`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                    }}
+                    formatter={(value: number, name: string) => [
+                      `${value}%`,
+                      name === "current" ? "Current lifestyle" :
+                      name === "improved" ? "Optimal lifestyle" : "Survival"
+                    ]}
+                    labelFormatter={(age) => `Age ${age}`}
+                  />
+                  <Legend
+                    wrapperStyle={{ fontSize: "10px" }}
+                    formatter={(value) =>
+                      value === "current" ? "Current" :
+                      value === "improved" ? "Optimal" : "Survival"
+                    }
+                  />
+                  <ReferenceLine
+                    x={Math.round(projection.expectedDeathAge)}
+                    stroke="hsl(var(--muted-foreground))"
+                    strokeDasharray="3 3"
+                    label={{ value: "Expected", fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                  />
                   <Line
                     type="monotone"
-                    dataKey="improved"
+                    dataKey="current"
+                    stroke="hsl(var(--accent))"
+                    strokeWidth={2}
+                    dot={false}
+                    name="current"
+                  />
+                  {qalyGain > 0.1 && (
+                    <Line
+                      type="monotone"
+                      dataKey="improved"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      dot={false}
+                      name="improved"
+                    />
+                  )}
+                </LineChart>
+              ) : (
+                <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="survivalGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="age"
+                    tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                    axisLine={{ stroke: "hsl(var(--border))" }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                    axisLine={false}
+                    tickLine={false}
+                    domain={[0, 100]}
+                    tickFormatter={(v) => `${v}%`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                    }}
+                    formatter={(value: number) => [`${value}%`, "Survival probability"]}
+                    labelFormatter={(age) => `Age ${age}`}
+                  />
+                  <ReferenceLine
+                    x={Math.round(projection.expectedDeathAge)}
+                    stroke="hsl(var(--muted-foreground))"
+                    strokeDasharray="3 3"
+                    label={{ value: "50%", fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="survival"
                     stroke="hsl(var(--primary))"
                     strokeWidth={2}
-                    strokeDasharray="5 5"
-                    dot={false}
-                    name="improved"
+                    fill="url(#survivalGradient)"
                   />
-                )}
-              </LineChart>
+                </AreaChart>
+              )}
             </ResponsiveContainer>
           </div>
           <p className="text-xs text-muted-foreground text-center">
-            Expected QALY rate = P(alive) × Quality of life
+            {chartView === "qaly"
+              ? "Expected QALY rate = P(alive) × Quality of life"
+              : "Probability of being alive at each age based on life tables and risk factors"}
           </p>
         </div>
 
