@@ -38,7 +38,14 @@ class Profile:
 
     @property
     def key(self) -> str:
-        """Unique key for lookup table."""
+        """Unique key for lookup table (v3: includes activity level)."""
+        diabetes_str = "diabetic" if self.has_diabetes else "nondiabetic"
+        hypertension_str = "hypertensive" if self.has_hypertension else "normotensive"
+        return f"{self.age}_{self.sex}_{self.bmi_category}_{self.smoking_status}_{diabetes_str}_{hypertension_str}_{self.activity_level}"
+
+    @property
+    def key_v2(self) -> str:
+        """Key format with hypertension but without activity level."""
         diabetes_str = "diabetic" if self.has_diabetes else "nondiabetic"
         hypertension_str = "hypertensive" if self.has_hypertension else "normotensive"
         return f"{self.age}_{self.sex}_{self.bmi_category}_{self.smoking_status}_{diabetes_str}_{hypertension_str}"

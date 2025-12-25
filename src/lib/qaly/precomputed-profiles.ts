@@ -87,7 +87,24 @@ interface RawProfileResult {
 const profileCache: Map<string, PrecomputedProfileData> = new Map();
 
 /**
- * Generate profile key for lookup (v2 with hypertension)
+ * Generate profile key for lookup (v3 with hypertension + activity)
+ */
+function makeProfileKeyV3(
+  age: number,
+  sex: string,
+  bmiCategory: string,
+  smokingStatus: string,
+  hasDiabetes: boolean,
+  hasHypertension: boolean,
+  activityLevel: string
+): string {
+  const diabetesStr = hasDiabetes ? "diabetic" : "nondiabetic";
+  const hypertensionStr = hasHypertension ? "hypertensive" : "normotensive";
+  return `${age}_${sex}_${bmiCategory}_${smokingStatus}_${diabetesStr}_${hypertensionStr}_${activityLevel}`;
+}
+
+/**
+ * Generate profile key for lookup (v2 with hypertension, no activity)
  */
 function makeProfileKey(
   age: number,
@@ -167,7 +184,7 @@ function interpolateResults(
 }
 
 /**
- * Try to find a result using v2 key first, then fall back to v1 key
+ * Try to find a result using v3 key first, then v2, then v1 for backward compatibility
  */
 function findResult(
   data: PrecomputedProfileData,
@@ -176,9 +193,24 @@ function findResult(
   bmiCategory: string,
   smokingStatus: string,
   hasDiabetes: boolean,
-  hasHypertension: boolean
+  hasHypertension: boolean,
+  activityLevel: string = "light"
 ): RawProfileResult | null {
-  // Try v2 key first (with hypertension)
+  // Try v3 key first (with hypertension + activity)
+  const keyV3 = makeProfileKeyV3(
+    age,
+    sex,
+    bmiCategory,
+    smokingStatus,
+    hasDiabetes,
+    hasHypertension,
+    activityLevel
+  );
+  if (data.results[keyV3]) {
+    return data.results[keyV3];
+  }
+
+  // Try v2 key (with hypertension, no activity)
   const keyV2 = makeProfileKey(age, sex, bmiCategory, smokingStatus, hasDiabetes, hasHypertension);
   if (data.results[keyV2]) {
     return data.results[keyV2];
@@ -226,8 +258,8 @@ export async function loadProfileData(
  * Get QALY estimate for a specific profile
  *
  * Supports exact lookup for grid points and linear interpolation for ages
- * between grid points. Handles both v1 (without hypertension) and v2 (with
- * hypertension) data formats.
+ * between grid points. Handles v1 (without hypertension), v2 (with hypertension),
+ * and v3 (with hypertension + activity level) data formats.
  */
 export async function getProfileQALY(
   interventionId: string,
@@ -243,6 +275,7 @@ export async function getProfileQALY(
     smokingStatus,
     hasDiabetes,
     hasHypertension = false,
+    activityLevel = "light",
   } = query;
   const ages = data.grid.ages;
 
@@ -251,7 +284,7 @@ export async function getProfileQALY(
 
   if (lowerAgeIdx < 0) {
     // Age below minimum - use minimum
-    const raw = findResult(data, ages[0], sex, bmiCategory, smokingStatus, hasDiabetes, hasHypertension);
+    const raw = findResult(data, ages[0], sex, bmiCategory, smokingStatus, hasDiabetes, hasHypertension, activityLevel);
     return raw ? convertResult(raw) : null;
   }
 
@@ -264,7 +297,8 @@ export async function getProfileQALY(
       bmiCategory,
       smokingStatus,
       hasDiabetes,
-      hasHypertension
+      hasHypertension,
+      activityLevel
     );
     return raw ? convertResult(raw) : null;
   }
@@ -274,13 +308,13 @@ export async function getProfileQALY(
 
   // Exact match - no interpolation needed
   if (age === lowerAge) {
-    const raw = findResult(data, lowerAge, sex, bmiCategory, smokingStatus, hasDiabetes, hasHypertension);
+    const raw = findResult(data, lowerAge, sex, bmiCategory, smokingStatus, hasDiabetes, hasHypertension, activityLevel);
     return raw ? convertResult(raw) : null;
   }
 
   // Interpolate between ages
-  const lowerRaw = findResult(data, lowerAge, sex, bmiCategory, smokingStatus, hasDiabetes, hasHypertension);
-  const upperRaw = findResult(data, upperAge, sex, bmiCategory, smokingStatus, hasDiabetes, hasHypertension);
+  const lowerRaw = findResult(data, lowerAge, sex, bmiCategory, smokingStatus, hasDiabetes, hasHypertension, activityLevel);
+  const upperRaw = findResult(data, upperAge, sex, bmiCategory, smokingStatus, hasDiabetes, hasHypertension, activityLevel);
 
   if (!lowerRaw || !upperRaw) {
     console.warn(`Missing profile data for interpolation at ages ${lowerAge} and ${upperAge}`);

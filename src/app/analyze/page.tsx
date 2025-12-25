@@ -215,8 +215,10 @@ function AnalyzePageContent() {
                   <div className="text-left">
                     <p className="text-sm font-medium">Your Profile</p>
                     <p className="text-xs text-muted-foreground">
-                      {profile.age}yo {profile.sex}, {profile.diet},{" "}
-                      {profile.exerciseHoursPerWeek}h exercise/week
+                      {profile.age}yo {profile.sex}, {profile.activityLevel} activity
+                      {profile.hasDiabetes && ", diabetic"}
+                      {profile.hasHypertension && ", hypertensive"}
+                      {profile.smoker && ", smoker"}
                     </p>
                   </div>
                 </div>
@@ -406,17 +408,62 @@ function AnalyzePageContent() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="smoker"
-                      checked={profile.smoker}
+                  <div className="space-y-2">
+                    <Label htmlFor="activityLevel">Activity Level</Label>
+                    <Select
+                      id="activityLevel"
+                      value={profile.activityLevel}
                       onChange={(e) =>
-                        updateProfile("smoker", e.target.checked)
+                        updateProfile(
+                          "activityLevel",
+                          e.target.value as UserProfile["activityLevel"]
+                        )
                       }
-                      className="w-4 h-4 rounded border-border bg-card text-primary focus:ring-primary"
-                    />
-                    <Label htmlFor="smoker">Current smoker</Label>
+                    >
+                      <option value="sedentary">Sedentary (mostly sitting)</option>
+                      <option value="light">Light (some walking)</option>
+                      <option value="moderate">Moderate (150+ min/week)</option>
+                      <option value="active">Active (300+ min/week)</option>
+                    </Select>
+                  </div>
+
+                  <div className="flex flex-wrap gap-6 pt-2">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="smoker"
+                        checked={profile.smoker}
+                        onChange={(e) =>
+                          updateProfile("smoker", e.target.checked)
+                        }
+                        className="w-4 h-4 rounded border-border bg-card text-primary focus:ring-primary"
+                      />
+                      <Label htmlFor="smoker">Current smoker</Label>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="diabetes"
+                        checked={profile.hasDiabetes}
+                        onChange={(e) =>
+                          updateProfile("hasDiabetes", e.target.checked)
+                        }
+                        className="w-4 h-4 rounded border-border bg-card text-primary focus:ring-primary"
+                      />
+                      <Label htmlFor="diabetes">Has diabetes</Label>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="hypertension"
+                        checked={profile.hasHypertension}
+                        onChange={(e) =>
+                          updateProfile("hasHypertension", e.target.checked)
+                        }
+                        className="w-4 h-4 rounded border-border bg-card text-primary focus:ring-primary"
+                      />
+                      <Label htmlFor="hypertension">Has hypertension</Label>
+                    </div>
                   </div>
                 </div>
               )}

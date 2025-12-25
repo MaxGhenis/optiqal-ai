@@ -3,17 +3,20 @@
 Precompute QALY results across demographic profiles.
 
 This script generates precomputed QALY estimates for all combinations of:
-- Age (25-80 in 5-year increments)
-- Sex (male, female)
-- BMI category (normal, overweight, obese, severely_obese)
-- Smoking status (never, former, current)
-- Diabetes status (no, yes)
+- Age (25-80 in 5-year increments): 12 values
+- Sex (male, female): 2 values
+- BMI category (normal, overweight, obese, severely_obese): 4 values
+- Smoking status (never, former, current): 3 values
+- Diabetes status (no, yes): 2 values
+- Hypertension status (no, yes): 2 values
+- Activity level (sedentary, light, moderate, active): 4 values (optional)
 
-Total: 12 × 2 × 4 × 3 × 2 = 576 profiles per intervention
-With 10 interventions = 5,760 total profiles
+Default (activity=light only): 12 × 2 × 4 × 3 × 2 × 2 = 1,152 profiles per intervention
+Full grid (all activity levels): 12 × 2 × 4 × 3 × 2 × 2 × 4 = 4,608 profiles per intervention
 
 Usage:
     python scripts/precompute_profiles.py [--intervention walking_30min_daily] [--n-samples 5000]
+    python scripts/precompute_profiles.py --full-activity  # Include all activity levels
 
 Output:
     public/precomputed/{intervention_id}_profiles.json
@@ -60,6 +63,11 @@ def main():
         help="Quick mode: fewer ages (30,50,70), fewer samples (1000)",
     )
     parser.add_argument(
+        "--full-activity",
+        action="store_true",
+        help="Include all activity levels (sedentary, light, moderate, active) - 4x more profiles",
+    )
+    parser.add_argument(
         "--output-dir",
         type=Path,
         default=project_root / "public" / "precomputed",
@@ -80,16 +88,24 @@ def main():
         ages = [int(a) for a in args.ages.split(",")]
         n_samples = args.n_samples
 
+    # Activity levels
+    if args.full_activity:
+        activity_levels = ["sedentary", "light", "moderate", "active"]
+    else:
+        activity_levels = ["light"]
+
     # Calculate total profiles
-    total_profiles = count_profiles(ages=ages)
+    total_profiles = count_profiles(ages=ages, activity_levels=activity_levels)
     print(f"\nGrid configuration:")
     print(f"  Ages: {ages}")
     print(f"  Sexes: male, female")
     print(f"  BMI: normal, overweight, obese, severely_obese")
     print(f"  Smoking: never, former, current")
     print(f"  Diabetes: no, yes")
-    print(f"  → {total_profiles} profiles per intervention")
-    print(f"  → {n_samples} samples per profile")
+    print(f"  Hypertension: no, yes")
+    print(f"  Activity: {activity_levels}")
+    print(f"  → {total_profiles:,} profiles per intervention")
+    print(f"  → {n_samples:,} samples per profile")
     print()
 
     start_time = time.time()
@@ -117,6 +133,7 @@ def main():
         result = precompute_intervention_profiles(
             intervention,
             ages=ages,
+            activity_levels=activity_levels,
             n_samples=n_samples,
             progress_callback=progress,
         )
@@ -139,6 +156,7 @@ def main():
             intervention_dir,
             output_dir,
             ages=ages,
+            activity_levels=activity_levels,
             n_samples=n_samples,
         )
 
