@@ -12,6 +12,7 @@
  */
 
 import type { Distribution } from "./types";
+import { random } from "./random";
 
 /**
  * Configuration for confounding adjustment
@@ -456,7 +457,7 @@ function sampleBeta(alpha: number, beta: number): number {
  */
 function sampleGamma(shape: number, scale: number): number {
   if (shape < 1) {
-    return sampleGamma(1 + shape, scale) * Math.pow(Math.random(), 1 / shape);
+    return sampleGamma(1 + shape, scale) * Math.pow(random(), 1 / shape);
   }
 
   const d = shape - 1 / 3;
@@ -467,14 +468,14 @@ function sampleGamma(shape: number, scale: number): number {
     let v: number;
 
     do {
-      const u1 = Math.random();
-      const u2 = Math.random();
+      const u1 = random();
+      const u2 = random();
       x = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
       v = 1 + c * x;
     } while (v <= 0);
 
     v = v * v * v;
-    const u = Math.random();
+    const u = random();
 
     if (u < 1 - 0.0331 * x * x * x * x) {
       return d * v * scale;

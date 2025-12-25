@@ -239,6 +239,22 @@ We apply a confounding adjustment factor calibrated to three evidence sources:
 
 The calibrated prior has mean {eval}`r.confounding_mean` (95% CI: {eval}`r.confounding_ci`), representing the fraction of observed effects that are causal.
 
+### Causal Identification Assumptions
+
+Our approach relies on four core assumptions for causal identification under the potential outcomes framework:
+
+**1. Consistency**: The potential outcome under intervention X = x equals the observed outcome when X is set to x. This requires well-defined interventions—"exercise 150 min/week" must represent a specific, replicable activity level, not an ambiguous behavior category.
+
+**2. Positivity (overlap)**: Every individual has positive probability of receiving any intervention level conditional on covariates. In our context, this holds by construction: we model voluntary lifestyle changes, not treatments with medical contraindications. The imputation model ensures all states have non-zero probability.
+
+**3. No unmeasured confounding**: Conditional on the imputed state (demographics, biomarkers, behaviors), intervention assignment is independent of potential outcomes. This is the strongest assumption. We address it through: (a) imputation of correlated behaviors from observables, (b) explicit DAG specification of causal vs confounding pathways, (c) calibrated confounding adjustment factors derived from RCT-observational discrepancies.
+
+**4. SUTVA (no interference)**: One individual's intervention does not affect another's outcomes. This holds for most lifestyle interventions (exercise, diet, sleep) but may be violated for social behaviors (e.g., group exercise programs creating network effects).
+
+**Sensitivity to unmeasured confounding**: E-values quantify the robustness of causal estimates. For exercise (HR = 0.70), the E-value is HR + √[HR × (HR − 1)] ≈ 1.9. An unmeasured confounder would need to increase both exercise probability and mortality risk by a factor of 1.9 to fully explain away the observed effect—stronger than most known health confounders. For smoking cessation (HR = 2.80), E-value ≈ 5.2, indicating extreme robustness. Lower-magnitude effects (e.g., specific dietary components) have smaller E-values and greater vulnerability to residual confounding.
+
+**Limitations of identification strategy**: (1) The imputation model may miss confounders not correlated with measured demographics. (2) The DAG encodes our causal assumptions but cannot be verified from observational data alone—misspecification would bias estimates. (3) Confounding adjustment relies on external calibration studies that may not generalize to all populations. (4) Time-varying confounding (e.g., health deterioration causing both inactivity and mortality) is not fully addressed in the single-timepoint model.
+
 ### Condition Incidence Models
 
 Interventions affect quality of life through condition incidence. Rather than using age-based EQ-5D population norms (which would double-count age-related morbidity already captured in condition prevalence), we model conditions directly:
@@ -471,6 +487,21 @@ The counterfactual approach produces smaller estimates than naive state comparis
 
 The naive approach compares a person who exercises to a "typical exerciser"—who also has better diet, lower BMI, less smoking. The causal approach holds these confounders fixed.
 
+### Prior Sensitivity Analysis
+
+Our base estimates use a confounding prior where 17% of observed effects are causal (95% CI: 7%–30%). To assess robustness, we vary this prior by ±1 standard deviation:
+
+| Intervention | Skeptical (10% causal) | Base (17% causal) | Optimistic (30% causal) |
+|--------------|------------------------|-------------------|-------------------------|
+| Exercise 150 min/week | 0.8 QALYs | {eval}`r.exercise.qaly` QALYs | 1.8 QALYs |
+| Mediterranean diet | 0.6 QALYs | {eval}`r.mediterranean_diet.qaly` QALYs | 1.4 QALYs |
+| Quit smoking | 1.4 QALYs | {eval}`r.quit_smoking.qaly` QALYs | 3.2 QALYs |
+| Social connection | 0.7 QALYs | {eval}`r.social.qaly` QALYs | 1.6 QALYs |
+
+While absolute QALY magnitudes vary substantially (up to 2.5x between skeptical and optimistic scenarios), the rank-ordering of interventions remains stable. Smoking cessation dominates universally, followed by exercise and social connection, regardless of prior assumptions. This robustness in relative rankings provides confidence for prioritizing interventions even under epistemic uncertainty about confounding strength.
+
+**Methodological note**: We use forward Monte Carlo simulation with calibrated Beta priors for the causal fraction, sampling 10,000 realizations per intervention. This is distinct from MCMC posterior inference—we are not computing posteriors over parameters given data, but rather propagating prior uncertainty through a deterministic model to quantify output uncertainty.
+
 ## Discussion
 
 ### Strengths
@@ -503,6 +534,16 @@ For BMI → Type 2 Diabetes, the MR analysis found OR = 2.52 per 1 SD BMI (~4.5 
 For BMI → Cardiovascular Disease, the MR estimate (OR = 1.30 per SD) closely matched our model (HR = 1.40), with calibration ratio 0.93, indicating our CVD risk estimates are well-calibrated to causal effects.
 
 This validation approach—comparing model parameters to MR causal estimates—provides a principled method for distinguishing genuine causal effects from confounded associations in observational data.
+
+### Intended Use and Limitations
+
+Optiqal is designed for specific audiences and use cases. **Target audiences** include individuals seeking personalized health guidance, health coaches supporting behavior change counseling, researchers studying lifestyle interventions, and policymakers evaluating health promotion programs.
+
+**Appropriate uses** include comparing the relative benefits of different interventions, understanding uncertainty in health estimates, and serving as an educational tool for quantifying lifestyle impacts on longevity and quality of life. The framework excels at helping users prioritize among multiple potential behavior changes based on their personal characteristics.
+
+**This tool is not intended for** clinical diagnosis or treatment decisions, replacing physician advice, or making precise predictions about individual outcomes. Medical decisions should always involve qualified healthcare providers who can consider factors beyond this model's scope.
+
+**Key caveats** must be understood by users. The framework assumes sustained behavior change—adherence dynamics and behavior persistence are not modeled. Estimates derive from population-level evidence, meaning substantial individual variation exists around point estimates. All QALY projections carry uncertainty and should inform rather than dictate health decisions. The framework works best when users understand that results represent expected values across many similar individuals, not guarantees for any single person.
 
 ## Conclusion
 

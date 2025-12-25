@@ -238,6 +238,9 @@ export interface SimulationOptions {
 
   /** Primary evidence type for confounding adjustment */
   evidenceType?: "meta-analysis" | "rct" | "cohort" | "case-control" | "review" | "other";
+
+  /** Random seed for reproducibility (default: 42) */
+  seed?: number | string;
 }
 
 /**

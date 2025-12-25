@@ -34,6 +34,7 @@ import {
   calculateEValue,
   type ConfoundingConfig,
 } from "./confounding";
+import { random, setSeed } from "./random";
 
 /**
  * Uncertainty multipliers based on evidence quality
@@ -70,15 +71,15 @@ function sampleDistribution(dist: Distribution, uncertaintyMultiplier: number = 
 
     case "normal":
       // Box-Muller transform with inflated SD
-      const u1 = Math.random();
-      const u2 = Math.random();
+      const u1 = random();
+      const u2 = random();
       const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
       return dist.mean + z * (dist.sd * uncertaintyMultiplier);
 
     case "lognormal":
       // Sample normal, then exponentiate - inflate logSd
-      const u1ln = Math.random();
-      const u2ln = Math.random();
+      const u1ln = random();
+      const u2ln = random();
       const zln = Math.sqrt(-2 * Math.log(u1ln)) * Math.cos(2 * Math.PI * u2ln);
       return Math.exp(dist.logMean + zln * (dist.logSd * uncertaintyMultiplier));
 
@@ -97,7 +98,7 @@ function sampleDistribution(dist: Distribution, uncertaintyMultiplier: number = 
       const mid = (dist.min + dist.max) / 2;
       const halfRange = (dist.max - dist.min) / 2;
       const inflatedHalfRange = halfRange * uncertaintyMultiplier;
-      return mid + (Math.random() * 2 - 1) * inflatedHalfRange;
+      return mid + (random() * 2 - 1) * inflatedHalfRange;
   }
 }
 
@@ -107,7 +108,7 @@ function sampleDistribution(dist: Distribution, uncertaintyMultiplier: number = 
 function sampleGamma(shape: number, scale: number): number {
   if (shape < 1) {
     // Use Ahrens-Dieter method for shape < 1
-    return sampleGamma(1 + shape, scale) * Math.pow(Math.random(), 1 / shape);
+    return sampleGamma(1 + shape, scale) * Math.pow(random(), 1 / shape);
   }
 
   const d = shape - 1 / 3;
@@ -118,14 +119,14 @@ function sampleGamma(shape: number, scale: number): number {
     let v: number;
 
     do {
-      const u1 = Math.random();
-      const u2 = Math.random();
+      const u1 = random();
+      const u2 = random();
       x = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
       v = 1 + c * x;
     } while (v <= 0);
 
     v = v * v * v;
-    const u = Math.random();
+    const u = random();
 
     if (u < 1 - 0.0331 * x * x * x * x) {
       return d * v * scale;
@@ -230,7 +231,7 @@ function runSingleSimulation(
   // Add some uncertainty to baseline life expectancy (~10% CV)
   const leUncertainty = 0.1;
   const sampledLE =
-    baselineLE * (1 + (Math.random() * 2 - 1) * leUncertainty);
+    baselineLE * (1 + (random() * 2 - 1) * leUncertainty);
 
   // Simulate year by year
   let baselineQALYs = 0;
@@ -298,7 +299,11 @@ export function simulateQALYImpact(
     applyConfounding = true,
     confoundingOverride,
     evidenceType,
+    seed = 42,
   } = options;
+
+  // Set seed for reproducibility
+  setSeed(seed);
 
   const baselineProjection = calculateBaselineQALYs(profile);
   const baselineLE = baselineProjection.remainingLifeExpectancy;
@@ -560,7 +565,11 @@ export function simulateQALYImpactRigorous(
     discountRate = 0.03,
     pathwayHRs: customPathwayHRs,
     evidenceQuality,
+    seed = 42,
   } = options;
+
+  // Set seed for reproducibility
+  setSeed(seed);
 
   // Get uncertainty multiplier based on evidence quality
   // Weaker evidence → wider CIs (same point estimate)

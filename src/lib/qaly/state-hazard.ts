@@ -20,6 +20,7 @@ import {
   getSurvivalProbability,
   getCauseFraction,
 } from "./lifecycle";
+import { random } from "./random";
 
 /**
  * Result of computing hazards from a PersonState
@@ -297,8 +298,8 @@ export function computeStateHazardsWithUncertainty(
 
   for (let i = 0; i < nSamples; i++) {
     // Box-Muller transform for normal samples
-    const u1 = Math.random();
-    const u2 = Math.random();
+    const u1 = random();
+    const u2 = random();
     const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
     const logSample = logMean + z * logSd;
     samples.push(Math.exp(logSample));

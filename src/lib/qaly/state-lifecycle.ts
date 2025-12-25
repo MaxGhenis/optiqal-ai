@@ -21,6 +21,7 @@ import {
 } from "./lifecycle";
 import { DISABILITY_WEIGHTS } from "./conditions";
 import type { HealthCondition } from "./types";
+import { random, setSeed } from "./random";
 
 /**
  * Year-by-year trajectory entry
@@ -71,6 +72,7 @@ export interface SimulationOptions {
   discountRate?: number; // default 0.03
   maxAge?: number; // default 100
   nSimulations?: number; // default 1000
+  seed?: number | string; // default 42
 }
 
 /**
@@ -363,7 +365,11 @@ export function simulateLifecycleFromState(
     discountRate: options?.discountRate ?? 0.03,
     maxAge: options?.maxAge ?? 100,
     nSimulations: options?.nSimulations ?? 1000,
+    seed: options?.seed ?? 42,
   };
+
+  // Set seed for reproducibility
+  setSeed(opts.seed);
 
   // For now, run deterministic simulation (Monte Carlo would sample HRs)
   // We'll use nSimulations for future uncertainty sampling
@@ -376,11 +382,11 @@ export function simulateLifecycleFromState(
   for (let i = 0; i < opts.nSimulations; i++) {
     // Add small random variation to simulate uncertainty
     // In production, this would sample from HR distributions
-    const perturbation = 1 + (Math.random() - 0.5) * 0.1; // ±5%
+    const perturbation = 1 + (random() - 0.5) * 0.1; // ±5%
     const sample = baseResult.totalQALY * perturbation;
     qalySamples.push(sample);
 
-    const lifePerturbation = 1 + (Math.random() - 0.5) * 0.08;
+    const lifePerturbation = 1 + (random() - 0.5) * 0.08;
     lifeYearsSamples.push(baseResult.lifeYears * lifePerturbation);
   }
 

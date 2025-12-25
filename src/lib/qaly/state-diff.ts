@@ -48,6 +48,7 @@
 
 import type { PersonState, DeepPartial } from "./state";
 import { updateState, getAge } from "./state";
+import { random, setSeed } from "./random";
 import { calculateLifecycleQALYs, type PathwayHRs } from "./lifecycle";
 import { RISK_FACTORS } from "./risk-factors";
 
@@ -103,6 +104,7 @@ export interface StateComparisonResult {
 export interface SimulationOptions {
   nSimulations?: number;
   discountRate?: number;
+  seed?: number | string;
 }
 
 /**
@@ -288,8 +290,8 @@ function sampleHR(hr: number | { point: number; logSd: number }): number {
  * Sample from standard normal distribution (Box-Muller transform)
  */
 function randomNormal(): number {
-  const u1 = Math.random();
-  const u2 = Math.random();
+  const u1 = random();
+  const u2 = random();
   return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
 }
 
@@ -365,7 +367,10 @@ export function compareStates(
   stateB: PersonState,
   options: SimulationOptions = {}
 ): StateComparisonResult {
-  const { nSimulations = 1000, discountRate = 0.03 } = options;
+  const { nSimulations = 1000, discountRate = 0.03, seed = 42 } = options;
+
+  // Set seed for reproducibility
+  setSeed(seed);
 
   const age = getAge(stateA);
   const sex = stateA.demographics.sex;
