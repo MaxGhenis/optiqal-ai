@@ -276,16 +276,19 @@ class LifecycleModel:
         discount_rate: float = 0.03,
         max_age: int = 100,
         use_precomputed: bool = True,
+        baseline_mortality_multiplier: float = 1.0,
     ):
         self.start_age = start_age
         self.sex = sex
         self.discount_rate = discount_rate
         self.max_age = max_age
         self.use_precomputed = use_precomputed
+        self.baseline_mortality_multiplier = baseline_mortality_multiplier
 
         # Cache precomputed baseline if available
+        # Only use precomputed if no mortality adjustment (default population)
         self._precomputed_baseline_qalys = None
-        if use_precomputed and discount_rate == 0.03:
+        if use_precomputed and discount_rate == 0.03 and baseline_mortality_multiplier == 1.0:
             self._precomputed_baseline_qalys = get_precomputed_baseline_qalys(
                 start_age, sex
             )
@@ -302,6 +305,7 @@ class LifecycleModel:
             LifecycleResult with baseline, intervention, and gain QALYs.
         """
         # Use precomputed baseline if available (fast path)
+        # Only for default population (no mortality adjustment)
         if self._precomputed_baseline_qalys is not None:
             baseline_qalys = self._precomputed_baseline_qalys
             # Still need to compute baseline_life_years
@@ -315,14 +319,17 @@ class LifecycleModel:
                 if baseline_survival < 0.001:
                     break
         else:
-            # Full computation path
+            # Full computation path (used when mortality is adjusted)
             baseline_qalys = 0.0
             baseline_survival = 1.0
             baseline_life_years = 0.0
 
             for year in range(self.max_age - self.start_age):
                 current_age = self.start_age + year
-                base_qx = get_mortality_rate(current_age, self.sex)
+                # Apply mortality multiplier for risk factors (BMI, smoking, diabetes)
+                base_qx = get_mortality_rate(current_age, self.sex) * self.baseline_mortality_multiplier
+                # Cap at 1.0 (can't have >100% mortality probability)
+                base_qx = min(base_qx, 0.99)
                 quality = get_quality_weight(current_age)
                 discount = 1 / (1 + self.discount_rate) ** year
 
@@ -348,7 +355,9 @@ class LifecycleModel:
 
         for year in range(self.max_age - self.start_age):
             current_age = self.start_age + year
-            base_qx = get_mortality_rate(current_age, self.sex)
+            # Apply mortality multiplier for risk factors
+            base_qx = get_mortality_rate(current_age, self.sex) * self.baseline_mortality_multiplier
+            base_qx = min(base_qx, 0.99)
             cause_frac = get_cause_fraction(current_age)
             quality = get_quality_weight(current_age)
             discount = 1 / (1 + self.discount_rate) ** year
@@ -356,7 +365,7 @@ class LifecycleModel:
             # Baseline QALY (for pathway contribution tracking)
             baseline_qaly = baseline_survival * quality * discount
 
-            # Intervention mortality rate
+            # Intervention mortality rate (intervention HR applies to the adjusted baseline)
             intervention_qx = base_qx * (
                 cause_frac["cvd"] * pathway_hrs.cvd
                 + cause_frac["cancer"] * pathway_hrs.cancer

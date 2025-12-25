@@ -9,10 +9,12 @@ import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Dict, List, Literal, Optional
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import numpy as np
 
 from .intervention import Intervention
-from .simulate import simulate_qaly, SimulationResult
+from .simulate import simulate_qaly, simulate_qaly_profile, SimulationResult
+from .profile import Profile, generate_all_profiles, count_profiles
 
 try:
     from .bayesian import run_mcmc, summarize_posterior
@@ -257,5 +259,295 @@ def precompute_all_interventions(
 
         results.append(precomputed)
         print(f"  Saved to {output_file}")
+
+    return results
+
+
+# =============================================================================
+# PROFILE-BASED PRECOMPUTATION
+# =============================================================================
+
+
+@dataclass
+class ProfilePrecomputedResult:
+    """Precomputed QALY result for a specific profile."""
+
+    # Profile dimensions
+    age: int
+    sex: str
+    bmi_category: str
+    smoking_status: str
+    has_diabetes: bool
+
+    # Point estimates
+    qaly_median: float
+    qaly_mean: float
+    qaly_ci95_low: float
+    qaly_ci95_high: float
+
+    # Pathway contributions
+    cvd_contribution: float
+    cancer_contribution: float
+    other_contribution: float
+
+    # Life years
+    life_years_gained: float
+
+    # Confounding
+    causal_fraction_mean: float
+    causal_fraction_ci95_low: float
+    causal_fraction_ci95_high: float
+
+    # Baseline mortality context
+    baseline_mortality_multiplier: float
+
+    # Metadata
+    n_samples: int
+    discount_rate: float
+
+
+@dataclass
+class ProfilePrecomputedIntervention:
+    """Complete precomputed results for an intervention across all profiles."""
+
+    id: str
+    name: str
+    category: str
+    description: Optional[str]
+
+    # Results by profile key
+    results: Dict[str, ProfilePrecomputedResult]
+
+    # Summary statistics
+    summary: Dict[str, float]
+
+    # Grid metadata
+    grid: Dict[str, List]
+
+    def get_result(self, profile: Profile) -> Optional[ProfilePrecomputedResult]:
+        """Get precomputed result for specific profile."""
+        return self.results.get(profile.key)
+
+    def get_result_by_key(self, key: str) -> Optional[ProfilePrecomputedResult]:
+        """Get precomputed result by key string."""
+        return self.results.get(key)
+
+    def to_json(self) -> str:
+        """Export as JSON for TypeScript consumption."""
+        return json.dumps(asdict(self), indent=2)
+
+    def save(self, path: Path):
+        """Save to JSON file."""
+        path = Path(path)
+        path.write_text(self.to_json())
+
+    @classmethod
+    def load(cls, path: Path) -> "ProfilePrecomputedIntervention":
+        """Load from JSON file."""
+        path = Path(path)
+        data = json.loads(path.read_text())
+
+        results = {}
+        for key, result_data in data["results"].items():
+            results[key] = ProfilePrecomputedResult(**result_data)
+
+        return cls(
+            id=data["id"],
+            name=data["name"],
+            category=data["category"],
+            description=data.get("description"),
+            results=results,
+            summary=data["summary"],
+            grid=data["grid"],
+        )
+
+
+def _simulate_single_profile(args):
+    """Worker function for parallel profile simulation."""
+    intervention, profile, n_samples, discount_rate, random_seed = args
+    from .profile import get_baseline_mortality_multiplier
+
+    sim_result = simulate_qaly_profile(
+        intervention,
+        profile,
+        n_simulations=n_samples,
+        discount_rate=discount_rate,
+        random_state=random_seed,
+    )
+
+    cf_ci = sim_result.causal_fraction_ci or (0, 1)
+
+    return profile.key, ProfilePrecomputedResult(
+        age=profile.age,
+        sex=profile.sex,
+        bmi_category=profile.bmi_category,
+        smoking_status=profile.smoking_status,
+        has_diabetes=profile.has_diabetes,
+        qaly_median=sim_result.median,
+        qaly_mean=sim_result.mean,
+        qaly_ci95_low=sim_result.ci95[0],
+        qaly_ci95_high=sim_result.ci95[1],
+        cvd_contribution=sim_result.cvd_contribution,
+        cancer_contribution=sim_result.cancer_contribution,
+        other_contribution=sim_result.other_contribution,
+        life_years_gained=sim_result.life_years_gained,
+        causal_fraction_mean=sim_result.causal_fraction_mean or 1.0,
+        causal_fraction_ci95_low=cf_ci[0],
+        causal_fraction_ci95_high=cf_ci[1],
+        baseline_mortality_multiplier=get_baseline_mortality_multiplier(profile),
+        n_samples=n_samples,
+        discount_rate=discount_rate,
+    )
+
+
+def precompute_intervention_profiles(
+    intervention: Intervention,
+    ages: Optional[List[int]] = None,
+    sexes: Optional[List[str]] = None,
+    bmi_categories: Optional[List[str]] = None,
+    smoking_statuses: Optional[List[str]] = None,
+    diabetes_statuses: Optional[List[bool]] = None,
+    n_samples: int = 5000,
+    discount_rate: float = 0.03,
+    random_seed: Optional[int] = 42,
+    n_workers: Optional[int] = None,
+    progress_callback=None,
+) -> ProfilePrecomputedIntervention:
+    """
+    Precompute QALY results for an intervention across all profile combinations.
+
+    Args:
+        intervention: Intervention to precompute
+        ages: Ages to compute for (default: 25-80 in 5-year increments)
+        sexes: Sexes to compute for
+        bmi_categories: BMI categories
+        smoking_statuses: Smoking statuses
+        diabetes_statuses: Diabetes status (True/False)
+        n_samples: Number of Monte Carlo samples per profile
+        discount_rate: Annual discount rate
+        random_seed: Random seed for reproducibility
+        n_workers: Number of parallel workers (default: CPU count)
+        progress_callback: Optional callback(completed, total) for progress
+
+    Returns:
+        ProfilePrecomputedIntervention with results for all profiles
+    """
+    # Build grid parameters
+    if ages is None:
+        ages = list(range(25, 85, 5))
+    if sexes is None:
+        sexes = ["male", "female"]
+    if bmi_categories is None:
+        bmi_categories = ["normal", "overweight", "obese", "severely_obese"]
+    if smoking_statuses is None:
+        smoking_statuses = ["never", "former", "current"]
+    if diabetes_statuses is None:
+        diabetes_statuses = [False, True]
+
+    grid = {
+        "ages": ages,
+        "sexes": sexes,
+        "bmi_categories": bmi_categories,
+        "smoking_statuses": smoking_statuses,
+        "diabetes_statuses": diabetes_statuses,
+    }
+
+    # Generate all profiles
+    profiles = list(generate_all_profiles(
+        ages=ages,
+        sexes=sexes,
+        bmi_categories=bmi_categories,
+        smoking_statuses=smoking_statuses,
+        diabetes_statuses=diabetes_statuses,
+    ))
+
+    total_profiles = len(profiles)
+    results = {}
+    all_qaly_gains = []
+
+    # Prepare work items
+    work_items = [
+        (intervention, profile, n_samples, discount_rate, random_seed)
+        for profile in profiles
+    ]
+
+    # Sequential execution (simpler, more reliable for now)
+    # TODO: Add parallel execution option
+    for i, (intervention, profile, n_samples, discount_rate, seed) in enumerate(work_items):
+        key, result = _simulate_single_profile(
+            (intervention, profile, n_samples, discount_rate, seed)
+        )
+        results[key] = result
+        all_qaly_gains.append(result.qaly_median)
+
+        if progress_callback:
+            progress_callback(i + 1, total_profiles)
+
+    # Summary statistics
+    summary = {
+        "qaly_median_all": float(np.median(all_qaly_gains)),
+        "qaly_mean_all": float(np.mean(all_qaly_gains)),
+        "qaly_min": float(np.min(all_qaly_gains)),
+        "qaly_max": float(np.max(all_qaly_gains)),
+        "qaly_std": float(np.std(all_qaly_gains)),
+        "n_profiles": total_profiles,
+    }
+
+    return ProfilePrecomputedIntervention(
+        id=intervention.id,
+        name=intervention.name,
+        category=intervention.category,
+        description=intervention.description,
+        results=results,
+        summary=summary,
+        grid=grid,
+    )
+
+
+def precompute_all_profiles(
+    intervention_dir: Path,
+    output_dir: Path,
+    **kwargs,
+) -> List[ProfilePrecomputedIntervention]:
+    """
+    Precompute all interventions with full profile grid.
+
+    Args:
+        intervention_dir: Directory containing YAML intervention files
+        output_dir: Directory to save JSON results
+        **kwargs: Arguments to pass to precompute_intervention_profiles
+
+    Returns:
+        List of ProfilePrecomputedIntervention objects
+    """
+    intervention_dir = Path(intervention_dir)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    results = []
+
+    yaml_files = list(intervention_dir.glob("*.yaml"))
+    total_interventions = len(yaml_files)
+
+    for idx, yaml_file in enumerate(yaml_files):
+        print(f"[{idx + 1}/{total_interventions}] Processing {yaml_file.name}...")
+
+        intervention = Intervention.from_yaml(yaml_file)
+
+        def progress(completed, total):
+            print(f"  Profile {completed}/{total} ({100*completed/total:.0f}%)", end="\r")
+
+        precomputed = precompute_intervention_profiles(
+            intervention,
+            progress_callback=progress,
+            **kwargs
+        )
+
+        output_file = output_dir / f"{intervention.id}_profiles.json"
+        precomputed.save(output_file)
+
+        results.append(precomputed)
+        print(f"\n  Saved to {output_file}")
+        print(f"  QALY range: {precomputed.summary['qaly_min']:.3f} - {precomputed.summary['qaly_max']:.3f}")
 
     return results

@@ -28,7 +28,14 @@ __version__ = "0.1.0"
 from .intervention import Intervention
 from .lifecycle import LifecycleModel, CDC_LIFE_TABLE, CAUSE_FRACTIONS
 from .confounding import ConfoundingPrior, CATEGORY_PRIORS
-from .simulate import simulate_qaly, SimulationResult
+from .simulate import simulate_qaly, simulate_qaly_profile, SimulationResult
+from .profile import Profile, generate_all_profiles, get_baseline_mortality_multiplier
+from .precompute import (
+    precompute_intervention,
+    precompute_intervention_profiles,
+    PrecomputedResult,
+    ProfilePrecomputedResult,
+)
 
 __all__ = [
     "Intervention",
@@ -38,7 +45,15 @@ __all__ = [
     "ConfoundingPrior",
     "CATEGORY_PRIORS",
     "simulate_qaly",
+    "simulate_qaly_profile",
     "SimulationResult",
+    "Profile",
+    "generate_all_profiles",
+    "get_baseline_mortality_multiplier",
+    "precompute_intervention",
+    "precompute_intervention_profiles",
+    "PrecomputedResult",
+    "ProfilePrecomputedResult",
 ]
 
 
