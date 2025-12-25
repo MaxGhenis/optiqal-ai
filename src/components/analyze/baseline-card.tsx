@@ -8,6 +8,16 @@ import {
 } from "@/lib/evidence/baseline";
 import { Card, CardContent } from "@/components/ui/card";
 import { Heart, Clock, TrendingUp, Info } from "lucide-react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+  ReferenceLine,
+} from "recharts";
 
 interface BaselineCardProps {
   profile: UserProfile;
@@ -31,7 +41,35 @@ export function BaselineCard({ profile }: BaselineCardProps) {
     [profile]
   );
 
+  // Calculate "improved" projection (e.g., optimal lifestyle)
+  const improvedProjection = useMemo(() => {
+    const improvedProfile: UserProfile = {
+      ...profile,
+      smoker: false,
+      exerciseHoursPerWeek: Math.max(profile.exerciseHoursPerWeek, 3),
+      sleepHoursPerNight: Math.min(Math.max(profile.sleepHoursPerNight, 7), 8),
+    };
+    return calculateBaselineQALYs(improvedProfile);
+  }, [profile]);
+
+  // Combine data for chart
+  const chartData = useMemo(() => {
+    const data: { age: number; current: number; improved: number; survival: number }[] = [];
+    for (let i = 0; i < projection.survivalCurve.length; i++) {
+      const current = projection.survivalCurve[i];
+      const improved = improvedProjection.survivalCurve[i];
+      data.push({
+        age: current.age,
+        current: Math.round(current.expectedQALY * 100),
+        improved: Math.round((improved?.expectedQALY ?? current.expectedQALY) * 100),
+        survival: Math.round(current.survivalProbability * 100),
+      });
+    }
+    return data;
+  }, [projection.survivalCurve, improvedProjection.survivalCurve]);
+
   const bmi = profile.weight / Math.pow(profile.height / 100, 2);
+  const qalyGain = improvedProjection.remainingQALYs - projection.remainingQALYs;
 
   return (
     <Card className="mesh-gradient-card border-border/50 overflow-hidden">
@@ -115,35 +153,86 @@ export function BaselineCard({ profile }: BaselineCardProps) {
           </div>
         </div>
 
-        {/* Decade Breakdown */}
+        {/* Survival & QALY Curve */}
         <div className="space-y-2">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">
-            Expected QALYs per Decade
-          </p>
-          <p className="text-xs text-muted-foreground -mt-1">
-            Max 10 QALYs per decade (10 years × 100% quality)
-          </p>
-          <div className="space-y-1.5">
-            {projection.breakdown.slice(0, 6).map((decade) => (
-              <div key={decade.ageDecade} className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground w-10 shrink-0">
-                  {decade.ageDecade}s
-                </span>
-                <div className="flex-1 h-3 bg-muted/30 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-primary/70 to-accent/70 rounded-full"
-                    style={{
-                      // Bar shows QALYs out of max 10 per decade
-                      width: `${Math.min((decade.qalysInDecade / 10) * 100, 100).toFixed(0)}%`,
-                    }}
-                  />
-                </div>
-                <span className="text-xs text-muted-foreground w-24 shrink-0 text-right">
-                  {decade.qalysInDecade.toFixed(1)} / 10
-                </span>
-              </div>
-            ))}
+          <div className="flex items-center justify-between">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">
+              Expected Quality-Adjusted Life by Age
+            </p>
+            {qalyGain > 0.1 && (
+              <span className="text-xs text-emerald-400">
+                +{qalyGain.toFixed(1)} QALYs with optimal lifestyle
+              </span>
+            )}
           </div>
+          <div className="h-48 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                <XAxis
+                  dataKey="age"
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  axisLine={{ stroke: "hsl(var(--border))" }}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  axisLine={false}
+                  tickLine={false}
+                  domain={[0, 100]}
+                  tickFormatter={(v) => `${v}%`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                  }}
+                  formatter={(value: number, name: string) => [
+                    `${value}%`,
+                    name === "current" ? "Current lifestyle" :
+                    name === "improved" ? "Optimal lifestyle" : "Survival"
+                  ]}
+                  labelFormatter={(age) => `Age ${age}`}
+                />
+                <Legend
+                  wrapperStyle={{ fontSize: "10px" }}
+                  formatter={(value) =>
+                    value === "current" ? "Current" :
+                    value === "improved" ? "Optimal" : "Survival"
+                  }
+                />
+                <ReferenceLine
+                  x={Math.round(projection.expectedDeathAge)}
+                  stroke="hsl(var(--muted-foreground))"
+                  strokeDasharray="3 3"
+                  label={{ value: "Expected", fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="current"
+                  stroke="hsl(var(--accent))"
+                  strokeWidth={2}
+                  dot={false}
+                  name="current"
+                />
+                {qalyGain > 0.1 && (
+                  <Line
+                    type="monotone"
+                    dataKey="improved"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={false}
+                    name="improved"
+                  />
+                )}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="text-xs text-muted-foreground text-center">
+            Expected QALY rate = P(alive) × Quality of life
+          </p>
         </div>
 
         {/* Source note */}
