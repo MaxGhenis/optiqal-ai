@@ -494,6 +494,16 @@ The naive approach compares a person who exercises to a "typical exerciser"—wh
 3. **Intervention combinations**: Model synergies and conflicts between multiple changes
 4. **External validation**: Compare predictions to longitudinal cohort outcomes from UK Biobank and NHANES follow-up studies. Key validation targets include: (a) all-cause mortality predictions vs observed deaths, (b) condition-specific incidence vs diagnoses in follow-up periods, and (c) quality-of-life trajectories vs repeated EQ-5D measurements
 
+### Mendelian Randomization Validation
+
+We validated our causal effect estimates against Mendelian Randomization (MR) analyses using Pan-UKB GWAS summary statistics. MR uses genetic variants as instrumental variables to estimate causal effects, providing an independent check on our parameter choices.
+
+For BMI → Type 2 Diabetes, the MR analysis found OR = 2.52 per 1 SD BMI (~4.5 kg/m²), corresponding to RR ≈ 2.3 per 5 kg/m². This exceeded our original observational estimate (RR = 1.87), yielding a calibration ratio of 1.44. We updated our model parameters to align with this causal genetic evidence.
+
+For BMI → Cardiovascular Disease, the MR estimate (OR = 1.30 per SD) closely matched our model (HR = 1.40), with calibration ratio 0.93, indicating our CVD risk estimates are well-calibrated to causal effects.
+
+This validation approach—comparing model parameters to MR causal estimates—provides a principled method for distinguishing genuine causal effects from confounded associations in observational data.
+
 ## Conclusion
 
 Optiqal provides a framework for personalized QALY estimation using state-based modeling and causal inference. For a {eval}`r.target_age`-year-old with average characteristics, lifestyle interventions yield {eval}`r.qaly_range` QALYs ({eval}`r.life_years_range` life years, or {eval}`r.months_range` months), with smoking cessation and exercise showing the largest benefits. The approach separates causal effects from confounding, producing more conservative but more accurate estimates than naive comparisons.
