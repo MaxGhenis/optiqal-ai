@@ -70,6 +70,34 @@ Current health decision tools fall into three categories:
 
 None provide: (a) personalized QALY estimates, (b) for arbitrary lifestyle interventions, (c) with explicit uncertainty quantification, (d) using causal inference methods.
 
+### Comparison of Existing Life Expectancy Tools
+
+To situate Optiqal within the landscape of health prediction tools, we systematically reviewed five major life expectancy and healthspan calculators. Table 1 summarizes their methodologies.
+
+| Tool | Developer | Data Source | Outcome | Uncertainty | Personalization | Causal Approach | Key Limitations |
+|------|-----------|-------------|---------|-------------|-----------------|-----------------|-----------------|
+| Living to 100 | Thomas Perls, Boston University | New England Centenarian Study (n > 2,000 centenarians) | Life years | No | 40-item questionnaire; demographics, lifestyle, medical history | Observational (hazard ratios from centenarian studies) | No external validation of calculator; no quality-of-life component; genetic factors dominate at extreme ages |
+| SSA Life Expectancy | Social Security Administration | Period life tables from Medicare/vital statistics (1900-2100) | Life years | No | Age and sex only | None (actuarial tables) | No behavioral factors; population averages only; no intervention modeling |
+| Project Big Life MPoRT | Manuel et al., Ottawa Hospital/ICES | Canadian Community Health Survey (n = 77,399 derivation; 1M person-years) | 5-year mortality risk; life expectancy | Yes (95% CI reported) | Smoking, alcohol, diet, physical activity, sociodemographics | Observational (C-statistic 0.87-0.88) | Canadian population only; no quality-of-life; single-behavior attribution |
+| Healthy Life Calculator | Diehr et al., Cardiovascular Health Study | CHS cohort (n = 5,888; 23-year follow-up) | Years healthy, able, healthy-and-able | No (R-squared ~ 0.40 reported) | 11 variables: age, health status, ADLs, medications, smoking, diabetes | Observational (regression) | Older adults only (age 65+); 1990s cohort; limited external validation |
+| Vitality Healthy Futures | Discovery/RAND Europe | IHME Global Burden of Disease (264 causes, 328 diseases, 84 risks) + Discovery data (millions of life-years) | Lifespan and healthspan | No | Cardiorespiratory fitness, medication adherence, salt, sleep, conditions | Observational (not peer-reviewed) | Proprietary algorithm; no peer-reviewed validation; commercial context |
+
+**Table 1**: Comparison of existing life expectancy and healthspan calculators. MPoRT = Mortality Population Risk Tool; CHS = Cardiovascular Health Study; ICES = Institute for Clinical Evaluative Sciences.
+
+Several patterns emerge from this comparison:
+
+**Outcome limitations**: All reviewed tools estimate life years rather than quality-adjusted life years. The Healthy Life Calculator incorporates self-rated health and functional ability, and Vitality Healthy Futures estimates "healthspan" separately from lifespan, but neither integrates quality weights into a unified QALY metric.
+
+**Uncertainty quantification**: Only Project Big Life's MPoRT provides confidence intervals for individual predictions. Most tools report point estimates without communicating the substantial uncertainty inherent in mortality prediction {cite:p}`ncbi2016lifecalc`.
+
+**Causal inference**: None of the reviewed tools employ formal causal inference methods. All rely on observational associations without explicit confounding adjustment. The MPoRT authors acknowledge this limitation, noting that their attributable life expectancy estimates assume causal effects from behavior modification {cite:p}`manuel2016burden`.
+
+**Validation gaps**: A 2016 VA systematic review found that no life expectancy calculator met criteria for widespread clinical use, with none having true external validation for primary care populations {cite:p}`ncbi2016lifecalc`. The review concluded: "Although healthcare providers and guidelines make recommendations based on assessments of life expectancy, there is no widely accepted statistical tool for estimating patients' life expectancy."
+
+**Intervention modeling**: Current tools typically model a single intervention or behavior at a time without accounting for downstream causal effects. When users modify multiple behaviors, naive approaches either double-count shared mechanisms or ignore interaction effects.
+
+Optiqal addresses these gaps through: (1) QALY estimation integrating quality and quantity of life, (2) Monte Carlo uncertainty propagation with explicit confidence intervals, (3) imputation-based causal inference with Beta-calibrated confounding priors, and (4) DAG-specified downstream effects that prevent double-counting when modeling multiple interventions.
+
 ### The Confounding Problem
 
 Observational studies of lifestyle factors face severe confounding. People who exercise also tend to eat better, smoke less, have higher socioeconomic status, and engage in other health-promoting behaviors {cite:p}`vanderweele2019`. Naive multiplication of hazard ratios compounds this bias—the person who exercises AND eats well AND doesn't smoke appears to receive benefits far exceeding what any individual intervention causally provides.
