@@ -356,7 +356,7 @@ export default function Home() {
             {[
               "Results in hours, days, or weeks—not abstract QALY fractions",
               "Separate longevity vs. quality-of-life breakdowns",
-              "Confidence intervals reflecting evidence strength",
+              "Prediction intervals reflecting evidence strength",
               "Personalized to your age, health conditions, and lifestyle",
               "Citations to specific studies and meta-analyses",
               "Caveats and limitations clearly explained",
