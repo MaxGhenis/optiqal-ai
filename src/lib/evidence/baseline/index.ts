@@ -76,6 +76,20 @@ const RISK_FACTOR_HAZARD_RATIOS = {
     normal: { hr: 1.0, source: "6-9 hrs/night, reference" },
     long: { hr: 1.3, source: ">9 hrs/night, Cappuccio et al. Sleep 2010" },
   },
+
+  // Diabetes: Emerging Risk Factors Collaboration, NEJM 2011
+  // Meta-analysis of 820,900 individuals
+  diabetes: {
+    yes: { hr: 1.80, source: "Emerging Risk Factors Collab, NEJM 2011" },
+    no: { hr: 1.0, source: "reference" },
+  },
+
+  // Hypertension: Lewington et al., Lancet 2002 (Prospective Studies Collab)
+  // Based on systolic BP 140+ vs optimal
+  hypertension: {
+    yes: { hr: 1.50, source: "Lewington et al., Lancet 2002" },
+    no: { hr: 1.0, source: "reference" },
+  },
 };
 
 /**
@@ -135,8 +149,17 @@ function hrToLifeExpectancyMultiplier(hr: number): number {
  * Calculate baseline QALY projection for a user profile
  */
 export function calculateBaselineQALYs(profile: UserProfile): BaselineProjection {
-  const { age, sex, weight, height, smoker, exerciseHoursPerWeek, sleepHoursPerNight } =
-    profile;
+  const {
+    age,
+    sex,
+    weight,
+    height,
+    smoker,
+    exerciseHoursPerWeek,
+    sleepHoursPerNight,
+    hasDiabetes,
+    hasHypertension,
+  } = profile;
 
   // Start with population average life expectancy
   let remainingLE = getRemainingLifeExpectancy(age, sex);
@@ -152,9 +175,15 @@ export function calculateBaselineQALYs(profile: UserProfile): BaselineProjection
   const hrSmoking = smoker
     ? RISK_FACTOR_HAZARD_RATIOS.smoking.current.hr
     : 1.0;
+  const hrDiabetes = hasDiabetes
+    ? RISK_FACTOR_HAZARD_RATIOS.diabetes.yes.hr
+    : RISK_FACTOR_HAZARD_RATIOS.diabetes.no.hr;
+  const hrHypertension = hasHypertension
+    ? RISK_FACTOR_HAZARD_RATIOS.hypertension.yes.hr
+    : RISK_FACTOR_HAZARD_RATIOS.hypertension.no.hr;
 
   // Combined HR (multiplicative)
-  const combinedHR = hrBMI * hrExercise * hrSleep * hrSmoking;
+  const combinedHR = hrBMI * hrExercise * hrSleep * hrSmoking * hrDiabetes * hrHypertension;
 
   // Adjust life expectancy
   remainingLE *= hrToLifeExpectancyMultiplier(combinedHR);
