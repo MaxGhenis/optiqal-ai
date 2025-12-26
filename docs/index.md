@@ -287,6 +287,42 @@ We propagate mortality and quality effects through a lifecycle model:
 - Condition-based quality weights (see above)
 - 3% annual discounting (for ICER calculations)
 
+### Population Calibration Using NHANES
+
+A fundamental challenge arises when applying hazard ratios to life table estimates: published life expectancy figures already reflect the population distribution of risk factors. The CDC life tables report mortality for the *average* American, who already has some probability of smoking, being obese, being sedentary, etc. Naive application of hazard ratios to these population averages leads to double-counting—we compare individuals against a baseline that already incorporates the very conditions we are adjusting for.
+
+**The calibration problem**: Consider a sedentary individual. The life table expectancy already includes sedentary people in the population average. If we apply a sedentary penalty (HR > 1) to this already-reduced baseline, we overestimate mortality. Conversely, for an active individual, we should credit them with *better* than population-average life expectancy, not merely the average itself.
+
+**Solution using NHANES microdata**: We use the National Health and Nutrition Examination Survey (NHANES) 2017-2020 data (combining the 2017-2018 and 2019-March 2020 cycles) to compute the population-average hazard ratio by age and sex {cite:p}`nhanes2020`. NHANES provides nationally representative health data with sample weights (WTMEC2YR) enabling estimation of population-level statistics.
+
+**Variables extracted**:
+- BMI (BMXBMI from examination data)
+- Smoking status (SMQ020 ever smoked, SMQ040 current smoking)
+- Physical activity (PAQ605/PAQ610 moderate/vigorous activity)
+- Sleep duration (SLD012 from sleep questionnaire)
+- Diabetes (DIQ010 diagnosed diabetes)
+- Hypertension (BPQ020 ever told high blood pressure)
+
+**Calibration procedure**: For each survey respondent *i* with sample weight *w_i*, we compute the combined hazard ratio across all risk factors:
+
+$$\text{HR}_{\text{combined}}(i) = \text{HR}_{\text{BMI}}(i) \times \text{HR}_{\text{smoking}}(i) \times \text{HR}_{\text{exercise}}(i) \times \text{HR}_{\text{sleep}}(i) \times \text{HR}_{\text{diabetes}}(i) \times \text{HR}_{\text{hypertension}}(i)$$
+
+The population-average hazard ratio for a given age-sex stratum is then:
+
+$$\text{calibration\_factor}(\text{age}, \text{sex}) = \mathbb{E}[\text{HR} \mid \text{age}, \text{sex}] = \frac{\sum_i w_i \times \text{HR}_{\text{combined}}(i)}{\sum_i w_i}$$
+
+where the sums are over respondents in that age-sex group.
+
+**Adjusting the baseline**: The life table expectancy is multiplied by this calibration factor before applying individual-level hazard ratios:
+
+$$\text{adjusted\_baseline}(\text{age}, \text{sex}) = \text{life\_table\_LE}(\text{age}, \text{sex}) \times \text{calibration\_factor}(\text{age}, \text{sex})$$
+
+**Key insight**: This adjustment ensures proper calibration in both directions:
+- Individuals with *no* risk factors (never-smokers, healthy BMI, active, optimal sleep, no chronic conditions) have *higher* baseline life expectancy than the population average—correctly reflecting their advantaged position
+- Individuals with *multiple* risk factors have *lower* life expectancy than naive estimates would suggest, because the comparison baseline is now the life expectancy of someone with zero risk factors rather than the population average
+
+**Capturing correlations**: Because NHANES provides joint observations of all risk factors at the individual level, this approach automatically captures the population correlation structure. People who smoke are more likely to have other risk factors; the weighted average HR reflects these real-world clustering patterns rather than assuming independence.
+
 ## Results
 
 ### Key Interventions
