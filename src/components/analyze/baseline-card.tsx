@@ -75,7 +75,7 @@ export function BaselineCard({ profile }: BaselineCardProps) {
 
   return (
     <Card className="mesh-gradient-card border-border/50 overflow-hidden">
-      <CardContent className="p-6 space-y-6">
+      <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-accent/10">
@@ -90,33 +90,33 @@ export function BaselineCard({ profile }: BaselineCardProps) {
         </div>
 
         {/* Main Stats */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-muted/20 rounded-xl border border-border/30">
-            <Clock className="w-5 h-5 mx-auto mb-2 text-primary" />
-            <p className="text-2xl font-semibold text-primary">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+          <div className="text-center p-2 sm:p-4 bg-muted/20 rounded-xl border border-border/30">
+            <Clock className="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-1 sm:mb-2 text-primary" />
+            <p className="text-lg sm:text-2xl font-semibold text-primary">
               {projection.remainingLifeExpectancy.toFixed(1)}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 leading-tight">
               years remaining
             </p>
           </div>
-          <div className="text-center p-4 bg-muted/20 rounded-xl border border-border/30">
-            <Heart className="w-5 h-5 mx-auto mb-2 text-accent" />
-            <p className="text-2xl font-semibold text-accent">
+          <div className="text-center p-2 sm:p-4 bg-muted/20 rounded-xl border border-border/30">
+            <Heart className="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-1 sm:mb-2 text-accent" />
+            <p className="text-lg sm:text-2xl font-semibold text-accent">
               {projection.remainingQALYs.toFixed(1)}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 leading-tight">
               QALYs remaining
             </p>
           </div>
-          <div className="text-center p-4 bg-muted/20 rounded-xl border border-border/30">
-            <div className="w-5 h-5 mx-auto mb-2 text-muted-foreground font-mono text-sm">
+          <div className="text-center p-2 sm:p-4 bg-muted/20 rounded-xl border border-border/30">
+            <div className="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-1 sm:mb-2 text-muted-foreground font-mono text-xs sm:text-sm">
               ~{Math.round(projection.expectedDeathAge)}
             </div>
-            <p className="text-2xl font-semibold">
+            <p className="text-lg sm:text-2xl font-semibold">
               {(projection.currentQualityWeight * 100).toFixed(0)}%
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 leading-tight">
               current quality
             </p>
           </div>
@@ -158,11 +158,11 @@ export function BaselineCard({ profile }: BaselineCardProps) {
         {/* Survival & QALY Curve */}
         <div className="space-y-3">
           {/* Tab Selector */}
-          <div className="flex items-center justify-between">
-            <div className="flex gap-1 p-1 bg-muted/30 rounded-lg">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
+            <div className="flex gap-1 p-1 bg-muted/30 rounded-lg w-fit">
               <button
                 onClick={() => setChartView("qaly")}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                className={`px-2 sm:px-3 py-1.5 text-[11px] sm:text-xs font-medium rounded-md transition-colors ${
                   chartView === "qaly"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -172,7 +172,7 @@ export function BaselineCard({ profile }: BaselineCardProps) {
               </button>
               <button
                 onClick={() => setChartView("survival")}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                className={`px-2 sm:px-3 py-1.5 text-[11px] sm:text-xs font-medium rounded-md transition-colors ${
                   chartView === "survival"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -182,14 +182,14 @@ export function BaselineCard({ profile }: BaselineCardProps) {
               </button>
             </div>
             {qalyDelta > 0.5 && (
-              <span className="text-xs text-muted-foreground">
-                Dashed line: non-smoker scenario (+{qalyDelta.toFixed(1)} QALYs)
+              <span className="text-[10px] sm:text-xs text-muted-foreground">
+                Dashed: non-smoker (+{qalyDelta.toFixed(1)} QALYs)
               </span>
             )}
           </div>
 
-          <div className="h-48 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-44 sm:h-48 w-full min-w-0 overflow-x-auto">
+            <ResponsiveContainer width="100%" height="100%" minWidth={280}>
               {chartView === "qaly" ? (
                 <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
                   <defs>

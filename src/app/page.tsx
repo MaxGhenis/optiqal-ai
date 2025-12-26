@@ -16,7 +16,7 @@ import {
 
 function LifeMeter() {
   return (
-    <div className="relative w-72 h-72 mx-auto">
+    <div className="relative w-56 h-56 sm:w-72 sm:h-72 mx-auto">
       {/* Outer glow */}
       <div className="absolute inset-0 rounded-full bg-primary/20 blur-3xl animate-pulse-glow" />
 
@@ -76,7 +76,7 @@ function LifeMeter() {
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
             Your potential
           </p>
-          <p className="text-5xl font-serif font-semibold gradient-text text-glow">
+          <p className="text-4xl sm:text-5xl font-serif font-semibold gradient-text text-glow">
             +2.3
           </p>
           <p className="text-sm text-muted-foreground">quality-adjusted years</p>
@@ -129,29 +129,30 @@ export default function Home() {
 
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 glass">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 group">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 sm:gap-2.5 group">
             <div className="relative">
-              <Activity className="h-7 w-7 text-primary transition-transform group-hover:scale-110" />
+              <Activity className="h-6 w-6 sm:h-7 sm:w-7 text-primary transition-transform group-hover:scale-110" />
               <div className="absolute inset-0 bg-primary/30 blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
-            <span className="text-xl font-semibold tracking-tight">optiqal</span>
+            <span className="text-lg sm:text-xl font-semibold tracking-tight">optiqal</span>
           </Link>
-          <nav className="flex items-center gap-2">
+          <nav className="flex items-center gap-1 sm:gap-2">
             <Button
               variant="ghost"
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="hidden sm:inline-flex text-muted-foreground hover:text-foreground transition-colors"
               asChild
             >
               <Link href="#how-it-works">How it works</Link>
             </Button>
             <Button
-              className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90"
+              className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 text-sm sm:text-base px-3 sm:px-4"
               asChild
             >
               <Link href="/analyze">
-                Try it free
-                <Sparkles className="ml-1.5 h-4 w-4" />
+                <span className="hidden xs:inline">Try it free</span>
+                <span className="xs:hidden">Try free</span>
+                <Sparkles className="ml-1 sm:ml-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </Link>
             </Button>
           </nav>
@@ -159,9 +160,9 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 px-6">
+      <section className="relative pt-24 sm:pt-32 pb-16 sm:pb-20 px-4 sm:px-6">
         <div className="max-w-5xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
+          <div className="grid lg:grid-cols-2 gap-10 sm:gap-16 items-center">
             {/* Text content */}
             <div className="space-y-8 opacity-0 animate-slide-up">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/30 bg-primary/5 text-primary text-sm font-medium">
@@ -169,7 +170,7 @@ export default function Home() {
                 AI-powered QALY estimation
               </div>
 
-              <h1 className="font-serif text-5xl md:text-6xl lg:text-7xl font-medium leading-[1.1] tracking-tight">
+              <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-medium leading-[1.1] tracking-tight">
                 Understand your
                 <br />
                 <span className="gradient-text">healthspan</span>
@@ -225,19 +226,19 @@ export default function Home() {
           </div>
 
           <Card className="max-w-2xl mx-auto mesh-gradient-card border-border/50 card-highlight hover-lift opacity-0 animate-scale-in delay-200">
-            <CardContent className="p-8">
-              <div className="text-center space-y-6">
+            <CardContent className="p-5 sm:p-8">
+              <div className="text-center space-y-5 sm:space-y-6">
                 <p className="text-sm text-muted-foreground uppercase tracking-wider">
                   Estimated impact
                 </p>
                 <div className="space-y-2">
-                  <div className="text-6xl font-serif font-semibold gradient-text text-glow">
+                  <div className="text-4xl sm:text-5xl md:text-6xl font-serif font-semibold gradient-text text-glow">
                     +2 years, 3 months
                   </div>
                   <p className="text-muted-foreground">of quality-adjusted life</p>
                 </div>
 
-                <div className="flex justify-center gap-12 pt-6 border-t border-border/50">
+                <div className="flex justify-center gap-6 sm:gap-12 pt-6 border-t border-border/50">
                   <div className="text-center group">
                     <div className="flex items-center justify-center gap-2 text-muted-foreground mb-2">
                       <Clock className="h-4 w-4 group-hover:text-primary transition-colors" />
@@ -245,7 +246,7 @@ export default function Home() {
                         Longevity
                       </span>
                     </div>
-                    <p className="text-2xl font-semibold text-primary">
+                    <p className="text-xl sm:text-2xl font-semibold text-primary">
                       +1.8 years
                     </p>
                   </div>
@@ -256,7 +257,7 @@ export default function Home() {
                         Quality
                       </span>
                     </div>
-                    <p className="text-2xl font-semibold text-accent">
+                    <p className="text-xl sm:text-2xl font-semibold text-accent">
                       +0.5 years
                     </p>
                   </div>
@@ -459,7 +460,19 @@ export default function Home() {
                 &copy; {new Date().getFullYear()} optiqal
               </span>
             </div>
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4 sm:gap-6 flex-wrap justify-center">
+              <Link
+                href="/about"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                About
+              </Link>
+              <Link
+                href="/faq"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                FAQ
+              </Link>
               <Link
                 href="/terms"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
