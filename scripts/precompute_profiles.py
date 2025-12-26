@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3 -u
 """
 Precompute QALY results across demographic profiles.
 
@@ -72,6 +72,11 @@ def main():
         type=Path,
         default=project_root / "public" / "precomputed",
         help="Output directory (default: public/precomputed)",
+    )
+    parser.add_argument(
+        "--no-resume",
+        action="store_true",
+        help="Don't skip already-computed interventions",
     )
 
     args = parser.parse_args()
@@ -158,6 +163,7 @@ def main():
             ages=ages,
             activity_levels=activity_levels,
             n_samples=n_samples,
+            resume=not args.no_resume,
         )
 
         print(f"\n\nCompleted {len(results)} interventions")

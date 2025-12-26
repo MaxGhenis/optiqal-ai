@@ -527,6 +527,7 @@ def precompute_intervention_profiles(
 def precompute_all_profiles(
     intervention_dir: Path,
     output_dir: Path,
+    resume: bool = True,
     **kwargs,
 ) -> List[ProfilePrecomputedIntervention]:
     """
@@ -535,27 +536,60 @@ def precompute_all_profiles(
     Args:
         intervention_dir: Directory containing YAML intervention files
         output_dir: Directory to save JSON results
+        resume: If True, skip interventions that already have output files
         **kwargs: Arguments to pass to precompute_intervention_profiles
 
     Returns:
         List of ProfilePrecomputedIntervention objects
     """
+    import sys
+    import time
+
     intervention_dir = Path(intervention_dir)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     results = []
 
-    yaml_files = list(intervention_dir.glob("*.yaml"))
+    yaml_files = sorted(list(intervention_dir.glob("*.yaml")))
     total_interventions = len(yaml_files)
 
-    for idx, yaml_file in enumerate(yaml_files):
-        print(f"[{idx + 1}/{total_interventions}] Processing {yaml_file.name}...")
+    start_time = time.time()
+    skipped = 0
 
+    for idx, yaml_file in enumerate(yaml_files):
         intervention = Intervention.from_yaml(yaml_file)
+        output_file = output_dir / f"{intervention.id}_profiles.json"
+
+        # Resume: skip if output already exists and is recent
+        if resume and output_file.exists():
+            # Check if file was modified within the last hour (current run)
+            file_age = time.time() - output_file.stat().st_mtime
+            if file_age < 3600:  # Less than 1 hour old
+                print(f"[{idx + 1}/{total_interventions}] Skipping {yaml_file.name} (already computed)")
+                skipped += 1
+                continue
+
+        elapsed = time.time() - start_time
+        remaining_interventions = total_interventions - idx - skipped
+        if idx > skipped:
+            eta = elapsed / (idx - skipped) * remaining_interventions
+            eta_str = f", ETA: {eta/60:.0f}min"
+        else:
+            eta_str = ""
+
+        print(f"\n[{idx + 1}/{total_interventions}] Processing {yaml_file.name}{eta_str}")
+        sys.stdout.flush()
+
+        intervention_start = time.time()
 
         def progress(completed, total):
-            print(f"  Profile {completed}/{total} ({100*completed/total:.0f}%)", end="\r")
+            pct = 100 * completed / total
+            intervention_elapsed = time.time() - intervention_start
+            if completed > 0:
+                profile_eta = intervention_elapsed / completed * (total - completed)
+                print(f"  Profile {completed}/{total} ({pct:.0f}%) [{intervention_elapsed:.0f}s elapsed, ~{profile_eta:.0f}s remaining]", end="\r")
+            sys.stdout.flush()
 
         precomputed = precompute_intervention_profiles(
             intervention,
@@ -563,11 +597,16 @@ def precompute_all_profiles(
             **kwargs
         )
 
-        output_file = output_dir / f"{intervention.id}_profiles.json"
         precomputed.save(output_file)
 
         results.append(precomputed)
         print(f"\n  Saved to {output_file}")
         print(f"  QALY range: {precomputed.summary['qaly_min']:.3f} - {precomputed.summary['qaly_max']:.3f}")
+        sys.stdout.flush()
+
+    total_elapsed = time.time() - start_time
+    print(f"\nCompleted {len(results)} interventions in {total_elapsed/60:.1f} minutes")
+    if skipped:
+        print(f"  ({skipped} skipped due to existing output)")
 
     return results
