@@ -448,11 +448,12 @@ Exercise benefits decrease with age due to fewer remaining life-years:
 
 | Age | Exercise QALY Gain | Life Years |
 |-----|-------------------|------------|
-| 30 | {eval}`f"{r.exercise_by_age[30]:.1f}"` | {eval}`f"{r.exercise_by_age[30] * 1.35:.1f}"` |
-| 40 | {eval}`f"{r.exercise_by_age[40]:.1f}"` | {eval}`f"{r.exercise_by_age[40] * 1.35:.1f}"` |
-| 50 | {eval}`f"{r.exercise_by_age[50]:.1f}"` | {eval}`f"{r.exercise_by_age[50] * 1.35:.1f}"` |
-| 60 | {eval}`f"{r.exercise_by_age[60]:.1f}"` | {eval}`f"{r.exercise_by_age[60] * 1.35:.1f}"` |
-| 70 | {eval}`f"{r.exercise_by_age[70]:.1f}"` | {eval}`f"{r.exercise_by_age[70] * 1.35:.1f}"` |
+| 30 | {eval}`f"{r.exercise_by_age[30]:.2f}"` | {eval}`f"{r.exercise_by_age[30] * 3.7:.1f}"` |
+| 40 | {eval}`f"{r.exercise_by_age[40]:.2f}"` | {eval}`f"{r.exercise_by_age[40] * 3.7:.1f}"` |
+| 50 | {eval}`f"{r.exercise_by_age[50]:.2f}"` | {eval}`f"{r.exercise_by_age[50] * 3.7:.1f}"` |
+| 60 | {eval}`f"{r.exercise_by_age[60]:.2f}"` | {eval}`f"{r.exercise_by_age[60] * 3.7:.1f}"` |
+| 70 | {eval}`f"{r.exercise_by_age[70]:.2f}"` | {eval}`f"{r.exercise_by_age[70] * 3.7:.1f}"` |
+| 80 | {eval}`f"{r.exercise_by_age[80]:.2f}"` | {eval}`f"{r.exercise_by_age[80] * 3.7:.1f}"` |
 
 #### By Baseline BMI
 
@@ -460,20 +461,19 @@ Diet intervention benefits increase for those starting at higher BMI:
 
 | Baseline BMI | Diet QALY Gain | Life Years |
 |--------------|---------------|------------|
-| 22 (lean) | {eval}`f"{r.diet_by_bmi[22]:.1f}"` | {eval}`f"{r.diet_by_bmi[22] * 1.35:.1f}"` |
-| 25 (normal) | {eval}`f"{r.diet_by_bmi[25]:.1f}"` | {eval}`f"{r.diet_by_bmi[25] * 1.35:.1f}"` |
-| 28 (overweight) | {eval}`f"{r.diet_by_bmi[28]:.1f}"` | {eval}`f"{r.diet_by_bmi[28] * 1.35:.1f}"` |
-| 32 (obese) | {eval}`f"{r.diet_by_bmi[32]:.1f}"` | {eval}`f"{r.diet_by_bmi[32] * 1.35:.1f}"` |
-| 36 (severely obese) | {eval}`f"{r.diet_by_bmi[36]:.1f}"` | {eval}`f"{r.diet_by_bmi[36] * 1.35:.1f}"` |
+| 22 (lean) | {eval}`f"{r.diet_by_bmi[22]:.2f}"` | {eval}`f"{r.diet_by_bmi[22] * 3.7:.1f}"` |
+| 25 (overweight) | {eval}`f"{r.diet_by_bmi[25]:.2f}"` | {eval}`f"{r.diet_by_bmi[25] * 3.7:.1f}"` |
+| 30 (obese) | {eval}`f"{r.diet_by_bmi[30]:.2f}"` | {eval}`f"{r.diet_by_bmi[30] * 3.7:.1f}"` |
+| 35 (severely obese) | {eval}`f"{r.diet_by_bmi[35]:.2f}"` | {eval}`f"{r.diet_by_bmi[35] * 3.7:.1f}"` |
 
 #### By Profile Type
 
 | Profile | Exercise Benefit | Diet Benefit | Notes |
 |---------|-----------------|--------------|-------|
-| Average American | {eval}`r.exercise.qaly` | {eval}`r.mediterranean_diet.qaly` | Reference case |
-| Current smoker | 0.9 | 0.6 | Lower baseline, competing risk from smoking |
-| Already healthy | 0.2 | 0.3 | Already near optimal |
-| Age 65 | 0.7 | 0.6 | Fewer years remaining |
+| Average American (40yo male, overweight) | {eval}`r.exercise.qaly` | {eval}`r.mediterranean_diet.qaly` | Reference case |
+| Current smoker | 0.28 | 0.38 | Lower baseline, competing risk from smoking |
+| Already healthy (active, normal BMI) | 0.15 | 0.25 | Already near optimal |
+| Age 65 | 0.39 | 0.52 | Shorter horizon but higher baseline risk |
 
 ```{code-cell} python
 :tags: [remove-input]
@@ -498,7 +498,7 @@ cmap_colors = ['#f7fcfb', '#d4ede8', '#9dd4c8', '#57a99a', COLORS['primary'], '#
 custom_cmap = LinearSegmentedColormap.from_list('optiqal', cmap_colors)
 
 fig, ax = plt.subplots(figsize=(9, 5.5))
-im = ax.imshow(qaly_matrix, cmap=custom_cmap, aspect='auto', vmin=0, vmax=2.0)
+im = ax.imshow(qaly_matrix, cmap=custom_cmap, aspect='auto', vmin=0, vmax=0.5)
 
 # Refined colorbar
 cbar = ax.figure.colorbar(im, ax=ax, shrink=0.85, aspect=20)
@@ -516,7 +516,7 @@ ax.set_yticklabels([f'Age {a}' for a in ages], fontsize=10)
 for i in range(len(ages)):
     for j in range(len(baseline_activity)):
         value = qaly_matrix[i, j]
-        text_color = 'white' if value > 0.9 else COLORS['neutral']
+        text_color = 'white' if value > 0.25 else COLORS['neutral']
         ax.text(j, i, f'{value:.1f}', ha='center', va='center',
                 color=text_color, fontsize=11, fontweight='bold')
 
@@ -533,7 +533,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-**Figure 3** visualizes the interaction between age and baseline activity on exercise benefits. Young, sedentary individuals gain the most (1.8 QALYs), while older or already-active individuals gain less. This heatmap can guide personalized recommendations.
+**Figure 3** visualizes the interaction between age and baseline activity on exercise benefits. Sedentary individuals gain the most (up to 0.4 QALYs), while already-active individuals gain less. This heatmap can guide personalized recommendations.
 
 The key insight: **interventions matter most for those furthest from optimal**. A sedentary, overweight 40-year-old gains ~3x more from exercise than someone already active.
 
@@ -543,9 +543,9 @@ The counterfactual approach produces smaller estimates than naive state comparis
 
 | Intervention | Causal Effect | Naive Effect | Confounding Absorbed |
 |--------------|---------------|--------------|---------------------|
-| Exercise 150 min/week | {eval}`r.exercise.qaly` QALYs | 1.8 QALYs | 43% |
-| Mediterranean diet | {eval}`r.mediterranean_diet.qaly` QALYs | 1.2 QALYs | 38% |
-| Daily nuts | {eval}`r.daily_nuts.qaly` QALYs | 0.8 QALYs | 44% |
+| Exercise 150 min/week | {eval}`r.exercise.qaly` QALYs | 1.9 QALYs | 83% |
+| Mediterranean diet | {eval}`r.mediterranean_diet.qaly` QALYs | 2.6 QALYs | 83% |
+| Daily walking | {eval}`r.walking.qaly` QALYs | 0.8 QALYs | 83% |
 
 The naive approach compares a person who exercises to a "typical exerciser"—who also has better diet, lower BMI, less smoking. The causal approach holds these confounders fixed.
 
@@ -555,12 +555,12 @@ Our base estimates use a confounding prior where 17% of observed effects are cau
 
 | Intervention | Skeptical (10% causal) | Base (17% causal) | Optimistic (30% causal) |
 |--------------|------------------------|-------------------|-------------------------|
-| Exercise 150 min/week | 0.8 QALYs | {eval}`r.exercise.qaly` QALYs | 1.8 QALYs |
-| Mediterranean diet | 0.6 QALYs | {eval}`r.mediterranean_diet.qaly` QALYs | 1.4 QALYs |
-| Quit smoking | 1.4 QALYs | {eval}`r.quit_smoking.qaly` QALYs | 3.2 QALYs |
-| Social connection | 0.7 QALYs | {eval}`r.social.qaly` QALYs | 1.6 QALYs |
+| Exercise 150 min/week | 0.20 QALYs | {eval}`r.exercise.qaly` QALYs | 0.58 QALYs |
+| Mediterranean diet | 0.27 QALYs | {eval}`r.mediterranean_diet.qaly` QALYs | 0.79 QALYs |
+| Quit smoking | 0.69 QALYs | {eval}`r.quit_smoking.qaly` QALYs | 2.0 QALYs |
+| Social connection | 0.21 QALYs | {eval}`r.social.qaly` QALYs | 0.61 QALYs |
 
-While absolute QALY magnitudes vary substantially (up to 2.5x between skeptical and optimistic scenarios), the rank-ordering of interventions remains stable. Smoking cessation dominates universally, followed by exercise and social connection, regardless of prior assumptions. This robustness in relative rankings provides confidence for prioritizing interventions even under epistemic uncertainty about confounding strength.
+While absolute QALY magnitudes vary substantially (up to 3x between skeptical and optimistic scenarios), the rank-ordering of interventions remains stable. Smoking cessation dominates universally, followed by diet and exercise, regardless of prior assumptions. This robustness in relative rankings provides confidence for prioritizing interventions even under epistemic uncertainty about confounding strength.
 
 **Methodological note**: We use forward Monte Carlo simulation with calibrated Beta priors for the causal fraction, sampling 10,000 realizations per intervention. This is distinct from MCMC posterior inference—we are not computing posteriors over parameters given data, but rather propagating prior uncertainty through a deterministic model to quantify output uncertainty.
 
