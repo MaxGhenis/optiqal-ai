@@ -238,7 +238,7 @@ export default function PredictPage() {
                         borderRadius: "8px",
                         fontSize: "12px",
                       }}
-                      formatter={(value: number, name: string) => [
+                      formatter={(value, name) => [
                         `${value}%`,
                         name === "qalyMid"
                           ? "Expected"

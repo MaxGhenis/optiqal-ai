@@ -1,0 +1,7 @@
+# Large data files
+data/
+docs/.venv/
+
+# Development
+.beads/
+*.sock
