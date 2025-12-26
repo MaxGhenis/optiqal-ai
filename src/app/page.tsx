@@ -170,7 +170,7 @@ export default function Home() {
               </div>
 
               <h1 className="font-serif text-5xl md:text-6xl lg:text-7xl font-medium leading-[1.1] tracking-tight">
-                Understand your
+                Predict your
                 <br />
                 <span className="gradient-text">healthspan</span>
               </h1>
@@ -427,12 +427,12 @@ export default function Home() {
         <div className="max-w-2xl mx-auto text-center relative">
           <div className="space-y-8 opacity-0 animate-slide-up">
             <h2 className="font-serif text-4xl md:text-5xl lg:text-6xl font-medium leading-tight">
-              Curious about
+              Ready to predict
               <br />
               <span className="gradient-text">your healthspan?</span>
             </h2>
             <p className="text-lg text-muted-foreground max-w-md mx-auto">
-              Explore how lifestyle factors affect life expectancy based on
+              See how lifestyle factors affect your life expectancy based on
               published research.
             </p>
             <Button
@@ -441,7 +441,7 @@ export default function Home() {
               asChild
             >
               <Link href="/analyze">
-                Explore free
+                Get your prediction
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>

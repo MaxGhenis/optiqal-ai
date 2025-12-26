@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Optiqal — Understand Your Healthspan",
+  title: "Optiqal — Predict Your Healthspan",
   description:
     "Explore how lifestyle factors affect life expectancy and quality of life. Educational estimates based on published research and actuarial data.",
   keywords: [
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   ],
   metadataBase: new URL("https://optiqal.ai"),
   openGraph: {
-    title: "Optiqal — Understand Your Healthspan",
+    title: "Optiqal — Predict Your Healthspan",
     description:
       "Explore how lifestyle factors affect life expectancy and quality of life. Educational estimates based on published research and actuarial data.",
     url: "https://optiqal.ai",
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Optiqal — Understand Your Healthspan",
+        alt: "Optiqal — Predict Your Healthspan",
       },
     ],
     locale: "en_US",
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Optiqal — Understand Your Healthspan",
+    title: "Optiqal — Predict Your Healthspan",
     description:
       "Explore how lifestyle factors affect life expectancy and quality of life. Educational estimates based on published research and actuarial data.",
     images: ["/og-image.png"],
