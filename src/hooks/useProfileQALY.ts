@@ -67,6 +67,8 @@ export function useProfileQALY(
     let cancelled = false;
 
     async function fetchQALY() {
+      if (!interventionId) return; // Guard for TypeScript narrowing
+
       setLoading(true);
       setError(null);
 

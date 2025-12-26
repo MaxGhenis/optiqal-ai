@@ -53,8 +53,12 @@ const mockProfile: UserProfile = {
   weight: 75,
   exerciseHoursPerWeek: 3,
   sleepHoursPerNight: 7,
-  diet: "balanced",
+  diet: "omnivore",
   smoker: false,
+  existingConditions: [],
+  hasDiabetes: false,
+  hasHypertension: false,
+  activityLevel: "moderate",
 };
 
 const mockResult: StructuredAnalysisResult = {
@@ -68,11 +72,30 @@ const mockResult: StructuredAnalysisResult = {
     median: 0.5,
     mean: 0.51,
     ci95: { low: 0.2, high: 0.8 },
-    ci90: { low: 0.25, high: 0.75 },
+    ci50: { low: 0.35, high: 0.65 },
     probPositive: 0.95,
-    probHarmful: 0.01,
-    sampleSize: 10000,
-    simulationType: "rigorous",
+    probMoreThanOneYear: 0.1,
+    percentiles: [
+      { p: 5, value: 0.1 },
+      { p: 50, value: 0.5 },
+      { p: 95, value: 0.9 },
+    ],
+    breakdown: {
+      mortalityQALYs: { median: 0.3, ci95: { low: 0.1, high: 0.5 } },
+      qualityQALYs: { median: 0.15, ci95: { low: 0.05, high: 0.25 } },
+      costQALYs: { median: 0.05, ci95: { low: 0.01, high: 0.1 } },
+    },
+    nSimulations: 10000,
+    lifecycle: {
+      pathwayContributions: {
+        cvd: { median: 0.2, ci95: { low: 0.1, high: 0.3 } },
+        cancer: { median: 0.1, ci95: { low: 0.05, high: 0.15 } },
+        other: { median: 0.2, ci95: { low: 0.1, high: 0.3 } },
+      },
+      lifeYearsGained: { median: 0.6, ci95: { low: 0.2, high: 1.0 } },
+      discountRate: 0.03,
+      used: true,
+    },
   },
   summary: {
     totalQALYs: { median: 0.5, ci95Low: 0.2, ci95High: 0.8 },

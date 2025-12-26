@@ -18,6 +18,9 @@ const mockProfile: UserProfile = {
   sleepHoursPerNight: 7,
   existingConditions: [],
   diet: "omnivore",
+  hasDiabetes: false,
+  hasHypertension: false,
+  activityLevel: "moderate",
 };
 
 const mockResult: StructuredAnalysisResult = {
@@ -46,9 +49,8 @@ const mockResult: StructuredAnalysisResult = {
   simulation: {
     median: 0.25,
     mean: 0.26,
-    sd: 0.12,
     ci95: { low: 0.05, high: 0.48 },
-    ci90: { low: 0.08, high: 0.45 },
+    ci50: { low: 0.15, high: 0.35 },
     percentiles: [],
     probPositive: 0.92,
     probMoreThanOneYear: 0.15,

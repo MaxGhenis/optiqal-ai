@@ -48,8 +48,9 @@ export async function loadPrecomputedBaselines(): Promise<PrecomputedBaselines> 
     throw new Error("Failed to load precomputed baselines");
   }
 
-  cachedBaselines = await response.json();
-  return cachedBaselines;
+  const baselines: PrecomputedBaselines = await response.json();
+  cachedBaselines = baselines;
+  return baselines;
 }
 
 /**

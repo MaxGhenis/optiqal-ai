@@ -18,6 +18,9 @@ const mockProfile: UserProfile = {
   sleepHoursPerNight: 7,
   existingConditions: [],
   diet: "omnivore",
+  hasDiabetes: false,
+  hasHypertension: false,
+  activityLevel: "moderate",
 };
 
 // Mock exercise intervention (walking)

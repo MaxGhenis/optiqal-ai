@@ -10,6 +10,7 @@ import {
   imputeFullState,
   type ImputationInput,
 } from "./imputation";
+import { validateState } from "./state";
 
 describe("imputeBehaviors", () => {
   it("returns reasonable values for average person", () => {

@@ -11,7 +11,7 @@ describe("Counterfactual Simulation", () => {
       { age: 40, sex: "male", bmi: 32 },
       {
         variable: "exercise",
-        change: { exercise: { aerobicMinutesPerWeek: 150 } },
+        change: { exercise: { aerobicMinutesPerWeek: 150, strengthSessionsPerWeek: 2 } },
       },
       { nSimulations: 100 }
     );
@@ -36,7 +36,7 @@ describe("Counterfactual Simulation", () => {
       { age: 40, sex: "male", bmi: 32 },
       {
         variable: "exercise",
-        change: { exercise: { aerobicMinutesPerWeek: 150 } },
+        change: { exercise: { aerobicMinutesPerWeek: 150, strengthSessionsPerWeek: 2 } },
       },
       { nSimulations: 100 }
     );
@@ -54,7 +54,7 @@ describe("Counterfactual Simulation", () => {
       { age: 40, sex: "male", bmi: 32 },
       {
         variable: "exercise",
-        change: { exercise: { aerobicMinutesPerWeek: 150 } },
+        change: { exercise: { aerobicMinutesPerWeek: 150, strengthSessionsPerWeek: 2 } },
       },
       { nSimulations: 100 }
     );
@@ -79,7 +79,7 @@ describe("Counterfactual Simulation", () => {
       { age: 40, sex: "male", bmi: 32 },
       {
         variable: "exercise",
-        change: { exercise: { aerobicMinutesPerWeek: 150 } },
+        change: { exercise: { aerobicMinutesPerWeek: 150, strengthSessionsPerWeek: 2 } },
       },
       { nSimulations: 100 }
     );
@@ -88,7 +88,7 @@ describe("Counterfactual Simulation", () => {
       { age: 40, sex: "male", bmi: 22 },
       {
         variable: "exercise",
-        change: { exercise: { aerobicMinutesPerWeek: 150 } },
+        change: { exercise: { aerobicMinutesPerWeek: 150, strengthSessionsPerWeek: 2 } },
       },
       { nSimulations: 100 }
     );
@@ -112,14 +112,14 @@ describe("Counterfactual Simulation", () => {
       { age: 40, sex: "male", bmi: 32 },
       {
         variable: "exercise",
-        change: { exercise: { aerobicMinutesPerWeek: 150 } },
+        change: { exercise: { aerobicMinutesPerWeek: 150, strengthSessionsPerWeek: 2 } },
       },
       { nSimulations: 100, propagateCausalEffects: true }
     );
 
     // Exercise should cause BMI reduction
-    expect(result.counterfactualState.biomarkers.bmi).toBeLessThan(
-      result.baselineState.biomarkers.bmi
+    expect(result.counterfactualState.biomarkers.bmi!).toBeLessThan(
+      result.baselineState.biomarkers.bmi!
     );
 
     // Should be in causalChanges
@@ -127,7 +127,7 @@ describe("Counterfactual Simulation", () => {
       (c) => c.variable === "biomarkers.bmi"
     );
     expect(bmiChange).toBeDefined();
-    expect(bmiChange?.after).toBeLessThan(bmiChange?.before || 0);
+    expect(bmiChange!.after).toBeLessThan(bmiChange!.before);
   });
 
   it("should NOT propagate causal effects when disabled", () => {
@@ -135,7 +135,7 @@ describe("Counterfactual Simulation", () => {
       { age: 40, sex: "male", bmi: 32 },
       {
         variable: "exercise",
-        change: { exercise: { aerobicMinutesPerWeek: 150 } },
+        change: { exercise: { aerobicMinutesPerWeek: 150, strengthSessionsPerWeek: 2 } },
       },
       { nSimulations: 100, propagateCausalEffects: false }
     );
@@ -169,7 +169,11 @@ describe("Counterfactual Simulation", () => {
         change: {
           diet: {
             mediterraneanAdherence: 0.8,
+            processedFoodPercent: 20,
             vegetableServingsPerDay: 5,
+            fruitServingsPerDay: 3,
+            fishServingsPerWeek: 2,
+            redMeatServingsPerWeek: 2,
           },
         },
       },
