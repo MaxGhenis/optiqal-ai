@@ -29,7 +29,9 @@ export interface CalibrationData {
 /**
  * Calibration factors by age group and sex.
  * Key format: "ageStart-ageEnd" -> { male: CalibrationData, female: CalibrationData }
- * Note: Some age groups may be missing if NHANES didn't sample that population
+ */
+/**
+ * Note: Some age groups (85+) may be missing if NHANES sample size insufficient
  */
 export const CALIBRATION_BY_AGE_SEX: Record<
   string,
