@@ -251,3 +251,18 @@ export {
   getPrecomputedQualityWeight,
   type PrecomputedBaselines,
 } from "./precomputed";
+
+// Partial profile and uncertainty quantification
+export {
+  type PartialProfile,
+  sampleCompleteProfile,
+  calculateProfileCompleteness,
+  getMissingFields,
+  partialToMeanProfile,
+} from "./partial-profile";
+export {
+  calculateBaselineWithUncertainty,
+  calculateBaselineQuick,
+  formatPredictionInterval,
+  type UncertainBaselineResult,
+} from "./uncertain-baseline";

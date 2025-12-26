@@ -149,7 +149,7 @@ export default function Home() {
               className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90"
               asChild
             >
-              <Link href="/analyze">
+              <Link href="/predict">
                 Try it free
                 <Sparkles className="ml-1.5 h-4 w-4" />
               </Link>
@@ -187,7 +187,7 @@ export default function Home() {
                   className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-8 text-base"
                   asChild
                 >
-                  <Link href="/analyze">
+                  <Link href="/predict">
                     Explore now
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
@@ -440,7 +440,7 @@ export default function Home() {
               className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 h-14 px-10 text-lg"
               asChild
             >
-              <Link href="/analyze">
+              <Link href="/predict">
                 Get your prediction
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
