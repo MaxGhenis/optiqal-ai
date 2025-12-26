@@ -13,7 +13,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import numpy as np
 
 from .intervention import Intervention
-from .simulate import simulate_qaly, simulate_qaly_profile, SimulationResult
+from .simulate import simulate_qaly, simulate_qaly_profile, simulate_qaly_profile_vectorized, SimulationResult
 from .profile import Profile, generate_all_profiles, count_profiles
 
 try:
@@ -372,7 +372,8 @@ def _simulate_single_profile(args):
     intervention, profile, n_samples, discount_rate, random_seed = args
     from .profile import get_baseline_mortality_multiplier, get_intervention_modifier
 
-    sim_result = simulate_qaly_profile(
+    # Use vectorized version for ~100x speedup
+    sim_result = simulate_qaly_profile_vectorized(
         intervention,
         profile,
         n_simulations=n_samples,
