@@ -13,12 +13,12 @@ const faqs = [
   {
     question: "How accurate are these estimates?",
     answer:
-      "We generate personalized predictions by applying hazard ratios from peer-reviewed meta-analyses to your profile. The confidence intervals reflect uncertainty from the underlying studies—wider intervals mean less certainty. Your actual outcomes may differ due to genetics and factors not in our models, which is why we show uncertainty ranges rather than false precision.",
+      "We generate personalized predictions by applying hazard ratios from peer-reviewed meta-analyses to your profile. The prediction intervals reflect uncertainty from the underlying studies—wider intervals mean less certainty. Your actual outcomes may differ due to genetics and factors not in our models, which is why we show uncertainty ranges rather than false precision.",
   },
   {
     question: "Where does the data come from?",
     answer:
-      "CDC life tables for baseline mortality, hazard ratios from Cochrane/Lancet/JAMA meta-analyses for risk factors, and GBD 2019 for disease burden. We use Monte Carlo simulation to propagate uncertainty through the calculations, giving you confidence intervals that reflect the limits of current research.",
+      "CDC life tables for baseline mortality, hazard ratios from Cochrane/Lancet/JAMA meta-analyses for risk factors, and GBD 2019 for disease burden. We use Monte Carlo simulation to propagate uncertainty through the calculations, giving you prediction intervals that reflect the limits of current research.",
   },
   {
     question: "Is this medical advice?",
@@ -38,7 +38,7 @@ const faqs = [
   {
     question: "Can I trust these numbers for my personal decisions?",
     answer:
-      "Yes, within the uncertainty bounds we show. The predictions are personalized to your profile using rigorous statistical methods. The confidence intervals tell you how certain we are—use the range, not just the point estimate. For major health decisions, combine our predictions with advice from your doctor.",
+      "Yes, within the uncertainty bounds we show. The predictions are personalized to your profile using rigorous statistical methods. The prediction intervals tell you how certain we are—use the range, not just the point estimate. For major health decisions, combine our predictions with advice from your doctor.",
   },
 ];
 

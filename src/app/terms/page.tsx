@@ -37,7 +37,7 @@ export default function TermsPage() {
             <p className="text-muted-foreground leading-relaxed">
               <strong className="text-foreground">Optiqal generates personalized statistical predictions.</strong>{" "}
               The Service applies hazard ratios from peer-reviewed meta-analyses to your individual
-              profile, using Monte Carlo simulation to produce estimates with confidence intervals.
+              profile, using Monte Carlo simulation to produce estimates with prediction intervals.
               These predictions reflect what research suggests for someone with your characteristics.
             </p>
             <p className="text-muted-foreground leading-relaxed mt-3">
@@ -46,7 +46,7 @@ export default function TermsPage() {
             <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-4">
               <li>Clinical diagnosis or medical treatment recommendations</li>
               <li>Predictions that account for your complete medical history</li>
-              <li>Certainty—the confidence intervals reflect inherent uncertainty</li>
+              <li>Certainty—the prediction intervals reflect inherent uncertainty</li>
               <li>A substitute for professional medical consultation</li>
             </ul>
           </section>

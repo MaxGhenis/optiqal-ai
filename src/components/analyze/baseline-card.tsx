@@ -322,7 +322,7 @@ export function BaselineCard({ profile }: BaselineCardProps) {
           <p>
             <strong className="text-amber-400">Statistical prediction, not clinical advice.</strong>{" "}
             These personalized estimates apply hazard ratios from peer-reviewed research to your profile.
-            Confidence intervals reflect uncertainty in the underlying studies. Consult a healthcare
+            Prediction intervals reflect uncertainty in the underlying studies. Consult a healthcare
             professional for medical decisions.
           </p>
         </div>

@@ -62,7 +62,7 @@ export default function AboutPage() {
             <p className="text-muted-foreground leading-relaxed">
               Optiqal generates personalized predictions by applying hazard ratios from meta-analyses
               to your individual profile. We use Monte Carlo simulation to propagate uncertainty
-              through the model, producing confidence intervals that reflect the limits of current
+              through the model, producing prediction intervals that reflect the limits of current
               research. The uncertainty bounds are just as important as the point estimates—they
               tell you how certain we can be given existing evidence.
             </p>
