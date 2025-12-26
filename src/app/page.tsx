@@ -487,10 +487,10 @@ export default function Home() {
             </div>
           </div>
           <p className="text-xs text-muted-foreground max-w-2xl mx-auto text-center leading-relaxed">
-            <strong>For educational purposes only.</strong> Optiqal provides statistical estimates
-            based on population averages from published research. This is not medical advice and
-            cannot predict individual outcomes. Always consult healthcare professionals for
-            personal health decisions.
+            Optiqal generates personalized predictions by applying hazard ratios from peer-reviewed
+            meta-analyses to CDC life tables. Confidence intervals reflect uncertainty in the underlying
+            research. Your actual outcomes may differ due to genetics and other unmodeled factors.
+            Not medical advice—consult a healthcare professional for health decisions.
           </p>
         </div>
       </footer>
