@@ -24,9 +24,24 @@ Results are expressed in human-readable units: hours, days, or weeks of quality-
 ## Development
 
 ```bash
-npm install
-npm run dev
+pnpm install   # Use pnpm (Vercel uses pnpm for this project)
+pnpm dev
 ```
+
+### Before pushing
+
+Run these checks to avoid failed Vercel deployments:
+
+```bash
+pnpm install          # Ensure lockfile is in sync
+npx tsc --noEmit      # Check for TypeScript errors
+pnpm build            # Verify production build works
+```
+
+**Common issues:**
+- **Lockfile out of sync**: If you add dependencies, commit `pnpm-lock.yaml`
+- **Type errors**: Fix all TypeScript errors before pushing (Vercel runs `tsc`)
+- **Stale `.next` cache**: Run `rm -rf .next` if you see phantom type errors
 
 ## Usage
 
