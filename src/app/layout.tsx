@@ -2,16 +2,16 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Optiqal — Quantify Your Choices in Quality-Adjusted Life",
+  title: "Optiqal — Understand Your Healthspan",
   description:
-    "AI-powered QALY estimation. Understand how your lifestyle decisions affect your health and longevity based on the best available causal evidence.",
+    "Explore how lifestyle factors affect life expectancy and quality of life. Educational estimates based on published research and actuarial data.",
   keywords: [
     "QALY",
     "quality-adjusted life years",
-    "health optimization",
-    "lifestyle choices",
+    "life expectancy calculator",
+    "healthspan",
     "longevity",
-    "evidence-based health",
+    "actuarial data",
   ],
 };
 
