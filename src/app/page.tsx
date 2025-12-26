@@ -451,14 +451,30 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="py-12 px-6 border-t border-border/30">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <Activity className="h-5 w-5 text-primary" />
-            <span className="text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} optiqal
-            </span>
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-6">
+            <div className="flex items-center gap-3">
+              <Activity className="h-5 w-5 text-primary" />
+              <span className="text-sm text-muted-foreground">
+                &copy; {new Date().getFullYear()} optiqal
+              </span>
+            </div>
+            <div className="flex items-center gap-6">
+              <Link
+                href="/terms"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Terms
+              </Link>
+              <Link
+                href="/privacy"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Privacy
+              </Link>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground max-w-lg text-center md:text-right leading-relaxed">
+          <p className="text-xs text-muted-foreground max-w-2xl mx-auto text-center leading-relaxed">
             <strong>For educational purposes only.</strong> Optiqal provides statistical estimates
             based on population averages from published research. This is not medical advice and
             cannot predict individual outcomes. Always consult healthcare professionals for
