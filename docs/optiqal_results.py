@@ -60,13 +60,19 @@ class InterventionResult:
 
 @dataclass
 class ConfoundingParams:
-    """Confounding calibration parameters."""
+    """Confounding calibration parameters.
+
+    Note: The framework uses category-specific priors (see paper Table).
+    Values here represent the exercise category prior, which is the
+    primary reference intervention.
+    """
 
     alpha: float
     beta: float
     mean: float
     ci_lower: float
     ci_upper: float
+    category: str = "exercise"  # Reference category
 
 
 @dataclass
@@ -115,13 +121,15 @@ class PaperResults:
         self.target_age = self.reference.age
         self.baseline_qalys = 33.8  # Lower due to less healthy baseline
 
-        # Confounding calibration
+        # Confounding calibration (exercise category - primary reference)
+        # See paper for category-specific priors table
         self.confounding = ConfoundingParams(
-            alpha=2.5,
-            beta=5.0,
-            mean=0.33,
-            ci_lower=0.10,
-            ci_upper=0.60,
+            alpha=1.2,
+            beta=6.0,
+            mean=0.17,  # 1.2 / (1.2 + 6.0) = 0.167
+            ci_lower=0.02,
+            ci_upper=0.45,
+            category="exercise",
         )
 
         # Key intervention results

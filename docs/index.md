@@ -237,7 +237,18 @@ We apply a confounding adjustment factor calibrated to three evidence sources:
 - **E-value analysis**: Minimum confounding strength to explain observed effects
 - **Within-sibling designs**: Attenuation in family-controlled analyses
 
-The calibrated prior is Beta(α=1.2, β=5.8), yielding mean α/(α+β) = 0.17 and 95% CI [0.02, 0.45]. This parameterization was derived by matching: (a) E[f] = 0.17 from meta-regression of RCT vs observational effect ratios {cite:p}`angrist2010credibility`, (b) mode consistent with E-value threshold for typical lifestyle interventions (HR ≈ 1.5), and (c) upper bound P(f > 0.45) < 0.025 from sibling study attenuation {cite:p}`lundborg2018schooling`.
+We use **category-specific priors** calibrated to the available RCT evidence for each intervention type:
+
+| Category | Prior | Mean | Calibration Source |
+|----------|-------|------|-------------------|
+| Exercise | Beta(1.2, 6.0) | 17% | Ballin 2021 RCT meta-analysis shows ~30% attenuation |
+| Diet | Beta(1.5, 4.5) | 25% | PREDIMED and dietary RCTs suggest moderate causal fraction |
+| Smoking | Beta(2.5, 4.0) | 38% | Strong MR evidence; Mendelian randomization confirms effects |
+| Sleep | Beta(1.0, 5.5) | 15% | Limited RCT evidence; primarily observational |
+| Social | Beta(2.0, 4.0) | 33% | Intervention studies show real but attenuated effects |
+| Supplements | Beta(1.2, 5.0) | 19% | Most supplement RCTs show null or attenuated effects |
+
+For exercise, the default prior Beta(1.2, 6.0) yields mean 17% and 95% CI [2%, 45%]. This was derived by matching: (a) E[f] = 0.17 from meta-regression of RCT vs observational effect ratios {cite:p}`angrist2010credibility`, (b) mode consistent with E-value threshold for typical lifestyle interventions (HR ≈ 1.5), and (c) upper bound P(f > 0.45) < 0.025 from sibling study attenuation {cite:p}`lundborg2018schooling`.
 
 ### Causal Identification Assumptions
 
@@ -313,15 +324,30 @@ $$\text{calibration\_factor}(\text{age}, \text{sex}) = \mathbb{E}[\text{HR} \mid
 
 where the sums are over respondents in that age-sex group.
 
-**Adjusting the baseline**: The life table expectancy is multiplied by this calibration factor before applying individual-level hazard ratios:
+**Adjusting individual hazard ratios**: Rather than adjusting the baseline life expectancy, we divide the individual's combined HR by the population-average HR:
 
-$$\text{adjusted\_baseline}(\text{age}, \text{sex}) = \text{life\_table\_LE}(\text{age}, \text{sex}) \times \text{calibration\_factor}(\text{age}, \text{sex})$$
+$$\text{calibrated\_HR} = \frac{\text{HR}_{\text{individual}}}{\text{calibration\_factor}(\text{age}, \text{sex})}$$
 
 **Key insight**: This adjustment ensures proper calibration in both directions:
 - Individuals with *no* risk factors (never-smokers, healthy BMI, active, optimal sleep, no chronic conditions) have *higher* baseline life expectancy than the population average—correctly reflecting their advantaged position
 - Individuals with *multiple* risk factors have *lower* life expectancy than naive estimates would suggest, because the comparison baseline is now the life expectancy of someone with zero risk factors rather than the population average
 
 **Capturing correlations**: Because NHANES provides joint observations of all risk factors at the individual level, this approach automatically captures the population correlation structure. People who smoke are more likely to have other risk factors; the weighted average HR reflects these real-world clustering patterns rather than assuming independence.
+
+**Worked example**: Consider a 45-year-old male. From NHANES 2017-2020, the population-average HR for this demographic is 2.79 (the typical American male age 45-54 has elevated mortality risk due to prevalent smoking, obesity, sedentary behavior, etc.).
+
+| Individual Profile | Raw Combined HR | Calibrated HR | Effect on LE |
+|-------------------|-----------------|---------------|--------------|
+| All risk factors at reference (HR=1.0) | 1.0 | 1.0 / 2.79 = 0.36 | +64% above life table |
+| Population average profile | 2.79 | 2.79 / 2.79 = 1.0 | Matches life table exactly |
+| Current smoker, obese, sedentary | 5.5 | 5.5 / 2.79 = 1.97 | -49% below life table |
+
+The calibrated HR is computed as: calibrated_HR = individual_HR / population_HR. This ensures:
+- Zero-risk individuals (calibrated HR < 1) have *better* than life table expectancy
+- Population-average individuals (calibrated HR ≈ 1) match the life table
+- High-risk individuals (calibrated HR > 1) have *worse* than life table expectancy
+
+**Limitation**: NHANES sample sizes are insufficient for 85+ age groups, so calibration falls back to sex-only estimates for the oldest adults.
 
 ## Results
 
