@@ -1,0 +1,149 @@
+{
+  "metadata": {
+    "source": "NHANES 2017-March 2020 (pre-pandemic)",
+    "n_total": 15549,
+    "description": "Expected population-level hazard ratios. Life tables already include people with these conditions, so we use these factors to avoid double-counting. To get individual-adjusted baseline: baseline_LE * (1/calibration_factor) * individual_HR"
+  },
+  "by_age_sex": {
+    "18-24": {
+      "male": {
+        "weighted_mean_hr": 1.8136,
+        "n": 918
+      },
+      "female": {
+        "weighted_mean_hr": 1.8746,
+        "n": 920
+      }
+    },
+    "25-34": {
+      "male": {
+        "weighted_mean_hr": 2.4368,
+        "n": 1084
+      },
+      "female": {
+        "weighted_mean_hr": 2.4272,
+        "n": 1214
+      }
+    },
+    "35-44": {
+      "male": {
+        "weighted_mean_hr": 2.605,
+        "n": 1018
+      },
+      "female": {
+        "weighted_mean_hr": 2.5871,
+        "n": 1221
+      }
+    },
+    "45-54": {
+      "male": {
+        "weighted_mean_hr": 2.7883,
+        "n": 1124
+      },
+      "female": {
+        "weighted_mean_hr": 3.0324,
+        "n": 1163
+      }
+    },
+    "55-64": {
+      "male": {
+        "weighted_mean_hr": 3.0901,
+        "n": 1450
+      },
+      "female": {
+        "weighted_mean_hr": 2.9073,
+        "n": 1526
+      }
+    },
+    "65-74": {
+      "male": {
+        "weighted_mean_hr": 2.9299,
+        "n": 1105
+      },
+      "female": {
+        "weighted_mean_hr": 3.0071,
+        "n": 1054
+      }
+    },
+    "75-84": {
+      "male": {
+        "weighted_mean_hr": 2.8262,
+        "n": 859
+      },
+      "female": {
+        "weighted_mean_hr": 2.9369,
+        "n": 893
+      }
+    },
+    "85-100": {}
+  },
+  "by_age": {
+    "18-24": {
+      "weighted_mean_hr": 1.8435,
+      "n": 1838
+    },
+    "25-34": {
+      "weighted_mean_hr": 2.4321,
+      "n": 2298
+    },
+    "35-44": {
+      "weighted_mean_hr": 2.5957,
+      "n": 2239
+    },
+    "45-54": {
+      "weighted_mean_hr": 2.9132,
+      "n": 2287
+    },
+    "55-64": {
+      "weighted_mean_hr": 2.9933,
+      "n": 2976
+    },
+    "65-74": {
+      "weighted_mean_hr": 2.9711,
+      "n": 2159
+    },
+    "75-84": {
+      "weighted_mean_hr": 2.8906,
+      "n": 1752
+    }
+  },
+  "by_sex": {
+    "male": {
+      "weighted_mean_hr": 2.6415,
+      "n": 7558
+    },
+    "female": {
+      "weighted_mean_hr": 2.6912,
+      "n": 7991
+    }
+  },
+  "overall": {
+    "weighted_mean_hr": 2.6672,
+    "n": 15549
+  },
+  "prevalence": {
+    "smoking": 0.1676,
+    "diabetes": 0.1124,
+    "hypertension": 0.3173,
+    "bmi_categories": {
+      "obese1": 0.2147,
+      "normal": 0.2647,
+      "obese2": 0.1089,
+      "overweight": 0.3081,
+      "underweight": 0.0157,
+      "obese3": 0.0879
+    },
+    "exercise_categories": {
+      "low": 0.1047,
+      "recommended": 0.093,
+      "high": 0.0793,
+      "veryHigh": 0.4734,
+      "none": 0.2496
+    },
+    "sleep_categories": {
+      "normal": 0.8129,
+      "long": 0.1014,
+      "short": 0.0857
+    }
+  }
+}
