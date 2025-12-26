@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
 
-export const alt = "Optiqal — Understand Your Healthspan";
+export const alt = "Optiqal — Predict Your Healthspan";
 export const size = {
   width: 1200,
   height: 630,
@@ -110,7 +110,7 @@ export default async function Image() {
             alignItems: "center",
           }}
         >
-          <span style={{ color: "white" }}>Understand your</span>
+          <span style={{ color: "white" }}>Predict your</span>
           <span
             style={{
               background: "linear-gradient(90deg, #14b8a6 0%, #06b6d4 50%, #f472b6 100%)",
