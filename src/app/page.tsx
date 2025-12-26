@@ -488,7 +488,7 @@ export default function Home() {
           </div>
           <p className="text-xs text-muted-foreground max-w-2xl mx-auto text-center leading-relaxed">
             Optiqal generates personalized predictions by applying hazard ratios from peer-reviewed
-            meta-analyses to CDC life tables. Confidence intervals reflect uncertainty in the underlying
+            meta-analyses to CDC life tables. Prediction intervals reflect uncertainty in the underlying
             research. Your actual outcomes may differ due to genetics and other unmodeled factors.
             Not medical advice—consult a healthcare professional for health decisions.
           </p>
