@@ -74,10 +74,10 @@ function LifeMeter() {
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <div className="text-center space-y-1">
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-            Your potential
+            Example prediction
           </p>
-          <p className="text-5xl font-serif font-semibold gradient-text text-glow">
-            +2.3
+          <p className="text-4xl font-serif font-semibold gradient-text text-glow">
+            +1.8 to +2.8
           </p>
           <p className="text-sm text-muted-foreground">quality-adjusted years</p>
         </div>
