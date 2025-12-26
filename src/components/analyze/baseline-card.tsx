@@ -218,8 +218,8 @@ export function BaselineCard({ profile }: BaselineCardProps) {
                       borderRadius: "8px",
                       fontSize: "12px",
                     }}
-                    formatter={(value: number, name: string) => [
-                      `${value}%`,
+                    formatter={(value, name) => [
+                      `${value ?? 0}%`,
                       name === "current" ? "Current" : "Non-smoker scenario"
                     ]}
                     labelFormatter={(age) => `Age ${age}`}
@@ -276,8 +276,8 @@ export function BaselineCard({ profile }: BaselineCardProps) {
                       borderRadius: "8px",
                       fontSize: "12px",
                     }}
-                    formatter={(value: number, name: string) => [
-                      `${value}%`,
+                    formatter={(value, name) => [
+                      `${value ?? 0}%`,
                       name === "survival" ? "Current" : "Non-smoker scenario"
                     ]}
                     labelFormatter={(age) => `Age ${age}`}
