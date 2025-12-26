@@ -13,6 +13,31 @@ export const metadata: Metadata = {
     "longevity",
     "actuarial data",
   ],
+  metadataBase: new URL("https://optiqal.ai"),
+  openGraph: {
+    title: "Optiqal — Understand Your Healthspan",
+    description:
+      "Explore how lifestyle factors affect life expectancy and quality of life. Educational estimates based on published research and actuarial data.",
+    url: "https://optiqal.ai",
+    siteName: "Optiqal",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Optiqal — Understand Your Healthspan",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Optiqal — Understand Your Healthspan",
+    description:
+      "Explore how lifestyle factors affect life expectancy and quality of life. Educational estimates based on published research and actuarial data.",
+    images: ["/og-image.png"],
+  },
 };
 
 export default function RootLayout({
