@@ -58,14 +58,19 @@ export default function AboutPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold mb-3">Educational Purpose</h2>
+            <h2 className="text-xl font-semibold mb-3">Statistical Methods</h2>
             <p className="text-muted-foreground leading-relaxed">
-              <strong className="text-foreground">
-                Optiqal is for educational and informational purposes only.
-              </strong>{" "}
-              It does not provide medical advice, diagnosis, or treatment. The estimates shown are
-              based on population-level statistics and cannot predict individual outcomes. Always
-              consult a qualified healthcare professional before making health-related decisions.
+              Optiqal generates personalized predictions by applying hazard ratios from meta-analyses
+              to your individual profile. We use Monte Carlo simulation to propagate uncertainty
+              through the model, producing confidence intervals that reflect the limits of current
+              research. The uncertainty bounds are just as important as the point estimates—they
+              tell you how certain we can be given existing evidence.
+            </p>
+            <p className="text-muted-foreground leading-relaxed mt-3">
+              <strong className="text-foreground">Not medical advice.</strong>{" "}
+              Our predictions are statistical, not clinical. They show what research suggests for
+              someone with your profile but cannot account for your complete medical history.
+              Discuss health decisions with your doctor.
             </p>
           </section>
 

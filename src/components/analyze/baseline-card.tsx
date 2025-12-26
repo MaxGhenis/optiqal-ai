@@ -320,10 +320,10 @@ export function BaselineCard({ profile }: BaselineCardProps) {
         <div className="flex items-start gap-2 text-xs text-muted-foreground bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
           <Info className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-500" />
           <p>
-            <strong className="text-amber-400">For educational purposes only.</strong>{" "}
-            These estimates are based on population averages from CDC life tables and
-            published research. They do not constitute medical advice and cannot predict
-            individual outcomes. Consult a healthcare professional for personal health decisions.
+            <strong className="text-amber-400">Statistical prediction, not clinical advice.</strong>{" "}
+            These personalized estimates apply hazard ratios from peer-reviewed research to your profile.
+            Confidence intervals reflect uncertainty in the underlying studies. Consult a healthcare
+            professional for medical decisions.
           </p>
         </div>
       </CardContent>

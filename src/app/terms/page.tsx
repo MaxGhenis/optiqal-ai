@@ -33,34 +33,35 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold mb-3">2. Educational Purpose Only</h2>
+            <h2 className="text-xl font-semibold mb-3">2. What Optiqal Provides</h2>
             <p className="text-muted-foreground leading-relaxed">
-              <strong className="text-foreground">Optiqal is strictly for educational and informational purposes.</strong>{" "}
-              The Service provides estimates and visualizations based on published research and actuarial
-              data to help you understand how lifestyle factors may affect life expectancy and quality
-              of life at a population level.
+              <strong className="text-foreground">Optiqal generates personalized statistical predictions.</strong>{" "}
+              The Service applies hazard ratios from peer-reviewed meta-analyses to your individual
+              profile, using Monte Carlo simulation to produce estimates with confidence intervals.
+              These predictions reflect what research suggests for someone with your characteristics.
             </p>
             <p className="text-muted-foreground leading-relaxed mt-3">
               The Service does NOT provide:
             </p>
             <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-4">
-              <li>Medical advice, diagnosis, or treatment</li>
-              <li>Individual health predictions or prognoses</li>
-              <li>Recommendations for specific health decisions</li>
+              <li>Clinical diagnosis or medical treatment recommendations</li>
+              <li>Predictions that account for your complete medical history</li>
+              <li>Certainty—the confidence intervals reflect inherent uncertainty</li>
               <li>A substitute for professional medical consultation</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold mb-3">3. No Medical Advice Disclaimer</h2>
+            <h2 className="text-xl font-semibold mb-3">3. Statistical vs. Clinical Predictions</h2>
             <p className="text-muted-foreground leading-relaxed">
               <strong className="text-foreground">
-                Always consult a qualified healthcare professional before making any health-related decisions.
+                Our predictions are statistical, not clinical.
               </strong>{" "}
-              The estimates provided by Optiqal are based on population-level statistics and cannot
-              predict individual outcomes. Your personal health situation may differ significantly
-              from population averages due to genetics, medical conditions, environment, and other
-              factors not captured in our models.
+              We show what the research suggests for someone with your profile, with uncertainty
+              bounds that reflect the limits of current evidence. Your actual outcomes may differ
+              due to genetics, medical conditions, and factors not captured in our models.
+              Always discuss health decisions with a qualified healthcare professional who knows
+              your complete situation.
             </p>
           </section>
 
