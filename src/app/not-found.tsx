@@ -44,7 +44,7 @@ export default function NotFound() {
               className="flex-1 btn-glow bg-primary text-primary-foreground hover:bg-primary/90"
               asChild
             >
-              <Link href="/analyze">
+              <Link href="/predict">
                 Explore
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>

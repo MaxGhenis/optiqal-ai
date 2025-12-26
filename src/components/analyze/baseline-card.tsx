@@ -64,6 +64,10 @@ export function BaselineCard({ profile }: BaselineCardProps) {
       survivalComparison: comparisonProjection
         ? Math.round((comparisonProjection.survivalCurve[i]?.survivalProbability ?? point.survivalProbability) * 100)
         : null,
+      quality: Math.round(point.qualityWeight * 100),
+      qualityComparison: comparisonProjection
+        ? Math.round((comparisonProjection.survivalCurve[i]?.qualityWeight ?? point.qualityWeight) * 100)
+        : null,
     }));
   }, [projection.survivalCurve, comparisonProjection]);
 
@@ -71,7 +75,7 @@ export function BaselineCard({ profile }: BaselineCardProps) {
   const qalyDelta = comparisonProjection
     ? comparisonProjection.remainingQALYs - projection.remainingQALYs
     : 0;
-  const [chartView, setChartView] = useState<"qaly" | "survival">("qaly");
+  const [chartView, setChartView] = useState<"qaly" | "survival" | "quality">("qaly");
 
   return (
     <Card className="mesh-gradient-card border-border/50 overflow-hidden">
@@ -180,6 +184,16 @@ export function BaselineCard({ profile }: BaselineCardProps) {
               >
                 Survival Probability
               </button>
+              <button
+                onClick={() => setChartView("quality")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  chartView === "quality"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Quality if Alive
+              </button>
             </div>
             {qalyDelta > 0.5 && (
               <span className="text-xs text-muted-foreground">
@@ -248,7 +262,7 @@ export function BaselineCard({ profile }: BaselineCardProps) {
                     />
                   )}
                 </ComposedChart>
-              ) : (
+              ) : chartView === "survival" ? (
                 <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
                   <defs>
                     <linearGradient id="survivalGradient" x1="0" y1="0" x2="0" y2="1">
@@ -306,13 +320,67 @@ export function BaselineCard({ profile }: BaselineCardProps) {
                     />
                   )}
                 </ComposedChart>
+              ) : (
+                <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="qualityGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="age"
+                    tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                    axisLine={{ stroke: "hsl(var(--border))" }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                    axisLine={false}
+                    tickLine={false}
+                    domain={[0, 100]}
+                    tickFormatter={(v) => `${v}%`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                    }}
+                    formatter={(value, name) => [
+                      `${value ?? 0}%`,
+                      name === "quality" ? "Current" : "Non-smoker scenario"
+                    ]}
+                    labelFormatter={(age) => `Age ${age}`}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="quality"
+                    stroke="hsl(142, 76%, 36%)"
+                    strokeWidth={2}
+                    fill="url(#qualityGradient)"
+                  />
+                  {comparisonProjection && (
+                    <Line
+                      type="monotone"
+                      dataKey="qualityComparison"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      dot={false}
+                    />
+                  )}
+                </ComposedChart>
               )}
             </ResponsiveContainer>
           </div>
           <p className="text-xs text-muted-foreground text-center">
             {chartView === "qaly"
               ? "Expected QALY rate = P(alive) × Quality of life"
-              : "Probability of being alive at each age based on life tables and risk factors"}
+              : chartView === "survival"
+                ? "Probability of being alive at each age based on life tables and risk factors"
+                : "Expected quality of life at each age, given survival (based on GBD disability weights)"}
           </p>
         </div>
 
