@@ -331,8 +331,6 @@ describe("imputeFullState", () => {
 
     const result = imputeFullState(input);
 
-    // Import validateState to check
-    const { validateState } = require("./state");
     const validation = validateState(result.state);
 
     expect(validation.valid).toBe(true);
