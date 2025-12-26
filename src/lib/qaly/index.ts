@@ -46,6 +46,22 @@ export {
   type RigorousSimulationOptions,
 } from "./simulate";
 
+// Derive mortality from mechanisms
+export {
+  deriveMortalityFromMechanisms,
+  deriveMortalityWithBreakdown,
+  type MechanismMortalityBreakdown,
+  type MortalityWithBreakdown,
+} from "./derive-mortality";
+
+// Derive quality of life from mechanisms
+export {
+  deriveQualityFromMechanisms,
+  deriveQualityWithBreakdown,
+  type MechanismQualityBreakdown,
+  type QualityWithBreakdown,
+} from "./derive-quality";
+
 // Precomputed interventions
 export {
   PRECOMPUTED_INTERVENTIONS,
@@ -108,3 +124,104 @@ export {
   PRIOR_COMPARISON,
   type CalibrationPoint,
 } from "./confounding-calibrated";
+
+// Person state schema (state-centric modeling)
+export {
+  type PersonState,
+  type Condition,
+  type Biomarkers,
+  type Behaviors,
+  type Environment,
+  type ValidationResult,
+  type DeepPartial,
+  createDefaultState,
+  updateState,
+  getAge,
+  validateState,
+} from "./state";
+
+// State → Hazard calculator
+export {
+  type StateHazardResult,
+  computeStateHazards,
+  computeStateHazardsWithUncertainty,
+  getLifeExpectancy,
+  getAnnualMortalityFromState,
+} from "./state-hazard";
+
+// Risk factor hazard database
+export {
+  type HRWithUncertainty,
+  type HazardValue,
+  type RiskContext,
+  type HazardType,
+  type RiskCategory,
+  type StudyType,
+  type Source,
+  type RiskFactorHazard,
+  type HazardRatioSet,
+  type CauseOfDeath,
+  RISK_FACTORS,
+  combineHazardRatios,
+  getHazardRatiosForState,
+  getCauseSpecificHR,
+} from "./risk-factors";
+
+// State-based lifecycle simulator
+export {
+  type YearlyTrajectory,
+  type QALYDistribution,
+  type LifeExpectancy,
+  type StateLifecycleResult,
+  type SimulationOptions as StateLifecycleSimulationOptions,
+  simulateLifecycleFromState,
+  getQualityWeightFromState,
+  getBaseQualityByAge,
+} from "./state-lifecycle";
+
+// State comparison and intervention impact (state-diff)
+export {
+  type StateComparisonResult,
+  type SimulationOptions as StateDiffSimulationOptions,
+  compareStates,
+  computeInterventionImpact,
+  compareInterventions,
+  identifyStateChanges,
+} from "./state-diff";
+
+// Imputation (behavior imputation and causal DAG)
+export {
+  type PartialObservation,
+  type ImputationResult,
+  type ImputationInput,
+  type ImputedBehaviors,
+  type CausalEffect,
+  imputeFullState,
+  createTypicalStateWithBehavior,
+  deepCopy,
+  CAUSAL_DAG,
+} from "./imputation";
+
+// Counterfactual simulation (causal intervention with imputation)
+export {
+  type CounterfactualResult,
+  type Intervention,
+  type CounterfactualOptions,
+  simulateCausalIntervention,
+} from "./counterfactual";
+
+// Paper results (single source of truth for documentation)
+export {
+  type InterventionResult,
+  type ConfoundingParams,
+  type PaperResults,
+  PAPER_RESULTS,
+  SEED,
+  formatQaly,
+  formatLifeYears,
+  formatMonths,
+  formatCI,
+  getIntervention,
+  getTopInterventions,
+  getInterventionsByCategory,
+} from "./paper-results";

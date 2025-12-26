@@ -3,7 +3,16 @@
 import { useState } from "react";
 import type { StructuredAnalysisResult } from "@/lib/analyze-structured";
 import { formatQALYs } from "@/lib/analyze-structured";
+import {
+  deriveMortalityWithBreakdown,
+  deriveQualityWithBreakdown,
+  type MechanismMortalityBreakdown,
+  type MechanismQualityBreakdown,
+} from "@/lib/qaly";
+import type { MechanismEffect } from "@/lib/qaly/types";
 import { Card, CardContent } from "@/components/ui/card";
+import { ShareButtons } from "./share-buttons";
+import { ProfileVisualizations } from "@/components/ProfileVisualizations";
 import {
   Clock,
   Heart,
@@ -20,6 +29,7 @@ import {
   Zap,
   Sparkles,
   Database,
+  GitCompare,
 } from "lucide-react";
 
 interface StructuredResultCardProps {
@@ -52,6 +62,17 @@ function ConfidenceBadge({ level }: { level: "low" | "medium" | "high" }) {
 }
 
 function SourceBadge({ source }: { source: StructuredAnalysisResult["source"] }) {
+  // Show cache hit indicator
+  if (source.cacheHit) {
+    return (
+      <div className="flex items-center justify-center gap-1.5 text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-full px-3 py-1">
+        <Database className="w-3 h-3" />
+        <span>Cached result</span>
+        <span className="text-blue-400/70">• No API cost</span>
+      </div>
+    );
+  }
+
   if (source.type === "precomputed") {
     return (
       <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1">
@@ -70,6 +91,19 @@ function SourceBadge({ source }: { source: StructuredAnalysisResult["source"] })
       <span>AI-synthesized analysis</span>
     </div>
   );
+}
+
+// Map evidence quality to estimated causal fraction
+function getEvidenceCausalFraction(quality: string): number {
+  switch (quality) {
+    case "strong":
+      return 0.8; // RCT-level evidence
+    case "moderate":
+      return 0.5; // Cohort studies
+    case "weak":
+    default:
+      return 0.2; // Observational/cross-sectional
+  }
 }
 
 function MechanismBadge({
@@ -91,6 +125,8 @@ function MechanismBadge({
         mechanism
       ));
 
+  const causalPct = Math.round(getEvidenceCausalFraction(quality) * 100);
+
   const qualityColor =
     quality === "strong"
       ? "border-emerald-500/30"
@@ -110,16 +146,8 @@ function MechanismBadge({
       <span className="text-foreground/80">
         {mechanism.replace(/_/g, " ")}
       </span>
-      <span
-        className={`text-[10px] ${
-          quality === "strong"
-            ? "text-emerald-400"
-            : quality === "moderate"
-              ? "text-primary"
-              : "text-amber-400"
-        }`}
-      >
-        ({quality})
+      <span className="text-[10px] text-muted-foreground">
+        {quality} · {causalPct}% causal
       </span>
     </div>
   );
@@ -245,6 +273,134 @@ function ProbabilityBar({ probability, label }: { probability: number; label: st
   );
 }
 
+/**
+ * Convert logHR to QALY contribution (approximate)
+ * Uses baseline life expectancy to scale log-HR to years
+ */
+function logHRToQALY(logHR: number, baselineLE: number): number {
+  // HR < 1 (negative logHR) means mortality reduction = QALY gain
+  // Approximate: years gained ≈ -logHR * baselineLE * discount_factor
+  // With 3% discounting over ~40 years, effective multiplier ~20
+  const discountedYears = baselineLE * 0.5; // rough approximation
+  return -logHR * discountedYears;
+}
+
+/**
+ * Display a single mechanism's contribution to longevity or quality
+ */
+function MechanismContributionRow({
+  mechanism,
+  contribution,
+  sd,
+  causalFraction,
+  isLongevity,
+  baselineLE,
+}: {
+  mechanism: string;
+  contribution: number; // logHR for longevity, utilityDelta for quality
+  sd: number;
+  causalFraction: number;
+  isLongevity: boolean;
+  baselineLE: number;
+}) {
+  // Convert to QALYs
+  let qalyContribution: number;
+  let qalySd: number;
+
+  if (isLongevity) {
+    qalyContribution = logHRToQALY(contribution, baselineLE) * causalFraction;
+    qalySd = logHRToQALY(sd, baselineLE) * causalFraction;
+  } else {
+    // Quality: utility delta * remaining years
+    qalyContribution = contribution * baselineLE * 0.5 * causalFraction;
+    qalySd = sd * baselineLE * 0.5 * causalFraction;
+  }
+
+  // Calculate 95% CI
+  const ciLow = qalyContribution - 1.96 * Math.abs(qalySd);
+  const ciHigh = qalyContribution + 1.96 * Math.abs(qalySd);
+
+  const isPositive = qalyContribution >= 0;
+
+  return (
+    <div className="flex items-center justify-between py-1.5 text-xs border-b border-border/10 last:border-0">
+      <div className="flex items-center gap-2">
+        {isPositive ? (
+          <TrendingUp className="w-3 h-3 text-emerald-400" />
+        ) : (
+          <TrendingDown className="w-3 h-3 text-red-400" />
+        )}
+        <span className="text-muted-foreground">
+          {mechanism.replace(/_/g, " ")}
+        </span>
+        <span className="text-[10px] text-muted-foreground/60">
+          {Math.round(causalFraction * 100)}% causal
+        </span>
+      </div>
+      <div className="text-right">
+        <span className={isPositive ? "text-emerald-400" : "text-red-400"}>
+          {formatQALYs(qalyContribution)}
+        </span>
+        <span className="text-muted-foreground/50 ml-1">
+          ({formatQALYs(ciLow)} to {formatQALYs(ciHigh)})
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Display mechanism breakdown for longevity or quality
+ */
+function MechanismBreakdownPanel({
+  title,
+  icon,
+  iconColor,
+  breakdown,
+  isLongevity,
+  baselineLE,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  iconColor: string;
+  breakdown: MechanismMortalityBreakdown[] | MechanismQualityBreakdown[];
+  isLongevity: boolean;
+  baselineLE: number;
+}) {
+  if (breakdown.length === 0) return null;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-border/30">
+      <div className={`flex items-center gap-1.5 text-[10px] uppercase tracking-wider ${iconColor} mb-2`}>
+        {icon}
+        <span>By Mechanism (95% CI)</span>
+      </div>
+      <div className="space-y-0">
+        {breakdown.map((b) => {
+          const contribution = isLongevity
+            ? (b as MechanismMortalityBreakdown).logHR
+            : (b as MechanismQualityBreakdown).utilityDelta;
+          const sd = isLongevity
+            ? (b as MechanismMortalityBreakdown).logSD
+            : (b as MechanismQualityBreakdown).sd;
+
+          return (
+            <MechanismContributionRow
+              key={b.mechanism}
+              mechanism={b.mechanism}
+              contribution={contribution}
+              sd={sd}
+              causalFraction={b.causalFraction}
+              isLongevity={isLongevity}
+              baselineLE={baselineLE}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function StructuredResultCard({ result }: StructuredResultCardProps) {
   const [showMechanisms, setShowMechanisms] = useState(false);
   const [showEvidence, setShowEvidence] = useState(false);
@@ -252,11 +408,36 @@ export function StructuredResultCard({ result }: StructuredResultCardProps) {
   const { summary, simulation, affectedMechanisms, evidence, baseline, source } = result;
   const isPositive = summary.totalQALYs.median >= 0;
 
+  // Convert affectedMechanisms to MechanismEffect[] for breakdown calculation
+  const mechanismEffects: MechanismEffect[] = affectedMechanisms.map((m) => ({
+    mechanism: m.mechanism as MechanismEffect["mechanism"],
+    direction: m.direction,
+    effectSize: m.effectSize || { type: "normal" as const, mean: 1, sd: 0.5 },
+    evidenceQuality: m.evidenceQuality as MechanismEffect["evidenceQuality"],
+    units: m.units,
+  }));
+
+  // Compute breakdowns
+  const mortalityBreakdown = deriveMortalityWithBreakdown(mechanismEffects);
+  const qualityBreakdown = deriveQualityWithBreakdown(mechanismEffects);
+
   return (
     <Card className="mesh-gradient-card border-border/50 card-highlight overflow-hidden">
       <CardContent className="p-8 space-y-8">
-        {/* Source indicator */}
-        <SourceBadge source={source} />
+        {/* Source indicator & Share buttons */}
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <SourceBadge source={source} />
+          <ShareButtons result={result} />
+        </div>
+
+        {/* Counterfactual */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/20 rounded-lg px-4 py-2.5">
+          <GitCompare className="w-3.5 h-3.5 shrink-0 text-primary" />
+          <span>
+            <span className="text-foreground/70">Compared to:</span>{" "}
+            {result.counterfactual}
+          </span>
+        </div>
 
         {/* Main Impact */}
         <div className="text-center space-y-3">
@@ -316,11 +497,6 @@ export function StructuredResultCard({ result }: StructuredResultCardProps) {
           </div>
         </div>
 
-        {/* Confounding Adjustment (if applied) */}
-        {simulation.confounding?.applied && (
-          <ConfoundingSection confounding={simulation.confounding} />
-        )}
-
         {/* Pathway Breakdown (from rigorous lifecycle model) */}
         {simulation.lifecycle?.used && (
           <div className="space-y-3">
@@ -378,6 +554,16 @@ export function StructuredResultCard({ result }: StructuredResultCardProps) {
             <p className="text-xs text-muted-foreground mt-1">
               Impact on lifespan
             </p>
+            {mortalityBreakdown && mortalityBreakdown.breakdown.length > 0 && (
+              <MechanismBreakdownPanel
+                title="By Mechanism"
+                icon={<Activity className="w-3 h-3" />}
+                iconColor="text-primary/70"
+                breakdown={mortalityBreakdown.breakdown}
+                isLongevity={true}
+                baselineLE={baseline.remainingLifeExpectancy}
+              />
+            )}
           </div>
           <div className="bg-muted/20 rounded-xl p-5 border border-border/30 hover-lift">
             <div className="flex items-center gap-2 text-accent mb-3">
@@ -396,6 +582,16 @@ export function StructuredResultCard({ result }: StructuredResultCardProps) {
             <p className="text-xs text-muted-foreground mt-1">
               Quality improvement
             </p>
+            {qualityBreakdown && qualityBreakdown.breakdown.length > 0 && (
+              <MechanismBreakdownPanel
+                title="By Mechanism"
+                icon={<Activity className="w-3 h-3" />}
+                iconColor="text-accent/70"
+                breakdown={qualityBreakdown.breakdown}
+                isLongevity={false}
+                baselineLE={baseline.remainingLifeExpectancy}
+              />
+            )}
           </div>
         </div>
 
@@ -484,6 +680,9 @@ export function StructuredResultCard({ result }: StructuredResultCardProps) {
             </ul>
           </div>
         )}
+
+        {/* Demographic visualizations */}
+        <ProfileVisualizations result={result} />
 
         {/* Evidence */}
         <div className="space-y-3">

@@ -1,0 +1,18 @@
+[project]
+name = "optiqal-docs"
+version = "0.1.0"
+description = "Documentation for Optiqal QALY framework"
+requires-python = ">=3.10"
+dependencies = [
+    "ipykernel>=6.0",
+    "jupyter>=1.0",
+    "mystmd>=1.0",
+]
+
+[dependency-groups]
+dev = []
+
+# To build docs:
+#   cd docs && uv sync && source .venv/bin/activate
+#   myst build --execute --html   # First build (executes Python)
+#   myst build --html              # Subsequent builds (uses cache)

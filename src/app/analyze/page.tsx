@@ -12,6 +12,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { StructuredResultCard } from "@/components/analyze/structured-result-card";
 import { ComparisonResultCard } from "@/components/analyze/comparison-result-card";
 import { BaselineCard } from "@/components/analyze/baseline-card";
+import { CacheInfo } from "@/components/analyze/cache-info";
+import { InterventionComparison } from "@/components/InterventionComparison";
+import { CombinationCalculator } from "@/components/CombinationCalculator";
+import { PortfolioOptimizer } from "@/components/PortfolioOptimizer";
+import { PersonalizedResults } from "@/components/PersonalizedResults";
 import {
   analyzeStructured,
   analyzeComparison,
@@ -19,6 +24,7 @@ import {
   type StructuredAnalysisResult,
   type ComparisonAnalysisResult,
 } from "@/lib/analyze-structured";
+import { matchInterventionId } from "@/lib/qaly/intervention-matcher";
 import type { UserProfile } from "@/types";
 import { DEFAULT_PROFILE } from "@/types";
 import {
@@ -37,7 +43,9 @@ function AnalyzePageContent() {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q") || "";
 
-  const [apiKey, setApiKey] = useState("");
+  const [apiKey, setApiKey] = useState(
+    process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY || ""
+  );
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [choice, setChoice] = useState(initialQuery);
   const [isLoading, setIsLoading] = useState(false);
@@ -46,6 +54,10 @@ function AnalyzePageContent() {
   const [comparisonResult, setComparisonResult] = useState<ComparisonAnalysisResult | null>(null);
   const [showProfile, setShowProfile] = useState(false);
   const [useImperial, setUseImperial] = useState(true); // Default to imperial for US users
+  const [matchedIntervention, setMatchedIntervention] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   // Unit conversion helpers
   const cmToFeetInches = (cm: number) => {
@@ -109,8 +121,15 @@ function AnalyzePageContent() {
     setError(null);
     setResult(null);
     setComparisonResult(null);
+    setMatchedIntervention(null);
 
     try {
+      // Check for precomputed intervention match
+      const matched = matchInterventionId(choice);
+      if (matched) {
+        setMatchedIntervention(matched);
+      }
+
       // Check if this is a comparison query (A vs B)
       if (isComparisonQuery(choice)) {
         const response = await analyzeComparison(profile, choice, apiKey);
@@ -212,8 +231,10 @@ function AnalyzePageContent() {
                   <div className="text-left">
                     <p className="text-sm font-medium">Your Profile</p>
                     <p className="text-xs text-muted-foreground">
-                      {profile.age}yo {profile.sex}, {profile.diet},{" "}
-                      {profile.exerciseHoursPerWeek}h exercise/week
+                      {profile.age}yo {profile.sex}, {profile.activityLevel} activity
+                      {profile.hasDiabetes && ", diabetic"}
+                      {profile.hasHypertension && ", hypertensive"}
+                      {profile.smoker && ", smoker"}
                     </p>
                   </div>
                 </div>
@@ -323,7 +344,7 @@ function AnalyzePageContent() {
                           <Input
                             id="height"
                             type="number"
-                            value={profile.height}
+                            value={Math.round(profile.height)}
                             onChange={(e) =>
                               updateProfile(
                                 "height",
@@ -337,7 +358,7 @@ function AnalyzePageContent() {
                           <Input
                             id="weight"
                             type="number"
-                            value={profile.weight}
+                            value={Math.round(profile.weight)}
                             onChange={(e) =>
                               updateProfile(
                                 "weight",
@@ -403,17 +424,62 @@ function AnalyzePageContent() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="smoker"
-                      checked={profile.smoker}
+                  <div className="space-y-2">
+                    <Label htmlFor="activityLevel">Activity Level</Label>
+                    <Select
+                      id="activityLevel"
+                      value={profile.activityLevel}
                       onChange={(e) =>
-                        updateProfile("smoker", e.target.checked)
+                        updateProfile(
+                          "activityLevel",
+                          e.target.value as UserProfile["activityLevel"]
+                        )
                       }
-                      className="w-4 h-4 rounded border-border bg-card text-primary focus:ring-primary"
-                    />
-                    <Label htmlFor="smoker">Current smoker</Label>
+                    >
+                      <option value="sedentary">Sedentary (mostly sitting)</option>
+                      <option value="light">Light (some walking)</option>
+                      <option value="moderate">Moderate (150+ min/week)</option>
+                      <option value="active">Active (300+ min/week)</option>
+                    </Select>
+                  </div>
+
+                  <div className="flex flex-wrap gap-6 pt-2">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="smoker"
+                        checked={profile.smoker}
+                        onChange={(e) =>
+                          updateProfile("smoker", e.target.checked)
+                        }
+                        className="w-4 h-4 rounded border-border bg-card text-primary focus:ring-primary"
+                      />
+                      <Label htmlFor="smoker">Current smoker</Label>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="diabetes"
+                        checked={profile.hasDiabetes}
+                        onChange={(e) =>
+                          updateProfile("hasDiabetes", e.target.checked)
+                        }
+                        className="w-4 h-4 rounded border-border bg-card text-primary focus:ring-primary"
+                      />
+                      <Label htmlFor="diabetes">Has diabetes</Label>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="hypertension"
+                        checked={profile.hasHypertension}
+                        onChange={(e) =>
+                          updateProfile("hasHypertension", e.target.checked)
+                        }
+                        className="w-4 h-4 rounded border-border bg-card text-primary focus:ring-primary"
+                      />
+                      <Label htmlFor="hypertension">Has hypertension</Label>
+                    </div>
                   </div>
                 </div>
               )}
@@ -422,6 +488,15 @@ function AnalyzePageContent() {
 
           {/* Baseline Projection */}
           <BaselineCard profile={profile} />
+
+          {/* Intervention Comparison */}
+          <InterventionComparison profile={profile} />
+
+          {/* Portfolio Optimizer */}
+          <PortfolioOptimizer profile={profile} />
+
+          {/* Combination Calculator */}
+          <CombinationCalculator profile={profile} />
 
           {/* Choice Input */}
           <Card className="mesh-gradient-card border-border/50 card-highlight">
@@ -471,7 +546,19 @@ function AnalyzePageContent() {
             </Card>
           )}
 
-          {/* Result */}
+          {/* Cache Info */}
+          <CacheInfo />
+
+          {/* Personalized Profile-Based Results */}
+          {matchedIntervention && (
+            <PersonalizedResults
+              profile={profile}
+              interventionId={matchedIntervention.id}
+              interventionName={matchedIntervention.name}
+            />
+          )}
+
+          {/* AI-Generated Results */}
           {result && <StructuredResultCard result={result} />}
           {comparisonResult && <ComparisonResultCard result={comparisonResult} />}
 

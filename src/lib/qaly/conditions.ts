@@ -1,10 +1,81 @@
 /**
  * Condition-specific data for QALY calculations
  *
- * Sources:
- * - GBD 2019 for disability weights
- * - GBD 2019 for baseline incidence rates
- * - EQ-5D-5L tariffs for dimension mappings
+ * @references
+ *
+ * @article{gbd2019_dw,
+ *   title={Global Burden of Disease Study 2019 Disability Weights},
+ *   author={{GBD 2019 Collaborators}},
+ *   year={2019},
+ *   institution={IHME},
+ *   url={https://ghdx.healthdata.org/record/ihme-data/gbd-2019-disability-weights},
+ *   note={Disability weights for 440 health states}
+ * }
+ *
+ * @article{salomon2012_dw,
+ *   title={Common values in assessing health outcomes from disease and injury},
+ *   author={Salomon, Joshua A and Vos, Theo and Hogan, Daniel R and others},
+ *   journal={The Lancet},
+ *   volume={380},
+ *   number={9859},
+ *   pages={2129--2143},
+ *   year={2012},
+ *   doi={10.1016/S0140-6736(12)61680-8}
+ * }
+ *
+ * @article{green2011_sunscreen,
+ *   title={Reduced melanoma after regular sunscreen use: randomized trial follow-up},
+ *   author={Green, Adele C and Williams, Gail M and Logan, Valerie and Strutton, Geoffrey M},
+ *   journal={Journal of Clinical Oncology},
+ *   volume={29},
+ *   number={3},
+ *   pages={257--263},
+ *   year={2011},
+ *   doi={10.1200/JCO.2010.28.7078},
+ *   note={RCT showing 50% reduction in melanoma with daily sunscreen}
+ * }
+ *
+ * @article{vanderpols2006_sunscreen,
+ *   title={Prolonged prevention of squamous cell carcinoma of the skin by regular sunscreen use},
+ *   author={van der Pols, Jolieke C and Williams, Gail M and Neale, Rachel E and Clavarino, Alexandra and Green, Adele C},
+ *   journal={Cancer Epidemiology Biomarkers \& Prevention},
+ *   volume={15},
+ *   number={12},
+ *   pages={2546--2548},
+ *   year={2006},
+ *   doi={10.1158/1055-9965.EPI-06-0518}
+ * }
+ *
+ * @article{karimkhani2017_melanoma,
+ *   title={The global burden of melanoma: results from the Global Burden of Disease Study 2015},
+ *   author={Karimkhani, Chante and Green, Adele C and Nijsten, Tamar and others},
+ *   journal={British Journal of Dermatology},
+ *   volume={177},
+ *   number={1},
+ *   pages={134--140},
+ *   year={2017},
+ *   doi={10.1111/bjd.15510}
+ * }
+ *
+ * @misc{seer_melanoma,
+ *   title={SEER Cancer Statistics Review: Melanoma of the Skin},
+ *   author={{National Cancer Institute}},
+ *   url={https://seer.cancer.gov/statfacts/html/melan.html},
+ *   note={Age-specific incidence rates}
+ * }
+ *
+ * @misc{gbd2019_results,
+ *   title={GBD Results Tool},
+ *   author={{IHME}},
+ *   url={https://vizhub.healthdata.org/gbd-results/},
+ *   note={Interactive tool for GBD estimates}
+ * }
+ *
+ * Cancer disability weights by phase (from GBD 2019 sequelae):
+ * - Diagnosis/primary treatment: 0.288 (cancer_diagnosis_treatment)
+ * - Controlled/remission: 0.049 (generic_uncomplicated_disease)
+ * - Metastatic: 0.451 (cancer_metastatic)
+ * - Terminal: 0.540 (terminal_phase_cancer)
  */
 
 import type { HealthCondition } from "./types";
@@ -117,6 +188,18 @@ export const DISABILITY_WEIGHTS: Record<
     moderate: 0.288,
     severe: 0.54,
     source: "GBD 2019 (generic)",
+  },
+  melanoma: {
+    mild: 0.049, // Remission phase
+    moderate: 0.288, // Diagnosis/treatment phase
+    severe: 0.451, // Metastatic phase
+    source: "gbd2019_dw, karimkhani2017_melanoma",
+  },
+  non_melanoma_skin_cancer: {
+    mild: 0.02, // Remission (minimal ongoing burden)
+    moderate: 0.049, // Treatment phase (less invasive than melanoma)
+    severe: 0.288, // Advanced/invasive (rare)
+    source: "gbd2019_dw, vanderpols2006_sunscreen",
   },
 
   // Sensory
@@ -251,6 +334,18 @@ export const BASELINE_INCIDENCE_PER_1000: Record<
     age50: 5,
     age70: 20,
     source: "SEER",
+  },
+  melanoma: {
+    age30: 0.17, // ~17 per 100,000
+    age50: 0.5, // ~50 per 100,000
+    age70: 1.0, // ~100 per 100,000
+    source: "seer_melanoma, gbd2019_results",
+  },
+  non_melanoma_skin_cancer: {
+    age30: 0.5,
+    age50: 5,
+    age70: 20,
+    source: "seer_melanoma, gbd2019_results",
   },
   vision_loss: {
     age30: 1,
@@ -391,6 +486,16 @@ export const CONDITION_TO_DIMENSIONS: Record<
     { dimension: "usualActivities", weight: 0.3 },
     { dimension: "painDiscomfort", weight: 0.3 },
     { dimension: "anxietyDepression", weight: 0.4 },
+  ],
+  melanoma: [
+    { dimension: "anxietyDepression", weight: 0.5 }, // Fear of recurrence
+    { dimension: "usualActivities", weight: 0.3 },
+    { dimension: "painDiscomfort", weight: 0.2 },
+  ],
+  non_melanoma_skin_cancer: [
+    { dimension: "painDiscomfort", weight: 0.4 }, // Treatment discomfort
+    { dimension: "usualActivities", weight: 0.3 },
+    { dimension: "anxietyDepression", weight: 0.3 },
   ],
   vision_loss: [
     { dimension: "usualActivities", weight: 0.5 },

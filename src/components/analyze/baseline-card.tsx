@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { UserProfile } from "@/types";
 import {
   calculateBaselineQALYs,
@@ -8,6 +8,16 @@ import {
 } from "@/lib/evidence/baseline";
 import { Card, CardContent } from "@/components/ui/card";
 import { Heart, Clock, TrendingUp, Info } from "lucide-react";
+import {
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+  Area,
+  Line,
+  ComposedChart,
+} from "recharts";
 
 interface BaselineCardProps {
   profile: UserProfile;
@@ -31,7 +41,37 @@ export function BaselineCard({ profile }: BaselineCardProps) {
     [profile]
   );
 
+  // Calculate comparison projection (non-smoker scenario for smokers)
+  const comparisonProjection = useMemo(() => {
+    // Only show comparison if there's a meaningful difference
+    if (!profile.smoker) return null;
+    const comparisonProfile: UserProfile = {
+      ...profile,
+      smoker: false,
+    };
+    return calculateBaselineQALYs(comparisonProfile);
+  }, [profile]);
+
+  // Combine data for chart
+  const chartData = useMemo(() => {
+    return projection.survivalCurve.map((point, i) => ({
+      age: point.age,
+      current: Math.round(point.expectedQALY * 100),
+      comparison: comparisonProjection
+        ? Math.round((comparisonProjection.survivalCurve[i]?.expectedQALY ?? point.expectedQALY) * 100)
+        : null,
+      survival: Math.round(point.survivalProbability * 100),
+      survivalComparison: comparisonProjection
+        ? Math.round((comparisonProjection.survivalCurve[i]?.survivalProbability ?? point.survivalProbability) * 100)
+        : null,
+    }));
+  }, [projection.survivalCurve, comparisonProjection]);
+
   const bmi = profile.weight / Math.pow(profile.height / 100, 2);
+  const qalyDelta = comparisonProjection
+    ? comparisonProjection.remainingQALYs - projection.remainingQALYs
+    : 0;
+  const [chartView, setChartView] = useState<"qaly" | "survival">("qaly");
 
   return (
     <Card className="mesh-gradient-card border-border/50 overflow-hidden">
@@ -115,39 +155,175 @@ export function BaselineCard({ profile }: BaselineCardProps) {
           </div>
         </div>
 
-        {/* Decade Breakdown */}
-        <div className="space-y-2">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">
-            QALY Projection by Decade
-          </p>
-          <div className="space-y-1.5">
-            {projection.breakdown.slice(0, 6).map((decade) => (
-              <div key={decade.ageDecade} className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground w-10 shrink-0">
-                  {decade.ageDecade}s
-                </span>
-                <div className="flex-1 h-3 bg-muted/30 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-primary/70 to-accent/70 rounded-full"
-                    style={{
-                      width: `${(decade.avgQualityWeight * 100).toFixed(0)}%`,
-                    }}
-                  />
-                </div>
-                <span className="text-xs text-muted-foreground w-20 shrink-0 text-right">
-                  {decade.qalysInDecade.toFixed(1)} QALYs
-                </span>
-              </div>
-            ))}
+        {/* Survival & QALY Curve */}
+        <div className="space-y-3">
+          {/* Tab Selector */}
+          <div className="flex items-center justify-between">
+            <div className="flex gap-1 p-1 bg-muted/30 rounded-lg">
+              <button
+                onClick={() => setChartView("qaly")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  chartView === "qaly"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Expected QALYs
+              </button>
+              <button
+                onClick={() => setChartView("survival")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  chartView === "survival"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Survival Probability
+              </button>
+            </div>
+            {qalyDelta > 0.5 && (
+              <span className="text-xs text-muted-foreground">
+                Dashed line: non-smoker scenario (+{qalyDelta.toFixed(1)} QALYs)
+              </span>
+            )}
           </div>
+
+          <div className="h-48 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              {chartView === "qaly" ? (
+                <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="qalyGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(var(--accent))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="age"
+                    tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                    axisLine={{ stroke: "hsl(var(--border))" }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                    axisLine={false}
+                    tickLine={false}
+                    domain={[0, 100]}
+                    tickFormatter={(v) => `${v}%`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                    }}
+                    formatter={(value, name) => [
+                      `${value ?? 0}%`,
+                      name === "current" ? "Current" : "Non-smoker scenario"
+                    ]}
+                    labelFormatter={(age) => `Age ${age}`}
+                  />
+                  <ReferenceLine
+                    x={Math.round(projection.expectedDeathAge)}
+                    stroke="hsl(var(--muted-foreground))"
+                    strokeDasharray="3 3"
+                    label={{ value: "Expected", fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="current"
+                    stroke="hsl(var(--accent))"
+                    strokeWidth={2}
+                    fill="url(#qalyGradient)"
+                  />
+                  {comparisonProjection && (
+                    <Line
+                      type="monotone"
+                      dataKey="comparison"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      dot={false}
+                    />
+                  )}
+                </ComposedChart>
+              ) : (
+                <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="survivalGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="age"
+                    tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                    axisLine={{ stroke: "hsl(var(--border))" }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                    axisLine={false}
+                    tickLine={false}
+                    domain={[0, 100]}
+                    tickFormatter={(v) => `${v}%`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                    }}
+                    formatter={(value, name) => [
+                      `${value ?? 0}%`,
+                      name === "survival" ? "Current" : "Non-smoker scenario"
+                    ]}
+                    labelFormatter={(age) => `Age ${age}`}
+                  />
+                  <ReferenceLine
+                    x={Math.round(projection.expectedDeathAge)}
+                    stroke="hsl(var(--muted-foreground))"
+                    strokeDasharray="3 3"
+                    label={{ value: "50%", fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="survival"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                    fill="url(#survivalGradient)"
+                  />
+                  {comparisonProjection && (
+                    <Line
+                      type="monotone"
+                      dataKey="survivalComparison"
+                      stroke="hsl(var(--accent))"
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      dot={false}
+                    />
+                  )}
+                </ComposedChart>
+              )}
+            </ResponsiveContainer>
+          </div>
+          <p className="text-xs text-muted-foreground text-center">
+            {chartView === "qaly"
+              ? "Expected QALY rate = P(alive) × Quality of life"
+              : "Probability of being alive at each age based on life tables and risk factors"}
+          </p>
         </div>
 
-        {/* Source note */}
-        <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/20 rounded-lg p-3">
-          <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+        {/* Disclaimer */}
+        <div className="flex items-start gap-2 text-xs text-muted-foreground bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
+          <Info className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-500" />
           <p>
-            Based on CDC 2022 Life Tables, GBD 2019 disability weights, and
-            risk factor meta-analyses. Individual outcomes vary significantly.
+            <strong className="text-amber-400">For educational purposes only.</strong>{" "}
+            These estimates are based on population averages from CDC life tables and
+            published research. They do not constitute medical advice and cannot predict
+            individual outcomes. Consult a healthcare professional for personal health decisions.
           </p>
         </div>
       </CardContent>

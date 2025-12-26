@@ -170,15 +170,15 @@ export default function Home() {
               </div>
 
               <h1 className="font-serif text-5xl md:text-6xl lg:text-7xl font-medium leading-[1.1] tracking-tight">
-                Quantify your
+                Understand your
                 <br />
-                <span className="gradient-text">life choices</span>
+                <span className="gradient-text">healthspan</span>
               </h1>
 
               <p className="text-lg text-muted-foreground max-w-lg leading-relaxed">
-                Optiqal uses AI to estimate how your lifestyle decisions affect
-                your health and longevity, synthesizing the best available causal
-                evidence from thousands of studies.
+                Optiqal estimates how lifestyle factors like exercise, diet, and
+                smoking affect life expectancy and quality of life, based on
+                published research and actuarial data.
               </p>
 
               <div className="flex flex-wrap gap-4 pt-2">
@@ -188,7 +188,7 @@ export default function Home() {
                   asChild
                 >
                   <Link href="/analyze">
-                    Start analyzing
+                    Explore now
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
@@ -290,23 +290,23 @@ export default function Home() {
             {[
               {
                 icon: Search,
-                title: "Describe your choice",
+                title: "Enter your profile",
                 description:
-                  "Enter any lifestyle change you're considering—diet, exercise, sleep, supplements, or environmental factors.",
+                  "Provide basic info like age, sex, BMI, and lifestyle factors such as smoking status and activity level.",
                 delay: "delay-100",
               },
               {
                 icon: BookOpen,
-                title: "Evidence synthesis",
+                title: "We search the research",
                 description:
-                  "AI searches meta-analyses, RCTs, and cohort studies to find the best causal evidence for your specific question.",
+                  "Optiqal synthesizes data from CDC life tables, meta-analyses, and cohort studies to estimate effects.",
                 delay: "delay-200",
               },
               {
                 icon: TrendingUp,
-                title: "Personalized estimate",
+                title: "See the estimates",
                 description:
-                  "Get a QALY impact estimate tailored to your age, health, and baseline behaviors—with confidence intervals.",
+                  "View life expectancy and QALY projections based on your profile—with uncertainty ranges.",
                 delay: "delay-300",
               },
             ].map((step, index) => (
@@ -386,10 +386,10 @@ export default function Home() {
               Get started
             </p>
             <h2 className="font-serif text-4xl md:text-5xl font-medium mb-4">
-              What will you explore?
+              Explore different scenarios
             </h2>
             <p className="text-muted-foreground text-lg">
-              Ask Optiqal about any lifestyle decision
+              See how different factors affect life expectancy estimates
             </p>
           </div>
 
@@ -427,13 +427,13 @@ export default function Home() {
         <div className="max-w-2xl mx-auto text-center relative">
           <div className="space-y-8 opacity-0 animate-slide-up">
             <h2 className="font-serif text-4xl md:text-5xl lg:text-6xl font-medium leading-tight">
-              Ready to optimize
+              Curious about
               <br />
-              <span className="gradient-text">your life?</span>
+              <span className="gradient-text">your healthspan?</span>
             </h2>
             <p className="text-lg text-muted-foreground max-w-md mx-auto">
-              Start making evidence-based decisions about your health and
-              lifestyle today.
+              Explore how lifestyle factors affect life expectancy based on
+              published research.
             </p>
             <Button
               size="lg"
@@ -441,7 +441,7 @@ export default function Home() {
               asChild
             >
               <Link href="/analyze">
-                Try Optiqal free
+                Explore free
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
@@ -451,17 +451,34 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="py-12 px-6 border-t border-border/30">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <Activity className="h-5 w-5 text-primary" />
-            <span className="text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} optiqal
-            </span>
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-6">
+            <div className="flex items-center gap-3">
+              <Activity className="h-5 w-5 text-primary" />
+              <span className="text-sm text-muted-foreground">
+                &copy; {new Date().getFullYear()} optiqal
+              </span>
+            </div>
+            <div className="flex items-center gap-6">
+              <Link
+                href="/terms"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Terms
+              </Link>
+              <Link
+                href="/privacy"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Privacy
+              </Link>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground max-w-lg text-center md:text-right leading-relaxed">
-            Optiqal provides estimates based on published research and is not
-            medical advice. Consult healthcare professionals for medical
-            decisions.
+          <p className="text-xs text-muted-foreground max-w-2xl mx-auto text-center leading-relaxed">
+            <strong>For educational purposes only.</strong> Optiqal provides statistical estimates
+            based on population averages from published research. This is not medical advice and
+            cannot predict individual outcomes. Always consult healthcare professionals for
+            personal health decisions.
           </p>
         </div>
       </footer>

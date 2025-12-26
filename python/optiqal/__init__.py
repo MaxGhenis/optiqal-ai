@@ -28,7 +28,22 @@ __version__ = "0.1.0"
 from .intervention import Intervention
 from .lifecycle import LifecycleModel, CDC_LIFE_TABLE, CAUSE_FRACTIONS
 from .confounding import ConfoundingPrior, CATEGORY_PRIORS
-from .simulate import simulate_qaly, SimulationResult
+from .simulate import simulate_qaly, simulate_qaly_profile, SimulationResult
+from .profile import Profile, generate_all_profiles, get_baseline_mortality_multiplier
+from .precompute import (
+    precompute_intervention,
+    precompute_intervention_profiles,
+    PrecomputedResult,
+    ProfilePrecomputedResult,
+)
+from .combination import (
+    combine_intervention_effects,
+    estimate_combined_qaly_from_singles,
+    find_optimal_portfolio,
+    find_optimal_portfolio_from_qalys,
+    CombinedEffect,
+    OVERLAP_MATRIX,
+)
 
 __all__ = [
     "Intervention",
@@ -38,7 +53,21 @@ __all__ = [
     "ConfoundingPrior",
     "CATEGORY_PRIORS",
     "simulate_qaly",
+    "simulate_qaly_profile",
     "SimulationResult",
+    "Profile",
+    "generate_all_profiles",
+    "get_baseline_mortality_multiplier",
+    "precompute_intervention",
+    "precompute_intervention_profiles",
+    "PrecomputedResult",
+    "ProfilePrecomputedResult",
+    "combine_intervention_effects",
+    "estimate_combined_qaly_from_singles",
+    "find_optimal_portfolio",
+    "find_optimal_portfolio_from_qalys",
+    "CombinedEffect",
+    "OVERLAP_MATRIX",
 ]
 
 

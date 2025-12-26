@@ -1,0 +1,183 @@
+# Regular 8 Hours of Sleep
+# Evidence-based intervention definition using OptiqAL DSL
+#
+# Sources: Cappuccio et al 2010, Yin et al 2017, Itani et al 2017
+
+id: sleep_8_hours
+name: Regular 8 Hours of Sleep
+description: Consistent 7.5-8.5 hours of sleep per night with regular sleep schedule
+category: sleep
+
+keywords:
+  - sleep
+  - 8 hours
+  - sleep duration
+  - sleep quality
+  - rest
+  - sleep hygiene
+
+# ============================================
+# EVIDENCE QUALITY & CONFOUNDING
+# ============================================
+
+evidence:
+  quality: moderate
+  primary_study_type: meta-analysis
+  sources:
+    - citation: "Cappuccio FP et al. Sleep duration and all-cause mortality. Sleep 2010;33(5):585-92"
+      year: 2010
+      sample_size: 1382999
+      contribution: "Meta-analysis mortality by sleep duration"
+
+    - citation: "Yin J et al. Relationship of sleep duration with all-cause mortality and CVD. Sleep Med 2017;32:193-202"
+      year: 2017
+      sample_size: 3100000
+      contribution: "Updated meta-analysis"
+
+    - citation: "Itani O et al. Short sleep duration and health outcomes. Sleep Med 2017;32:246-56"
+      year: 2017
+      contribution: "Obesity, diabetes outcomes"
+
+confounding:
+  # Sleep studies show strong reverse causation and healthy user bias
+  # Mendelian randomization (Daghlas 2019) suggests ~25-40% causal
+  # Short sleep often marker of stress, illness, shift work
+  prior:
+    type: beta
+    alpha: 2.0
+    beta: 5.5
+
+  rationale: |
+    Sleep duration shows U-shaped mortality curve with strong confounding.
+    Short sleep often due to stress, illness, shift work (reverse causation).
+    Long sleep may be marker of poor health.
+    Mendelian randomization studies suggest ~25-35% causal for short sleep.
+    Beta(2.0, 5.5) → mean 27%, 95% CI: 6-58%
+
+  calibration_sources:
+    - "Daghlas et al 2019 (Mendelian randomization)"
+    - "Cappuccio 2010 (meta-analysis with subgroup analysis)"
+    - "Grandner 2016 (review of causality)"
+
+# ============================================
+# MECHANISM EFFECTS
+# ============================================
+
+mechanisms:
+  systemic_inflammation:
+    effect: Normal(-12, 6)
+    direction: decrease
+    units: "% CRP"
+    evidence: moderate
+    source: "Irwin et al 2016"
+
+  insulin_sensitivity:
+    effect: Normal(12, 6)
+    direction: increase
+    units: "%"
+    evidence: moderate
+    source: "Knutson et al 2007"
+
+  blood_pressure:
+    effect: Normal(-3, 2)
+    direction: decrease
+    units: mmHg
+    evidence: moderate
+    source: "Wang et al 2012"
+
+  adiposity:
+    effect: Normal(-2, 1.5)
+    direction: decrease
+    units: "% body fat"
+    evidence: moderate
+    source: "Itani et al 2017"
+
+  cognitive_function:
+    effect: Normal(0.3, 0.15)
+    direction: increase
+    units: SD
+    evidence: strong
+    source: "Lim & Dinges 2010"
+
+  immune_function:
+    effect: Normal(20, 10)
+    direction: increase
+    units: "%"
+    evidence: moderate
+    source: "Besedovsky et al 2012"
+
+  neurotransmitter_balance:
+    effect: Normal(0.25, 0.15)
+    direction: increase
+    units: SD
+    evidence: moderate
+
+  cortisol_regulation:
+    effect: Normal(-15, 8)
+    direction: decrease
+    units: "% dysregulation"
+    evidence: moderate
+    source: "Leproult & Van Cauter 2010"
+
+# ============================================
+# MORTALITY EFFECT
+# ============================================
+
+mortality:
+  # Meta-analysis shows ~HR 1.12 for <6h vs 7-8h sleep
+  # Reverse HR (going from short to optimal): ~0.89
+  # LogNormal(-0.12, 0.10) → median 0.89, 95% CI: 0.73-1.08
+  hazard_ratio: LogNormal(-0.12, 0.10)
+  onset_delay: 0.25
+  ramp_up: 1.0
+  decay_rate: 0
+
+# ============================================
+# QUALITY OF LIFE
+# ============================================
+
+quality:
+  subjective_wellbeing: Normal(0.04, 0.02)
+
+  dimension_effects:
+    - dimension: anxiety_depression
+      change: Normal(0.03, 0.015)
+
+    - dimension: vitality
+      change: Normal(0.05, 0.02)
+
+    - dimension: cognitive_function
+      change: Normal(0.04, 0.02)
+
+# ============================================
+# COSTS
+# ============================================
+
+costs:
+  hours_per_week: Normal(-3.5, 2)  # NEGATIVE: sleep chronically deprived gain time (initially)
+  annual_cost_usd: Normal(100, 50)  # Sleep hygiene items (blackout curtains, etc)
+  activity_disutility: Normal(0.02, 0.01)  # Opportunity cost of evening activities
+
+# ============================================
+# CAVEATS & ADJUSTMENTS
+# ============================================
+
+caveats:
+  - "U-shaped curve: both short and long sleep associated with higher mortality"
+  - "Effect size assumes baseline <6.5 hours/night"
+  - "Strong reverse causation: illness causes poor sleep"
+  - "Individual variation in optimal sleep duration"
+  - "Quality matters as much as duration"
+
+profile_adjustments:
+  - condition: "baseline_sleep > 7"
+    adjustment: "Set HR to 1.0 (already optimal)"
+
+  - condition: "baseline_sleep > 9"
+    adjustment: "INCREASE HR to 1.08 (long sleep is harmful marker)"
+
+  - condition: "age > 70"
+    adjustment: "Reduce effect by 20% (less sleep needed)"
+
+  - condition: "shift_worker == true"
+    adjustment: "Reduce effect by 40% (harder to achieve consistent sleep)"

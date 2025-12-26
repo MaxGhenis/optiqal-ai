@@ -1,0 +1,68 @@
+# Daily Sunscreen SPF 30+ Intervention
+#
+# @references
+# - green2011_sunscreen: RCT showing 50% melanoma reduction (HR 0.50, 95% CI 0.24-1.02)
+# - vanderpols2006_sunscreen: 40% SCC reduction (HR 0.60)
+# - karimkhani2017_melanoma: Global melanoma burden estimates
+
+id: daily_sunscreen
+name: Daily Sunscreen SPF 30+
+category: medical
+description: Daily application of SPF 30+ broad-spectrum sunscreen to exposed skin areas
+
+# Evidence quality
+evidence:
+  quality: high
+  primary_study_type: rct
+  sources:
+    - citation: "Green AC et al. Reduced melanoma after regular sunscreen use. J Clin Oncol 2011;29(3):257-63"
+      year: 2011
+      sample_size: 1621
+      contribution: "Primary RCT for melanoma prevention"
+    - citation: "van der Pols JC et al. Prolonged prevention of SCC by regular sunscreen use. Cancer Epidemiol 2006;15(12):2546-8"
+      year: 2006
+      sample_size: 1621
+      contribution: "SCC prevention from same RCT"
+
+# Confounding prior - RCT evidence so high causal fraction expected
+confounding:
+  prior:
+    type: beta
+    alpha: 8.0  # High confidence in causality (RCT evidence)
+    beta: 2.0   # Mean ~0.80 causal fraction
+  rationale: "RCT evidence with 15-year follow-up supports high causal fraction"
+
+# Effects work through CONDITIONS, not direct mortality
+quality:
+  condition_effects:
+    # Melanoma: HR 0.50 from Green 2011 RCT
+    - condition: melanoma
+      incidence_rr: LogNormal(-0.69, 0.37)  # log(0.50), SE from CI 0.24-1.02
+    # Non-melanoma skin cancer: HR 0.60 from van der Pols 2006
+    - condition: non_melanoma_skin_cancer
+      incidence_rr: LogNormal(-0.51, 0.20)  # log(0.60), estimated SE
+
+  # Small direct wellbeing effect (skin protection, reduced sunburn)
+  subjective_wellbeing: Normal(0.005, 0.002)
+
+# Mortality effect is DERIVED from condition effects
+# The system should calculate this from:
+#   Σ (condition incidence reduction × condition mortality rate)
+# But we include for backwards compatibility
+mortality:
+  hazard_ratio: LogNormal(-0.02, 0.15)
+  affected_causes:
+    - melanoma
+    - non_melanoma_skin_cancer
+  sources:
+    - "Derived from Green 2011 + van der Pols 2006 via condition incidence"
+
+# Time/cost burden
+costs:
+  hours_per_week: Normal(0.5, 0.2)  # ~4 min/day application
+  annual_cost_usd: Normal(150, 50)  # Sunscreen products
+
+caveats:
+  - "Effect size may vary by baseline UV exposure and skin type"
+  - "Compliance in RCT was monitored; real-world adherence may be lower"
+  - "SPF 30+ required; lower SPF may have reduced efficacy"

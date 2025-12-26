@@ -12,6 +12,7 @@ export interface PrecomputedIntervention {
   id: string;
   name: string;
   description: string;
+  counterfactual?: string; // What this is compared against (default: not doing intervention)
   keywords: string[]; // For matching user queries
   category: "exercise" | "diet" | "sleep" | "substance" | "medical" | "stress";
   effect: InterventionEffect;
@@ -1581,6 +1582,1006 @@ export const PRECOMPUTED_INTERVENTIONS: Record<string, PrecomputedIntervention> 
         citation: "Buckley et al., 2015. Standing-based office work",
         studyType: "review",
         year: 2015,
+      },
+    ],
+  },
+
+  // ==================== MORE SUPPLEMENTS ====================
+  creatine_supplement: {
+    id: "creatine_supplement",
+    name: "Take creatine supplement",
+    description: "Daily creatine monohydrate supplementation (3-5g)",
+    keywords: [
+      "creatine",
+      "creatine monohydrate",
+      "creatine supplement",
+      "strength supplement",
+    ],
+    category: "medical",
+    effect: {
+      description: "Daily creatine supplementation (3-5g)",
+      category: "medical",
+      mechanismEffects: [
+        mech("muscle_mass", "increase", normal(2, 1.5), "strong", "%", "Forbes 2018"),
+        mech("cognitive_reserve", "increase", normal(0.15, 0.1), "moderate", "SD", "Avgerinos 2018"),
+        mech("bone_density", "increase", normal(1, 0.8), "weak", "%"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.03, 0.05), // HR ~0.97 - minimal direct mortality effect
+        onsetDelay: 0,
+        rampUpPeriod: 0.5,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: {
+        hoursPerWeek: { type: "point", value: 0 },
+        annualCost: normal(80, 30),
+        activityDisutility: { type: "point", value: 0 },
+      },
+      evidenceQuality: "moderate",
+      keySources: [],
+      caveats: [
+        "Benefits most evident in vegetarians and older adults",
+        "Muscle and cognitive benefits well-established; mortality effects indirect",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Forbes et al., 2018. Creatine supplementation and muscle mass meta-analysis",
+        studyType: "meta-analysis",
+        year: 2018,
+      },
+      {
+        citation: "Avgerinos et al., 2018. Creatine and cognitive function meta-analysis",
+        studyType: "meta-analysis",
+        year: 2018,
+      },
+    ],
+  },
+
+  probiotic_supplement: {
+    id: "probiotic_supplement",
+    name: "Take probiotic supplement",
+    description: "Daily multi-strain probiotic supplement",
+    keywords: [
+      "probiotic",
+      "probiotics",
+      "gut health",
+      "digestive health",
+      "microbiome supplement",
+    ],
+    category: "medical",
+    effect: {
+      description: "Daily probiotic supplementation",
+      category: "medical",
+      mechanismEffects: [
+        mech("gut_microbiome", "increase", normal(0.25, 0.15), "moderate", "SD diversity", "McFarland 2016"),
+        mech("systemic_inflammation", "decrease", normal(-8, 5), "weak", "% CRP"),
+        mech("immune_function", "increase", normal(0.15, 0.1), "moderate", "SD"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.04, 0.06), // HR ~0.96 - modest
+        onsetDelay: 0,
+        rampUpPeriod: 0.25,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: {
+        hoursPerWeek: { type: "point", value: 0 },
+        annualCost: normal(200, 80),
+        activityDisutility: { type: "point", value: 0 },
+      },
+      evidenceQuality: "low",
+      keySources: [],
+      caveats: [
+        "Strain-specific effects vary widely",
+        "Long-term mortality benefits uncertain",
+        "May help with specific digestive conditions",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "McFarland et al., 2016. Meta-analysis of probiotics for health",
+        studyType: "meta-analysis",
+        year: 2016,
+      },
+    ],
+  },
+
+  // ==================== MORE SLEEP ====================
+  consistent_bedtime: {
+    id: "consistent_bedtime",
+    name: "Maintain consistent sleep schedule",
+    description: "Go to bed and wake up at the same time daily",
+    keywords: [
+      "consistent bedtime",
+      "sleep schedule",
+      "regular sleep",
+      "same bedtime",
+      "sleep routine",
+      "circadian rhythm",
+    ],
+    category: "sleep",
+    effect: {
+      description: "Consistent sleep schedule (±30 min variability)",
+      category: "sleep",
+      mechanismEffects: [
+        mech("sleep_quality", "increase", normal(0.3, 0.15), "strong", "SD", "Phillips 2017"),
+        mech("stress_hormones", "decrease", normal(-10, 6), "moderate", "% cortisol"),
+        mech("insulin_sensitivity", "increase", normal(8, 5), "moderate", "%"),
+        mech("systemic_inflammation", "decrease", normal(-8, 5), "weak", "% CRP"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.06, 0.05), // HR ~0.94
+        onsetDelay: 0,
+        rampUpPeriod: 0.25,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: null,
+      evidenceQuality: "moderate",
+      keySources: [],
+      caveats: [
+        "Circadian rhythm disruption is harmful",
+        "Effects compound with overall sleep duration",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Phillips et al., 2017. Irregular sleep and metabolic abnormalities",
+        studyType: "cohort",
+        year: 2017,
+      },
+    ],
+  },
+
+  blue_light_blocking: {
+    id: "blue_light_blocking",
+    name: "Block blue light before bed",
+    description: "Use blue light blocking glasses or filters 2-3 hours before bed",
+    keywords: [
+      "blue light",
+      "blue light blocking",
+      "blue light glasses",
+      "screen filter",
+      "night mode",
+      "melatonin",
+    ],
+    category: "sleep",
+    effect: {
+      description: "Blue light blocking 2-3h before bed",
+      category: "sleep",
+      mechanismEffects: [
+        mech("sleep_quality", "increase", normal(0.2, 0.12), "moderate", "SD", "Shechter 2018"),
+        mech("stress_hormones", "decrease", normal(-5, 4), "weak", "% cortisol"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.03, 0.05), // HR ~0.97 - small effect
+        onsetDelay: 0,
+        rampUpPeriod: 0.1,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: {
+        hoursPerWeek: { type: "point", value: 0 },
+        annualCost: normal(30, 15), // Glasses or software
+        activityDisutility: { type: "point", value: 0 },
+      },
+      evidenceQuality: "low",
+      keySources: [],
+      caveats: [
+        "Effects most pronounced in those with screen exposure before bed",
+        "Some studies show minimal effects",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Shechter et al., 2018. Blue light blocking and sleep",
+        studyType: "rct",
+        year: 2018,
+      },
+    ],
+  },
+
+  sleep_apnea_treatment: {
+    id: "sleep_apnea_treatment",
+    name: "Treat sleep apnea (CPAP)",
+    description: "Use CPAP or other treatment for obstructive sleep apnea",
+    keywords: [
+      "sleep apnea",
+      "cpap",
+      "cpap machine",
+      "apnea treatment",
+      "osa",
+      "obstructive sleep apnea",
+    ],
+    category: "medical",
+    effect: {
+      description: "CPAP treatment for sleep apnea",
+      category: "medical",
+      mechanismEffects: [
+        mech("sleep_quality", "increase", normal(0.8, 0.3), "strong", "SD", "Epstein 2009"),
+        mech("blood_pressure", "decrease", normal(-4, 2.5), "strong", "mmHg", "Martinez-Garcia 2013"),
+        mech("cardiac_output", "increase", normal(10, 5), "moderate", "%"),
+        mech("systemic_inflammation", "decrease", normal(-12, 7), "moderate", "% CRP"),
+        mech("neurotransmitter_balance", "increase", normal(0.2, 0.12), "moderate", "SD"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.18, 0.1), // HR ~0.84 - substantial for those with severe OSA
+        onsetDelay: 0,
+        rampUpPeriod: 0.5,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: {
+        hoursPerWeek: { type: "point", value: 0.5 }, // Setup and maintenance
+        annualCost: normal(800, 300), // Equipment and supplies
+        activityDisutility: { type: "point", value: -0.05 }, // Some discomfort
+      },
+      evidenceQuality: "high",
+      keySources: [],
+      caveats: [
+        "Effects strongest in severe OSA",
+        "Adherence is critical (must use nightly)",
+        "Benefits vs no treatment; assumes moderate-severe OSA diagnosis",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Epstein et al., 2009. CPAP clinical guideline",
+        studyType: "review",
+        year: 2009,
+      },
+      {
+        citation: "Martinez-Garcia et al., 2013. CPAP and cardiovascular outcomes",
+        studyType: "cohort",
+        year: 2013,
+        sampleSize: 939,
+      },
+    ],
+  },
+
+  // ==================== SOCIAL ====================
+  regular_social_interaction: {
+    id: "regular_social_interaction",
+    name: "Regular social interaction",
+    description: "Spend time with friends/family 2-3 times per week",
+    keywords: [
+      "social interaction",
+      "spend time with friends",
+      "socialize",
+      "social activities",
+      "see friends",
+      "family time",
+    ],
+    category: "stress",
+    effect: {
+      description: "Regular social interaction (2-3x/week)",
+      category: "other",
+      mechanismEffects: [
+        mech("stress_hormones", "decrease", normal(-12, 7), "moderate", "% cortisol"),
+        mech("neurotransmitter_balance", "increase", normal(0.25, 0.15), "moderate", "SD"),
+        mech("systemic_inflammation", "decrease", normal(-12, 7), "moderate", "% CRP", "Holt-Lunstad 2010"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.22, 0.12), // HR ~0.80 - major effect
+        onsetDelay: 0,
+        rampUpPeriod: 1,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: null,
+      evidenceQuality: "moderate",
+      keySources: [],
+      caveats: [
+        "Quality of relationships matters more than quantity",
+        "Baseline social isolation determines effect size",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Holt-Lunstad et al., 2010. Social relationships and mortality",
+        studyType: "meta-analysis",
+        year: 2010,
+        sampleSize: 308849,
+      },
+    ],
+  },
+
+  marriage_partnership: {
+    id: "marriage_partnership",
+    name: "Marriage or committed partnership",
+    description: "Being in a stable marriage or long-term partnership",
+    keywords: [
+      "marriage",
+      "get married",
+      "partnership",
+      "long-term relationship",
+      "spouse",
+      "partner",
+    ],
+    category: "stress",
+    effect: {
+      description: "Stable marriage/partnership",
+      category: "other",
+      mechanismEffects: [
+        mech("stress_hormones", "decrease", normal(-15, 8), "moderate", "% cortisol"),
+        mech("systemic_inflammation", "decrease", normal(-10, 6), "moderate", "% CRP"),
+        mech("neurotransmitter_balance", "increase", normal(0.2, 0.12), "weak", "SD"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.15, 0.08), // HR ~0.86
+        onsetDelay: 0,
+        rampUpPeriod: 2,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: null,
+      evidenceQuality: "moderate",
+      keySources: [],
+      caveats: [
+        "Quality of relationship is paramount - poor relationships may increase mortality",
+        "Selection effects possible (healthier people marry)",
+        "Benefits may be stronger for men than women",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Rendall et al., 2011. Marital status and mortality",
+        studyType: "cohort",
+        year: 2011,
+      },
+    ],
+  },
+
+  volunteering: {
+    id: "volunteering",
+    name: "Regular volunteering",
+    description: "Volunteer work 2-4 hours per week",
+    keywords: [
+      "volunteer",
+      "volunteering",
+      "volunteer work",
+      "community service",
+      "helping others",
+    ],
+    category: "stress",
+    effect: {
+      description: "Volunteering 2-4 hours per week",
+      category: "other",
+      mechanismEffects: [
+        mech("neurotransmitter_balance", "increase", normal(0.2, 0.12), "moderate", "SD"),
+        mech("stress_hormones", "decrease", normal(-10, 6), "moderate", "% cortisol"),
+        mech("systemic_inflammation", "decrease", normal(-8, 5), "weak", "% CRP"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.12, 0.08), // HR ~0.89
+        onsetDelay: 0,
+        rampUpPeriod: 1,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: {
+        hoursPerWeek: { type: "point", value: 3 }, // 2-4 hours
+        annualCost: { type: "point", value: 0 },
+        activityDisutility: { type: "point", value: 0.05 }, // Generally enjoyable
+      },
+      evidenceQuality: "moderate",
+      keySources: [],
+      caveats: [
+        "Benefits may plateau beyond 2-3 hours/week",
+        "Selection bias possible (healthier people volunteer)",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Okun et al., 2013. Volunteering and mortality meta-analysis",
+        studyType: "meta-analysis",
+        year: 2013,
+      },
+    ],
+  },
+
+  // ==================== ENVIRONMENT ====================
+  air_purifier: {
+    id: "air_purifier",
+    name: "Use HEPA air purifier",
+    description: "Run HEPA air purifier in main living spaces",
+    keywords: [
+      "air purifier",
+      "hepa filter",
+      "air filter",
+      "air quality",
+      "clean air",
+      "indoor air",
+    ],
+    category: "medical",
+    effect: {
+      description: "HEPA air purifier in home",
+      category: "medical",
+      mechanismEffects: [
+        mech("lung_function", "increase", normal(3, 2), "moderate", "% FEV1", "Fisk 2013"),
+        mech("systemic_inflammation", "decrease", normal(-8, 5), "moderate", "% CRP"),
+        mech("blood_pressure", "decrease", normal(-2, 1.5), "weak", "mmHg"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.06, 0.06), // HR ~0.94
+        onsetDelay: 0,
+        rampUpPeriod: 0.5,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: {
+        hoursPerWeek: { type: "point", value: 0.1 }, // Minimal maintenance
+        annualCost: normal(200, 80), // Device + filter replacement
+        activityDisutility: { type: "point", value: 0 },
+      },
+      evidenceQuality: "moderate",
+      keySources: [],
+      caveats: [
+        "Benefits larger in polluted areas",
+        "Effects most evident for respiratory and cardiovascular health",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Fisk et al., 2013. Air filtration and health: systematic review",
+        studyType: "review",
+        year: 2013,
+      },
+    ],
+  },
+
+  move_walkable_city: {
+    id: "move_walkable_city",
+    name: "Move to walkable neighborhood",
+    description: "Live in a walkable, bikeable urban environment",
+    keywords: [
+      "walkable city",
+      "walkable neighborhood",
+      "urban living",
+      "walkability",
+      "move to city",
+      "bikeable",
+    ],
+    category: "exercise",
+    effect: {
+      description: "Living in walkable neighborhood",
+      category: "exercise",
+      mechanismEffects: [
+        mech("adiposity", "decrease", normal(-2, 1.5), "moderate", "% body fat", "Sallis 2016"),
+        mech("blood_pressure", "decrease", normal(-3, 2), "moderate", "mmHg"),
+        mech("insulin_sensitivity", "increase", normal(10, 6), "moderate", "%"),
+        mech("cardiac_output", "increase", normal(5, 3), "weak", "%"),
+        mech("neurotransmitter_balance", "increase", normal(0.15, 0.1), "weak", "SD"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.1, 0.08), // HR ~0.90
+        onsetDelay: 0,
+        rampUpPeriod: 1,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: null,
+      evidenceQuality: "moderate",
+      keySources: [],
+      caveats: [
+        "Effects mediated by increased physical activity",
+        "May have trade-offs (pollution, noise, housing costs)",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Sallis et al., 2016. Built environment and health outcomes",
+        studyType: "review",
+        year: 2016,
+      },
+    ],
+  },
+
+  reduce_noise_pollution: {
+    id: "reduce_noise_pollution",
+    name: "Reduce noise pollution exposure",
+    description: "Minimize chronic noise exposure through soundproofing, relocation, or earplugs",
+    keywords: [
+      "noise pollution",
+      "reduce noise",
+      "quiet environment",
+      "soundproofing",
+      "noise reduction",
+      "earplugs",
+    ],
+    category: "stress",
+    effect: {
+      description: "Reducing chronic noise exposure",
+      category: "other",
+      mechanismEffects: [
+        mech("stress_hormones", "decrease", normal(-10, 6), "moderate", "% cortisol", "Basner 2014"),
+        mech("blood_pressure", "decrease", normal(-3, 2), "moderate", "mmHg"),
+        mech("sleep_quality", "increase", normal(0.25, 0.15), "moderate", "SD"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.06, 0.06), // HR ~0.94
+        onsetDelay: 0,
+        rampUpPeriod: 0.5,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: {
+        hoursPerWeek: { type: "point", value: 0 },
+        annualCost: normal(400, 200), // Soundproofing or moving costs amortized
+        activityDisutility: { type: "point", value: 0 },
+      },
+      evidenceQuality: "moderate",
+      keySources: [],
+      caveats: [
+        "Effects depend on baseline noise exposure",
+        "Chronic traffic noise particularly harmful",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Basner et al., 2014. Noise and cardiovascular disease WHO review",
+        studyType: "review",
+        year: 2014,
+      },
+    ],
+  },
+
+  // ==================== MENTAL HEALTH ====================
+  therapy_counseling: {
+    id: "therapy_counseling",
+    name: "Regular therapy/counseling",
+    description: "Weekly or biweekly psychotherapy sessions",
+    keywords: [
+      "therapy",
+      "counseling",
+      "therapist",
+      "psychotherapy",
+      "mental health",
+      "see therapist",
+      "talk therapy",
+    ],
+    category: "stress",
+    effect: {
+      description: "Regular therapy/counseling",
+      category: "stress",
+      mechanismEffects: [
+        mech("neurotransmitter_balance", "increase", normal(0.4, 0.2), "strong", "SD", "Cuijpers 2013"),
+        mech("stress_hormones", "decrease", normal(-20, 10), "strong", "% cortisol"),
+        mech("sleep_quality", "increase", normal(0.25, 0.15), "moderate", "SD"),
+        mech("systemic_inflammation", "decrease", normal(-10, 6), "weak", "% CRP"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.08, 0.08), // HR ~0.92
+        onsetDelay: 0,
+        rampUpPeriod: 0.5,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: {
+        hoursPerWeek: { type: "point", value: 1.5 }, // Session + travel
+        annualCost: normal(3000, 1500), // Weekly sessions
+        activityDisutility: { type: "point", value: 0 },
+      },
+      evidenceQuality: "moderate",
+      keySources: [],
+      caveats: [
+        "Most effective for those with diagnosed mental health conditions",
+        "Effect size varies by therapy type and condition",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Cuijpers et al., 2013. Psychotherapy for depression meta-analysis",
+        studyType: "meta-analysis",
+        year: 2013,
+      },
+    ],
+  },
+
+  gratitude_practice: {
+    id: "gratitude_practice",
+    name: "Daily gratitude practice",
+    description: "Daily gratitude journaling or reflection",
+    keywords: [
+      "gratitude",
+      "gratitude practice",
+      "gratitude journal",
+      "thankfulness",
+      "appreciation",
+      "count blessings",
+    ],
+    category: "stress",
+    effect: {
+      description: "Daily gratitude practice",
+      category: "stress",
+      mechanismEffects: [
+        mech("neurotransmitter_balance", "increase", normal(0.2, 0.12), "moderate", "SD", "Wood 2010"),
+        mech("stress_hormones", "decrease", normal(-8, 5), "weak", "% cortisol"),
+        mech("sleep_quality", "increase", normal(0.15, 0.1), "moderate", "SD"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.04, 0.06), // HR ~0.96 - modest
+        onsetDelay: 0,
+        rampUpPeriod: 0.25,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: {
+        hoursPerWeek: { type: "point", value: 0.5 }, // 5 min daily
+        annualCost: { type: "point", value: 10 }, // Journal
+        activityDisutility: { type: "point", value: 0.02 }, // Slight positive
+      },
+      evidenceQuality: "low",
+      keySources: [],
+      caveats: [
+        "Mortality evidence very limited",
+        "Well-being benefits better established than physical health effects",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Wood et al., 2010. Gratitude and well-being meta-analysis",
+        studyType: "meta-analysis",
+        year: 2010,
+      },
+    ],
+  },
+
+  nature_exposure: {
+    id: "nature_exposure",
+    name: "Regular nature exposure",
+    description: "Spend 2+ hours per week in natural environments",
+    keywords: [
+      "nature",
+      "nature exposure",
+      "time in nature",
+      "outdoor time",
+      "green space",
+      "forest",
+      "park",
+    ],
+    category: "stress",
+    effect: {
+      description: "Nature exposure 2+ hours/week",
+      category: "other",
+      mechanismEffects: [
+        mech("stress_hormones", "decrease", normal(-12, 7), "moderate", "% cortisol", "White 2019"),
+        mech("blood_pressure", "decrease", normal(-3, 2), "moderate", "mmHg"),
+        mech("neurotransmitter_balance", "increase", normal(0.2, 0.12), "moderate", "SD"),
+        mech("systemic_inflammation", "decrease", normal(-8, 5), "weak", "% CRP"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.08, 0.06), // HR ~0.92
+        onsetDelay: 0,
+        rampUpPeriod: 0.5,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: {
+        hoursPerWeek: { type: "point", value: 2.5 }, // 2+ hours + travel
+        annualCost: { type: "point", value: 0 },
+        activityDisutility: { type: "point", value: 0.05 }, // Generally enjoyable
+      },
+      evidenceQuality: "moderate",
+      keySources: [],
+      caveats: [
+        "Benefits may combine with physical activity effects",
+        "120 minutes/week appears to be threshold",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "White et al., 2019. Nature exposure and health: 20,000 person study",
+        studyType: "cohort",
+        year: 2019,
+        sampleSize: 19806,
+      },
+    ],
+  },
+
+  // ==================== MORE DIET ====================
+  increase_fiber: {
+    id: "increase_fiber",
+    name: "Increase dietary fiber",
+    description: "Increase fiber intake to 25-30g per day",
+    keywords: [
+      "fiber",
+      "dietary fiber",
+      "more fiber",
+      "eat fiber",
+      "whole grains",
+      "high fiber",
+    ],
+    category: "diet",
+    effect: {
+      description: "Increase fiber to 25-30g/day",
+      category: "diet",
+      mechanismEffects: [
+        mech("gut_microbiome", "increase", normal(0.3, 0.15), "strong", "SD diversity", "Reynolds 2019"),
+        mech("lipid_profile", "decrease", normal(-8, 4), "strong", "% LDL"),
+        mech("blood_pressure", "decrease", normal(-2, 1.5), "moderate", "mmHg"),
+        mech("insulin_sensitivity", "increase", normal(10, 6), "moderate", "%"),
+        mech("systemic_inflammation", "decrease", normal(-10, 6), "moderate", "% CRP"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.15, 0.06), // HR ~0.86
+        onsetDelay: 0,
+        rampUpPeriod: 0.5,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: null,
+      evidenceQuality: "high",
+      keySources: [],
+      caveats: [
+        "Benefits dose-dependent up to 25-30g/day",
+        "Type of fiber matters (soluble vs insoluble)",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Reynolds et al., 2019. Carbohydrate quality and health: Lancet meta-analysis",
+        studyType: "meta-analysis",
+        year: 2019,
+        sampleSize: 244000,
+      },
+    ],
+  },
+
+  reduce_red_meat: {
+    id: "reduce_red_meat",
+    name: "Reduce red meat consumption",
+    description: "Reduce red and processed meat to <2 servings per week",
+    keywords: [
+      "red meat",
+      "reduce red meat",
+      "less meat",
+      "eat less meat",
+      "processed meat",
+      "beef",
+      "pork",
+    ],
+    category: "diet",
+    effect: {
+      description: "Reduce red/processed meat to <2 servings/week",
+      category: "diet",
+      mechanismEffects: [
+        mech("systemic_inflammation", "decrease", normal(-10, 6), "moderate", "% CRP", "Etemadi 2017"),
+        mech("lipid_profile", "decrease", normal(-5, 3), "moderate", "% LDL"),
+        mech("gut_microbiome", "increase", normal(0.15, 0.1), "weak", "SD"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.1, 0.06), // HR ~0.90
+        onsetDelay: 0,
+        rampUpPeriod: 0.5,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: null,
+      evidenceQuality: "moderate",
+      keySources: [],
+      caveats: [
+        "Processed meat appears more harmful than unprocessed red meat",
+        "Replacement matters (plant protein vs white meat)",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Etemadi et al., 2017. Red meat and mortality: NIH-AARP study",
+        studyType: "cohort",
+        year: 2017,
+        sampleSize: 536969,
+      },
+    ],
+  },
+
+  adequate_hydration: {
+    id: "adequate_hydration",
+    name: "Maintain adequate hydration",
+    description: "Drink 6-8 glasses of water daily",
+    keywords: [
+      "hydration",
+      "drink water",
+      "water intake",
+      "stay hydrated",
+      "drink more water",
+    ],
+    category: "diet",
+    effect: {
+      description: "Adequate daily hydration (6-8 glasses water)",
+      category: "diet",
+      mechanismEffects: [
+        mech("blood_pressure", "decrease", normal(-2, 1.5), "weak", "mmHg"),
+        mech("metabolic_rate", "increase", normal(3, 2), "weak", "%"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.04, 0.05), // HR ~0.96 - modest
+        onsetDelay: 0,
+        rampUpPeriod: 0.1,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: null,
+      evidenceQuality: "low",
+      keySources: [],
+      caveats: [
+        "Evidence for mortality benefit is weak",
+        "Benefits most clear in preventing kidney stones and dehydration",
+        "Individual needs vary by activity level and climate",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Dmitrieva et al., 2024. Hydration and chronic disease",
+        studyType: "cohort",
+        year: 2024,
+      },
+    ],
+  },
+
+  // ==================== MORE SUPPLEMENTS ====================
+  b_vitamin_complex: {
+    id: "b_vitamin_complex",
+    name: "Take B vitamin complex",
+    description: "Daily B-complex vitamin supplement",
+    keywords: [
+      "b vitamins",
+      "b complex",
+      "vitamin b",
+      "b12",
+      "folate",
+      "b vitamin complex",
+    ],
+    category: "medical",
+    effect: {
+      description: "Daily B-complex supplementation",
+      category: "medical",
+      mechanismEffects: [
+        mech("neurotransmitter_balance", "increase", normal(0.15, 0.1), "moderate", "SD", "Clarke 2007"),
+        mech("cognitive_reserve", "increase", normal(0.12, 0.08), "moderate", "SD"),
+        mech("systemic_inflammation", "decrease", normal(-5, 4), "weak", "% CRP"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.04, 0.05), // HR ~0.96
+        onsetDelay: 0,
+        rampUpPeriod: 0.5,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: {
+        hoursPerWeek: { type: "point", value: 0 },
+        annualCost: normal(60, 25),
+        activityDisutility: { type: "point", value: 0 },
+      },
+      evidenceQuality: "moderate",
+      keySources: [],
+      caveats: [
+        "Benefits strongest in those with deficiency",
+        "B12 particularly important for vegetarians/vegans and older adults",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Clarke et al., 2007. B vitamins and homocysteine lowering",
+        studyType: "meta-analysis",
+        year: 2007,
+      },
+    ],
+  },
+
+  coq10_supplement: {
+    id: "coq10_supplement",
+    name: "Take CoQ10 supplement",
+    description: "Daily Coenzyme Q10 supplementation (100-200mg)",
+    keywords: [
+      "coq10",
+      "coenzyme q10",
+      "ubiquinone",
+      "coenzyme",
+      "heart supplement",
+    ],
+    category: "medical",
+    effect: {
+      description: "Daily CoQ10 supplementation (100-200mg)",
+      category: "medical",
+      mechanismEffects: [
+        mech("mitochondrial_function", "increase", normal(0.2, 0.12), "moderate", "SD", "Hernandez-Camacho 2018"),
+        mech("blood_pressure", "decrease", normal(-3, 2), "moderate", "mmHg"),
+        mech("cardiac_output", "increase", normal(5, 3), "weak", "%"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.05, 0.06), // HR ~0.95
+        onsetDelay: 0,
+        rampUpPeriod: 0.5,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: {
+        hoursPerWeek: { type: "point", value: 0 },
+        annualCost: normal(250, 100),
+        activityDisutility: { type: "point", value: 0 },
+      },
+      evidenceQuality: "moderate",
+      keySources: [],
+      caveats: [
+        "Benefits most evident in heart failure patients",
+        "May reduce statin side effects",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Hernandez-Camacho et al., 2018. CoQ10 supplementation meta-analysis",
+        studyType: "meta-analysis",
+        year: 2018,
+      },
+    ],
+  },
+
+  curcumin_supplement: {
+    id: "curcumin_supplement",
+    name: "Take curcumin/turmeric supplement",
+    description: "Daily curcumin supplement with piperine for absorption",
+    keywords: [
+      "curcumin",
+      "turmeric",
+      "turmeric supplement",
+      "anti-inflammatory supplement",
+    ],
+    category: "medical",
+    effect: {
+      description: "Daily curcumin supplementation",
+      category: "medical",
+      mechanismEffects: [
+        mech("systemic_inflammation", "decrease", normal(-15, 8), "moderate", "% CRP", "Sahebkar 2014"),
+        mech("oxidative_stress", "decrease", normal(-12, 7), "moderate", "%"),
+        mech("joint_health", "increase", normal(0.15, 0.1), "moderate", "SD"),
+      ],
+      mortality: {
+        hazardRatio: lognormal(-0.05, 0.06), // HR ~0.95
+        onsetDelay: 0,
+        rampUpPeriod: 0.5,
+        decayRate: 0,
+      },
+      quality: null,
+      costs: {
+        hoursPerWeek: { type: "point", value: 0 },
+        annualCost: normal(150, 60),
+        activityDisutility: { type: "point", value: 0 },
+      },
+      evidenceQuality: "moderate",
+      keySources: [],
+      caveats: [
+        "Bioavailability is key - needs piperine or lipid formulation",
+        "Most studied for inflammatory conditions",
+      ],
+      profileAdjustments: [],
+    },
+    sources: [
+      {
+        citation: "Sahebkar et al., 2014. Curcumin and inflammatory markers meta-analysis",
+        studyType: "meta-analysis",
+        year: 2014,
       },
     ],
   },

@@ -1,0 +1,175 @@
+# Mediterranean Diet Pattern
+# Evidence-based intervention definition using OptiqAL DSL
+#
+# Sources: Estruch et al 2018 (PREDIMED), Sofi et al 2014 meta-analysis,
+#          Grosso et al 2017 umbrella review
+
+id: mediterranean_diet
+name: Mediterranean Diet Pattern
+description: Diet rich in vegetables, fruits, whole grains, legumes, nuts, olive oil, fish; moderate wine; low red meat
+category: diet
+
+keywords:
+  - mediterranean diet
+  - PREDIMED
+  - olive oil
+  - fish
+  - whole grains
+  - nuts
+  - healthy eating
+
+# ============================================
+# EVIDENCE QUALITY & CONFOUNDING
+# ============================================
+
+evidence:
+  quality: high
+  primary_study_type: rct
+  sources:
+    - citation: "Estruch R et al. Primary prevention of CVD with Mediterranean diet. NEJM 2018;378:e34"
+      year: 2018
+      sample_size: 7447
+      contribution: "Primary RCT for CVD outcomes"
+
+    - citation: "Sofi F et al. Adherence to Mediterranean diet and health status: meta-analysis. BMJ 2014;337:a1344"
+      year: 2014
+      sample_size: 1500000
+      contribution: "Meta-analysis all-cause mortality"
+
+    - citation: "Grosso G et al. A comprehensive meta-analysis on dietary flavonoid intake. Nutr Metab 2017;14:57"
+      year: 2017
+      contribution: "Mechanism effects"
+
+confounding:
+  # RCT evidence (PREDIMED) but strong healthy user effect in observational studies
+  # RCT shows ~70% of observational effects are causal
+  prior:
+    type: beta
+    alpha: 6.0
+    beta: 2.5
+
+  rationale: |
+    PREDIMED RCT shows robust causal effects on CVD endpoints.
+    Observational estimates attenuated but RCT confirms large causal component.
+    Mendelian randomization studies (Larsson 2020) support causality.
+    Beta(6.0, 2.5) → mean 71%, 95% CI: 42-90%
+
+  calibration_sources:
+    - "PREDIMED RCT (Estruch 2018)"
+    - "Larsson 2020 (Mendelian randomization)"
+    - "Sofi 2014 (observational meta-analysis)"
+
+# ============================================
+# MECHANISM EFFECTS
+# ============================================
+
+mechanisms:
+  blood_pressure:
+    effect: Normal(-5, 2.5)
+    direction: decrease
+    units: mmHg
+    evidence: strong
+    source: "Filippou et al 2020, Mancini et al 2015"
+
+  lipid_profile:
+    effect: Normal(-8, 3)
+    direction: decrease
+    units: "% LDL"
+    evidence: strong
+    source: "PREDIMED substudy, Estruch 2018"
+
+  systemic_inflammation:
+    effect: Normal(-20, 8)
+    direction: decrease
+    units: "% CRP"
+    evidence: strong
+    source: "Schwingshackl & Hoffmann 2014"
+
+  insulin_sensitivity:
+    effect: Normal(20, 10)
+    direction: increase
+    units: "%"
+    evidence: strong
+    source: "Esposito et al 2015"
+
+  endothelial_function:
+    effect: Normal(25, 10)
+    direction: increase
+    units: "% flow-mediated dilation"
+    evidence: strong
+    source: "Schwingshackl et al 2015"
+
+  adiposity:
+    effect: Normal(-3, 2)
+    direction: decrease
+    units: "% body fat"
+    evidence: moderate
+    source: "Mancini et al 2016"
+
+  oxidative_stress:
+    effect: Normal(-18, 8)
+    direction: decrease
+    units: "%"
+    evidence: strong
+
+  gut_microbiome:
+    effect: Normal(0.4, 0.15)
+    direction: increase
+    units: SD
+    evidence: moderate
+    source: "De Filippis et al 2016"
+
+# ============================================
+# MORTALITY EFFECT
+# ============================================
+
+mortality:
+  # PREDIMED: HR ~0.70 for CVD, observational meta-analysis HR ~0.78 all-cause
+  # LogNormal(-0.25, 0.10) → median 0.78, 95% CI: 0.64-0.95
+  hazard_ratio: LogNormal(-0.25, 0.10)
+  onset_delay: 0.5
+  ramp_up: 1.0
+  decay_rate: 0
+
+# ============================================
+# QUALITY OF LIFE
+# ============================================
+
+quality:
+  subjective_wellbeing: Normal(0.03, 0.015)
+
+  dimension_effects:
+    - dimension: anxiety_depression
+      change: Normal(0.02, 0.01)
+
+    - dimension: vitality
+      change: Normal(0.03, 0.015)
+
+# ============================================
+# COSTS
+# ============================================
+
+costs:
+  hours_per_week: Normal(2, 1)  # Meal planning and prep
+  annual_cost_usd: Normal(500, 200)  # Higher quality ingredients (olive oil, fish, nuts)
+  activity_disutility: Normal(-0.01, 0.005)  # Food enjoyment
+
+# ============================================
+# CAVEATS & ADJUSTMENTS
+# ============================================
+
+caveats:
+  - "Requires food access and cooking skills"
+  - "Cultural adaptation may affect adherence"
+  - "Benefits greatest in those with baseline poor diet"
+  - "Cost can be barrier in low-income populations"
+
+profile_adjustments:
+  - condition: "baseline_diet == 'healthy'"
+    adjustment: "Reduce HR effect by 60% (diminishing returns)"
+
+  - condition: "cvd_risk == 'high'"
+    adjustment: "Increase CVD pathway weight to 0.70"
+
+  - condition: "age > 65"
+    adjustment: "Increase effect magnitude by 10% (higher absolute risk)"

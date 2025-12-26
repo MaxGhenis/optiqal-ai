@@ -83,6 +83,8 @@ export type HealthCondition =
   | "osteoporosis"
   // Cancer
   | "cancer"
+  | "melanoma"
+  | "non_melanoma_skin_cancer"
   // Sensory
   | "vision_loss"
   | "hearing_loss"
@@ -236,6 +238,9 @@ export interface SimulationOptions {
 
   /** Primary evidence type for confounding adjustment */
   evidenceType?: "meta-analysis" | "rct" | "cohort" | "case-control" | "review" | "other";
+
+  /** Random seed for reproducibility (default: 42) */
+  seed?: number | string;
 }
 
 /**

@@ -1,3 +1,5 @@
+export type ActivityLevel = "sedentary" | "light" | "moderate" | "active";
+
 export interface UserProfile {
   age: number;
   sex: "male" | "female" | "other";
@@ -8,6 +10,9 @@ export interface UserProfile {
   sleepHoursPerNight: number;
   existingConditions: string[];
   diet: "omnivore" | "vegetarian" | "vegan" | "pescatarian" | "keto" | "other";
+  hasDiabetes: boolean;
+  hasHypertension: boolean;
+  activityLevel: ActivityLevel;
 }
 
 export interface QALYImpact {
@@ -75,4 +80,7 @@ export const DEFAULT_PROFILE: UserProfile = {
   sleepHoursPerNight: 7,
   existingConditions: [],
   diet: "omnivore",
+  hasDiabetes: false,
+  hasHypertension: false,
+  activityLevel: "light",
 };

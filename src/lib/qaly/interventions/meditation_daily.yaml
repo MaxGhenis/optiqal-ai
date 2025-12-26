@@ -1,0 +1,185 @@
+# Daily Mindfulness Meditation
+# Evidence-based intervention definition using OptiqAL DSL
+#
+# Sources: Goyal et al 2014, Creswell et al 2016, Black & Slavich 2016
+
+id: meditation_daily
+name: Daily Mindfulness Meditation
+description: Practice mindfulness meditation 10-20 minutes daily, focusing on breath awareness and present-moment attention
+category: stress
+
+keywords:
+  - meditation
+  - mindfulness
+  - MBSR
+  - breathing
+  - stress reduction
+  - contemplative practice
+  - mindful
+
+# ============================================
+# EVIDENCE QUALITY & CONFOUNDING
+# ============================================
+
+evidence:
+  quality: moderate
+  primary_study_type: meta-analysis
+  sources:
+    - citation: "Goyal M et al. Meditation programs for psychological stress and well-being. JAMA Intern Med 2014;174:357-68"
+      year: 2014
+      sample_size: 3515
+      contribution: "Meta-analysis of RCTs for anxiety/depression"
+
+    - citation: "Creswell JD et al. Mindfulness-based stress reduction training reduces loneliness and pro-inflammatory gene expression. Brain Behav Immun 2016;56:165-72"
+      year: 2016
+      sample_size: 40
+      contribution: "RCT showing inflammation effects"
+
+    - citation: "Black DS & Slavich GM. Mindfulness meditation and immune function. Ann NY Acad Sci 2016;1373:13-24"
+      year: 2016
+      contribution: "Review of immune/inflammatory mechanisms"
+
+confounding:
+  # Meditation practitioners show strong selection effects
+  # Those who meditate regularly differ in many ways (educated, health-conscious, low stress baseline?)
+  # RCT evidence exists but limited follow-up, high dropout
+  prior:
+    type: beta
+    alpha: 4.0
+    beta: 4.0
+
+  rationale: |
+    Meditation RCTs show consistent effects on stress/anxiety (moderate size).
+    Selection bias: regular meditators likely differ in baseline characteristics.
+    RCT evidence moderate quality (short follow-up, high dropout rates).
+    Mechanisms plausible (HPA axis, inflammatory pathways).
+    Beta(4.0, 4.0) → mean 50%, 95% CI: 21-79%
+
+  calibration_sources:
+    - "Goyal et al 2014 (RCT meta-analysis)"
+    - "Creswell et al 2016 (biomarker RCT)"
+    - "Pascoe et al 2017 (cortisol meta-analysis)"
+
+# ============================================
+# MECHANISM EFFECTS
+# ============================================
+
+mechanisms:
+  systemic_inflammation:
+    effect: Normal(-15, 8)
+    direction: decrease
+    units: "% CRP"
+    evidence: moderate
+    source: "Creswell et al 2016, Pascoe et al 2017"
+
+  cortisol_regulation:
+    effect: Normal(-18, 10)
+    direction: decrease
+    units: "% cortisol"
+    evidence: moderate
+    source: "Pascoe et al 2017"
+
+  blood_pressure:
+    effect: Normal(-4, 2.5)
+    direction: decrease
+    units: mmHg
+    evidence: moderate
+    source: "Hughes et al 2013"
+
+  neurotransmitter_balance:
+    effect: Normal(0.3, 0.15)
+    direction: increase
+    units: SD
+    evidence: moderate
+
+  immune_function:
+    effect: Normal(12, 8)
+    direction: increase
+    units: "%"
+    evidence: moderate
+    source: "Black & Slavich 2016"
+
+  autonomic_balance:
+    effect: Normal(0.25, 0.15)
+    direction: increase
+    units: "SD (HRV)"
+    evidence: moderate
+    source: "Zou et al 2018"
+
+  sleep_quality:
+    effect: Normal(0.3, 0.15)
+    direction: increase
+    units: SD
+    evidence: moderate
+    source: "Rusch et al 2019"
+
+  pain_perception:
+    effect: Normal(-20, 10)
+    direction: decrease
+    units: "% pain intensity"
+    evidence: moderate
+    source: "Hilton et al 2017"
+
+# ============================================
+# MORTALITY EFFECT
+# ============================================
+
+mortality:
+  # Limited direct mortality evidence
+  # Extrapolate from stress reduction, inflammation, BP effects
+  # Conservative estimate HR ~0.92
+  # LogNormal(-0.08, 0.12) → median 0.92, 95% CI: 0.73-1.17
+  hazard_ratio: LogNormal(-0.08, 0.12)
+  onset_delay: 0.5
+  ramp_up: 1.0
+  decay_rate: 0
+
+# ============================================
+# QUALITY OF LIFE
+# ============================================
+
+quality:
+  subjective_wellbeing: Normal(0.04, 0.02)
+
+  dimension_effects:
+    - dimension: anxiety_depression
+      change: Normal(0.05, 0.02)  # Strong RCT evidence
+
+    - dimension: pain_discomfort
+      change: Normal(0.03, 0.015)
+
+    - dimension: vitality
+      change: Normal(0.025, 0.015)
+
+# ============================================
+# COSTS
+# ============================================
+
+costs:
+  hours_per_week: Normal(1.5, 0.5)  # 10-20 min daily
+  annual_cost_usd: Normal(50, 50)  # App subscription or free
+  activity_disutility: Normal(-0.005, 0.01)  # Most find pleasant once habit formed
+
+# ============================================
+# CAVEATS & ADJUSTMENTS
+# ============================================
+
+caveats:
+  - "Requires consistent practice for sustained benefits"
+  - "Benefits strongest for those with high baseline stress/anxiety"
+  - "High dropout rates in practice (adherence challenge)"
+  - "Quality of practice matters (guided vs self-directed)"
+  - "May not be suitable for active psychosis or severe trauma"
+
+profile_adjustments:
+  - condition: "anxiety_disorder == true OR depression == true"
+    adjustment: "Increase mental health QoL benefit by 50%"
+
+  - condition: "chronic_pain == true"
+    adjustment: "Increase pain dimension benefit by 60%"
+
+  - condition: "hypertension == true"
+    adjustment: "Increase BP effect by 30%"
+
+  - condition: "baseline_stress == 'low'"
+    adjustment: "Reduce all effects by 40% (ceiling effect)"

@@ -1,0 +1,6 @@
+_build/
+exports/
+__pycache__/
+*.pyc
+.jupyter_cache/
+.venv/

@@ -26,6 +26,13 @@ export interface BaselineProjection {
     avgQualityWeight: number;
     qalysInDecade: number;
   }[];
+  /** Year-by-year survival and QALY data for charts */
+  survivalCurve: {
+    age: number;
+    survivalProbability: number; // 0-1, probability of being alive at this age
+    qualityWeight: number; // 0-1, expected quality of life
+    expectedQALY: number; // survivalProbability * qualityWeight
+  }[];
 }
 
 /**
@@ -183,12 +190,49 @@ export function calculateBaselineQALYs(profile: UserProfile): BaselineProjection
     currentAge = decadeEnd;
   }
 
+  // Generate survival curve data for visualization
+  // Using simplified Gompertz-like survival model
+  const survivalCurve: BaselineProjection["survivalCurve"] = [];
+  const maxAge = 100;
+
+  for (let chartAge = age; chartAge <= maxAge; chartAge += 5) {
+    // Survival probability decreases as we approach expected death age
+    // Using a sigmoid-like decay centered around expected death
+    const yearsFromNow = chartAge - age;
+    const yearsToExpectedDeath = expectedDeathAge - age;
+
+    // Gompertz-inspired survival: S(t) = exp(-exp(a + b*t))
+    // Simplified: probability drops steeply around expected death age
+    let survivalProbability: number;
+    if (chartAge <= age) {
+      survivalProbability = 1.0;
+    } else if (chartAge >= expectedDeathAge + 15) {
+      survivalProbability = 0.01;
+    } else {
+      // Logistic decay centered at expected death age
+      const k = 0.15; // steepness
+      const midpoint = expectedDeathAge;
+      survivalProbability = 1 / (1 + Math.exp(k * (chartAge - midpoint)));
+    }
+
+    const qualityWeight = getAgeQualityWeight(chartAge);
+    const expectedQALY = survivalProbability * qualityWeight;
+
+    survivalCurve.push({
+      age: chartAge,
+      survivalProbability: Math.max(0, Math.min(1, survivalProbability)),
+      qualityWeight,
+      expectedQALY: Math.max(0, Math.min(1, expectedQALY)),
+    });
+  }
+
   return {
     remainingLifeExpectancy: remainingLE,
     expectedDeathAge,
     currentQualityWeight: getAgeQualityWeight(age),
     remainingQALYs: totalQALYs,
     breakdown,
+    survivalCurve,
   };
 }
 
@@ -199,3 +243,11 @@ export {
   getQualityWeightWithConditions,
   CONDITION_DISABILITY_WEIGHTS,
 } from "./quality-weights";
+export {
+  loadPrecomputedBaselines,
+  getPrecomputedLifeExpectancy,
+  getPrecomputedRemainingQALYs,
+  getPrecomputedCauseFractions,
+  getPrecomputedQualityWeight,
+  type PrecomputedBaselines,
+} from "./precomputed";
