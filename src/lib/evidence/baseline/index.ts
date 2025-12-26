@@ -13,6 +13,7 @@ import {
   getAgeQualityWeight,
   getQualityWeightWithConditions,
 } from "./quality-weights";
+import { getCalibrationFactor } from "./calibration";
 import type { UserProfile } from "@/types";
 
 export interface BaselineProjection {
@@ -146,6 +147,33 @@ function hrToLifeExpectancyMultiplier(hr: number): number {
 }
 
 /**
+ * Calculate the calibrated hazard ratio for an individual.
+ *
+ * Life tables already reflect population-average risk, which includes
+ * the average prevalence of risk factors (smoking, obesity, diabetes, etc.).
+ * To avoid double-counting, we divide the individual's raw HR by the
+ * expected population HR for their demographic.
+ *
+ * This ensures:
+ * - A person with average risk factors gets the life table expectancy
+ * - A person with below-average risk gets longer expectancy
+ * - A person with above-average risk gets shorter expectancy
+ *
+ * @param rawHR - Individual's combined hazard ratio from risk factors
+ * @param age - Age in years
+ * @param sex - Sex for demographic-specific calibration
+ * @returns Calibrated hazard ratio (relative to population average)
+ */
+function getCalibratedHR(
+  rawHR: number,
+  age: number,
+  sex: "male" | "female" | "other"
+): number {
+  const populationHR = getCalibrationFactor(age, sex);
+  return rawHR / populationHR;
+}
+
+/**
  * Calculate baseline QALY projection for a user profile
  */
 export function calculateBaselineQALYs(profile: UserProfile): BaselineProjection {
@@ -182,11 +210,15 @@ export function calculateBaselineQALYs(profile: UserProfile): BaselineProjection
     ? RISK_FACTOR_HAZARD_RATIOS.hypertension.yes.hr
     : RISK_FACTOR_HAZARD_RATIOS.hypertension.no.hr;
 
-  // Combined HR (multiplicative)
-  const combinedHR = hrBMI * hrExercise * hrSleep * hrSmoking * hrDiabetes * hrHypertension;
+  // Combined HR (multiplicative) - this is the raw individual HR
+  const rawCombinedHR = hrBMI * hrExercise * hrSleep * hrSmoking * hrDiabetes * hrHypertension;
 
-  // Adjust life expectancy
-  remainingLE *= hrToLifeExpectancyMultiplier(combinedHR);
+  // Calibrate against population average to avoid double-counting
+  // Life tables already include people with these conditions
+  const calibratedHR = getCalibratedHR(rawCombinedHR, age, sex);
+
+  // Adjust life expectancy using calibrated HR
+  remainingLE *= hrToLifeExpectancyMultiplier(calibratedHR);
 
   const expectedDeathAge = age + remainingLE;
 
@@ -295,3 +327,12 @@ export {
   formatPredictionInterval,
   type UncertainBaselineResult,
 } from "./uncertain-baseline";
+
+// NHANES calibration factors
+export {
+  getCalibrationFactor,
+  CALIBRATION_BY_AGE_SEX,
+  CALIBRATION_BY_SEX,
+  CALIBRATION_OVERALL,
+  POPULATION_PREVALENCE,
+} from "./calibration";
