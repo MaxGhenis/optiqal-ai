@@ -75,16 +75,33 @@ CAUSE_FRACTIONS = {
     90: {"cvd": 0.45, "cancer": 0.12, "other": 0.43},
 }
 
-# Age-varying quality weights (Sullivan et al. 2006, GBD 2019)
+# Age-varying quality weights (MEPS 2019-2022 SF-12 → EQ-5D mapping)
+# SF-12 mapped to EQ-5D via Franks et al. 2004 formula
+# Mean values by age group from ~67,000 observations
 QUALITY_WEIGHTS = {
-    25: 0.92,
-    35: 0.90,
-    45: 0.88,
-    55: 0.85,
-    65: 0.82,
-    75: 0.78,
-    85: 0.72,
-    95: 0.65,
+    25: 0.935,  # MEPS 18-30: 0.935
+    35: 0.922,  # MEPS 30-40: 0.922
+    45: 0.904,  # MEPS 40-50: 0.904
+    55: 0.878,  # MEPS 50-60: 0.878
+    65: 0.865,  # MEPS 60-70: 0.865
+    75: 0.847,  # MEPS 70-80: 0.847
+    85: 0.792,  # MEPS 80+: 0.792
+    95: 0.75,   # Extrapolated
+}
+
+# Within-age-group quality weight standard deviation (MEPS 2019-2022)
+# Captures individual heterogeneity in health status not explained by age
+QUALITY_WEIGHT_STD = 0.117
+
+# Condition-specific quality decrements (MEPS 2019-2022)
+# These are subtracted from the base quality weight when condition is present
+CONDITION_DECREMENTS = {
+    "diabetes": 0.092,       # EQ-5D 0.809 vs 0.901 without
+    "hypertension": 0.081,   # EQ-5D 0.838 vs 0.920 without
+    "heart_disease": 0.108,  # EQ-5D 0.787 vs 0.895 without
+    "stroke": 0.133,         # EQ-5D 0.762 vs 0.895 without
+    "cancer": 0.050,         # EQ-5D 0.845 vs 0.895 without
+    "arthritis": 0.108,      # EQ-5D 0.813 vs 0.921 without
 }
 
 

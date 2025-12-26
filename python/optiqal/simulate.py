@@ -9,7 +9,7 @@ from typing import Literal, Optional, Union
 import numpy as np
 
 from .intervention import Intervention
-from .lifecycle import LifecycleModel, PathwayHRs, get_mortality_rate, get_quality_weight, get_cause_fraction
+from .lifecycle import LifecycleModel, PathwayHRs, get_mortality_rate, get_quality_weight, get_cause_fraction, QUALITY_WEIGHT_STD
 from .confounding import adjust_hr
 from .profile import Profile, get_baseline_mortality_multiplier, get_intervention_modifier
 
@@ -79,11 +79,17 @@ def simulate_qaly_profile_vectorized(
     # Base mortality rates, quality weights, discounts, cause fractions
     base_qx = np.array([get_mortality_rate(int(a), profile.sex) for a in ages])
     base_qx = np.minimum(base_qx * baseline_mortality_multiplier, 0.99)
-    quality = np.array([get_quality_weight(int(a)) for a in ages])
+    base_quality = np.array([get_quality_weight(int(a)) for a in ages])
     discount = (1 / (1 + discount_rate)) ** years
 
     # Cause fractions (n_years, 3)
     cause_fracs = np.array([[get_cause_fraction(int(a))[k] for k in ['cvd', 'cancer', 'other']] for a in ages])
+
+    # Sample quality weight offsets (MEPS calibration: within-age σ=0.117)
+    # Each simulation gets a person-specific offset that persists across years
+    quality_offsets = rng.normal(0, QUALITY_WEIGHT_STD, n_simulations)  # (n_simulations,)
+    # Quality weights vary by simulation: (n_simulations, n_years)
+    quality = np.clip(base_quality[None, :] + quality_offsets[:, None], 0.1, 1.0)
 
     # Sample HRs and causal fractions (n_simulations,)
     hr_samples = intervention.mortality.hazard_ratio.sample(n_simulations, random_state)
@@ -117,12 +123,15 @@ def simulate_qaly_profile_vectorized(
     intervention_qx = base_qx[None, :] * np.einsum('yk,sk->sy', cause_fracs, pathway_hrs)
     intervention_qx = np.minimum(intervention_qx, 0.99)
 
-    # Baseline survival and QALY (same for all simulations)
+    # Baseline survival (deterministic, same for all simulations)
     baseline_survival = np.cumprod(1 - base_qx)
     baseline_survival = np.concatenate([[1.0], baseline_survival[:-1]])  # Shift for start-of-year
-    baseline_qalys_per_year = baseline_survival * quality * discount
-    baseline_qalys_total = np.sum(baseline_qalys_per_year)
     baseline_life_years = np.sum(baseline_survival)
+
+    # Baseline QALYs now vary by simulation due to quality weight heterogeneity
+    # baseline_qalys_per_year: (n_simulations, n_years)
+    baseline_qalys_per_year = baseline_survival[None, :] * quality * discount[None, :]
+    baseline_qalys_total = np.sum(baseline_qalys_per_year, axis=1)  # (n_simulations,)
 
     # Intervention survival curves (n_simulations, n_years)
     intervention_survival = np.cumprod(1 - intervention_qx, axis=1)
@@ -131,8 +140,8 @@ def simulate_qaly_profile_vectorized(
         intervention_survival[:, :-1]
     ], axis=1)
 
-    # Intervention QALYs (n_simulations,)
-    intervention_qalys_per_year = intervention_survival * quality[None, :] * discount[None, :]
+    # Intervention QALYs (n_simulations,) - quality is already (n_simulations, n_years)
+    intervention_qalys_per_year = intervention_survival * quality * discount[None, :]
     intervention_qalys_total = np.sum(intervention_qalys_per_year, axis=1)
     intervention_life_years = np.sum(intervention_survival, axis=1)
 
