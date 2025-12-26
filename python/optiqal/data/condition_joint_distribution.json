@@ -1,0 +1,3870 @@
+{
+  "conditions": [
+    "diabetes",
+    "hypertension",
+    "heart_disease",
+    "stroke",
+    "cancer",
+    "arthritis"
+  ],
+  "age_bins": {
+    "<40": {
+      "min": 0,
+      "max": 40
+    },
+    "40-50": {
+      "min": 40,
+      "max": 50
+    },
+    "50-60": {
+      "min": 50,
+      "max": 60
+    },
+    "60-70": {
+      "min": 60,
+      "max": 70
+    },
+    "70-80": {
+      "min": 70,
+      "max": 80
+    },
+    "80+": {
+      "min": 80,
+      "max": 100
+    }
+  },
+  "marginal_prevalence": {
+    "<40": {
+      "diabetes": 0.02897308417623864,
+      "hypertension": 0.10063432196125494,
+      "heart_disease": 0.0038402194411109205,
+      "stroke": 0.006788959369106806,
+      "cancer": 0.018069603977370136,
+      "arthritis": 0.05307731870392594
+    },
+    "40-50": {
+      "diabetes": 0.09112781954887218,
+      "hypertension": 0.27157894736842103,
+      "heart_disease": 0.0118796992481203,
+      "stroke": 0.02075187969924812,
+      "cancer": 0.05526315789473684,
+      "arthritis": 0.16293233082706768
+    },
+    "50-60": {
+      "diabetes": 0.16400404448938322,
+      "hypertension": 0.4298618132794068,
+      "heart_disease": 0.047657566565554435,
+      "stroke": 0.04233232221098753,
+      "cancer": 0.11041456016177957,
+      "arthritis": 0.31985170205594876
+    },
+    "60-70": {
+      "diabetes": 0.22859799428837085,
+      "hypertension": 0.5801288437271701,
+      "heart_disease": 0.09424188085275952,
+      "stroke": 0.07292289300657502,
+      "cancer": 0.19207013349272764,
+      "arthritis": 0.4714086471408647
+    },
+    "70-80": {
+      "diabetes": 0.2651725505751686,
+      "hypertension": 0.6803847679492265,
+      "heart_disease": 0.1651130503768346,
+      "stroke": 0.11552955176517254,
+      "cancer": 0.31307021023403414,
+      "arthritis": 0.593316144387148
+    },
+    "80+": {
+      "diabetes": 0.24557477110885045,
+      "hypertension": 0.7263479145473042,
+      "heart_disease": 0.23173957273652085,
+      "stroke": 0.17985757884028483,
+      "cancer": 0.3768056968463886,
+      "arthritis": 0.6384537131230926
+    }
+  },
+  "correlation_matrix": {
+    "<40": {
+      "diabetes": {
+        "diabetes": 1.0,
+        "hypertension": 0.20789982836004836,
+        "heart_disease": 0.06198689810754426,
+        "stroke": 0.023060554799172742,
+        "cancer": 0.03488449347983357,
+        "arthritis": 0.11411506119282123
+      },
+      "hypertension": {
+        "diabetes": 0.20789982836004836,
+        "hypertension": 1.0,
+        "heart_disease": 0.07873658246977694,
+        "stroke": 0.07921653003705821,
+        "cancer": 0.03333993529421095,
+        "arthritis": 0.1704168271775656
+      },
+      "heart_disease": {
+        "diabetes": 0.06198689810754426,
+        "hypertension": 0.07873658246977694,
+        "heart_disease": 1.0,
+        "stroke": 0.048875350690946305,
+        "cancer": 0.012386356488634492,
+        "arthritis": 0.04217393637832964
+      },
+      "stroke": {
+        "diabetes": 0.023060554799172742,
+        "hypertension": 0.07921653003705821,
+        "heart_disease": 0.048875350690946305,
+        "stroke": 1.0,
+        "cancer": 0.07342247202273208,
+        "arthritis": 0.05492737507078239
+      },
+      "cancer": {
+        "diabetes": 0.03488449347983357,
+        "hypertension": 0.03333993529421095,
+        "heart_disease": 0.012386356488634492,
+        "stroke": 0.07342247202273208,
+        "cancer": 1.0,
+        "arthritis": 0.07007168175978125
+      },
+      "arthritis": {
+        "diabetes": 0.11411506119282123,
+        "hypertension": 0.1704168271775656,
+        "heart_disease": 0.04217393637832964,
+        "stroke": 0.05492737507078239,
+        "cancer": 0.07007168175978125,
+        "arthritis": 1.0
+      }
+    },
+    "40-50": {
+      "diabetes": {
+        "diabetes": 1.0,
+        "hypertension": 0.23898055043000793,
+        "heart_disease": 0.10514007776570077,
+        "stroke": 0.07669703381613571,
+        "cancer": 0.03775627170951104,
+        "arthritis": 0.1270032796660149
+      },
+      "hypertension": {
+        "diabetes": 0.23898055043000793,
+        "hypertension": 1.0,
+        "heart_disease": 0.12808387859830836,
+        "stroke": 0.10559410123638048,
+        "cancer": 0.018784060884915858,
+        "arthritis": 0.16318136932826988
+      },
+      "heart_disease": {
+        "diabetes": 0.10514007776570077,
+        "hypertension": 0.12808387859830836,
+        "heart_disease": 1.0,
+        "stroke": 0.12034698990347995,
+        "cancer": -0.0022219211828518586,
+        "arthritis": 0.09255972282917052
+      },
+      "stroke": {
+        "diabetes": 0.07669703381613571,
+        "hypertension": 0.10559410123638048,
+        "heart_disease": 0.12034698990347995,
+        "stroke": 1.0,
+        "cancer": 0.034041957106006375,
+        "arthritis": 0.09716148342240055
+      },
+      "cancer": {
+        "diabetes": 0.03775627170951104,
+        "hypertension": 0.018784060884915858,
+        "heart_disease": -0.0022219211828518586,
+        "stroke": 0.034041957106006375,
+        "cancer": 1.0,
+        "arthritis": 0.07773746992108388
+      },
+      "arthritis": {
+        "diabetes": 0.1270032796660149,
+        "hypertension": 0.16318136932826988,
+        "heart_disease": 0.09255972282917052,
+        "stroke": 0.09716148342240055,
+        "cancer": 0.07773746992108388,
+        "arthritis": 1.0
+      }
+    },
+    "50-60": {
+      "diabetes": {
+        "diabetes": 1.0,
+        "hypertension": 0.2659222625109037,
+        "heart_disease": 0.1598366246290594,
+        "stroke": 0.10579027575105306,
+        "cancer": -0.011988278763133612,
+        "arthritis": 0.12286912933228744
+      },
+      "hypertension": {
+        "diabetes": 0.2659222625109037,
+        "hypertension": 1.0,
+        "heart_disease": 0.1847672787649157,
+        "stroke": 0.14069397205740328,
+        "cancer": 0.013853380137285808,
+        "arthritis": 0.17116143686962101
+      },
+      "heart_disease": {
+        "diabetes": 0.1598366246290594,
+        "hypertension": 0.1847672787649157,
+        "heart_disease": 1.0,
+        "stroke": 0.11954347855188152,
+        "cancer": 0.015080078091247584,
+        "arthritis": 0.09556006488061197
+      },
+      "stroke": {
+        "diabetes": 0.10579027575105306,
+        "hypertension": 0.14069397205740328,
+        "heart_disease": 0.11954347855188152,
+        "stroke": 1.0,
+        "cancer": 0.055184040178217084,
+        "arthritis": 0.11852966657828228
+      },
+      "cancer": {
+        "diabetes": -0.011988278763133612,
+        "hypertension": 0.013853380137285808,
+        "heart_disease": 0.015080078091247584,
+        "stroke": 0.055184040178217084,
+        "cancer": 1.0,
+        "arthritis": 0.07612572175392472
+      },
+      "arthritis": {
+        "diabetes": 0.12286912933228744,
+        "hypertension": 0.17116143686962101,
+        "heart_disease": 0.09556006488061197,
+        "stroke": 0.11852966657828228,
+        "cancer": 0.07612572175392472,
+        "arthritis": 1.0
+      }
+    },
+    "60-70": {
+      "diabetes": {
+        "diabetes": 1.0,
+        "hypertension": 0.2609119386121764,
+        "heart_disease": 0.13837280954104875,
+        "stroke": 0.11861192840895025,
+        "cancer": -0.017707610860173386,
+        "arthritis": 0.10151592344827613
+      },
+      "hypertension": {
+        "diabetes": 0.2609119386121764,
+        "hypertension": 1.0,
+        "heart_disease": 0.17999673197333732,
+        "stroke": 0.14026535363527357,
+        "cancer": 0.0089730765157132,
+        "arthritis": 0.17259531886432403
+      },
+      "heart_disease": {
+        "diabetes": 0.13837280954104875,
+        "hypertension": 0.17999673197333732,
+        "heart_disease": 1.0,
+        "stroke": 0.17006433227653273,
+        "cancer": 0.010648083925082943,
+        "arthritis": 0.06742874081526208
+      },
+      "stroke": {
+        "diabetes": 0.11861192840895025,
+        "hypertension": 0.14026535363527357,
+        "heart_disease": 0.17006433227653273,
+        "stroke": 1.0,
+        "cancer": 0.011092478975501854,
+        "arthritis": 0.0692803491837601
+      },
+      "cancer": {
+        "diabetes": -0.017707610860173386,
+        "hypertension": 0.0089730765157132,
+        "heart_disease": 0.010648083925082943,
+        "stroke": 0.011092478975501854,
+        "cancer": 1.0,
+        "arthritis": 0.07385966997519518
+      },
+      "arthritis": {
+        "diabetes": 0.10151592344827613,
+        "hypertension": 0.17259531886432403,
+        "heart_disease": 0.06742874081526208,
+        "stroke": 0.0692803491837601,
+        "cancer": 0.07385966997519518,
+        "arthritis": 1.0
+      }
+    },
+    "70-80": {
+      "diabetes": {
+        "diabetes": 1.0,
+        "hypertension": 0.22336261846457767,
+        "heart_disease": 0.13704092636218623,
+        "stroke": 0.09422507329707351,
+        "cancer": -0.03640496699679567,
+        "arthritis": 0.09717211130463378
+      },
+      "hypertension": {
+        "diabetes": 0.22336261846457767,
+        "hypertension": 1.0,
+        "heart_disease": 0.16046367695603309,
+        "stroke": 0.10600949227563389,
+        "cancer": 0.005514352964555991,
+        "arthritis": 0.12609049572041328
+      },
+      "heart_disease": {
+        "diabetes": 0.13704092636218623,
+        "hypertension": 0.16046367695603309,
+        "heart_disease": 1.0,
+        "stroke": 0.15177274648041225,
+        "cancer": 0.03728597700733806,
+        "arthritis": 0.040850416279219856
+      },
+      "stroke": {
+        "diabetes": 0.09422507329707351,
+        "hypertension": 0.10600949227563389,
+        "heart_disease": 0.15177274648041225,
+        "stroke": 1.0,
+        "cancer": 0.01423098085466849,
+        "arthritis": 0.04154755332519633
+      },
+      "cancer": {
+        "diabetes": -0.03640496699679567,
+        "hypertension": 0.005514352964555991,
+        "heart_disease": 0.03728597700733806,
+        "stroke": 0.01423098085466849,
+        "cancer": 1.0,
+        "arthritis": 0.06830367798056854
+      },
+      "arthritis": {
+        "diabetes": 0.09717211130463378,
+        "hypertension": 0.12609049572041328,
+        "heart_disease": 0.040850416279219856,
+        "stroke": 0.04154755332519633,
+        "cancer": 0.06830367798056854,
+        "arthritis": 1.0
+      }
+    },
+    "80+": {
+      "diabetes": {
+        "diabetes": 1.0,
+        "hypertension": 0.1858582748554159,
+        "heart_disease": 0.0865859374170222,
+        "stroke": 0.03435238779074312,
+        "cancer": 0.0177488655513471,
+        "arthritis": 0.06629822357429697
+      },
+      "hypertension": {
+        "diabetes": 0.1858582748554159,
+        "hypertension": 1.0,
+        "heart_disease": 0.1456749522347847,
+        "stroke": 0.11277182054213175,
+        "cancer": 0.03748498271131377,
+        "arthritis": 0.1631096236663106
+      },
+      "heart_disease": {
+        "diabetes": 0.0865859374170222,
+        "hypertension": 0.1456749522347847,
+        "heart_disease": 1.0,
+        "stroke": 0.09936223495073522,
+        "cancer": 0.045592221748202315,
+        "arthritis": 0.04797494346256537
+      },
+      "stroke": {
+        "diabetes": 0.03435238779074312,
+        "hypertension": 0.11277182054213175,
+        "heart_disease": 0.09936223495073522,
+        "stroke": 1.0,
+        "cancer": 0.04908849842340314,
+        "arthritis": 0.0965960143271495
+      },
+      "cancer": {
+        "diabetes": 0.0177488655513471,
+        "hypertension": 0.03748498271131377,
+        "heart_disease": 0.045592221748202315,
+        "stroke": 0.04908849842340314,
+        "cancer": 1.0,
+        "arthritis": 0.06343056667630881
+      },
+      "arthritis": {
+        "diabetes": 0.06629822357429697,
+        "hypertension": 0.1631096236663106,
+        "heart_disease": 0.04797494346256537,
+        "stroke": 0.0965960143271495,
+        "cancer": 0.06343056667630881,
+        "arthritis": 1.0
+      }
+    }
+  },
+  "joint_profiles": {
+    "<40": [
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 24280,
+        "probability": 0.8325047145551174
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 2047,
+        "probability": 0.07018686782101835
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 940,
+        "probability": 0.03223041316646665
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 371,
+        "probability": 0.012720726898679924
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 342,
+        "probability": 0.011726384364820847
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 327,
+        "probability": 0.011212069261100634
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 263,
+        "probability": 0.009017658151894394
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 87,
+        "probability": 0.002983027601577233
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 84,
+        "probability": 0.0028801645808331903
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 56,
+        "probability": 0.0019201097205554603
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 48,
+        "probability": 0.0016458083319046803
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 46,
+        "probability": 0.0015772329847419852
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 43,
+        "probability": 0.0014743699639979428
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 41,
+        "probability": 0.0014057946168352477
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 27,
+        "probability": 0.0009257671866963826
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 23,
+        "probability": 0.0007886164923709926
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 22,
+        "probability": 0.0007543288187896451
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 20,
+        "probability": 0.0006857534716269502
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 15,
+        "probability": 0.0005143151037202125
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 9,
+        "probability": 0.00030858906223212756
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 8,
+        "probability": 0.00027430138865078003
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 8,
+        "probability": 0.00027430138865078003
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 7,
+        "probability": 0.00024001371506943253
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 7,
+        "probability": 0.00024001371506943253
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 7,
+        "probability": 0.00024001371506943253
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 5,
+        "probability": 0.00017143836790673754
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 4,
+        "probability": 0.00013715069432539002
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 4,
+        "probability": 0.00013715069432539002
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 3,
+        "probability": 0.00010286302074404252
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 3,
+        "probability": 0.00010286302074404252
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 3,
+        "probability": 0.00010286302074404252
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 3,
+        "probability": 0.00010286302074404252
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 2,
+        "probability": 6.857534716269501e-05
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 2,
+        "probability": 6.857534716269501e-05
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 2,
+        "probability": 6.857534716269501e-05
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 2,
+        "probability": 6.857534716269501e-05
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 1,
+        "probability": 3.4287673581347504e-05
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 1,
+        "probability": 3.4287673581347504e-05
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 1,
+        "probability": 3.4287673581347504e-05
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 1,
+        "probability": 3.4287673581347504e-05
+      }
+    ],
+    "40-50": [
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 7654,
+        "probability": 0.5754887218045113
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 1994,
+        "probability": 0.14992481203007518
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 981,
+        "probability": 0.07375939849624061
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 549,
+        "probability": 0.0412781954887218
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 406,
+        "probability": 0.030526315789473683
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 361,
+        "probability": 0.027142857142857142
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 329,
+        "probability": 0.024736842105263158
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 194,
+        "probability": 0.014586466165413535
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 103,
+        "probability": 0.007744360902255639
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 93,
+        "probability": 0.006992481203007519
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 86,
+        "probability": 0.006466165413533834
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 61,
+        "probability": 0.0045864661654135335
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 57,
+        "probability": 0.004285714285714286
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 52,
+        "probability": 0.003909774436090226
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 37,
+        "probability": 0.0027819548872180452
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 32,
+        "probability": 0.002406015037593985
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 29,
+        "probability": 0.0021804511278195487
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 28,
+        "probability": 0.002105263157894737
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 27,
+        "probability": 0.002030075187969925
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 25,
+        "probability": 0.0018796992481203006
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 23,
+        "probability": 0.0017293233082706766
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 19,
+        "probability": 0.0014285714285714286
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 17,
+        "probability": 0.0012781954887218045
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 17,
+        "probability": 0.0012781954887218045
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 16,
+        "probability": 0.0012030075187969924
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 16,
+        "probability": 0.0012030075187969924
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 15,
+        "probability": 0.0011278195488721805
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 11,
+        "probability": 0.0008270676691729324
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 8,
+        "probability": 0.0006015037593984962
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 8,
+        "probability": 0.0006015037593984962
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 6,
+        "probability": 0.0004511278195488722
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 6,
+        "probability": 0.0004511278195488722
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 6,
+        "probability": 0.0004511278195488722
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 4,
+        "probability": 0.0003007518796992481
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 4,
+        "probability": 0.0003007518796992481
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 4,
+        "probability": 0.0003007518796992481
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 3,
+        "probability": 0.0002255639097744361
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 3,
+        "probability": 0.0002255639097744361
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 2,
+        "probability": 0.00015037593984962405
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 2,
+        "probability": 0.00015037593984962405
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 2,
+        "probability": 0.00015037593984962405
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 2,
+        "probability": 0.00015037593984962405
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 2,
+        "probability": 0.00015037593984962405
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 1,
+        "probability": 7.518796992481203e-05
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 1,
+        "probability": 7.518796992481203e-05
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 1,
+        "probability": 7.518796992481203e-05
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 1,
+        "probability": 7.518796992481203e-05
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 1,
+        "probability": 7.518796992481203e-05
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 1,
+        "probability": 7.518796992481203e-05
+      }
+    ],
+    "50-60": [
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 5275,
+        "probability": 0.35557802494101787
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 2337,
+        "probability": 0.15753286147623863
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 1528,
+        "probability": 0.10299966295921807
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 1258,
+        "probability": 0.08479946073474891
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 693,
+        "probability": 0.04671385237613751
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 542,
+        "probability": 0.036535220761712166
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 524,
+        "probability": 0.03532187394674756
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 356,
+        "probability": 0.023997303673744523
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 271,
+        "probability": 0.018267610380856083
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 242,
+        "probability": 0.01631277384563532
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 215,
+        "probability": 0.014492753623188406
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 182,
+        "probability": 0.012268284462419952
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 116,
+        "probability": 0.007819346140883046
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 106,
+        "probability": 0.007145264577013819
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 102,
+        "probability": 0.006875631951466127
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 99,
+        "probability": 0.006673407482305359
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 97,
+        "probability": 0.006538591169531514
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 80,
+        "probability": 0.005392652510953826
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 77,
+        "probability": 0.005190428041793057
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 66,
+        "probability": 0.004448938321536906
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 57,
+        "probability": 0.0038422649140546004
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 50,
+        "probability": 0.003370407819346141
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 46,
+        "probability": 0.0031007751937984496
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 41,
+        "probability": 0.0027637344118638355
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 40,
+        "probability": 0.002696326255476913
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 39,
+        "probability": 0.0026289180990899897
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 33,
+        "probability": 0.002224469160768453
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 31,
+        "probability": 0.0020896528479946073
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 29,
+        "probability": 0.0019548365352207615
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 27,
+        "probability": 0.001820020222446916
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 25,
+        "probability": 0.0016852039096730705
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 24,
+        "probability": 0.0016177957532861476
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 23,
+        "probability": 0.0015503875968992248
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 21,
+        "probability": 0.0014155712841253793
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 18,
+        "probability": 0.0012133468149646107
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 18,
+        "probability": 0.0012133468149646107
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 15,
+        "probability": 0.0010111223458038423
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 15,
+        "probability": 0.0010111223458038423
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 15,
+        "probability": 0.0010111223458038423
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 14,
+        "probability": 0.0009437141894169194
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 13,
+        "probability": 0.0008763060330299966
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 11,
+        "probability": 0.000741489720256151
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 10,
+        "probability": 0.0006740815638692282
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 9,
+        "probability": 0.0006066734074823053
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 8,
+        "probability": 0.0005392652510953826
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 7,
+        "probability": 0.0004718570947084597
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 6,
+        "probability": 0.0004044489383215369
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 5,
+        "probability": 0.0003370407819346141
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 4,
+        "probability": 0.0002696326255476913
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 4,
+        "probability": 0.0002696326255476913
+      }
+    ],
+    "60-70": [
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 2924,
+        "probability": 0.19419539084811052
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 1970,
+        "probability": 0.13083615594075845
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 1952,
+        "probability": 0.1296406986783556
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 1472,
+        "probability": 0.0977618383476124
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 923,
+        "probability": 0.0613003918443249
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 708,
+        "probability": 0.047021318987846186
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 538,
+        "probability": 0.03573088928737464
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 536,
+        "probability": 0.03559806070266321
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 470,
+        "probability": 0.031214717407186027
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 417,
+        "probability": 0.027694759912333135
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 280,
+        "probability": 0.018596001859600187
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 241,
+        "probability": 0.016005844457727302
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 232,
+        "probability": 0.015408115826525869
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 193,
+        "probability": 0.012817958424652985
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 182,
+        "probability": 0.01208740120874012
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 173,
+        "probability": 0.011489672577538686
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 155,
+        "probability": 0.010294215315135817
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 147,
+        "probability": 0.009762900976290097
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 142,
+        "probability": 0.009430829514511524
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 137,
+        "probability": 0.009098758052732948
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 134,
+        "probability": 0.008899515175665803
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 84,
+        "probability": 0.005578800557880056
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 80,
+        "probability": 0.005313143388457196
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 76,
+        "probability": 0.005047486219034336
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 69,
+        "probability": 0.004582586172544332
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 60,
+        "probability": 0.003984857541342897
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 59,
+        "probability": 0.003918443248987182
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 56,
+        "probability": 0.003719200371920037
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 54,
+        "probability": 0.0035863717872086074
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 50,
+        "probability": 0.0033207146177857477
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 43,
+        "probability": 0.002855814571295743
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 43,
+        "probability": 0.002855814571295743
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 39,
+        "probability": 0.002590157401872883
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 36,
+        "probability": 0.002390914524805738
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 33,
+        "probability": 0.0021916716477385933
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 32,
+        "probability": 0.0021252573553828783
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 32,
+        "probability": 0.0021252573553828783
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 31,
+        "probability": 0.0020588430630271637
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 20,
+        "probability": 0.001328285847114299
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 20,
+        "probability": 0.001328285847114299
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 20,
+        "probability": 0.001328285847114299
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 19,
+        "probability": 0.001261871554758584
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 19,
+        "probability": 0.001261871554758584
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 16,
+        "probability": 0.0010626286776914391
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 15,
+        "probability": 0.0009962143853357243
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 14,
+        "probability": 0.0009298000929800093
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 14,
+        "probability": 0.0009298000929800093
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 14,
+        "probability": 0.0009298000929800093
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 12,
+        "probability": 0.0007969715082685794
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 12,
+        "probability": 0.0007969715082685794
+      }
+    ],
+    "70-80": [
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 1365,
+        "probability": 0.13536295120983738
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 960,
+        "probability": 0.09520031733439112
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 952,
+        "probability": 0.09440698135660452
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 780,
+        "probability": 0.07735025783419278
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 715,
+        "probability": 0.07090440301467671
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 671,
+        "probability": 0.06654105513685045
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 444,
+        "probability": 0.044030146767155894
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 396,
+        "probability": 0.03927013090043634
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 330,
+        "probability": 0.03272510908369695
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 310,
+        "probability": 0.030741769139230463
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 305,
+        "probability": 0.030245934153113843
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 213,
+        "probability": 0.021122570408568027
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 210,
+        "probability": 0.020825069416898056
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 174,
+        "probability": 0.01725505751685839
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 170,
+        "probability": 0.016858389527965093
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 142,
+        "probability": 0.01408171360571202
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 113,
+        "probability": 0.01120587068623562
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 109,
+        "probability": 0.010809202697342325
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 109,
+        "probability": 0.010809202697342325
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 108,
+        "probability": 0.010710035700119
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 106,
+        "probability": 0.010511701705672352
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 102,
+        "probability": 0.010115033716779055
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 91,
+        "probability": 0.00902419674732249
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 85,
+        "probability": 0.008429194763982547
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 81,
+        "probability": 0.00803252677508925
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 75,
+        "probability": 0.007437524791749306
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 74,
+        "probability": 0.007338357794525982
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 55,
+        "probability": 0.005454184847282825
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 54,
+        "probability": 0.0053550178500595
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 50,
+        "probability": 0.004958349861166204
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 49,
+        "probability": 0.00485918286394288
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 48,
+        "probability": 0.004760015866719556
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 48,
+        "probability": 0.004760015866719556
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 46,
+        "probability": 0.004561681872272907
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 46,
+        "probability": 0.004561681872272907
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 45,
+        "probability": 0.004462514875049584
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 44,
+        "probability": 0.00436334787782626
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 43,
+        "probability": 0.004264180880602935
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 36,
+        "probability": 0.0035700119000396666
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 35,
+        "probability": 0.003470844902816343
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 33,
+        "probability": 0.0032725109083696947
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 33,
+        "probability": 0.0032725109083696947
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 32,
+        "probability": 0.0031733439111463705
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 22,
+        "probability": 0.00218167393891313
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 20,
+        "probability": 0.0019833399444664813
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 19,
+        "probability": 0.0018841729472431575
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 19,
+        "probability": 0.0018841729472431575
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 15,
+        "probability": 0.0014875049583498612
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 14,
+        "probability": 0.001388337961126537
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 14,
+        "probability": 0.001388337961126537
+      }
+    ],
+    "80+": [
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 603,
+        "probability": 0.12268565615462869
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 387,
+        "probability": 0.0787385554425229
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 382,
+        "probability": 0.07772126144455747
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 350,
+        "probability": 0.07121057985757884
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 286,
+        "probability": 0.058189216683621564
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 258,
+        "probability": 0.05249237029501526
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 188,
+        "probability": 0.03825025432349949
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 166,
+        "probability": 0.03377416073245168
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 163,
+        "probability": 0.03316378433367243
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 155,
+        "probability": 0.03153611393692777
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 145,
+        "probability": 0.029501525940996948
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 132,
+        "probability": 0.026856561546286878
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 130,
+        "probability": 0.026449643947100712
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 124,
+        "probability": 0.02522889114954222
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 120,
+        "probability": 0.024415055951169887
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 113,
+        "probability": 0.02299084435401831
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 94,
+        "probability": 0.019125127161749744
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 76,
+        "probability": 0.015462868769074262
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 73,
+        "probability": 0.014852492370295015
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 65,
+        "probability": 0.013224821973550356
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 60,
+        "probability": 0.012207527975584944
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 59,
+        "probability": 0.01200406917599186
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 56,
+        "probability": 0.011393692777212614
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 42,
+        "probability": 0.008545269582909461
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 40,
+        "probability": 0.008138351983723296
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 40,
+        "probability": 0.008138351983723296
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 39,
+        "probability": 0.007934893184130213
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 38,
+        "probability": 0.007731434384537131
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 37,
+        "probability": 0.007527975584944049
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 36,
+        "probability": 0.007324516785350966
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 34,
+        "probability": 0.006917599186164801
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 31,
+        "probability": 0.006307222787385555
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 30,
+        "probability": 0.006103763987792472
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 29,
+        "probability": 0.00590030518819939
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 27,
+        "probability": 0.005493387589013225
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 27,
+        "probability": 0.005493387589013225
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 25,
+        "probability": 0.00508646998982706
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 25,
+        "probability": 0.00508646998982706
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 1
+        },
+        "count": 23,
+        "probability": 0.0046795523906408955
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 22,
+        "probability": 0.004476093591047813
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 21,
+        "probability": 0.004272634791454731
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 0,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 20,
+        "probability": 0.004069175991861648
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 18,
+        "probability": 0.003662258392675483
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 15,
+        "probability": 0.003051881993896236
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 15,
+        "probability": 0.003051881993896236
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 0,
+          "cancer": 0,
+          "arthritis": 1
+        },
+        "count": 10,
+        "probability": 0.002034587995930824
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 1,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 9,
+        "probability": 0.0018311291963377416
+      },
+      {
+        "profile": {
+          "diabetes": 1,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 0,
+          "arthritis": 0
+        },
+        "count": 9,
+        "probability": 0.0018311291963377416
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 0,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 9,
+        "probability": 0.0018311291963377416
+      },
+      {
+        "profile": {
+          "diabetes": 0,
+          "hypertension": 0,
+          "heart_disease": 1,
+          "stroke": 1,
+          "cancer": 1,
+          "arthritis": 0
+        },
+        "count": 7,
+        "probability": 0.0014242115971515768
+      }
+    ]
+  }
+}

@@ -5,11 +5,113 @@ Models incident conditions (diabetes, stroke, etc.) that affect quality
 and mortality over the lifetime. Calibrated to MEPS 2019-2022 longitudinal data.
 """
 
+import json
 import numpy as np
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, List, Optional, Literal
 
 from .lifecycle import get_mortality_rate, get_quality_weight, CONDITION_DECREMENTS
+
+
+# Load empirical joint distribution of conditions (from MEPS)
+_JOINT_DIST_CACHE: Optional[dict] = None
+
+
+def _load_joint_distribution() -> dict:
+    """Load the empirical joint distribution of conditions."""
+    global _JOINT_DIST_CACHE
+    if _JOINT_DIST_CACHE is None:
+        data_path = Path(__file__).parent / "data" / "condition_joint_distribution.json"
+        with open(data_path, "r") as f:
+            _JOINT_DIST_CACHE = json.load(f)
+    return _JOINT_DIST_CACHE
+
+
+def _get_age_bin_label(age: int) -> str:
+    """Get the age bin label for a given age."""
+    if age < 40:
+        return "<40"
+    elif age < 50:
+        return "40-50"
+    elif age < 60:
+        return "50-60"
+    elif age < 70:
+        return "60-70"
+    elif age < 80:
+        return "70-80"
+    else:
+        return "80+"
+
+
+def sample_initial_conditions_joint(
+    age: int,
+    rng: np.random.Generator,
+    known_state: Optional[Dict[str, bool]] = None,
+) -> Dict[str, bool]:
+    """
+    Sample initial condition state from empirical joint distribution.
+
+    Uses MEPS-derived profiles to preserve correlations between conditions.
+    For unknown conditions, samples from the joint; for known conditions,
+    filters to compatible profiles.
+
+    Args:
+        age: Current age
+        rng: Random number generator
+        known_state: Dict of condition -> bool for known conditions
+
+    Returns:
+        Dict of all conditions -> bool
+    """
+    joint_dist = _load_joint_distribution()
+    age_bin = _get_age_bin_label(age)
+    profiles = joint_dist["joint_profiles"][age_bin]
+    conditions = joint_dist["conditions"]
+
+    if known_state is None:
+        known_state = {}
+
+    # Filter profiles to those compatible with known state
+    compatible_profiles = []
+    total_prob = 0.0
+
+    for p in profiles:
+        profile = p["profile"]
+        compatible = True
+        for cond, value in known_state.items():
+            if cond in profile and profile[cond] != int(value):
+                compatible = False
+                break
+        if compatible:
+            compatible_profiles.append(p)
+            total_prob += p["probability"]
+
+    if not compatible_profiles:
+        # Fall back to marginal sampling if no compatible profiles
+        # (rare edge case with unusual condition combinations)
+        result = {}
+        marginals = joint_dist["marginal_prevalence"][age_bin]
+        for cond in conditions:
+            if cond in known_state:
+                result[cond] = known_state[cond]
+            else:
+                result[cond] = rng.random() < marginals[cond]
+        return result
+
+    # Sample from compatible profiles (renormalized)
+    probs = np.array([p["probability"] for p in compatible_profiles])
+    probs = probs / probs.sum()  # Renormalize
+
+    idx = rng.choice(len(compatible_profiles), p=probs)
+    selected = compatible_profiles[idx]["profile"]
+
+    # Convert to bool and ensure all known conditions are set
+    result = {cond: bool(selected.get(cond, 0)) for cond in conditions}
+    for cond, value in known_state.items():
+        result[cond] = value
+
+    return result
 
 
 # Condition incidence rates by age group (from MEPS 2019-2022 longitudinal analysis)
@@ -506,11 +608,12 @@ def simulate_with_state_uncertainty(
     discount_rate: float = 0.03,
     random_state: Optional[int] = None,
     known_state: Optional[Dict[str, bool]] = None,
+    use_joint_distribution: bool = True,
 ) -> Dict:
     """
     Simulate lifetime QALYs with proper state uncertainty.
 
-    For CONDITIONS NOT SPECIFIED by user: sample from age-specific prevalence
+    For CONDITIONS NOT SPECIFIED by user: sample from empirical joint distribution
     For CONDITIONS SPECIFIED by user: use the known value (True/False)
 
     This models what happens when user enters partial profile info:
@@ -525,7 +628,10 @@ def simulate_with_state_uncertainty(
         random_state: Random seed
         known_state: Dict of condition -> bool for KNOWN conditions
                     e.g. {"diabetes": False, "hypertension": True}
-                    Conditions not in dict are sampled from prevalence
+                    Conditions not in dict are sampled from joint distribution
+        use_joint_distribution: If True, sample from empirical joint distribution
+                               preserving condition correlations. If False, use
+                               independent marginal sampling.
 
     Returns:
         Dict with distribution statistics showing how variance changes
@@ -550,18 +656,23 @@ def simulate_with_state_uncertainty(
         # Draw individual frailty (mortality multiplier)
         frailty = np.exp(rng.normal(0, effective_frailty_std))
 
+        # Sample initial conditions from joint distribution (preserves correlations)
+        if use_joint_distribution:
+            initial_conds = sample_initial_conditions_joint(start_age, rng, known_state)
+        else:
+            # Fall back to independent sampling
+            initial_conds = {}
+            for cond in all_conditions:
+                if cond in known_state:
+                    initial_conds[cond] = known_state[cond]
+                else:
+                    prevalence = get_prevalence(cond, start_age)
+                    initial_conds[cond] = rng.random() < prevalence
+
         # Set up initial health state
         state = HealthState()
-
-        # For KNOWN conditions, use the known value
-        for cond, has_it in known_state.items():
+        for cond, has_it in initial_conds.items():
             setattr(state, cond, has_it)
-
-        # For UNKNOWN conditions, sample from prevalence
-        for cond in unknown_conditions:
-            prevalence = get_prevalence(cond, start_age)
-            if rng.random() < prevalence:
-                setattr(state, cond, True)
 
         qalys = 0.0
         life_years = 0.0
