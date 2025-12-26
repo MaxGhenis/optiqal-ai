@@ -1,63 +1,32 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { StructuredResultCard } from "@/components/analyze/structured-result-card";
-import { ComparisonResultCard } from "@/components/analyze/comparison-result-card";
 import { BaselineCard } from "@/components/analyze/baseline-card";
-import { CacheInfo } from "@/components/analyze/cache-info";
 import { InterventionComparison } from "@/components/InterventionComparison";
 import { CombinationCalculator } from "@/components/CombinationCalculator";
 import { PortfolioOptimizer } from "@/components/PortfolioOptimizer";
-import { PersonalizedResults } from "@/components/PersonalizedResults";
-import {
-  analyzeStructured,
-  analyzeComparison,
-  isComparisonQuery,
-  type StructuredAnalysisResult,
-  type ComparisonAnalysisResult,
-} from "@/lib/analyze-structured";
-import { matchInterventionId } from "@/lib/qaly/intervention-matcher";
 import type { UserProfile } from "@/types";
 import { DEFAULT_PROFILE } from "@/types";
 import {
   Activity,
-  Key,
   User,
-  Sparkles,
   Loader2,
-  AlertCircle,
   ArrowLeft,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
 
 function AnalyzePageContent() {
-  const searchParams = useSearchParams();
-  const initialQuery = searchParams.get("q") || "";
 
-  const [apiKey, setApiKey] = useState(
-    process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY || ""
-  );
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
-  const [choice, setChoice] = useState(initialQuery);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<StructuredAnalysisResult | null>(null);
-  const [comparisonResult, setComparisonResult] = useState<ComparisonAnalysisResult | null>(null);
   const [showProfile, setShowProfile] = useState(false);
   const [useImperial, setUseImperial] = useState(true); // Default to imperial for US users
-  const [matchedIntervention, setMatchedIntervention] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
 
   // Unit conversion helpers
   const cmToFeetInches = (cm: number) => {
@@ -76,9 +45,6 @@ function AnalyzePageContent() {
 
   // Load from localStorage
   useEffect(() => {
-    const storedKey = localStorage.getItem("optiqal-api-key");
-    if (storedKey) setApiKey(storedKey);
-
     const storedProfile = localStorage.getItem("optiqal-profile");
     if (storedProfile) {
       try {
@@ -92,13 +58,6 @@ function AnalyzePageContent() {
     if (storedUnits) setUseImperial(storedUnits === "imperial");
   }, []);
 
-  // Save to localStorage
-  useEffect(() => {
-    if (apiKey) {
-      localStorage.setItem("optiqal-api-key", apiKey);
-    }
-  }, [apiKey]);
-
   useEffect(() => {
     localStorage.setItem("optiqal-profile", JSON.stringify(profile));
   }, [profile]);
@@ -106,44 +65,6 @@ function AnalyzePageContent() {
   useEffect(() => {
     localStorage.setItem("optiqal-units", useImperial ? "imperial" : "metric");
   }, [useImperial]);
-
-  const handleAnalyze = async () => {
-    if (!apiKey) {
-      setError("Please enter your Anthropic API key first");
-      return;
-    }
-    if (!choice.trim()) {
-      setError("Please enter a lifestyle choice to analyze");
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    setResult(null);
-    setComparisonResult(null);
-    setMatchedIntervention(null);
-
-    try {
-      // Check for precomputed intervention match
-      const matched = matchInterventionId(choice);
-      if (matched) {
-        setMatchedIntervention(matched);
-      }
-
-      // Check if this is a comparison query (A vs B)
-      if (isComparisonQuery(choice)) {
-        const response = await analyzeComparison(profile, choice, apiKey);
-        setComparisonResult(response);
-      } else {
-        const response = await analyzeStructured(profile, choice, apiKey);
-        setResult(response);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const updateProfile = (key: keyof UserProfile, value: unknown) => {
     setProfile((prev) => ({ ...prev, [key]: value }));
@@ -179,42 +100,12 @@ function AnalyzePageContent() {
           {/* Title */}
           <div className="text-center space-y-2">
             <h1 className="font-serif text-3xl md:text-4xl font-medium">
-              Analyze a lifestyle choice
+              Your healthspan prediction
             </h1>
             <p className="text-muted-foreground">
-              Get an AI-powered QALY estimate based on the best available
-              evidence
+              Personalized estimates based on your profile and peer-reviewed research
             </p>
           </div>
-
-          {/* API Key */}
-          <Card className="mesh-gradient-card border-border/50">
-            <CardContent className="p-6">
-              <div className="flex items-start gap-4">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Key className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1 space-y-3">
-                  <div>
-                    <Label htmlFor="apiKey" className="text-sm font-medium">
-                      Anthropic API Key
-                    </Label>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Stored in your browser only — calls go directly to Anthropic, not our servers
-                    </p>
-                  </div>
-                  <Input
-                    id="apiKey"
-                    type="password"
-                    placeholder="sk-ant-..."
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    className="font-mono text-sm"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Profile */}
           <Card className="mesh-gradient-card border-border/50">
@@ -498,76 +389,11 @@ function AnalyzePageContent() {
           {/* Combination Calculator */}
           <CombinationCalculator profile={profile} />
 
-          {/* Choice Input */}
-          <Card className="mesh-gradient-card border-border/50 card-highlight">
-            <CardContent className="p-6 space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="choice" className="text-sm font-medium">
-                  What lifestyle change are you considering?
-                </Label>
-                <Textarea
-                  id="choice"
-                  placeholder="e.g., Add 30 minutes of walking daily, switch to a standing desk, cut out alcohol..."
-                  value={choice}
-                  onChange={(e) => setChoice(e.target.value)}
-                  className="min-h-[100px] text-base"
-                />
-              </div>
-
-              <Button
-                onClick={handleAnalyze}
-                disabled={isLoading || !apiKey || !choice.trim()}
-                className="w-full btn-glow bg-primary text-primary-foreground hover:bg-primary/90 h-12"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Analyzing...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Analyze QALY Impact
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Error */}
-          {error && (
-            <Card className="border-destructive/50 bg-destructive/5">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3 text-destructive">
-                  <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                  <p className="text-sm">{error}</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Cache Info */}
-          <CacheInfo />
-
-          {/* Personalized Profile-Based Results */}
-          {matchedIntervention && (
-            <PersonalizedResults
-              profile={profile}
-              interventionId={matchedIntervention.id}
-              interventionName={matchedIntervention.name}
-            />
-          )}
-
-          {/* AI-Generated Results */}
-          {result && <StructuredResultCard result={result} />}
-          {comparisonResult && <ComparisonResultCard result={comparisonResult} />}
-
           {/* Disclaimer */}
           <p className="text-xs text-muted-foreground text-center max-w-2xl mx-auto">
-            Your data is not stored on our servers — API calls go directly to Anthropic.
-            Estimates are based on peer-reviewed research but involve significant uncertainty
-            and should not be considered medical advice. Always consult healthcare
-            professionals for medical decisions.
+            Statistical predictions based on hazard ratios from peer-reviewed research.
+            Prediction intervals reflect uncertainty in the underlying studies.
+            Not medical advice—consult a healthcare professional for health decisions.
           </p>
         </div>
       </main>
