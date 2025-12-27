@@ -229,7 +229,7 @@ export default function PredictPage() {
                         borderRadius: "8px",
                         fontSize: "12px",
                       }}
-                      formatter={(value: number) => [`${value}%`, "Survival probability"]}
+                      formatter={(value) => [`${value}%`, "Survival probability"]}
                       labelFormatter={(age) => `Age ${age}`}
                     />
                     <Line
