@@ -155,84 +155,10 @@ export async function getPrecomputedBaselineForProfile(
 }
 
 /**
- * Get baseline for a specific sex with age interpolation.
- */
-async function getBaselineForSex(
-  data: PrecomputedData,
-  age: number,
-  sex: string,
-  bmiCategory: BMICategory,
-  smokingStatus: SmokingStatus,
-  hasDiabetes: boolean,
-  hasHypertension: boolean,
-  activityLevel: ActivityLevel
-): Promise<{
-  lifeYearsMedian: number;
-  lifeYearsP5: number;
-  lifeYearsP95: number;
-  qalysMedian: number;
-} | null> {
-  // Find bracketing ages
-  const lowerAge = AGES.filter((a) => a <= age).pop() ?? AGES[0];
-  const upperAge = AGES.find((a) => a > age) ?? AGES[AGES.length - 1];
-
-  const lowerKey = buildProfileKey(
-    lowerAge,
-    sex,
-    bmiCategory,
-    smokingStatus,
-    hasDiabetes,
-    hasHypertension,
-    activityLevel
-  );
-  const upperKey = buildProfileKey(
-    upperAge,
-    sex,
-    bmiCategory,
-    smokingStatus,
-    hasDiabetes,
-    hasHypertension,
-    activityLevel
-  );
-
-  const lowerResult = data.results[lowerKey];
-  const upperResult = data.results[upperKey];
-
-  if (!lowerResult) return null;
-
-  // If exact match or no upper bound, return lower
-  if (lowerAge === age || lowerAge === upperAge || !upperResult) {
-    return {
-      lifeYearsMedian: lowerResult.life_years_median,
-      lifeYearsP5: lowerResult.life_years_p5,
-      lifeYearsP95: lowerResult.life_years_p95,
-      qalysMedian: lowerResult.qalys_median,
-    };
-  }
-
-  // Linear interpolation
-  const t = (age - lowerAge) / (upperAge - lowerAge);
-
-  return {
-    lifeYearsMedian:
-      lowerResult.life_years_median * (1 - t) +
-      upperResult.life_years_median * t,
-    lifeYearsP5:
-      lowerResult.life_years_p5 * (1 - t) + upperResult.life_years_p5 * t,
-    lifeYearsP95:
-      lowerResult.life_years_p95 * (1 - t) + upperResult.life_years_p95 * t,
-    qalysMedian:
-      lowerResult.qalys_median * (1 - t) + upperResult.qalys_median * t,
-  };
-}
-
-/**
- * Get baseline prediction with interpolation for non-grid ages.
+ * Get baseline prediction by averaging across ALL matching profiles.
  *
- * For ages between grid points, linearly interpolates between
- * the two nearest grid ages.
- *
- * When sex is not specified, averages male and female predictions.
+ * When a field is unknown, we average across all possible values for that field.
+ * This properly narrows the prediction as more information is provided.
  */
 export async function getInterpolatedBaseline(
   profile: PartialProfile
@@ -246,61 +172,96 @@ export async function getInterpolatedBaseline(
   const data = await loadPrecomputedBaselines();
 
   const age = profile.age;
-  const bmiCategory = getBMICategory(profile.weight, profile.height);
-  const smokingStatus = getSmokingStatus(profile.smoker);
-  const hasDiabetes = profile.hasDiabetes ?? false;
-  const hasHypertension = profile.hasHypertension ?? false;
-  const activityLevel = getActivityLevel(profile.exerciseHoursPerWeek);
 
-  // If sex is specified, get result for that sex
-  if (profile.sex && profile.sex !== "other") {
-    const result = await getBaselineForSex(
-      data,
-      age,
-      profile.sex,
-      bmiCategory,
-      smokingStatus,
-      hasDiabetes,
-      hasHypertension,
-      activityLevel
-    );
-    return result ? { ...result, interpolated: true } : null;
+  // Determine which values to iterate over for each field
+  // If specified, use that value; if not, iterate over all possibilities
+  const sexes = profile.sex && profile.sex !== "other"
+    ? [profile.sex]
+    : ["male", "female"];
+
+  const bmiCategories = (profile.weight !== undefined && profile.height !== undefined)
+    ? [getBMICategory(profile.weight, profile.height)]
+    : [...BMI_CATEGORIES];
+
+  const smokingStatuses = profile.smoker !== undefined
+    ? [profile.smoker ? "current" : "never"] as SmokingStatus[]
+    : [...SMOKING_STATUSES];
+
+  const diabetesValues = profile.hasDiabetes !== undefined
+    ? [profile.hasDiabetes]
+    : [false, true];
+
+  const hypertensionValues = profile.hasHypertension !== undefined
+    ? [profile.hasHypertension]
+    : [false, true];
+
+  const activityLevels = profile.exerciseHoursPerWeek !== undefined
+    ? [getActivityLevel(profile.exerciseHoursPerWeek)]
+    : [...ACTIVITY_LEVELS];
+
+  // Find bracketing ages for interpolation
+  const lowerAge = AGES.filter((a) => a <= age).pop() ?? AGES[0];
+  const upperAge = AGES.find((a) => a > age) ?? AGES[AGES.length - 1];
+  const ageT = lowerAge === upperAge ? 0 : (age - lowerAge) / (upperAge - lowerAge);
+
+  // Collect all matching profiles and average them
+  let totalLifeYearsMedian = 0;
+  let totalLifeYearsP5 = 0;
+  let totalLifeYearsP95 = 0;
+  let totalQalysMedian = 0;
+  let count = 0;
+
+  for (const sex of sexes) {
+    for (const bmi of bmiCategories) {
+      for (const smoking of smokingStatuses) {
+        for (const diabetes of diabetesValues) {
+          for (const hypertension of hypertensionValues) {
+            for (const activity of activityLevels) {
+              const lowerKey = buildProfileKey(
+                lowerAge, sex, bmi, smoking, diabetes, hypertension, activity
+              );
+              const upperKey = buildProfileKey(
+                upperAge, sex, bmi, smoking, diabetes, hypertension, activity
+              );
+
+              const lowerResult = data.results[lowerKey];
+              const upperResult = data.results[upperKey];
+
+              if (lowerResult) {
+                // Interpolate between ages if we have both
+                const lifeYearsMedian = upperResult && lowerAge !== upperAge
+                  ? lowerResult.life_years_median * (1 - ageT) + upperResult.life_years_median * ageT
+                  : lowerResult.life_years_median;
+                const lifeYearsP5 = upperResult && lowerAge !== upperAge
+                  ? lowerResult.life_years_p5 * (1 - ageT) + upperResult.life_years_p5 * ageT
+                  : lowerResult.life_years_p5;
+                const lifeYearsP95 = upperResult && lowerAge !== upperAge
+                  ? lowerResult.life_years_p95 * (1 - ageT) + upperResult.life_years_p95 * ageT
+                  : lowerResult.life_years_p95;
+                const qalysMedian = upperResult && lowerAge !== upperAge
+                  ? lowerResult.qalys_median * (1 - ageT) + upperResult.qalys_median * ageT
+                  : lowerResult.qalys_median;
+
+                totalLifeYearsMedian += lifeYearsMedian;
+                totalLifeYearsP5 += lifeYearsP5;
+                totalLifeYearsP95 += lifeYearsP95;
+                totalQalysMedian += qalysMedian;
+                count++;
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
-  // Sex not specified - average male and female (50/50)
-  const maleResult = await getBaselineForSex(
-    data,
-    age,
-    "male",
-    bmiCategory,
-    smokingStatus,
-    hasDiabetes,
-    hasHypertension,
-    activityLevel
-  );
-  const femaleResult = await getBaselineForSex(
-    data,
-    age,
-    "female",
-    bmiCategory,
-    smokingStatus,
-    hasDiabetes,
-    hasHypertension,
-    activityLevel
-  );
+  if (count === 0) return null;
 
-  if (!maleResult || !femaleResult) {
-    return maleResult || femaleResult
-      ? { ...(maleResult || femaleResult)!, interpolated: true }
-      : null;
-  }
-
-  // Average male and female predictions
   return {
-    lifeYearsMedian: (maleResult.lifeYearsMedian + femaleResult.lifeYearsMedian) / 2,
-    lifeYearsP5: (maleResult.lifeYearsP5 + femaleResult.lifeYearsP5) / 2,
-    lifeYearsP95: (maleResult.lifeYearsP95 + femaleResult.lifeYearsP95) / 2,
-    qalysMedian: (maleResult.qalysMedian + femaleResult.qalysMedian) / 2,
+    lifeYearsMedian: totalLifeYearsMedian / count,
+    lifeYearsP5: totalLifeYearsP5 / count,
+    lifeYearsP95: totalLifeYearsP95 / count,
+    qalysMedian: totalQalysMedian / count,
     interpolated: true,
   };
 }
