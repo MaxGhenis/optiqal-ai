@@ -155,30 +155,23 @@ export async function getPrecomputedBaselineForProfile(
 }
 
 /**
- * Get baseline prediction with interpolation for non-grid ages.
- *
- * For ages between grid points, linearly interpolates between
- * the two nearest grid ages.
+ * Get baseline for a specific sex with age interpolation.
  */
-export async function getInterpolatedBaseline(
-  profile: PartialProfile
+async function getBaselineForSex(
+  data: PrecomputedData,
+  age: number,
+  sex: string,
+  bmiCategory: BMICategory,
+  smokingStatus: SmokingStatus,
+  hasDiabetes: boolean,
+  hasHypertension: boolean,
+  activityLevel: ActivityLevel
 ): Promise<{
   lifeYearsMedian: number;
   lifeYearsP5: number;
   lifeYearsP95: number;
   qalysMedian: number;
-  interpolated: boolean;
 } | null> {
-  const data = await loadPrecomputedBaselines();
-
-  const age = profile.age;
-  const sex = profile.sex || "male";
-  const bmiCategory = getBMICategory(profile.weight, profile.height);
-  const smokingStatus = getSmokingStatus(profile.smoker);
-  const hasDiabetes = profile.hasDiabetes ?? false;
-  const hasHypertension = profile.hasHypertension ?? false;
-  const activityLevel = getActivityLevel(profile.exerciseHoursPerWeek);
-
   // Find bracketing ages
   const lowerAge = AGES.filter((a) => a <= age).pop() ?? AGES[0];
   const upperAge = AGES.find((a) => a > age) ?? AGES[AGES.length - 1];
@@ -214,7 +207,6 @@ export async function getInterpolatedBaseline(
       lifeYearsP5: lowerResult.life_years_p5,
       lifeYearsP95: lowerResult.life_years_p95,
       qalysMedian: lowerResult.qalys_median,
-      interpolated: false,
     };
   }
 
@@ -231,6 +223,84 @@ export async function getInterpolatedBaseline(
       lowerResult.life_years_p95 * (1 - t) + upperResult.life_years_p95 * t,
     qalysMedian:
       lowerResult.qalys_median * (1 - t) + upperResult.qalys_median * t,
+  };
+}
+
+/**
+ * Get baseline prediction with interpolation for non-grid ages.
+ *
+ * For ages between grid points, linearly interpolates between
+ * the two nearest grid ages.
+ *
+ * When sex is not specified, averages male and female predictions.
+ */
+export async function getInterpolatedBaseline(
+  profile: PartialProfile
+): Promise<{
+  lifeYearsMedian: number;
+  lifeYearsP5: number;
+  lifeYearsP95: number;
+  qalysMedian: number;
+  interpolated: boolean;
+} | null> {
+  const data = await loadPrecomputedBaselines();
+
+  const age = profile.age;
+  const bmiCategory = getBMICategory(profile.weight, profile.height);
+  const smokingStatus = getSmokingStatus(profile.smoker);
+  const hasDiabetes = profile.hasDiabetes ?? false;
+  const hasHypertension = profile.hasHypertension ?? false;
+  const activityLevel = getActivityLevel(profile.exerciseHoursPerWeek);
+
+  // If sex is specified, get result for that sex
+  if (profile.sex && profile.sex !== "other") {
+    const result = await getBaselineForSex(
+      data,
+      age,
+      profile.sex,
+      bmiCategory,
+      smokingStatus,
+      hasDiabetes,
+      hasHypertension,
+      activityLevel
+    );
+    return result ? { ...result, interpolated: true } : null;
+  }
+
+  // Sex not specified - average male and female (50/50)
+  const maleResult = await getBaselineForSex(
+    data,
+    age,
+    "male",
+    bmiCategory,
+    smokingStatus,
+    hasDiabetes,
+    hasHypertension,
+    activityLevel
+  );
+  const femaleResult = await getBaselineForSex(
+    data,
+    age,
+    "female",
+    bmiCategory,
+    smokingStatus,
+    hasDiabetes,
+    hasHypertension,
+    activityLevel
+  );
+
+  if (!maleResult || !femaleResult) {
+    return maleResult || femaleResult
+      ? { ...(maleResult || femaleResult)!, interpolated: true }
+      : null;
+  }
+
+  // Average male and female predictions
+  return {
+    lifeYearsMedian: (maleResult.lifeYearsMedian + femaleResult.lifeYearsMedian) / 2,
+    lifeYearsP5: (maleResult.lifeYearsP5 + femaleResult.lifeYearsP5) / 2,
+    lifeYearsP95: (maleResult.lifeYearsP95 + femaleResult.lifeYearsP95) / 2,
+    qalysMedian: (maleResult.qalysMedian + femaleResult.qalysMedian) / 2,
     interpolated: true,
   };
 }
