@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { getLabels } from "@/lib/config";
 import {
   Activity,
   Check,
@@ -12,8 +11,6 @@ import {
   Sparkles,
   Zap,
 } from "lucide-react";
-
-const labels = getLabels();
 
 function LifeMeter() {
   return (
@@ -78,9 +75,9 @@ function LifeMeter() {
             35-year-old female
           </p>
           <p className="text-4xl font-serif font-semibold gradient-text text-glow">
-            48.2 ± 4.1
+            42 years
           </p>
-          <p className="text-sm text-muted-foreground">{labels.shortUnit} remaining</p>
+          <p className="text-sm text-muted-foreground">life expectancy remaining</p>
         </div>
       </div>
     </div>
@@ -173,7 +170,7 @@ export default function Home() {
               <h1 className="font-serif text-5xl md:text-6xl lg:text-7xl font-medium leading-[1.1] tracking-tight">
                 Predict your
                 <br />
-                <span className="gradient-text">healthspan</span>
+                <span className="gradient-text">life expectancy</span>
               </h1>
 
               <p className="text-lg text-muted-foreground max-w-lg leading-relaxed">
@@ -233,9 +230,9 @@ export default function Home() {
                 </p>
                 <div className="space-y-2">
                   <div className="text-6xl font-serif font-semibold gradient-text text-glow">
-                    31.4 years
+                    25 years
                   </div>
-                  <p className="text-muted-foreground">90% prediction interval: 24–39 years</p>
+                  <p className="text-muted-foreground">90% prediction interval: 7–39 years</p>
                 </div>
 
                 <div className="flex justify-center gap-12 pt-6 border-t border-border/50">
@@ -252,7 +249,7 @@ export default function Home() {
                       Uncertainty
                     </p>
                     <p className="text-2xl font-semibold text-accent">
-                      ±7.5 years
+                      ±16 years
                     </p>
                   </div>
                 </div>
@@ -431,7 +428,7 @@ export default function Home() {
             <h2 className="font-serif text-4xl md:text-5xl lg:text-6xl font-medium leading-tight">
               Ready to predict
               <br />
-              <span className="gradient-text">your healthspan?</span>
+              <span className="gradient-text">your life expectancy?</span>
             </h2>
             <p className="text-lg text-muted-foreground max-w-md mx-auto">
               See how lifestyle factors affect your life expectancy based on
