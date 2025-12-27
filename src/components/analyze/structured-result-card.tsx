@@ -10,6 +10,7 @@ import {
   type MechanismQualityBreakdown,
 } from "@/lib/qaly";
 import type { MechanismEffect } from "@/lib/qaly/types";
+import { FEATURES, getLabels } from "@/lib/config";
 import { Card, CardContent } from "@/components/ui/card";
 import { ShareButtons } from "./share-buttons";
 import { ProfileVisualizations } from "@/components/ProfileVisualizations";
@@ -407,6 +408,7 @@ export function StructuredResultCard({ result }: StructuredResultCardProps) {
 
   const { summary, simulation, affectedMechanisms, evidence, baseline, source } = result;
   const isPositive = summary.totalQALYs.median >= 0;
+  const labels = getLabels();
 
   // Convert affectedMechanisms to MechanismEffect[] for breakdown calculation
   const mechanismEffects: MechanismEffect[] = affectedMechanisms.map((m) => ({
@@ -442,7 +444,7 @@ export function StructuredResultCard({ result }: StructuredResultCardProps) {
         {/* Main Impact */}
         <div className="text-center space-y-3">
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-            Estimated QALY Impact
+            Estimated {labels.mainMetric}
           </p>
           <div
             className={`text-5xl md:text-6xl font-serif font-semibold ${
@@ -452,7 +454,7 @@ export function StructuredResultCard({ result }: StructuredResultCardProps) {
             {formatQALYs(summary.totalQALYs.median)}
           </div>
           <p className="text-sm text-muted-foreground">
-            of quality-adjusted life
+            {labels.mainMetricUnit}
           </p>
           <ConfidenceBadge level={summary.confidenceLevel} />
         </div>
@@ -492,7 +494,7 @@ export function StructuredResultCard({ result }: StructuredResultCardProps) {
           <div className="bg-muted/20 rounded-xl p-5 border border-border/30">
             <ProbabilityBar
               probability={simulation.probMoreThanOneYear}
-              label="P(> 1 year QALY gain)"
+              label={labels.probabilityLabel}
             />
           </div>
         </div>
@@ -536,7 +538,7 @@ export function StructuredResultCard({ result }: StructuredResultCardProps) {
         )}
 
         {/* Breakdown */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className={FEATURES.SHOW_QUALITY_ADJUSTMENTS ? "grid grid-cols-2 gap-4" : ""}>
           <div className="bg-muted/20 rounded-xl p-5 border border-border/30 hover-lift">
             <div className="flex items-center gap-2 text-primary mb-3">
               <Clock className="w-4 h-4" />
@@ -565,34 +567,36 @@ export function StructuredResultCard({ result }: StructuredResultCardProps) {
               />
             )}
           </div>
-          <div className="bg-muted/20 rounded-xl p-5 border border-border/30 hover-lift">
-            <div className="flex items-center gap-2 text-accent mb-3">
-              <Heart className="w-4 h-4" />
-              <span className="text-sm font-medium">Quality</span>
+          {FEATURES.SHOW_QUALITY_ADJUSTMENTS && (
+            <div className="bg-muted/20 rounded-xl p-5 border border-border/30 hover-lift">
+              <div className="flex items-center gap-2 text-accent mb-3">
+                <Heart className="w-4 h-4" />
+                <span className="text-sm font-medium">Quality</span>
+              </div>
+              <p
+                className={`text-2xl font-semibold ${
+                  simulation.breakdown.qualityQALYs.median >= 0
+                    ? "text-accent"
+                    : "text-destructive"
+                }`}
+              >
+                {formatQALYs(simulation.breakdown.qualityQALYs.median)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Quality improvement
+              </p>
+              {qualityBreakdown && qualityBreakdown.breakdown.length > 0 && (
+                <MechanismBreakdownPanel
+                  title="By Mechanism"
+                  icon={<Activity className="w-3 h-3" />}
+                  iconColor="text-accent/70"
+                  breakdown={qualityBreakdown.breakdown}
+                  isLongevity={false}
+                  baselineLE={baseline.remainingLifeExpectancy}
+                />
+              )}
             </div>
-            <p
-              className={`text-2xl font-semibold ${
-                simulation.breakdown.qualityQALYs.median >= 0
-                  ? "text-accent"
-                  : "text-destructive"
-              }`}
-            >
-              {formatQALYs(simulation.breakdown.qualityQALYs.median)}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Quality improvement
-            </p>
-            {qualityBreakdown && qualityBreakdown.breakdown.length > 0 && (
-              <MechanismBreakdownPanel
-                title="By Mechanism"
-                icon={<Activity className="w-3 h-3" />}
-                iconColor="text-accent/70"
-                breakdown={qualityBreakdown.breakdown}
-                isLongevity={false}
-                baselineLE={baseline.remainingLifeExpectancy}
-              />
-            )}
-          </div>
+          )}
         </div>
 
         {/* Baseline context */}
@@ -602,8 +606,11 @@ export function StructuredResultCard({ result }: StructuredResultCardProps) {
             <span className="text-sm font-medium">Your Baseline</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            {baseline.remainingLifeExpectancy.toFixed(1)} years remaining life expectancy,{" "}
-            {baseline.remainingQALYs.toFixed(1)} QALYs. This intervention would change your QALYs by{" "}
+            {baseline.remainingLifeExpectancy.toFixed(1)} years remaining life expectancy
+            {FEATURES.SHOW_QUALITY_ADJUSTMENTS && (
+              <>, {baseline.remainingQALYs.toFixed(1)} QALYs</>
+            )}
+            . This intervention would change your {labels.shortUnit} by{" "}
             {((summary.totalQALYs.median / baseline.remainingQALYs) * 100).toFixed(2)}%.
           </p>
         </div>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { FEATURES, getLabels } from "@/lib/config";
 import {
   Activity,
   Check,
@@ -13,6 +14,8 @@ import {
   Sparkles,
   Zap,
 } from "lucide-react";
+
+const labels = getLabels();
 
 function LifeMeter() {
   return (
@@ -79,7 +82,7 @@ function LifeMeter() {
           <p className="text-4xl font-serif font-semibold gradient-text text-glow">
             +1.8 to +2.8
           </p>
-          <p className="text-sm text-muted-foreground">quality-adjusted years</p>
+          <p className="text-sm text-muted-foreground">additional {labels.shortUnit}</p>
         </div>
       </div>
     </div>
@@ -166,7 +169,7 @@ export default function Home() {
             <div className="space-y-8 opacity-0 animate-slide-up">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/30 bg-primary/5 text-primary text-sm font-medium">
                 <Zap className="h-3.5 w-3.5" />
-                AI-powered QALY estimation
+                AI-powered life expectancy prediction
               </div>
 
               <h1 className="font-serif text-5xl md:text-6xl lg:text-7xl font-medium leading-[1.1] tracking-tight">
@@ -234,10 +237,10 @@ export default function Home() {
                   <div className="text-6xl font-serif font-semibold gradient-text text-glow">
                     +2 years, 3 months
                   </div>
-                  <p className="text-muted-foreground">of quality-adjusted life</p>
+                  <p className="text-muted-foreground">{labels.mainMetricUnit}</p>
                 </div>
 
-                <div className="flex justify-center gap-12 pt-6 border-t border-border/50">
+                <div className={`flex justify-center ${FEATURES.SHOW_QUALITY_ADJUSTMENTS ? "gap-12" : ""} pt-6 border-t border-border/50`}>
                   <div className="text-center group">
                     <div className="flex items-center justify-center gap-2 text-muted-foreground mb-2">
                       <Clock className="h-4 w-4 group-hover:text-primary transition-colors" />
@@ -249,17 +252,19 @@ export default function Home() {
                       +1.8 years
                     </p>
                   </div>
-                  <div className="text-center group">
-                    <div className="flex items-center justify-center gap-2 text-muted-foreground mb-2">
-                      <Heart className="h-4 w-4 group-hover:text-accent transition-colors" />
-                      <span className="text-xs uppercase tracking-wider">
-                        Quality
-                      </span>
+                  {FEATURES.SHOW_QUALITY_ADJUSTMENTS && (
+                    <div className="text-center group">
+                      <div className="flex items-center justify-center gap-2 text-muted-foreground mb-2">
+                        <Heart className="h-4 w-4 group-hover:text-accent transition-colors" />
+                        <span className="text-xs uppercase tracking-wider">
+                          Quality
+                        </span>
+                      </div>
+                      <p className="text-2xl font-semibold text-accent">
+                        +0.5 years
+                      </p>
                     </div>
-                    <p className="text-2xl font-semibold text-accent">
-                      +0.5 years
-                    </p>
-                  </div>
+                  )}
                 </div>
 
                 <div className="pt-4">
@@ -306,7 +311,7 @@ export default function Home() {
                 icon: TrendingUp,
                 title: "See the estimates",
                 description:
-                  "View life expectancy and QALY projections based on your profile—with uncertainty ranges.",
+                  "View life expectancy projections based on your profile—with uncertainty ranges.",
                 delay: "delay-300",
               },
             ].map((step, index) => (
@@ -354,8 +359,8 @@ export default function Home() {
 
           <div className="grid md:grid-cols-2 gap-4 max-w-4xl mx-auto">
             {[
-              "Results in hours, days, or weeks—not abstract QALY fractions",
-              "Separate longevity vs. quality-of-life breakdowns",
+              "Results in hours, days, or weeks—not abstract fractions",
+              ...(FEATURES.SHOW_QUALITY_ADJUSTMENTS ? ["Separate longevity vs. quality-of-life breakdowns"] : []),
               "Prediction intervals reflecting evidence strength",
               "Personalized to your age, health conditions, and lifestyle",
               "Citations to specific studies and meta-analyses",
