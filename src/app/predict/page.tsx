@@ -474,12 +474,12 @@ export default function PredictPage() {
       {showStickyPrediction && intervalDisplay && (
         <div className="fixed top-14 left-0 right-0 z-40 px-6 py-2 bg-card/90 backdrop-blur-lg border-b border-border/30 animate-in slide-in-from-top-2 duration-200">
           <div className="max-w-7xl mx-auto flex items-center justify-center gap-4">
-            <span className="text-sm text-muted-foreground">Remaining life:</span>
+            <span className="text-sm text-muted-foreground">Life expectancy:</span>
             <span className="text-xl font-medium text-primary">
-              {intervalDisplay.mid.toFixed(1)} years
+              {Math.round(profile.age! + intervalDisplay.mid)} years old
             </span>
             <span className="text-xs text-muted-foreground">
-              ({intervalDisplay.low.toFixed(0)} - {intervalDisplay.high.toFixed(0)})
+              ({Math.round(profile.age! + intervalDisplay.low)} - {Math.round(profile.age! + intervalDisplay.high)})
             </span>
           </div>
         </div>
@@ -494,10 +494,10 @@ export default function PredictPage() {
           <div className="text-center space-y-4 max-w-lg">
             {/* Small label */}
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-              Estimated remaining life
+              Life expectancy
             </p>
 
-            {/* The big number */}
+            {/* The big number - death age */}
             <div className="relative" ref={predictionRef}>
               <span
                 className="text-[120px] md:text-[160px] lg:text-[200px] font-extralight tracking-tighter leading-none"
@@ -508,13 +508,13 @@ export default function PredictPage() {
                 }}
               >
                 {isClient && intervalDisplay ? (
-                  <AnimatedNumber value={intervalDisplay.mid} />
+                  <AnimatedNumber value={profile.age! + intervalDisplay.mid} decimals={0} />
                 ) : (
                   '—'
                 )}
               </span>
               <span className="absolute bottom-8 right-0 translate-x-full text-lg text-muted-foreground font-light ml-2">
-                years
+                years old
               </span>
             </div>
 
@@ -530,22 +530,22 @@ export default function PredictPage() {
               </div>
             )}
 
-            {/* Range info */}
+            {/* Range info - death ages */}
             {isClient && intervalDisplay && (
               <div className="flex items-center justify-center gap-6 text-sm">
                 <div className="text-center">
                   <div className="text-muted-foreground text-xs uppercase tracking-wider mb-1">5th %ile</div>
-                  <div className="font-medium">{intervalDisplay.low.toFixed(0)}y</div>
+                  <div className="font-medium">{Math.round(profile.age! + intervalDisplay.low)}</div>
                 </div>
                 <div className="w-px h-8 bg-border/50" />
                 <div className="text-center">
                   <div className="text-primary text-xs uppercase tracking-wider mb-1">Median</div>
-                  <div className="font-medium text-primary">{intervalDisplay.mid.toFixed(0)}y</div>
+                  <div className="font-medium text-primary">{Math.round(profile.age! + intervalDisplay.mid)}</div>
                 </div>
                 <div className="w-px h-8 bg-border/50" />
                 <div className="text-center">
                   <div className="text-muted-foreground text-xs uppercase tracking-wider mb-1">95th %ile</div>
-                  <div className="font-medium">{intervalDisplay.high.toFixed(0)}y</div>
+                  <div className="font-medium">{Math.round(profile.age! + intervalDisplay.high)}</div>
                 </div>
               </div>
             )}
