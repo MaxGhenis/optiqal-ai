@@ -14,7 +14,6 @@ import {
   type UncertainBaselineResult,
 } from "@/lib/evidence/baseline";
 import {
-  Area,
   Line,
   XAxis,
   YAxis,
@@ -94,26 +93,21 @@ export default function PredictPage() {
     setProfile((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  // Chart data with uncertainty bands
-  // For proper area band rendering, we need base and range values
+  // Chart data - survival probability by age
   const chartData = useMemo(() => {
     if (!result) return [];
 
     return result.survivalCurve.map((point) => ({
       age: point.age,
       qalyMid: Math.round(point.qalyP50 * 100),
-      qalyLow: Math.round(point.qalyP5 * 100),
-      qalyHigh: Math.round(point.qalyP95 * 100),
-      // Range for the band (high - low)
-      qalyRange: Math.round((point.qalyP95 - point.qalyP5) * 100),
     }));
   }, [result]);
 
-  // Interval width for display
+  // Interval width for display - use life expectancy, not QALYs
   const intervalDisplay = useMemo(() => {
     if (!result) return null;
 
-    const { p5, p50, p95 } = result.predictionInterval.remainingQALYs;
+    const { p5, p50, p95 } = result.predictionInterval.remainingLifeExpectancy;
     return {
       low: p5.toFixed(1),
       mid: p50.toFixed(1),
@@ -215,12 +209,6 @@ export default function PredictPage() {
                     data={chartData}
                     margin={{ top: 10, right: 10, left: -15, bottom: 5 }}
                   >
-                    <defs>
-                      <linearGradient id="uncertaintyGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
-                        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.15} />
-                      </linearGradient>
-                    </defs>
                     <XAxis
                       dataKey="age"
                       tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
@@ -241,36 +229,9 @@ export default function PredictPage() {
                         borderRadius: "8px",
                         fontSize: "12px",
                       }}
-                      formatter={(value, name) => [
-                        `${value}%`,
-                        name === "qalyMid"
-                          ? "Expected"
-                          : name === "qalyHigh"
-                            ? "Upper bound"
-                            : "Lower bound",
-                      ]}
+                      formatter={(value: number) => [`${value}%`, "Survival probability"]}
                       labelFormatter={(age) => `Age ${age}`}
                     />
-                    {/* Confidence band: stacked areas */}
-                    {/* Base (invisible) - the low bound */}
-                    <Area
-                      type="monotone"
-                      dataKey="qalyLow"
-                      stackId="band"
-                      stroke="none"
-                      fill="transparent"
-                      isAnimationActive={false}
-                    />
-                    {/* The visible band (range from low to high) */}
-                    <Area
-                      type="monotone"
-                      dataKey="qalyRange"
-                      stackId="band"
-                      stroke="none"
-                      fill="url(#uncertaintyGradient)"
-                      isAnimationActive={false}
-                    />
-                    {/* Median line on top */}
                     <Line
                       type="monotone"
                       dataKey="qalyMid"
@@ -283,7 +244,7 @@ export default function PredictPage() {
                 </ResponsiveContainer>
               </div>
               <p className="text-xs text-muted-foreground text-center mt-3">
-                Shaded area shows 90% prediction interval — narrower = more certain
+                Probability of surviving to each age based on your profile
               </p>
             </div>
 
