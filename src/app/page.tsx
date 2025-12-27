@@ -1,12 +1,10 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FEATURES, getLabels } from "@/lib/config";
+import { getLabels } from "@/lib/config";
 import {
   Activity,
   Check,
-  Clock,
-  Heart,
   Search,
   TrendingUp,
   BookOpen,
@@ -77,12 +75,12 @@ function LifeMeter() {
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <div className="text-center space-y-1">
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-            30 min daily walking
+            35-year-old female
           </p>
           <p className="text-4xl font-serif font-semibold gradient-text text-glow">
-            +1.8 to +2.8
+            48.2 ± 4.1
           </p>
-          <p className="text-sm text-muted-foreground">additional {labels.shortUnit}</p>
+          <p className="text-sm text-muted-foreground">{labels.shortUnit} remaining</p>
         </div>
       </div>
     </div>
@@ -179,8 +177,8 @@ export default function Home() {
               </h1>
 
               <p className="text-lg text-muted-foreground max-w-lg leading-relaxed">
-                Optiqal estimates how lifestyle factors like exercise, diet, and
-                smoking affect life expectancy and quality of life, based on
+                Optiqal predicts your remaining life expectancy based on your
+                profile—age, sex, lifestyle, and health conditions—using
                 published research and actuarial data.
               </p>
 
@@ -220,10 +218,10 @@ export default function Home() {
         <div className="max-w-4xl mx-auto relative">
           <div className="text-center mb-12 opacity-0 animate-slide-up">
             <p className="text-xs uppercase tracking-[0.25em] text-primary mb-3">
-              Example result
+              Example prediction
             </p>
             <h2 className="font-serif text-3xl md:text-4xl font-medium">
-              &ldquo;Add 30 minutes of walking daily&rdquo;
+              50-year-old male, non-smoker
             </h2>
           </div>
 
@@ -231,48 +229,37 @@ export default function Home() {
             <CardContent className="p-8">
               <div className="text-center space-y-6">
                 <p className="text-sm text-muted-foreground uppercase tracking-wider">
-                  Estimated impact
+                  Remaining life expectancy
                 </p>
                 <div className="space-y-2">
                   <div className="text-6xl font-serif font-semibold gradient-text text-glow">
-                    +2 years, 3 months
+                    31.4 years
                   </div>
-                  <p className="text-muted-foreground">{labels.mainMetricUnit}</p>
+                  <p className="text-muted-foreground">90% prediction interval: 24–39 years</p>
                 </div>
 
-                <div className={`flex justify-center ${FEATURES.SHOW_QUALITY_ADJUSTMENTS ? "gap-12" : ""} pt-6 border-t border-border/50`}>
-                  <div className="text-center group">
-                    <div className="flex items-center justify-center gap-2 text-muted-foreground mb-2">
-                      <Clock className="h-4 w-4 group-hover:text-primary transition-colors" />
-                      <span className="text-xs uppercase tracking-wider">
-                        Longevity
-                      </span>
-                    </div>
+                <div className="flex justify-center gap-12 pt-6 border-t border-border/50">
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                      Profile completeness
+                    </p>
                     <p className="text-2xl font-semibold text-primary">
-                      +1.8 years
+                      42%
                     </p>
                   </div>
-                  {FEATURES.SHOW_QUALITY_ADJUSTMENTS && (
-                    <div className="text-center group">
-                      <div className="flex items-center justify-center gap-2 text-muted-foreground mb-2">
-                        <Heart className="h-4 w-4 group-hover:text-accent transition-colors" />
-                        <span className="text-xs uppercase tracking-wider">
-                          Quality
-                        </span>
-                      </div>
-                      <p className="text-2xl font-semibold text-accent">
-                        +0.5 years
-                      </p>
-                    </div>
-                  )}
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                      Uncertainty
+                    </p>
+                    <p className="text-2xl font-semibold text-accent">
+                      ±7.5 years
+                    </p>
+                  </div>
                 </div>
 
-                <div className="pt-4">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                    High confidence
-                  </span>
-                </div>
+                <p className="text-xs text-muted-foreground pt-2">
+                  Add more details to narrow your prediction interval
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -359,14 +346,12 @@ export default function Home() {
 
           <div className="grid md:grid-cols-2 gap-4 max-w-4xl mx-auto">
             {[
-              "Results in hours, days, or weeks—not abstract fractions",
-              ...(FEATURES.SHOW_QUALITY_ADJUSTMENTS ? ["Separate longevity vs. quality-of-life breakdowns"] : []),
-              "Prediction intervals reflecting evidence strength",
-              "Personalized to your age, health conditions, and lifestyle",
-              "Citations to specific studies and meta-analyses",
-              "Caveats and limitations clearly explained",
-              "Compare multiple choices side-by-side",
-              "Powered by Claude AI for nuanced evidence synthesis",
+              "Prediction intervals that narrow as you add details",
+              "Based on CDC life tables and peer-reviewed research",
+              "Personalized to your age, sex, and health conditions",
+              "Shows uncertainty—not false precision",
+              "Transparent about data sources and limitations",
+              "No account required—try it instantly",
             ].map((feature, index) => (
               <div
                 key={feature}
@@ -383,42 +368,54 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Example choices */}
+      {/* Profile factors */}
       <section className="py-24 px-6">
         <div className="max-w-5xl mx-auto text-center">
           <div className="mb-12 opacity-0 animate-slide-up">
             <p className="text-xs uppercase tracking-[0.25em] text-primary mb-3">
-              Get started
+              Factors we consider
             </p>
             <h2 className="font-serif text-4xl md:text-5xl font-medium mb-4">
-              Explore different scenarios
+              Your profile shapes your prediction
             </h2>
             <p className="text-muted-foreground text-lg">
-              See how different factors affect life expectancy estimates
+              Each detail you add narrows your prediction interval
             </p>
           </div>
 
           <div className="flex flex-wrap justify-center gap-3 opacity-0 animate-scale-in delay-200">
             {[
-              "Cut out dairy",
-              "Switch to a standing desk",
-              "Take vitamin D supplements",
-              "Reduce alcohol to weekends",
-              "Start meditating 10 min/day",
-              "Bike instead of drive",
-              "Get a temperature-controlled mattress",
-              "Use plastic-free detergent",
-              "Add strength training 2x/week",
-              "Intermittent fasting",
-            ].map((choice) => (
-              <Link
-                key={choice}
-                href={`/analyze?q=${encodeURIComponent(choice)}`}
-                className="px-5 py-2.5 rounded-full border border-border/50 bg-card/50 hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-all duration-300 text-sm"
+              "Age",
+              "Sex",
+              "Smoking status",
+              "BMI",
+              "Exercise frequency",
+              "Sleep duration",
+              "Diabetes",
+              "Hypertension",
+              "Heart disease",
+              "Education level",
+            ].map((factor) => (
+              <span
+                key={factor}
+                className="px-5 py-2.5 rounded-full border border-border/50 bg-card/50 text-sm"
               >
-                {choice}
-              </Link>
+                {factor}
+              </span>
             ))}
+          </div>
+
+          <div className="mt-8">
+            <Button
+              size="lg"
+              className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90"
+              asChild
+            >
+              <Link href="/predict">
+                Start your prediction
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
           </div>
         </div>
       </section>

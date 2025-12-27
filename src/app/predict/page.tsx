@@ -6,6 +6,7 @@ import { Activity, ArrowRight, Check, ChevronDown, Sparkles } from "lucide-react
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FEATURES, getLabels } from "@/lib/config";
 import {
   calculateBaselineQuick,
   getMissingFields,
@@ -43,6 +44,7 @@ export default function PredictPage() {
   const [useImperial, setUseImperial] = useState(true);
   const [result, setResult] = useState<UncertainBaselineResult | null>(null);
   const [isClient, setIsClient] = useState(false);
+  const labels = getLabels();
 
   // Mark as client-side after hydration
   useEffect(() => {
@@ -143,10 +145,10 @@ export default function PredictPage() {
             {/* Title */}
             <div className="space-y-2">
               <h1 className="font-serif text-3xl md:text-4xl font-medium">
-                Your healthspan prediction
+                Your life expectancy
               </h1>
               <p className="text-muted-foreground">
-                Add details to sharpen your prediction
+                Add details to narrow your prediction interval
               </p>
             </div>
 
@@ -164,7 +166,7 @@ export default function PredictPage() {
                     {intervalDisplay.mid}
                   </span>
                   <span className="text-xl text-muted-foreground">
-                    quality-adjusted life years
+                    {labels.shortUnit} remaining
                   </span>
                 </div>
 
@@ -205,7 +207,7 @@ export default function PredictPage() {
 
             {/* Chart */}
             <div className="p-6 rounded-2xl bg-card/50 border border-border/50">
-              <h3 className="text-sm font-medium mb-4">Expected QALYs by age</h3>
+              <h3 className="text-sm font-medium mb-4">Survival probability by age</h3>
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart
@@ -522,14 +524,6 @@ export default function PredictPage() {
                   </div>
                 </div>
               </div>
-
-              {/* CTA to see interventions */}
-              <Button className="w-full" size="lg" asChild>
-                <Link href="/predict/improve">
-                  See how to improve
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Link>
-              </Button>
 
               {/* Disclaimer */}
               <p className="text-xs text-muted-foreground text-center">
