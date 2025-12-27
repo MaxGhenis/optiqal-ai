@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Activity, ArrowRight, Check, ChevronDown, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -43,12 +43,29 @@ export default function PredictPage() {
   const [useImperial, setUseImperial] = useState(true);
   const [result, setResult] = useState<UncertainBaselineResult | null>(null);
   const [isClient, setIsClient] = useState(false);
+  const [showStickyPrediction, setShowStickyPrediction] = useState(false);
+  const predictionRef = useRef<HTMLDivElement>(null);
   const labels = getLabels();
 
   // Mark as client-side after hydration
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Track when main prediction scrolls out of view
+  useEffect(() => {
+    if (!predictionRef.current || !result) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setShowStickyPrediction(!entry.isIntersecting);
+      },
+      { threshold: 0, rootMargin: "-80px 0px 0px 0px" }
+    );
+
+    observer.observe(predictionRef.current);
+    return () => observer.disconnect();
+  }, [result]);
 
   // Debounce profile changes for smoother chart updates
   const debouncedProfile = useDebounce(profile, 150);
@@ -133,6 +150,26 @@ export default function PredictPage() {
         </div>
       </header>
 
+      {/* Sticky prediction indicator - shows when main display scrolls out of view */}
+      {isClient && showStickyPrediction && result && intervalDisplay && (
+        <div className="sticky top-[61px] z-40 glass border-b border-border/30 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="max-w-5xl mx-auto px-6 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl font-serif font-semibold gradient-text">
+                {intervalDisplay.mid}
+              </span>
+              <span className="text-sm text-muted-foreground">
+                {labels.shortUnit} remaining
+              </span>
+            </div>
+            <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
+              <span>Range: {intervalDisplay.low} – {intervalDisplay.high}</span>
+              <span className="text-primary font-medium">{completenessPercent}% precise</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <main className="max-w-5xl mx-auto px-6 py-8 md:py-12">
         <div className="grid lg:grid-cols-[1fr,380px] gap-8 lg:gap-12">
           {/* Left: Chart and main prediction */}
@@ -155,7 +192,7 @@ export default function PredictPage() {
                 <div className="h-2 w-full bg-muted/20 rounded" />
               </div>
             ) : result && intervalDisplay ? (
-              <div className="p-6 rounded-2xl bg-card/50 border border-border/50 space-y-4">
+              <div ref={predictionRef} className="p-6 rounded-2xl bg-card/50 border border-border/50 space-y-4">
                 <div className="flex items-baseline gap-3">
                   <span className="text-5xl md:text-6xl font-serif font-semibold gradient-text">
                     {intervalDisplay.mid}
