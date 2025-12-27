@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FEATURES, getLabels } from "@/lib/config";
 import {
-  calculateBaselineQuick,
+  getPrecomputedBaseline,
   getMissingFields,
   type PartialProfile,
   type UncertainBaselineResult,
@@ -61,7 +61,8 @@ export default function PredictPage() {
       setResult(null);
       return;
     }
-    setResult(calculateBaselineQuick(debouncedProfile));
+    // Load from precomputed Python Markov model
+    getPrecomputedBaseline(debouncedProfile).then(setResult);
   }, [debouncedProfile, isClient]);
 
   // Missing fields for suggestions

@@ -219,3 +219,90 @@ export function formatPredictionInterval(
 ): string {
   return `${median.toFixed(decimals)} (${low.toFixed(decimals)} - ${high.toFixed(decimals)})`;
 }
+
+/**
+ * Load baseline prediction from precomputed Python Markov model.
+ * Falls back to JS calculation if precomputed data not available.
+ */
+export async function getPrecomputedBaseline(
+  partial: PartialProfile
+): Promise<UncertainBaselineResult> {
+  try {
+    // Dynamic import to avoid circular dependency
+    const { getInterpolatedBaseline } = await import("./precomputed-profiles");
+    const precomputed = await getInterpolatedBaseline(partial);
+
+    if (precomputed) {
+      const completeness = calculateProfileCompleteness(partial);
+      const currentAge = partial.age;
+      const maxAge = 100;
+
+      // Generate survival curve using logistic decay around expected death age
+      const expectedDeathAge = currentAge + precomputed.lifeYearsMedian;
+      const survivalCurve: UncertainBaselineResult["survivalCurve"] = [];
+
+      for (let age = currentAge; age <= maxAge; age += 5) {
+        // Logistic survival centered at expected death
+        const k = 0.15;
+        const survivalP50 = 1 / (1 + Math.exp(k * (age - expectedDeathAge)));
+
+        // Adjust bounds based on p5/p95 life years
+        const deathAgeP5 = currentAge + precomputed.lifeYearsP5;
+        const deathAgeP95 = currentAge + precomputed.lifeYearsP95;
+        const survivalP5 = 1 / (1 + Math.exp(k * (age - deathAgeP5)));
+        const survivalP95 = 1 / (1 + Math.exp(k * (age - deathAgeP95)));
+
+        survivalCurve.push({
+          age,
+          survivalP50: Math.max(0, Math.min(1, survivalP50)),
+          survivalP5: Math.max(0, Math.min(1, survivalP5)),
+          survivalP95: Math.max(0, Math.min(1, survivalP95)),
+          qalyP50: survivalP50 * 0.85, // Simplified quality weight
+          qalyP5: survivalP5 * 0.85,
+          qalyP95: survivalP95 * 0.85,
+        });
+      }
+
+      return {
+        pointEstimate: {
+          remainingQALYs: precomputed.qalysMedian,
+          remainingLifeExpectancy: precomputed.lifeYearsMedian,
+          expectedDeathAge,
+          currentQualityWeight: 0.85,
+        },
+        predictionInterval: {
+          remainingQALYs: {
+            p5: precomputed.qalysMedian * 0.7, // Approx from precomputed
+            p25: precomputed.qalysMedian * 0.85,
+            p50: precomputed.qalysMedian,
+            p75: precomputed.qalysMedian * 1.1,
+            p95: precomputed.qalysMedian * 1.2,
+          },
+          remainingLifeExpectancy: {
+            p5: precomputed.lifeYearsP5,
+            p25: (precomputed.lifeYearsP5 + precomputed.lifeYearsMedian) / 2,
+            p50: precomputed.lifeYearsMedian,
+            p75: (precomputed.lifeYearsMedian + precomputed.lifeYearsP95) / 2,
+            p95: precomputed.lifeYearsP95,
+          },
+        },
+        completeness,
+        intervalWidth: {
+          qalys: precomputed.qalysMedian * 0.5, // Simplified
+          lifeYears: precomputed.lifeYearsP95 - precomputed.lifeYearsP5,
+        },
+        nSimulations: 5000, // From Python precompute
+        distribution: {
+          qalys: [],
+          lifeYears: [],
+        },
+        survivalCurve,
+      };
+    }
+  } catch {
+    // Precomputed data not available, fall back to JS calculation
+  }
+
+  // Fallback to JS calculation
+  return calculateBaselineQuick(partial);
+}

@@ -324,6 +324,7 @@ export {
 export {
   calculateBaselineWithUncertainty,
   calculateBaselineQuick,
+  getPrecomputedBaseline,
   formatPredictionInterval,
   type UncertainBaselineResult,
 } from "./uncertain-baseline";
@@ -336,3 +337,10 @@ export {
   CALIBRATION_OVERALL,
   POPULATION_PREVALENCE,
 } from "./calibration";
+
+// Precomputed baseline profiles from Python Markov model
+export {
+  loadPrecomputedBaselines as loadPrecomputedProfileData,
+  getPrecomputedBaselineForProfile,
+  getInterpolatedBaseline,
+} from "./precomputed-profiles";
