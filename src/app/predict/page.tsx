@@ -9,6 +9,14 @@ import {
   type PartialProfile,
   type UncertainBaselineResult,
 } from "@/lib/evidence/baseline";
+import {
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  ComposedChart,
+} from "recharts";
 
 // Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -404,6 +412,15 @@ export default function PredictPage() {
     return { low: p5, mid: p50, high: p95 };
   }, [result]);
 
+  // Chart data - survival probability by age
+  const chartData = useMemo(() => {
+    if (!result) return [];
+    return result.survivalCurve.map((point) => ({
+      age: point.age,
+      survival: Math.round(point.qalyP50 * 100),
+    }));
+  }, [result]);
+
   const completenessPercent = result ? result.completeness : 0;
   const predictedDeathAge = intervalDisplay ? profile.age! + intervalDisplay.mid : profile.age! + 40;
 
@@ -551,6 +568,55 @@ export default function PredictPage() {
                     Add {missingFields[0].label.toLowerCase()} to improve by ~{missingFields[0].impactPercent}%
                   </p>
                 )}
+              </div>
+            )}
+
+            {/* Survival curve chart */}
+            {isClient && chartData.length > 0 && (
+              <div className="pt-8 w-full max-w-md">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3 text-center">
+                  Survival probability by age
+                </p>
+                <div className="h-40 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart
+                      data={chartData}
+                      margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+                    >
+                      <XAxis
+                        dataKey="age"
+                        tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                        axisLine={{ stroke: "hsl(var(--border))", strokeOpacity: 0.3 }}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                        axisLine={false}
+                        tickLine={false}
+                        domain={[0, 100]}
+                        tickFormatter={(v) => `${v}%`}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "hsl(var(--card))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px",
+                          fontSize: "11px",
+                        }}
+                        formatter={(value) => [`${value}%`, "Survival"]}
+                        labelFormatter={(age) => `Age ${age}`}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="survival"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth={2}
+                        dot={false}
+                        isAnimationActive={false}
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             )}
           </div>
