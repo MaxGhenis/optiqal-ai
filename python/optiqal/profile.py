@@ -109,9 +109,11 @@ def get_baseline_mortality_multiplier(profile: Profile) -> float:
     """
     Calculate multiplicative adjustment to baseline mortality.
 
-    Combines relative risks from BMI, smoking, diabetes, hypertension,
-    and physical activity level.
-    Uses multiplicative model (conservative for overlapping risks).
+    Combines relative risks from BMI, smoking, and physical activity level.
+
+    NOTE: Diabetes and hypertension are NOT included here because they are
+    handled by the Markov model's HealthState.get_mortality_multiplier().
+    Including them here would double-count their effects.
 
     Args:
         profile: Demographic profile
@@ -121,13 +123,11 @@ def get_baseline_mortality_multiplier(profile: Profile) -> float:
     """
     bmi_rr = BMI_MORTALITY_RR[profile.bmi_category]
     smoking_rr = SMOKING_MORTALITY_RR[profile.smoking_status]
-    diabetes_rr = DIABETES_MORTALITY_RR if profile.has_diabetes else 1.0
-    hypertension_rr = HYPERTENSION_MORTALITY_RR if profile.has_hypertension else 1.0
     activity_rr = ACTIVITY_MORTALITY_RR[profile.activity_level]
 
-    # Multiplicative model
-    # Note: This may overestimate combined risk but is conservative
-    return bmi_rr * smoking_rr * diabetes_rr * hypertension_rr * activity_rr
+    # Multiplicative model for lifestyle factors only
+    # Diabetes/hypertension handled by markov.HealthState
+    return bmi_rr * smoking_rr * activity_rr
 
 
 # =============================================================================
