@@ -167,15 +167,22 @@ INCIDENCE_RATES = {
     },
 }
 
-# Mortality multipliers for conditions (from literature)
-# These multiply baseline mortality when condition is present
+# Mortality multipliers for conditions
+# NOTE: These are attenuated from raw literature values because:
+# 1. CDC baseline mortality already includes population-average condition effects
+# 2. Literature multipliers compare sick vs healthy populations
+# 3. We need MARGINAL effect over CDC base, not full effect vs perfectly healthy
+#
+# Original literature values → attenuated (halved excess risk):
+# diabetes: 1.8 → 1.4, hypertension: 1.3 → 1.15, heart_disease: 2.0 → 1.5
+# stroke: 2.5 → 1.75, cancer: 1.5 → 1.25, arthritis: 1.1 → 1.05
 CONDITION_MORTALITY_MULTIPLIERS = {
-    "diabetes": 1.8,        # Diabetes roughly doubles mortality
-    "hypertension": 1.3,    # Moderate increase
-    "heart_disease": 2.0,   # Heart disease doubles mortality
-    "stroke": 2.5,          # Stroke history high mortality
-    "cancer": 1.5,          # Varies greatly by type, using moderate
-    "arthritis": 1.1,       # Minimal direct mortality effect
+    "diabetes": 1.4,        # Literature: 1.8x, attenuated for CDC baseline
+    "hypertension": 1.15,   # Literature: 1.3x
+    "heart_disease": 1.5,   # Literature: 2.0x
+    "stroke": 1.75,         # Literature: 2.5x
+    "cancer": 1.25,         # Literature: 1.5x
+    "arthritis": 1.05,      # Literature: 1.1x
 }
 
 

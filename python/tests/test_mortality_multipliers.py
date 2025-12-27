@@ -69,7 +69,7 @@ class TestMortalityMultiplierArchitecture:
         state_both = HealthState(diabetes=True, hypertension=True)
 
         assert state_healthy.get_mortality_multiplier() == 1.0
-        assert state_diabetes.get_mortality_multiplier() > 1.0  # Should be ~1.8
+        assert state_diabetes.get_mortality_multiplier() > 1.0  # Should be ~1.4 (attenuated)
         assert state_both.get_mortality_multiplier() > state_diabetes.get_mortality_multiplier()
 
 
@@ -115,12 +115,13 @@ class TestLifeExpectancyReasonableness:
 
         life_years_lost = death_age_healthy - death_age_diabetes
 
-        # Diabetes should reduce life expectancy by 3-15 years
-        assert life_years_lost > 3, (
-            f"Diabetes only reduced life by {life_years_lost:.1f} years (expected 3-15)"
+        # Diabetes should reduce life expectancy by 1-10 years
+        # (attenuated effect since CDC rates include average conditions)
+        assert life_years_lost > 1, (
+            f"Diabetes only reduced life by {life_years_lost:.1f} years (expected 1-10)"
         )
-        assert life_years_lost < 15, (
-            f"Diabetes reduced life by {life_years_lost:.1f} years (too aggressive, expected 3-15)"
+        assert life_years_lost < 10, (
+            f"Diabetes reduced life by {life_years_lost:.1f} years (too aggressive, expected 1-10)"
         )
 
     def test_combined_risk_factors_effect(self):
