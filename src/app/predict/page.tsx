@@ -268,7 +268,7 @@ function ToggleButton({
   );
 }
 
-// Condition toggle
+// Condition toggle - styled like sex selector
 function ConditionToggle({
   label,
   value,
@@ -279,33 +279,15 @@ function ConditionToggle({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <div className="flex items-center justify-between py-2">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <div className="flex gap-1">
-        <button
-          onClick={() => onChange(false)}
-          className={`
-            w-8 h-8 rounded-lg flex items-center justify-center transition-all text-xs font-medium
-            ${value === false
-              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-              : 'bg-card/50 text-muted-foreground hover:text-foreground border border-border/50'
-            }
-          `}
-        >
+    <div className="space-y-3">
+      <label className="text-xs uppercase tracking-wider text-muted-foreground">{label}</label>
+      <div className="grid grid-cols-2 gap-2">
+        <ToggleButton selected={value === false} onClick={() => onChange(false)}>
           No
-        </button>
-        <button
-          onClick={() => onChange(true)}
-          className={`
-            w-8 h-8 rounded-lg flex items-center justify-center transition-all text-xs font-medium
-            ${value === true
-              ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-              : 'bg-card/50 text-muted-foreground hover:text-foreground border border-border/50'
-            }
-          `}
-        >
+        </ToggleButton>
+        <ToggleButton selected={value === true} onClick={() => onChange(true)}>
           Yes
-        </button>
+        </ToggleButton>
       </div>
     </div>
   );
@@ -795,21 +777,16 @@ export default function PredictPage() {
               </div>
 
               {/* Conditions */}
-              <div className="space-y-3">
-                <label className="text-xs uppercase tracking-wider text-muted-foreground">Conditions</label>
-                <div className="space-y-1 divide-y divide-border/30">
-                  <ConditionToggle
-                    label="Diabetes"
-                    value={profile.hasDiabetes}
-                    onChange={(v) => updateField('hasDiabetes', v)}
-                  />
-                  <ConditionToggle
-                    label="Hypertension"
-                    value={profile.hasHypertension}
-                    onChange={(v) => updateField('hasHypertension', v)}
-                  />
-                </div>
-              </div>
+              <ConditionToggle
+                label="Diabetes"
+                value={profile.hasDiabetes}
+                onChange={(v) => updateField('hasDiabetes', v)}
+              />
+              <ConditionToggle
+                label="Hypertension"
+                value={profile.hasHypertension}
+                onChange={(v) => updateField('hasHypertension', v)}
+              />
 
               {/* Disclaimer */}
               <p className="text-[10px] text-muted-foreground/60 pt-4">
