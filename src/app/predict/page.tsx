@@ -48,26 +48,30 @@ function AnimatedNumber({ value, decimals = 1 }: { value: number; decimals?: num
   return <>{displayed.toFixed(decimals)}</>;
 }
 
-// Arc gauge component for prediction range
+// Arc gauge component for prediction range - shows ages, not remaining years
 function PredictionArc({
-  low,
-  mid,
-  high,
+  currentAge,
+  lowAge,
+  midAge,
+  highAge,
   completeness
 }: {
-  low: number;
-  mid: number;
-  high: number;
+  currentAge: number;
+  lowAge: number;
+  midAge: number;
+  highAge: number;
   completeness: number;
 }) {
-  const maxYears = 70;
+  const minAge = currentAge;
+  const maxAge = 100;
+  const ageRange = maxAge - minAge;
   const arcStart = 135;
   const arcEnd = 405;
   const arcRange = arcEnd - arcStart;
 
-  const lowAngle = arcStart + (low / maxYears) * arcRange;
-  const midAngle = arcStart + (mid / maxYears) * arcRange;
-  const highAngle = arcStart + (high / maxYears) * arcRange;
+  const lowAngle = arcStart + ((lowAge - minAge) / ageRange) * arcRange;
+  const midAngle = arcStart + ((midAge - minAge) / ageRange) * arcRange;
+  const highAngle = arcStart + ((highAge - minAge) / ageRange) * arcRange;
 
   const polarToCartesian = (angle: number, radius: number) => {
     const rad = (angle - 90) * Math.PI / 180;
@@ -144,14 +148,15 @@ function PredictionArc({
         </linearGradient>
       </defs>
 
-      {/* Scale markers */}
-      {[0, 20, 40, 60].map((year) => {
-        const angle = arcStart + (year / maxYears) * arcRange;
+      {/* Scale markers - show ages */}
+      {[0, 0.33, 0.67, 1].map((fraction, i) => {
+        const age = Math.round(minAge + fraction * ageRange);
+        const angle = arcStart + fraction * arcRange;
         const inner = polarToCartesian(angle, 145);
         const outer = polarToCartesian(angle, 175);
         const label = polarToCartesian(angle, 190);
         return (
-          <g key={year} className="text-muted-foreground">
+          <g key={i} className="text-muted-foreground">
             <line
               x1={inner.x}
               y1={inner.y}
@@ -168,7 +173,7 @@ function PredictionArc({
               dominantBaseline="middle"
               className="text-[10px] fill-current opacity-50"
             >
-              {year}
+              {age}
             </text>
           </g>
         );
@@ -522,9 +527,10 @@ export default function PredictPage() {
             {isClient && intervalDisplay && (
               <div className="mt-[-40px]">
                 <PredictionArc
-                  low={intervalDisplay.low}
-                  mid={intervalDisplay.mid}
-                  high={intervalDisplay.high}
+                  currentAge={profile.age!}
+                  lowAge={profile.age! + intervalDisplay.low}
+                  midAge={profile.age! + intervalDisplay.mid}
+                  highAge={profile.age! + intervalDisplay.high}
                   completeness={completenessPercent}
                 />
               </div>
@@ -571,9 +577,9 @@ export default function PredictPage() {
               </div>
             )}
 
-            {/* Survival curve chart */}
+            {/* Survival curve chart with integrated timeline */}
             {isClient && chartData.length > 0 && (
-              <div className="pt-8 w-full max-w-md">
+              <div className="pt-8 w-full max-w-2xl">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3 text-center">
                   Survival probability by age
                 </p>
@@ -617,19 +623,16 @@ export default function PredictPage() {
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
+                {/* Timeline directly below chart - same width */}
+                <div className="mt-4">
+                  <LifeTimeline
+                    currentAge={profile.age!}
+                    predictedDeathAge={predictedDeathAge}
+                  />
+                </div>
               </div>
             )}
           </div>
-
-          {/* Bottom timeline */}
-          {isClient && result && (
-            <div className="absolute bottom-12 left-8 right-8 max-w-2xl mx-auto">
-              <LifeTimeline
-                currentAge={profile.age!}
-                predictedDeathAge={predictedDeathAge}
-              />
-            </div>
-          )}
         </div>
 
         {/* Right: Profile panel */}
