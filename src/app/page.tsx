@@ -461,7 +461,7 @@ export default function Home() {
             <div className="flex items-center gap-3">
               <Activity className="h-5 w-5 text-primary" />
               <span className="text-sm text-muted-foreground">
-                &copy; {new Date().getFullYear()} optiqal
+                &copy; {new Date().getFullYear()} optiqal. Created by Max Ghenis.
               </span>
             </div>
             <div className="flex items-center gap-4 sm:gap-6 flex-wrap justify-center">
