@@ -11,6 +11,7 @@ import {
   Sparkles,
   Zap,
 } from "lucide-react";
+import { MobileNav } from "@/components/mobile-nav";
 
 function LifeMeter() {
   return (
@@ -127,7 +128,7 @@ export default function Home() {
 
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 glass">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 group">
             <div className="relative">
               <Activity className="h-7 w-7 text-primary transition-transform group-hover:scale-110" />
@@ -135,7 +136,8 @@ export default function Home() {
             </div>
             <span className="text-xl font-semibold tracking-tight">optiqal</span>
           </Link>
-          <nav className="flex items-center gap-2">
+          {/* Desktop nav */}
+          <nav className="hidden sm:flex items-center gap-2">
             <Button
               variant="ghost"
               className="text-muted-foreground hover:text-foreground transition-colors"
@@ -153,13 +155,17 @@ export default function Home() {
               </Link>
             </Button>
           </nav>
+          {/* Mobile nav */}
+          <div className="sm:hidden">
+            <MobileNav />
+          </div>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 px-6">
+      <section className="relative pt-24 sm:pt-32 pb-12 sm:pb-20 px-4 sm:px-6">
         <div className="max-w-5xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
             {/* Text content */}
             <div className="space-y-8 opacity-0 animate-slide-up">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/30 bg-primary/5 text-primary text-sm font-medium">
@@ -167,7 +173,7 @@ export default function Home() {
                 AI-powered life expectancy prediction
               </div>
 
-              <h1 className="font-serif text-5xl md:text-6xl lg:text-7xl font-medium leading-[1.1] tracking-tight">
+              <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-medium leading-[1.1] tracking-tight">
                 Predict your
                 <br />
                 <span className="gradient-text">life expectancy</span>
@@ -210,7 +216,7 @@ export default function Home() {
       </section>
 
       {/* Example Section */}
-      <section className="py-24 px-6 relative">
+      <section className="py-16 sm:py-24 px-4 sm:px-6 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-muted/30 to-transparent" />
         <div className="max-w-4xl mx-auto relative">
           <div className="text-center mb-12 opacity-0 animate-slide-up">
@@ -229,13 +235,13 @@ export default function Home() {
                   Remaining life expectancy
                 </p>
                 <div className="space-y-2">
-                  <div className="text-6xl font-serif font-semibold gradient-text text-glow">
+                  <div className="text-5xl sm:text-6xl font-serif font-semibold gradient-text text-glow">
                     25 years
                   </div>
                   <p className="text-muted-foreground">90% prediction interval: 7–39 years</p>
                 </div>
 
-                <div className="flex justify-center gap-12 pt-6 border-t border-border/50">
+                <div className="flex justify-center gap-8 sm:gap-12 pt-6 border-t border-border/50">
                   <div className="text-center">
                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
                       Profile completeness
@@ -264,7 +270,7 @@ export default function Home() {
       </section>
 
       {/* How it Works */}
-      <section id="how-it-works" className="py-24 px-6">
+      <section id="how-it-works" className="py-16 sm:py-24 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16 opacity-0 animate-slide-up">
             <p className="text-xs uppercase tracking-[0.25em] text-primary mb-3">
@@ -329,7 +335,7 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section className="py-24 px-6 relative">
+      <section className="py-16 sm:py-24 px-4 sm:px-6 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-muted/30 to-transparent" />
         <div className="max-w-6xl mx-auto relative">
           <div className="text-center mb-16 opacity-0 animate-slide-up">
@@ -366,7 +372,7 @@ export default function Home() {
       </section>
 
       {/* Profile factors */}
-      <section className="py-24 px-6">
+      <section className="py-16 sm:py-24 px-4 sm:px-6">
         <div className="max-w-5xl mx-auto text-center">
           <div className="mb-12 opacity-0 animate-slide-up">
             <p className="text-xs uppercase tracking-[0.25em] text-primary mb-3">
@@ -418,7 +424,7 @@ export default function Home() {
       </section>
 
       {/* CTA */}
-      <section className="py-32 px-6 relative">
+      <section className="py-20 sm:py-32 px-4 sm:px-6 relative">
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-gradient-to-t from-primary/10 via-transparent to-transparent" />
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px]" />
@@ -449,7 +455,7 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 px-6 border-t border-border/30">
+      <footer className="py-12 px-4 sm:px-6 border-t border-border/30">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-6">
             <div className="flex items-center gap-3">

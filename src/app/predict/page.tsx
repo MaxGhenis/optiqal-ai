@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
-import { Activity, ChevronRight, Minus, Plus } from "lucide-react";
+import { Activity, ChevronRight, ChevronUp, Minus, Plus } from "lucide-react";
 import {
   getPrecomputedBaseline,
   getMissingFields,
@@ -473,12 +473,12 @@ export default function PredictPage() {
       )}
 
       {/* Main content */}
-      <main className="min-h-screen flex">
+      <main className="min-h-screen flex flex-col lg:flex-row">
         {/* Left: Prediction visualization */}
-        <div className={`flex-1 flex flex-col items-center justify-center p-8 transition-all duration-500 ${panelExpanded ? 'pr-[380px]' : 'pr-20'}`}>
+        <div className={`flex-1 flex flex-col items-center pt-20 lg:pt-0 lg:justify-center p-6 md:p-8 pb-24 lg:pb-8 transition-all duration-500 ${panelExpanded ? 'lg:pr-[380px]' : 'lg:pr-20'}`}>
 
           {/* Central prediction */}
-          <div className="text-center space-y-4 max-w-lg">
+          <div className="text-center space-y-4 max-w-lg w-full">
             {/* Small label */}
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
               Life expectancy
@@ -487,7 +487,7 @@ export default function PredictPage() {
             {/* The big number - death age */}
             <div className="relative" ref={predictionRef}>
               <span
-                className="text-[120px] md:text-[160px] lg:text-[200px] font-extralight tracking-tighter leading-none"
+                className="text-[80px] sm:text-[120px] md:text-[160px] lg:text-[200px] font-extralight tracking-tighter leading-none"
                 style={{
                   background: 'linear-gradient(180deg, hsl(var(--foreground)) 0%, hsl(var(--muted-foreground)) 100%)',
                   WebkitBackgroundClip: 'text',
@@ -500,7 +500,7 @@ export default function PredictPage() {
                   '—'
                 )}
               </span>
-              <span className="absolute bottom-8 right-0 translate-x-full text-lg text-muted-foreground font-light ml-2">
+              <span className="block sm:absolute sm:bottom-8 sm:right-0 sm:translate-x-full text-base sm:text-lg text-muted-foreground font-light sm:ml-2">
                 years old
               </span>
             </div>
@@ -561,7 +561,7 @@ export default function PredictPage() {
 
             {/* Survival curve chart with integrated timeline */}
             {isClient && chartData.length > 0 && (
-              <div className="pt-8 w-full max-w-2xl">
+              <div className="pt-6 sm:pt-8 w-full max-w-2xl">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3 text-center">
                   Survival probability by age
                 </p>
@@ -617,10 +617,191 @@ export default function PredictPage() {
           </div>
         </div>
 
-        {/* Right: Profile panel */}
+        {/* Profile panel - bottom sheet on mobile, right sidebar on desktop */}
+        {/* Mobile bottom sheet */}
         <div
           className={`
-            fixed right-0 top-0 bottom-0 w-[360px] bg-card/80 backdrop-blur-xl border-l border-border/50
+            fixed left-0 right-0 bottom-0 bg-card/95 backdrop-blur-xl border-t border-border/50
+            transition-transform duration-500 ease-out z-40
+            lg:hidden
+            ${panelExpanded ? 'translate-y-0' : 'translate-y-[calc(100%-56px)]'}
+          `}
+          style={{ maxHeight: '70vh' }}
+        >
+          {/* Mobile sheet toggle */}
+          <button
+            onClick={() => setPanelExpanded(!panelExpanded)}
+            className="w-full flex items-center justify-center gap-2 py-3 text-muted-foreground hover:text-foreground transition-colors border-b border-border/30"
+          >
+            <ChevronUp className={`w-4 h-4 transition-transform duration-300 ${panelExpanded ? 'rotate-180' : 'rotate-0'}`} />
+            <span className="text-sm font-medium">Your Profile</span>
+            <ChevronUp className={`w-4 h-4 transition-transform duration-300 ${panelExpanded ? 'rotate-180' : 'rotate-0'}`} />
+          </button>
+
+          <div className="overflow-y-auto p-4" style={{ maxHeight: 'calc(70vh - 56px)' }}>
+            <div className="space-y-5">
+              <p className="text-xs text-muted-foreground">
+                More details = narrower prediction range
+              </p>
+
+              {/* Age */}
+              <div className="space-y-3">
+                <label className="text-xs uppercase tracking-wider text-muted-foreground">Age</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={18}
+                    max={85}
+                    value={profile.age ?? 35}
+                    onChange={(e) => updateField("age", parseInt(e.target.value))}
+                    className="flex-1 h-1 bg-border/50 rounded-full appearance-none cursor-pointer
+                      [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5
+                      [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer
+                      [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-primary/30"
+                  />
+                  <span className="w-12 text-right font-medium">{profile.age}</span>
+                </div>
+              </div>
+
+              {/* Sex */}
+              <div className="space-y-3">
+                <label className="text-xs uppercase tracking-wider text-muted-foreground">Sex</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <ToggleButton selected={profile.sex === 'male'} onClick={() => updateField('sex', 'male')}>
+                    Male
+                  </ToggleButton>
+                  <ToggleButton selected={profile.sex === 'female'} onClick={() => updateField('sex', 'female')}>
+                    Female
+                  </ToggleButton>
+                </div>
+              </div>
+
+              {/* Smoking */}
+              <div className="space-y-3">
+                <label className="text-xs uppercase tracking-wider text-muted-foreground">Smoking</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <ToggleButton selected={profile.smoker === false} onClick={() => updateField('smoker', false)}>
+                    Non-smoker
+                  </ToggleButton>
+                  <ToggleButton selected={profile.smoker === true} onClick={() => updateField('smoker', true)}>
+                    Smoker
+                  </ToggleButton>
+                </div>
+              </div>
+
+              {/* Height & Weight */}
+              <div className="space-y-3">
+                <label className="text-xs uppercase tracking-wider text-muted-foreground">Body</label>
+                {useImperial ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      type="number"
+                      placeholder="ft"
+                      value={profile.height ? cmToFeetInches(profile.height).feet : ''}
+                      onChange={(e) => {
+                        const feet = parseInt(e.target.value) || 0;
+                        const currentInches = profile.height ? cmToFeetInches(profile.height).inches : 0;
+                        if (feet > 0) updateField("height", feetInchesToCm(feet, currentInches));
+                      }}
+                      className="px-3 py-2.5 bg-card/50 border border-border/50 rounded-lg text-sm text-center focus:outline-none focus:border-primary/50"
+                    />
+                    <input
+                      type="number"
+                      placeholder="in"
+                      value={profile.height ? cmToFeetInches(profile.height).inches : ''}
+                      onChange={(e) => {
+                        const inches = parseInt(e.target.value) || 0;
+                        const currentFeet = profile.height ? cmToFeetInches(profile.height).feet : 5;
+                        updateField("height", feetInchesToCm(currentFeet, inches));
+                      }}
+                      className="px-3 py-2.5 bg-card/50 border border-border/50 rounded-lg text-sm text-center focus:outline-none focus:border-primary/50"
+                    />
+                    <input
+                      type="number"
+                      placeholder="lbs"
+                      value={profile.weight ? kgToLbs(profile.weight) : ''}
+                      onChange={(e) => {
+                        const lbs = parseInt(e.target.value) || 0;
+                        if (lbs > 0) updateField("weight", lbsToKg(lbs));
+                      }}
+                      className="px-3 py-2.5 bg-card/50 border border-border/50 rounded-lg text-sm text-center focus:outline-none focus:border-primary/50"
+                    />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      placeholder="cm"
+                      value={profile.height ? Math.round(profile.height) : ''}
+                      onChange={(e) => {
+                        const cm = parseInt(e.target.value) || 0;
+                        if (cm > 0) updateField("height", cm);
+                      }}
+                      className="px-3 py-2.5 bg-card/50 border border-border/50 rounded-lg text-sm text-center focus:outline-none focus:border-primary/50"
+                    />
+                    <input
+                      type="number"
+                      placeholder="kg"
+                      value={profile.weight ? Math.round(profile.weight) : ''}
+                      onChange={(e) => {
+                        const kg = parseInt(e.target.value) || 0;
+                        if (kg > 0) updateField("weight", kg);
+                      }}
+                      className="px-3 py-2.5 bg-card/50 border border-border/50 rounded-lg text-sm text-center focus:outline-none focus:border-primary/50"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Exercise & Sleep */}
+              <div className="space-y-3">
+                <label className="text-xs uppercase tracking-wider text-muted-foreground">Lifestyle</label>
+                <div className="space-y-1 divide-y divide-border/30">
+                  <NumberStepper
+                    value={profile.exerciseHoursPerWeek}
+                    onChange={(v) => updateField('exerciseHoursPerWeek', v)}
+                    min={0}
+                    max={20}
+                    step={1}
+                    label="Exercise"
+                    unit="hrs/wk"
+                  />
+                  <NumberStepper
+                    value={profile.sleepHoursPerNight}
+                    onChange={(v) => updateField('sleepHoursPerNight', v)}
+                    min={4}
+                    max={12}
+                    step={0.5}
+                    label="Sleep"
+                    unit="hrs/night"
+                  />
+                </div>
+              </div>
+
+              {/* Conditions */}
+              <ConditionToggle
+                label="Diabetes"
+                value={profile.hasDiabetes}
+                onChange={(v) => updateField('hasDiabetes', v)}
+              />
+              <ConditionToggle
+                label="Hypertension"
+                value={profile.hasHypertension}
+                onChange={(v) => updateField('hasHypertension', v)}
+              />
+
+              {/* Disclaimer */}
+              <p className="text-[10px] text-muted-foreground/60 pt-4 pb-6">
+                Statistical predictions based on peer-reviewed research. Not medical advice.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop right sidebar */}
+        <div
+          className={`
+            hidden lg:block fixed right-0 top-0 bottom-0 w-[360px] bg-card/80 backdrop-blur-xl border-l border-border/50
             transition-transform duration-500 ease-out z-40
             ${panelExpanded ? 'translate-x-0' : 'translate-x-[calc(100%-48px)]'}
           `}
