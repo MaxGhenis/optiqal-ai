@@ -429,6 +429,94 @@ def find_optimal_portfolio(
     return portfolio_path
 
 
+def find_optimal_portfolio_with_costs(
+    single_qalys: Dict[str, float],
+    annual_costs: Dict[str, float],
+    wtp: float = 200_000,
+    horizon_years: float = 40,
+    max_interventions: int = 50,
+    exclude: Optional[List[str]] = None,
+    complexity_free_slots: int = 3,
+    complexity_cost_per_item: float = 0.0005,
+) -> List[Dict]:
+    """
+    Find optimal portfolio using cost-aware greedy selection with complexity penalty.
+
+    At each step, adds the intervention with highest marginal net value,
+    accounting for:
+    - Diminishing returns on mortality benefit (0.95^n, floor 0.80)
+    - Regime complexity penalty (QoL cost per item beyond free slots)
+    - Monetary cost vs willingness-to-pay
+
+    Stops when no intervention has positive marginal net value.
+
+    Args:
+        single_qalys: Dict mapping intervention ID to single QALY gain
+        annual_costs: Dict mapping intervention ID to annual cost ($)
+        wtp: Willingness-to-pay per QALY ($/QALY)
+        horizon_years: Planning horizon in years
+        max_interventions: Maximum portfolio size
+        exclude: Intervention IDs to exclude
+        complexity_free_slots: Number of items before complexity penalty kicks in
+        complexity_cost_per_item: QALYs/yr QoL cost per item beyond free slots
+
+    Returns:
+        List of dicts with step, added_intervention, marginal_qaly,
+        marginal_net_value, total_qaly, total_cost, diminishing_returns_factor,
+        complexity_penalty
+    """
+    exclude = set(exclude or [])
+    available = set(single_qalys.keys()) - exclude
+    selected: List[str] = []
+    portfolio_path: List[Dict] = []
+    stack_num = 0
+
+    while available and stack_num < max_interventions:
+        best_id = None
+        best_marginal_net = -float('inf')
+        best_dr = 1.0
+        best_cp = 0.0
+
+        for int_id in available:
+            pos = stack_num + 1
+            dr_factor = max(0.95 ** stack_num, 0.80)
+            marginal_qaly = single_qalys[int_id] * dr_factor
+
+            cp = complexity_cost_per_item * horizon_years if pos > complexity_free_slots else 0
+            total_cost = annual_costs.get(int_id, 0) * horizon_years
+            marginal_net = (marginal_qaly - cp) * wtp - total_cost
+
+            if marginal_net > best_marginal_net:
+                best_marginal_net = marginal_net
+                best_id = int_id
+                best_dr = dr_factor
+                best_cp = cp
+
+        if best_id is None or best_marginal_net <= 0:
+            break
+
+        selected.append(best_id)
+        available.remove(best_id)
+        stack_num += 1
+
+        portfolio_path.append({
+            "step": stack_num,
+            "added_intervention": best_id,
+            "marginal_qaly": single_qalys[best_id] * best_dr,
+            "marginal_net_value": best_marginal_net,
+            "diminishing_returns_factor": best_dr,
+            "complexity_penalty": best_cp,
+            "total_qaly": sum(
+                single_qalys[s] * max(0.95 ** i, 0.80)
+                for i, s in enumerate(selected)
+            ),
+            "total_annual_cost": sum(annual_costs.get(s, 0) for s in selected),
+            "selected_interventions": selected.copy(),
+        })
+
+    return portfolio_path
+
+
 def find_optimal_portfolio_from_qalys(
     single_qalys: Dict[str, float],
     max_interventions: int = 10,

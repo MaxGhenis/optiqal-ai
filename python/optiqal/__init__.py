@@ -27,7 +27,7 @@ __version__ = "0.1.0"
 
 from .intervention import Intervention
 from .lifecycle import LifecycleModel, CDC_LIFE_TABLE, CAUSE_FRACTIONS
-from .confounding import ConfoundingPrior, CATEGORY_PRIORS
+from .confounding import ConfoundingPrior, CATEGORY_PRIORS, publication_bias_correct
 from .simulate import simulate_qaly, simulate_qaly_profile, SimulationResult
 from .profile import Profile, generate_all_profiles, get_baseline_mortality_multiplier
 from .precompute import (
@@ -41,9 +41,14 @@ from .combination import (
     estimate_combined_qaly_from_singles,
     find_optimal_portfolio,
     find_optimal_portfolio_from_qalys,
+    find_optimal_portfolio_with_costs,
     CombinedEffect,
     OVERLAP_MATRIX,
 )
+from .catalog import CatalogEntry, CATALOG, get_catalog, simulate_catalog
+from .bundles import Bundle, BUNDLES, recommend_bundles
+from .analyzer import AnalysisConfig, AnalysisResult, Decision, analyze
+from .report import format_full_report
 
 __all__ = [
     "Intervention",
@@ -68,6 +73,20 @@ __all__ = [
     "find_optimal_portfolio_from_qalys",
     "CombinedEffect",
     "OVERLAP_MATRIX",
+    "publication_bias_correct",
+    "find_optimal_portfolio_with_costs",
+    "CatalogEntry",
+    "CATALOG",
+    "get_catalog",
+    "simulate_catalog",
+    "Bundle",
+    "BUNDLES",
+    "recommend_bundles",
+    "AnalysisConfig",
+    "AnalysisResult",
+    "Decision",
+    "analyze",
+    "format_full_report",
 ]
 
 

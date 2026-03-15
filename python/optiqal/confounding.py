@@ -216,6 +216,39 @@ def get_confounding_prior(
     )
 
 
+def publication_bias_correct(
+    observed_hr: float,
+    shrinkage: float = 0.30,
+) -> float:
+    """
+    Correct hazard ratio for publication bias by shrinking toward null.
+
+    Published effect sizes are systematically inflated due to:
+    - Selective reporting (significant results more likely published)
+    - P-hacking and researcher degrees of freedom
+    - Winner's curse (largest estimates most likely to cross threshold)
+
+    Shrinks log(HR) toward 0 (null) by the specified fraction.
+
+    Args:
+        observed_hr: Published/observed hazard ratio
+        shrinkage: Fraction to shrink toward null (0.30 = 30% shrinkage).
+            Empirically calibrated: Ioannidis 2008 finds ~30% average
+            inflation in observational studies, with supplements often
+            worse due to lower pre-registration rates.
+
+    Returns:
+        Bias-corrected hazard ratio (closer to 1.0 than observed)
+
+    Example:
+        >>> publication_bias_correct(0.80, shrinkage=0.30)
+        0.854  # log(0.80) * 0.70 → less protective after correction
+    """
+    log_hr = np.log(observed_hr)
+    corrected = log_hr * (1 - shrinkage)
+    return float(np.exp(corrected))
+
+
 def adjust_hr(observed_hr: float, causal_fraction: float) -> float:
     """
     Adjust hazard ratio by causal fraction.
