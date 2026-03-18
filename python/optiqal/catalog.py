@@ -75,19 +75,22 @@ def _add(entry: CatalogEntry) -> None:
 _add(CatalogEntry(
     "finasteride_1.25mg", "Finasteride 1.25mg", "rx_current",
     hr_observed=0.93, log_sd=0.10, conf_alpha=4.0, conf_beta=2.5,
-    annual_cost=60, qol_annual=0.015,
+    annual_cost=171,  # $14.99 / (8*4 doses) * 365 = $171/yr
+    qol_annual=0.015,
     notes="PCPT RCT n=18882. Hair preservation.",
 ))
 _add(CatalogEntry(
     "tadalafil_2.5mg", "Tadalafil 2.5mg", "rx_current",
     hr_observed=0.88, log_sd=0.15, conf_alpha=2.0, conf_beta=4.0,
-    annual_cost=120, qol_annual=0.020,
+    annual_cost=252,  # $20.72 / 30 * 365 = $252/yr
+    qol_annual=0.020,
     notes="Anderson 2016 obs HR 0.67. Endothelial RCTs.",
 ))
 _add(CatalogEntry(
     "trazodone_50mg", "Trazodone 50mg", "rx_current",
     hr_observed=1.00, log_sd=0.05, conf_alpha=3.0, conf_beta=3.0,
-    annual_cost=60, qol_annual=0.010,
+    annual_cost=223,  # $18.34 / 30 * 365 = $223/yr
+    qol_annual=0.010,
     notes="Sleep maintenance. No mortality data.",
 ))
 
@@ -309,26 +312,34 @@ _add(CatalogEntry(
 _add(CatalogEntry(
     "glycine_2g", "Glycine 2g bedtime", "supplement_bought",
     hr_observed=0.965, log_sd=0.12, conf_alpha=1.2, conf_beta=5.0,
-    annual_cost=40, qol_annual=0.006,
+    annual_cost=28,  # $17.40 / 227 doses (1lb/151×3g servings, 2g dose) * 365
+    qol_annual=0.006,
     notes="Mouse lifespan +5%. Sleep RCTs.",
+    sources=["https://www.amazon.com/dp/B0013OVZJW"],
 ))
 _add(CatalogEntry(
     "apigenin_50", "Apigenin 50mg", "supplement_bought",
     hr_observed=0.96, log_sd=0.12, conf_alpha=1.0, conf_beta=6.0,
-    annual_cost=120, qol_annual=0.005,
+    annual_cost=76,  # $24.95 / 120 caps * 365
+    qol_annual=0.005,
     notes="CD38 inhibitor. Anxiolytic.",
+    sources=["https://www.amazon.com/dp/B09DGTBBSF"],
 ))
 _add(CatalogEntry(
     "omega3_epa_2g", "High-EPA Omega-3 +2g", "supplement_bought",
     hr_observed=0.955, log_sd=0.10, conf_alpha=2.5, conf_beta=3.0,
-    annual_cost=240, qol_annual=0.002,
+    annual_cost=227,  # $27.95 / 90 softgels * 2/day = 45 days, * 365/45
+    qol_annual=0.002,
     notes="Incremental over CLO. VITAL/REDUCE-IT.",
+    sources=["https://www.amazon.com/dp/B07DX89ZHN"],
 ))
 _add(CatalogEntry(
     "taurine_500_topup", "Taurine 500mg top-up", "supplement_bought",
     hr_observed=0.985, log_sd=0.10, conf_alpha=1.0, conf_beta=5.5,
-    annual_cost=15, qol_annual=0.001,
+    annual_cost=4,  # $23.97 / 2000 doses (1kg, 500mg dose) * 365
+    qol_annual=0.001,
     notes="Incremental over 1500mg in Longevity Mix.",
+    sources=["https://www.amazon.com/dp/B00ENSLW7A"],
 ))
 
 # ---------------------------------------------------------------------------
@@ -401,10 +412,12 @@ _add(CatalogEntry(
     notes="RCTs: cortisol, anxiety, sleep, testosterone. Rare liver concern.",
 ))
 _add(CatalogEntry(
-    "lions_mane_1g", "Lions Mane 1g", "supplement_candidate",
+    "lions_mane_1g", "Lions Mane 1g", "supplement_bought",
     hr_observed=0.98, log_sd=0.12, conf_alpha=1.0, conf_beta=6.0,
-    annual_cost=120, qol_annual=0.003,
+    annual_cost=287,  # $47.21 / 120 caps, 2/day = 60 days, * 365/60
+    qol_annual=0.003,
     notes="NGF stimulation. Small RCTs: cognitive improvement.",
+    sources=["https://www.amazon.com/dp/B00OVF9DVM"],
 ))
 _add(CatalogEntry(
     "black_seed_oil_1g", "Black seed oil 1g", "supplement_candidate",
@@ -413,10 +426,12 @@ _add(CatalogEntry(
     notes="Thymoquinone. Anti-inflammatory. No mortality RCTs.",
 ))
 _add(CatalogEntry(
-    "cistanche_200", "Cistanche 200mg", "supplement_candidate",
+    "cistanche_200", "Cistanche 200mg", "supplement_bought",
     hr_observed=0.95, log_sd=0.18, conf_alpha=1.0, conf_beta=6.0,
-    annual_cost=120, qol_annual=0.002,
+    annual_cost=231,  # $37.99 / 60 tabs, 1/day = 60 days, * 365/60
+    qol_annual=0.002,
     notes="Testosterone, anti-aging TCM. Very limited human data.",
+    sources=["https://www.amazon.com/dp/B08VTFXWQF"],
 ))
 _add(CatalogEntry(
     "nmn_500", "NMN 500mg", "supplement_candidate",
@@ -459,13 +474,20 @@ def simulate_catalog(
     random_state: int = 42,
     pub_bias_shrinkage: float = 0.30,
     horizon_years: float = 40,
+    qaly_discount_rate: float = 0.0,
+    cost_discount_rate: float = 0.05,
+    wtp: float = 200_000,
     categories: Optional[List[str]] = None,
 ) -> List[Dict]:
     """
     Simulate all catalog entries and return sorted results.
 
     Returns list of dicts with: id, name, category, hr_observed, hr_corrected,
-    total_qaly, days, p_benefit, annual_cost, gross_value.
+    total_qaly, days, p_benefit, annual_cost, gross_value, cost_per_qaly.
+
+    Costs are survival-weighted and discounted at cost_discount_rate (default 5%,
+    reflecting opportunity cost of investing in equities). QALYs are undiscounted
+    by default (a year of life at 80 is as valuable as at 40).
     """
     from .simulate import simulate_qaly_profile_vectorized
 
@@ -476,13 +498,18 @@ def simulate_catalog(
         intervention = entry.to_intervention(pub_bias_shrinkage)
         r = simulate_qaly_profile_vectorized(
             intervention, profile,
-            n_simulations=n_simulations, random_state=random_state,
+            n_simulations=n_simulations,
+            discount_rate=qaly_discount_rate,
+            cost_discount_rate=cost_discount_rate,
+            random_state=random_state,
         )
         hr_corrected = publication_bias_correct(entry.hr_observed, pub_bias_shrinkage)
         mort_qaly = r.mean
         qol_qaly = entry.qol_annual * horizon_years
         total_qaly = mort_qaly + qol_qaly
-        total_cost = entry.annual_cost * horizon_years
+        # Survival-weighted discounted cost
+        total_cost = entry.annual_cost * r.expected_discounted_cost_factor
+        cost_per_qaly = total_cost / total_qaly if total_qaly > 0 and entry.annual_cost > 0 else None
 
         results.append({
             "id": entry.id,
@@ -497,7 +524,9 @@ def simulate_catalog(
             "p_benefit": r.prob_positive,
             "annual_cost": entry.annual_cost,
             "total_cost": total_cost,
-            "gross_value": total_qaly * 200_000 - total_cost,
+            "cost_per_qaly": cost_per_qaly,
+            "expected_discounted_cost_factor": r.expected_discounted_cost_factor,
+            "gross_value": total_qaly * wtp - total_cost,
         })
 
     results.sort(key=lambda x: x["gross_value"], reverse=True)

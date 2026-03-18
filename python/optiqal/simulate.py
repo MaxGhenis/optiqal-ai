@@ -38,16 +38,21 @@ class SimulationResult:
     causal_fraction_mean: Optional[float] = None
     causal_fraction_ci: Optional[tuple] = None
 
+    # Cost (survival-weighted discounted)
+    expected_discounted_cost_factor: float = 1.0  # Multiply by annual_cost for total
+
     # Settings
     n_simulations: int = 10000
     discount_rate: float = 0.03
+    cost_discount_rate: float = 0.05
 
 
 def simulate_qaly_profile_vectorized(
     intervention: Intervention,
     profile: Profile,
     n_simulations: int = 10000,
-    discount_rate: float = 0.03,
+    discount_rate: float = 0.0,
+    cost_discount_rate: float = 0.05,
     apply_confounding: bool = True,
     random_state: Optional[int] = None,
 ) -> SimulationResult:
@@ -55,6 +60,12 @@ def simulate_qaly_profile_vectorized(
     Vectorized Monte Carlo simulation - ~100x faster than loop version.
 
     Uses NumPy broadcasting to process all simulations at once.
+
+    Args:
+        discount_rate: Discount rate for QALYs (default 0% — a year of life
+            at 80 is as valuable as at 40).
+        cost_discount_rate: Discount rate for costs (default 5% — opportunity
+            cost of investing in equities instead).
     """
     rng = np.random.default_rng(random_state)
 
@@ -149,6 +160,14 @@ def simulate_qaly_profile_vectorized(
     qaly_gains = intervention_qalys_total - baseline_qalys_total
     life_years_gained = intervention_life_years - baseline_life_years
 
+    # Survival-weighted discounted cost factor
+    # E[PV cost] = Σ S_intervention(t) × (1+r_cost)^(-t)
+    # Returns a factor to multiply by annual_cost
+    cost_discount = (1 / (1 + cost_discount_rate)) ** years  # (n_years,)
+    # Use mean intervention survival for cost (across simulations)
+    mean_intervention_survival = np.mean(intervention_survival, axis=0)  # (n_years,)
+    expected_discounted_cost_factor = float(np.sum(mean_intervention_survival * cost_discount))
+
     # Pathway contributions (approximate - using median HR)
     median_hr = np.median(adjusted_hrs)
     log_median = np.log(median_hr)
@@ -173,10 +192,12 @@ def simulate_qaly_profile_vectorized(
         cancer_contribution=float(cancer_contrib),
         other_contribution=float(other_contrib),
         life_years_gained=float(np.median(life_years_gained)),
+        expected_discounted_cost_factor=expected_discounted_cost_factor,
         causal_fraction_mean=causal_fraction_mean,
         causal_fraction_ci=causal_fraction_ci,
         n_simulations=n_simulations,
         discount_rate=discount_rate,
+        cost_discount_rate=cost_discount_rate,
     )
 
 

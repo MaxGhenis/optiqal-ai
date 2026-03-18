@@ -25,7 +25,9 @@ class AnalysisConfig:
 
     profile: Profile
     wtp: float = 200_000  # Willingness-to-pay per QALY
-    horizon_years: float = 40
+    horizon_years: float = 40  # Used for QoL QALY calc; mortality uses survival curves
+    qaly_discount_rate: float = 0.0  # 0% — a year of life at 80 is as valuable as at 40
+    cost_discount_rate: float = 0.05  # 5% — opportunity cost of investing in equities
     pub_bias_shrinkage: float = 0.30
     n_simulations: int = 50_000
     random_state: int = 42
@@ -107,13 +109,17 @@ def _simulate_one(
     r = simulate_qaly_profile_vectorized(
         intervention, config.profile,
         n_simulations=config.n_simulations,
+        discount_rate=config.qaly_discount_rate,
+        cost_discount_rate=config.cost_discount_rate,
         random_state=config.random_state,
     )
     mort_qaly = r.mean
     qol_qaly = qol_annual * config.horizon_years
     total_qaly = mort_qaly + qol_qaly
-    total_cost = annual_cost * config.horizon_years
+    # Survival-weighted discounted cost
+    total_cost = annual_cost * r.expected_discounted_cost_factor
     net_value = total_qaly * config.wtp - total_cost
+    cost_per_qaly = total_cost / total_qaly if total_qaly > 0 and annual_cost > 0 else None
 
     return {
         "name": name,
@@ -123,6 +129,7 @@ def _simulate_one(
         "days": total_qaly * 365.25,
         "annual_cost": annual_cost,
         "total_cost": total_cost,
+        "cost_per_qaly": cost_per_qaly,
         "net_value": net_value,
         "p_benefit": r.prob_positive,
         "ci_low": r.ci95[0] * 365.25 if r.ci95 else 0,
@@ -240,6 +247,9 @@ def analyze(
         random_state=config.random_state,
         pub_bias_shrinkage=config.pub_bias_shrinkage,
         horizon_years=config.horizon_years,
+        qaly_discount_rate=config.qaly_discount_rate,
+        cost_discount_rate=config.cost_discount_rate,
+        wtp=config.wtp,
         categories=config.categories,
     )
 
