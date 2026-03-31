@@ -129,6 +129,46 @@ class MortalityEffect:
 
 
 @dataclass
+class HarmEffect:
+    """Direct harm from an intervention while active."""
+
+    id: str
+    description: Optional[str] = None
+    annual_qaly_loss: Optional[Distribution] = None
+    event_probability: Optional[Distribution] = None
+    event_qaly_loss: Optional[Distribution] = None
+    max_events: int = 1
+    source: Optional[str] = None
+
+
+@dataclass
+class InteractionRule:
+    """Stack-aware harm penalty triggered by overlapping intervention tags."""
+
+    id: str
+    requires_tags: List[str]
+    minimum_matches: Optional[int] = None
+    description: Optional[str] = None
+    annual_qaly_loss: Optional[Distribution] = None
+    event_probability: Optional[Distribution] = None
+    event_qaly_loss: Optional[Distribution] = None
+    max_events: int = 1
+    source: Optional[str] = None
+
+
+@dataclass
+class InterventionLineage:
+    """Study- and prior-level provenance for an intervention estimate."""
+
+    estimand: str
+    model_version: Optional[str] = None
+    studies: List[Dict[str, Any]] = field(default_factory=list)
+    parameter_lineage: List[Dict[str, Any]] = field(default_factory=list)
+    prior_lineage: List[Dict[str, Any]] = field(default_factory=list)
+    notes: List[str] = field(default_factory=list)
+
+
+@dataclass
 class Intervention:
     """
     Complete intervention specification.
@@ -147,6 +187,9 @@ class Intervention:
     # Effects
     mechanisms: List[MechanismEffect] = field(default_factory=list)
     mortality: Optional[MortalityEffect] = None
+    harm_model: List[HarmEffect] = field(default_factory=list)
+    interaction_tags: List[str] = field(default_factory=list)
+    interaction_rules: List[InteractionRule] = field(default_factory=list)
 
     # Evidence
     evidence_quality: Literal["high", "moderate", "low", "very-low"] = "moderate"
@@ -158,6 +201,9 @@ class Intervention:
 
     # Caveats
     caveats: List[str] = field(default_factory=list)
+
+    # Provenance
+    lineage: Optional[InterventionLineage] = None
 
     @classmethod
     def from_yaml(cls, path: Union[str, Path]) -> "Intervention":
@@ -203,6 +249,62 @@ class Intervention:
                 decay_rate=mort.get("decay_rate", 0),
             )
 
+        harm_model = []
+        if "harm_model" in data:
+            for harm_data in data["harm_model"]:
+                harm_model.append(
+                    HarmEffect(
+                        id=harm_data["id"],
+                        description=harm_data.get("description"),
+                        annual_qaly_loss=(
+                            Distribution.from_dict(harm_data["annual_qaly_loss"])
+                            if harm_data.get("annual_qaly_loss") is not None
+                            else None
+                        ),
+                        event_probability=(
+                            Distribution.from_dict(harm_data["event_probability"])
+                            if harm_data.get("event_probability") is not None
+                            else None
+                        ),
+                        event_qaly_loss=(
+                            Distribution.from_dict(harm_data["event_qaly_loss"])
+                            if harm_data.get("event_qaly_loss") is not None
+                            else None
+                        ),
+                        max_events=harm_data.get("max_events", 1),
+                        source=harm_data.get("source"),
+                    )
+                )
+
+        interaction_rules = []
+        if "interaction_rules" in data:
+            for rule_data in data["interaction_rules"]:
+                interaction_rules.append(
+                    InteractionRule(
+                        id=rule_data["id"],
+                        requires_tags=rule_data["requires_tags"],
+                        minimum_matches=rule_data.get("minimum_matches"),
+                        description=rule_data.get("description"),
+                        annual_qaly_loss=(
+                            Distribution.from_dict(rule_data["annual_qaly_loss"])
+                            if rule_data.get("annual_qaly_loss") is not None
+                            else None
+                        ),
+                        event_probability=(
+                            Distribution.from_dict(rule_data["event_probability"])
+                            if rule_data.get("event_probability") is not None
+                            else None
+                        ),
+                        event_qaly_loss=(
+                            Distribution.from_dict(rule_data["event_qaly_loss"])
+                            if rule_data.get("event_qaly_loss") is not None
+                            else None
+                        ),
+                        max_events=rule_data.get("max_events", 1),
+                        source=rule_data.get("source"),
+                    )
+                )
+
         # Parse confounding prior
         confounding_prior = None
         if "confounding" in data and "prior" in data["confounding"]:
@@ -223,6 +325,18 @@ class Intervention:
                 data.get("evidence", {}).get("primary_study_type"),
             )
 
+        lineage = None
+        if "lineage" in data:
+            lineage_data = data["lineage"]
+            lineage = InterventionLineage(
+                estimand=lineage_data["estimand"],
+                model_version=lineage_data.get("model_version"),
+                studies=lineage_data.get("studies", []),
+                parameter_lineage=lineage_data.get("parameter_lineage", []),
+                prior_lineage=lineage_data.get("prior_lineage", []),
+                notes=lineage_data.get("notes", []),
+            )
+
         return cls(
             id=data["id"],
             name=data["name"],
@@ -231,11 +345,15 @@ class Intervention:
             keywords=data.get("keywords", []),
             mechanisms=mechanisms,
             mortality=mortality,
+            harm_model=harm_model,
+            interaction_tags=data.get("interaction_tags", []),
+            interaction_rules=interaction_rules,
             evidence_quality=data.get("evidence", {}).get("quality", "moderate"),
             primary_study_type=data.get("evidence", {}).get("primary_study_type"),
             sources=data.get("evidence", {}).get("sources", []),
             confounding_prior=confounding_prior,
             caveats=data.get("caveats", []),
+            lineage=lineage,
         )
 
     def to_pathway_hrs(

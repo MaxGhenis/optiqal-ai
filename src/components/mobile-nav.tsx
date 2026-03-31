@@ -24,21 +24,21 @@ export function MobileNav() {
             <Link
               href="#how-it-works"
               onClick={() => setOpen(false)}
-              className="px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 rounded-lg transition-colors"
+              className="px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-panel/80 rounded-lg transition-colors"
             >
               How it works
             </Link>
             <Link
               href="/about"
               onClick={() => setOpen(false)}
-              className="px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 rounded-lg transition-colors"
+              className="px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-panel/80 rounded-lg transition-colors"
             >
               About
             </Link>
             <Link
               href="/faq"
               onClick={() => setOpen(false)}
-              className="px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 rounded-lg transition-colors"
+              className="px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-panel/80 rounded-lg transition-colors"
             >
               FAQ
             </Link>
@@ -47,8 +47,8 @@ export function MobileNav() {
                 className="w-full btn-glow bg-primary text-primary-foreground hover:bg-primary/90"
                 asChild
               >
-                <Link href="/predict" onClick={() => setOpen(false)}>
-                  Try it free
+                <Link href="/analyze" onClick={() => setOpen(false)}>
+                  Start analysis
                   <Sparkles className="ml-1.5 h-4 w-4" />
                 </Link>
               </Button>

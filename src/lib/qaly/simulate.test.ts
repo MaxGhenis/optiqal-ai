@@ -214,6 +214,25 @@ describe("simulateQALYImpact basic functionality", () => {
     expect(result.ci95.low).toBeLessThanOrEqual(result.median);
     expect(result.ci95.high).toBeGreaterThanOrEqual(result.median);
   });
+
+  it("should expose coherent upside and downside posterior metrics", () => {
+    const result = simulateQALYImpact(mockProfile, walkingIntervention, {
+      nSimulations: 2000,
+      applyConfounding: true,
+    });
+
+    expect(result.probNegative).toBeGreaterThanOrEqual(0);
+    expect(result.probNegative).toBeLessThanOrEqual(1);
+    expect(result.probPositive + result.probNegative).toBeCloseTo(1, 1);
+    expect(result.expectedUpside).toBeGreaterThanOrEqual(0);
+    expect(result.expectedDownside).toBeLessThanOrEqual(0);
+    expect(result.conditionalUpside).toBeGreaterThanOrEqual(result.expectedUpside);
+    expect(result.conditionalDownside).toBeLessThanOrEqual(result.expectedDownside);
+    expect(result.mean).toBeCloseTo(
+      result.expectedUpside + result.expectedDownside,
+      6
+    );
+  });
 });
 
 describe("simulateQALYImpactRigorous", () => {
@@ -258,6 +277,23 @@ describe("simulateQALYImpactRigorous", () => {
     expect(discounted.median).toBeLessThan(undiscounted.median);
     expect(discounted.lifecycle.discountRate).toBe(0.03);
     expect(undiscounted.lifecycle.discountRate).toBe(0);
+  });
+
+  it("should expose coherent downside metrics in rigorous mode too", () => {
+    const result = simulateQALYImpactRigorous(mockProfile, walkingIntervention, {
+      nSimulations: 2000,
+      applyConfounding: true,
+    });
+
+    expect(result.probNegative).toBeGreaterThanOrEqual(0);
+    expect(result.probNegative).toBeLessThanOrEqual(1);
+    expect(result.probPositive + result.probNegative).toBeCloseTo(1, 1);
+    expect(result.expectedUpside).toBeGreaterThanOrEqual(0);
+    expect(result.expectedDownside).toBeLessThanOrEqual(0);
+    expect(result.mean).toBeCloseTo(
+      result.expectedUpside + result.expectedDownside,
+      6
+    );
   });
 
   it("should give results in whatnut range", () => {

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Mendelian Randomization Analysis: BMI → T2DM and BMI → CVD
-Uses Pan-UKB GWAS summary statistics to validate OptiqAL QALY estimates
+Uses Pan-UKB GWAS summary statistics to validate Optiqal QALY estimates
 
 References:
 @article{panukb2022,
@@ -252,7 +252,7 @@ def run_mr(harmonized: pd.DataFrame) -> pd.DataFrame:
 
 def main():
     print("=" * 60)
-    print("Pan-UKB MR Validation for OptiqAL")
+    print("Pan-UKB MR Validation for Optiqal")
     print("=" * 60)
 
     # 1. Read exposure data (BMI)
@@ -295,12 +295,12 @@ def main():
     results_summary.to_csv(OUTPUT_DIR / "mr_results.csv", index=False)
     print(f"Results saved to: {OUTPUT_DIR / 'mr_results.csv'}")
 
-    # 5. Compare to OptiqAL model
+    # 5. Compare to Optiqal model
     print("\n" + "=" * 60)
     print("Validation Comparison")
     print("=" * 60)
 
-    print("\nOptiqAL Model Estimates (per 5 BMI unit increase):")
+    print("\nOptiqal Model Estimates (per 5 BMI unit increase):")
     print("  T2DM: HR ~1.5-2.0 (from meta-analyses)")
     print("  CVD: HR ~1.3-1.5 (from meta-analyses)")
 

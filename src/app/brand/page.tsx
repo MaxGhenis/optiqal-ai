@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
-import { Palette, FileText, Activity } from "lucide-react";
+import { Palette, FileText } from "lucide-react";
+import { LogoLockup } from "@/components/brand/logo";
 
 export default function BrandPage() {
   const cards = [
@@ -26,12 +27,13 @@ export default function BrandPage() {
     <div className="max-w-4xl mx-auto px-6">
       {/* Hero */}
       <div className="text-center mb-16 opacity-0 animate-slide-up">
-        <div className="inline-flex items-center gap-3 mb-6">
-          <div className="relative">
-            <Activity className="h-10 w-10 text-primary" />
-            <div className="absolute inset-0 bg-primary/30 blur-xl" />
-          </div>
-          <span className="text-3xl font-semibold tracking-tight">optiqal</span>
+        <div className="inline-flex items-center mb-6">
+          <LogoLockup
+            size="lg"
+            descriptor="Clinical-organic futurism"
+            nameClassName="text-[2.2rem]"
+            descriptorClassName="text-[0.74rem]"
+          />
         </div>
         <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-medium mb-6">
           Brand <span className="gradient-text">guidelines</span>

@@ -3,7 +3,7 @@
 Download Pan-UKB GWAS Summary Statistics
 
 This script provides instructions and automation for downloading Pan-UKB summary
-statistics used in OptiqAL's MR validation analysis.
+statistics used in Optiqal's MR validation analysis.
 
 Data Source: Pan-UK Biobank (Pan-UKB)
 URL: https://pan.ukbb.broadinstitute.org/
@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 from typing import Dict
 
-# Phenotypes used in OptiqAL MR validation
+# Phenotypes used in Optiqal MR validation
 PHENOTYPES: Dict[str, Dict[str, str]] = {
     "bmi": {
         "id": "21001_irnt",
@@ -62,7 +62,7 @@ def print_instructions():
     print("Data will be downloaded to:")
     print(f"  {OUTPUT_DIR.absolute()}")
     print()
-    print("Required phenotypes for OptiqAL MR validation:")
+    print("Required phenotypes for Optiqal MR validation:")
     print()
 
     for key, info in PHENOTYPES.items():

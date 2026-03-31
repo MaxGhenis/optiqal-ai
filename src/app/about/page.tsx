@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 
 export const metadata = {
   title: "About — Optiqal",
-  description: "Learn about Optiqal and how it estimates quality-adjusted life years",
+  description: "Learn about Optiqal and how it ranks health interventions using QALYs, Bayesian uncertainty, and profile-aware estimates",
 };
 
 export default function AboutPage() {
@@ -24,15 +24,17 @@ export default function AboutPage() {
           <section>
             <h2 className="text-xl font-semibold mb-3">What is Optiqal?</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Optiqal is an educational tool that estimates Quality-Adjusted Life Years (QALYs)
-              to help you understand how lifestyle factors may affect your healthspan. By combining
-              actuarial life expectancy data with health-related quality of life research, Optiqal
-              provides a more complete picture of healthy life expectancy than mortality statistics alone.
+              Optiqal is a health decision tool that ranks interventions using
+              Quality-Adjusted Life Years (QALYs), Bayesian uncertainty, and
+              profile-aware estimates. The goal is not just to estimate
+              healthspan in the abstract, but to help you compare unlike
+              choices on one explicit scale.
             </p>
             <p className="text-muted-foreground leading-relaxed mt-3">
               QALYs weight years of life by health quality, where 1 QALY represents one year lived
-              in perfect health. This framework helps illustrate the potential impact of various
-              risk factors on both how long you might live and how well you might live.
+              in perfect health. That framework lets Optiqal compare actions
+              that would otherwise be hard to stack against each other, such as
+              sleep, exercise, lipid lowering, and supplements.
             </p>
           </section>
 
@@ -51,8 +53,8 @@ export default function AboutPage() {
                 Risk factor relative risks and population attributable fractions
               </li>
               <li>
-                <strong className="text-foreground">Published Meta-Analyses</strong> —
-                Peer-reviewed studies on lifestyle factors and health outcomes
+                <strong className="text-foreground">Published Meta-Analyses and Trials</strong> —
+                Peer-reviewed studies on interventions and health outcomes
               </li>
             </ul>
           </section>
@@ -60,17 +62,20 @@ export default function AboutPage() {
           <section>
             <h2 className="text-xl font-semibold mb-3">Statistical Methods</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Optiqal generates personalized predictions by applying hazard ratios from meta-analyses
-              to your individual profile. We use Monte Carlo simulation to propagate uncertainty
-              through the model, producing prediction intervals that reflect the limits of current
-              research. The uncertainty bounds are just as important as the point estimates—they
-              tell you how certain we can be given existing evidence.
+              Optiqal estimates the incremental health impact of interventions
+              against your profile rather than presenting a generic score. We
+              use simulation to propagate uncertainty through the model and show
+              the limits of current research. Weak evidence is handled with
+              priors and shrinkage rather than hard buckets, so fragile claims
+              move closer to zero and carry wider tails instead of being given
+              false precision.
             </p>
             <p className="text-muted-foreground leading-relaxed mt-3">
               <strong className="text-foreground">Not medical advice.</strong>{" "}
-              Our predictions are statistical, not clinical. They show what research suggests for
-              someone with your profile but cannot account for your complete medical history.
-              Discuss health decisions with your doctor.
+              Our estimates are statistical, not clinical. They show what
+              research suggests for someone with your profile but cannot account
+              for your complete medical history. Discuss health decisions with
+              your doctor.
             </p>
           </section>
 

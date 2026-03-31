@@ -1,4 +1,4 @@
-# OptiqAL Intervention Schema
+# Optiqal Intervention Schema
 #
 # This YAML-based DSL defines lifestyle interventions with full uncertainty
 # quantification. Designed for:
@@ -78,6 +78,64 @@ properties:
       rationale:
         type: string
 
+  lineage:
+    type: object
+    description: Provenance linking empirical studies and priors to model parameters
+    required: [estimand, studies, parameter_lineage]
+    properties:
+      model_version:
+        type: string
+      estimand:
+        type: string
+      studies:
+        type: array
+        items:
+          type: object
+          required: [id, citation, study_type, role]
+          properties:
+            id: { type: string }
+            citation: { type: string }
+            year: { type: integer }
+            study_type:
+              type: string
+              enum: [meta-analysis, rct, cohort, case-control, review, expert, other]
+            sample_size: { type: integer }
+            role:
+              type: string
+              enum: [direct-effect, mechanism-link, prior-calibration, transport, harm-model, baseline-risk, heuristic]
+            notes: { type: string }
+      parameter_lineage:
+        type: array
+        items:
+          type: object
+          required: [parameter, derivation, source_ids]
+          properties:
+            parameter: { type: string }
+            derivation: { type: string }
+            source_ids:
+              type: array
+              items: { type: string }
+            assumptions:
+              type: array
+              items: { type: string }
+      prior_lineage:
+        type: array
+        items:
+          type: object
+          required: [parameter, family, rationale, source_ids]
+          properties:
+            parameter: { type: string }
+            family:
+              type: string
+              enum: [beta, normal, lognormal, custom]
+            rationale: { type: string }
+            source_ids:
+              type: array
+              items: { type: string }
+      notes:
+        type: array
+        items: { type: string }
+
   # ============================================
   # MECHANISM EFFECTS
   # ============================================
@@ -141,6 +199,40 @@ properties:
         default: 0
         description: Effect decay per year (0 = permanent)
 
+  harm_model:
+    type: array
+    items:
+      $ref: "#/$defs/harm_effect"
+
+  interaction_tags:
+    type: array
+    items: { type: string }
+
+  interaction_rules:
+    type: array
+    items:
+      type: object
+      required: [id, requires_tags]
+      properties:
+        id: { type: string }
+        requires_tags:
+          type: array
+          items: { type: string }
+        minimum_matches:
+          type: integer
+          minimum: 1
+        description: { type: string }
+        annual_qaly_loss:
+          $ref: "#/$defs/distribution"
+        event_probability:
+          $ref: "#/$defs/distribution"
+        event_qaly_loss:
+          $ref: "#/$defs/distribution"
+        max_events:
+          type: integer
+          minimum: 1
+        source: { type: string }
+
   # ============================================
   # QUALITY OF LIFE EFFECT
   # ============================================
@@ -203,6 +295,23 @@ properties:
 # ============================================
 
 $defs:
+  harm_effect:
+    type: object
+    required: [id]
+    properties:
+      id: { type: string }
+      description: { type: string }
+      annual_qaly_loss:
+        $ref: "#/$defs/distribution"
+      event_probability:
+        $ref: "#/$defs/distribution"
+      event_qaly_loss:
+        $ref: "#/$defs/distribution"
+      max_events:
+        type: integer
+        minimum: 1
+      source: { type: string }
+
   distribution:
     oneOf:
       - type: object

@@ -1,6 +1,6 @@
 # Pan-UKB MR Validation Data
 
-This directory contains data and results from Mendelian Randomization (MR) analysis validating OptiqAL's QALY estimates against Pan-UK Biobank genetic associations.
+This directory contains data and results from Mendelian Randomization (MR) analysis validating Optiqal's QALY estimates against Pan-UK Biobank genetic associations.
 
 ## Data Source
 
@@ -35,13 +35,13 @@ This directory contains data and results from Mendelian Randomization (MR) analy
   - Phenotype ID: `E11` (ICD-10)
   - File: `sumstats/t2dm.tsv.bgz`
   - Cases: ~30,000 | Controls: ~380,000
-  - Use: Validate OptiqAL's BMI → T2DM hazard ratio (HR 1.75)
+  - Use: Validate Optiqal's BMI → T2DM hazard ratio (HR 1.75)
 
 - **Myocardial Infarction (MI)**
   - Phenotype ID: `I21` (ICD-10)
   - File: `sumstats/mi.tsv.bgz`
   - Cases: ~20,000 | Controls: ~400,000
-  - Use: Validate OptiqAL's BMI → CVD hazard ratio (HR 1.40)
+  - Use: Validate Optiqal's BMI → CVD hazard ratio (HR 1.40)
 
 ### Negative Control
 - **Melanoma**
@@ -83,7 +83,7 @@ Users should comply with UK Biobank policies:
 
 ### OptiqAI Usage
 This data is used solely for:
-1. Validating OptiqAL QALY model estimates via MR
+1. Validating Optiqal QALY model estimates via MR
 2. Academic research and publication
 3. Non-commercial open-source software development
 
@@ -167,7 +167,7 @@ jupyter notebook notebooks/pan-ukb-validation.ipynb
 
 ### Expected Results
 
-| Outcome | MR Estimate (OR) | OptiqAL Model (HR) | Calibration |
+| Outcome | MR Estimate (OR) | Optiqal Model (HR) | Calibration |
 |---------|------------------|---------------------|-------------|
 | T2DM | 2.52 (2.38-2.67) | 1.75 (1.50-2.00) | Model may underestimate |
 | MI/CVD | 1.30 (1.22-1.39) | 1.40 (1.30-1.50) | Well calibrated |
@@ -216,7 +216,7 @@ jupyter notebook notebooks/pan-ukb-validation.ipynb
 ## Contact
 
 For questions about this analysis:
-- OptiqAI GitHub: https://github.com/maxghenis/optiqal-ai
+- Optiqal GitHub: https://github.com/maxghenis/optiqal-ai
 - Issues: https://github.com/maxghenis/optiqal-ai/issues
 
 For questions about Pan-UKB data:

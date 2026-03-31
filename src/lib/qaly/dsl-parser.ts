@@ -1,5 +1,5 @@
 /**
- * OptiqAL DSL Parser
+ * Optiqal DSL Parser
  *
  * Converts YAML intervention definitions to TypeScript InterventionEffect objects.
  * Supports both verbose object syntax and shorthand string syntax for distributions.
@@ -7,7 +7,12 @@
 
 import type {
   Distribution,
+  EvidenceRole,
+  EvidenceStudyType,
+  HarmEffect,
+  InteractionRule,
   InterventionEffect,
+  InterventionLineage,
   MechanismEffect,
   MortalityEffect,
   QualityEffect,
@@ -46,6 +51,33 @@ export interface YAMLIntervention {
     rationale?: string;
   };
 
+  lineage?: {
+    model_version?: string;
+    estimand: string;
+    studies: Array<{
+      id: string;
+      citation: string;
+      year?: number;
+      study_type: "meta-analysis" | "rct" | "cohort" | "case-control" | "review" | "expert" | "other";
+      sample_size?: number;
+      role: "direct-effect" | "mechanism-link" | "prior-calibration" | "transport" | "harm-model" | "baseline-risk" | "heuristic";
+      notes?: string;
+    }>;
+    parameter_lineage: Array<{
+      parameter: string;
+      derivation: string;
+      source_ids: string[];
+      assumptions?: string[];
+    }>;
+    prior_lineage?: Array<{
+      parameter: string;
+      family: "beta" | "normal" | "lognormal" | "custom";
+      rationale: string;
+      source_ids: string[];
+    }>;
+    notes?: string[];
+  };
+
   mechanisms?: Record<string, {
     effect: YAMLDistribution;
     direction: "increase" | "decrease";
@@ -61,6 +93,30 @@ export interface YAMLIntervention {
     ramp_up?: number;
     decay_rate?: number;
   };
+
+  harm_model?: Array<{
+    id: string;
+    description?: string;
+    annual_qaly_loss?: YAMLDistribution;
+    event_probability?: YAMLDistribution;
+    event_qaly_loss?: YAMLDistribution;
+    max_events?: number;
+    source?: string;
+  }>;
+
+  interaction_tags?: string[];
+
+  interaction_rules?: Array<{
+    id: string;
+    requires_tags: string[];
+    minimum_matches?: number;
+    description?: string;
+    annual_qaly_loss?: YAMLDistribution;
+    event_probability?: YAMLDistribution;
+    event_qaly_loss?: YAMLDistribution;
+    max_events?: number;
+    source?: string;
+  }>;
 
   quality?: {
     subjective_wellbeing?: YAMLDistribution;
@@ -205,6 +261,40 @@ export function parseIntervention(yaml: YAMLIntervention): InterventionEffect {
     };
   }
 
+  const harmModel: HarmEffect[] | undefined = yaml.harm_model?.map((harm) => ({
+    id: harm.id,
+    description: harm.description,
+    annualQalyLoss: harm.annual_qaly_loss
+      ? parseDistribution(harm.annual_qaly_loss)
+      : undefined,
+    eventProbability: harm.event_probability
+      ? parseDistribution(harm.event_probability)
+      : undefined,
+    eventQalyLoss: harm.event_qaly_loss
+      ? parseDistribution(harm.event_qaly_loss)
+      : undefined,
+    maxEvents: harm.max_events,
+    source: harm.source,
+  }));
+
+  const interactionRules: InteractionRule[] | undefined = yaml.interaction_rules?.map((rule) => ({
+    id: rule.id,
+    requiresTags: rule.requires_tags,
+    minimumMatches: rule.minimum_matches,
+    description: rule.description,
+    annualQalyLoss: rule.annual_qaly_loss
+      ? parseDistribution(rule.annual_qaly_loss)
+      : undefined,
+    eventProbability: rule.event_probability
+      ? parseDistribution(rule.event_probability)
+      : undefined,
+    eventQalyLoss: rule.event_qaly_loss
+      ? parseDistribution(rule.event_qaly_loss)
+      : undefined,
+    maxEvents: rule.max_events,
+    source: rule.source,
+  }));
+
   // Parse quality effect
   let quality: QualityEffect | null = null;
   if (yaml.quality) {
@@ -248,11 +338,43 @@ export function parseIntervention(yaml: YAMLIntervention): InterventionEffect {
     contribution: s.contribution || "",
   })) ?? [];
 
+  const lineage: InterventionLineage | undefined = yaml.lineage
+    ? {
+        modelVersion: yaml.lineage.model_version,
+        estimand: yaml.lineage.estimand,
+        studies: yaml.lineage.studies.map((study) => ({
+          id: study.id,
+          citation: study.citation,
+          year: study.year,
+          studyType: study.study_type as EvidenceStudyType,
+          sampleSize: study.sample_size,
+          role: study.role as EvidenceRole,
+          notes: study.notes,
+        })),
+        parameterLineage: yaml.lineage.parameter_lineage.map((entry) => ({
+          parameter: entry.parameter,
+          derivation: entry.derivation,
+          sourceIds: entry.source_ids,
+          assumptions: entry.assumptions,
+        })),
+        priorLineage: yaml.lineage.prior_lineage?.map((entry) => ({
+          parameter: entry.parameter,
+          family: entry.family,
+          rationale: entry.rationale,
+          sourceIds: entry.source_ids,
+        })),
+        notes: yaml.lineage.notes,
+      }
+    : undefined;
+
   return {
     description: yaml.description || yaml.name,
     category: yaml.category,
     mechanismEffects,
     mortality,
+    harmModel,
+    interactionTags: yaml.interaction_tags || [],
+    interactionRules,
     quality,
     costs: yaml.costs ? {
       hoursPerWeek: yaml.costs.hours_per_week
@@ -269,6 +391,7 @@ export function parseIntervention(yaml: YAMLIntervention): InterventionEffect {
     keySources,
     caveats: yaml.caveats || [],
     profileAdjustments: yaml.profile_adjustments?.map((p) => p.adjustment) || [],
+    lineage,
   };
 }
 

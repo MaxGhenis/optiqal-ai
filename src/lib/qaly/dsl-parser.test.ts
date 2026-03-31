@@ -183,6 +183,22 @@ describe("parseIntervention", () => {
       ramp_up: 1,
       decay_rate: 0.1,
     },
+    harm_model: [
+      {
+        id: "gi_upset",
+        description: "Mild GI upset while adapting",
+        annual_qaly_loss: "Point(0.002)",
+      },
+    ],
+    interaction_tags: ["sedating", "serotonergic"],
+    interaction_rules: [
+      {
+        id: "sedation_stack",
+        requires_tags: ["sedating"],
+        minimum_matches: 2,
+        annual_qaly_loss: "Point(0.001)",
+      },
+    ],
     quality: {
       subjective_wellbeing: "Normal(0.02, 0.01)",
       dimension_effects: [
@@ -193,6 +209,38 @@ describe("parseIntervention", () => {
     profile_adjustments: [
       { condition: "age > 65", adjustment: "Reduce effect by 20%" },
     ],
+    lineage: {
+      model_version: "canonical-v1-draft",
+      estimand: "Lifetime net QALY delta versus not doing the intervention",
+      studies: [
+        {
+          id: "test2024_main",
+          citation: "Test et al 2024",
+          year: 2024,
+          study_type: "meta-analysis",
+          sample_size: 10000,
+          role: "direct-effect",
+          notes: "Primary pooled estimate for all-cause mortality",
+        },
+      ],
+      parameter_lineage: [
+        {
+          parameter: "mortality.hazard_ratio",
+          derivation: "meta-analytic pooled log-HR mapped into LogNormal uncertainty",
+          source_ids: ["test2024_main"],
+          assumptions: ["Transportable to broadly healthy adults with shrinkage"],
+        },
+      ],
+      prior_lineage: [
+        {
+          parameter: "confounding.causal_fraction",
+          family: "beta",
+          rationale: "Exercise estimates are shrunk for healthy-user bias",
+          source_ids: ["test2024_main"],
+        },
+      ],
+      notes: ["Draft lineage object for parser tests"],
+    },
   };
 
   it("should parse basic intervention properties", () => {
@@ -226,6 +274,15 @@ describe("parseIntervention", () => {
     expect(result.quality?.directDimensionEffects).toHaveLength(1);
   });
 
+  it("should parse harm and interaction metadata", () => {
+    const result = parseIntervention(sampleYAML);
+    expect(result.harmModel).toHaveLength(1);
+    expect(result.harmModel?.[0].annualQalyLoss).toEqual({ type: "point", value: 0.002 });
+    expect(result.interactionTags).toEqual(["sedating", "serotonergic"]);
+    expect(result.interactionRules).toHaveLength(1);
+    expect(result.interactionRules?.[0].minimumMatches).toBe(2);
+  });
+
   it("should parse key sources", () => {
     const result = parseIntervention(sampleYAML);
     expect(result.keySources).toHaveLength(1);
@@ -237,6 +294,17 @@ describe("parseIntervention", () => {
     const result = parseIntervention(sampleYAML);
     expect(result.caveats).toContain("This is a test");
     expect(result.profileAdjustments).toContain("Reduce effect by 20%");
+  });
+
+  it("should parse intervention lineage metadata", () => {
+    const result = parseIntervention(sampleYAML);
+    expect(result.lineage?.modelVersion).toBe("canonical-v1-draft");
+    expect(result.lineage?.estimand).toContain("Lifetime net QALY delta");
+    expect(result.lineage?.studies).toHaveLength(1);
+    expect(result.lineage?.studies[0].studyType).toBe("meta-analysis");
+    expect(result.lineage?.parameterLineage[0].parameter).toBe("mortality.hazard_ratio");
+    expect(result.lineage?.priorLineage).toBeDefined();
+    expect(result.lineage?.priorLineage?.[0].family).toBe("beta");
   });
 });
 

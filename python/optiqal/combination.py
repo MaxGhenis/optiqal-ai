@@ -6,7 +6,7 @@ Uses multiplicative hazard ratio model with overlap corrections.
 """
 
 from dataclasses import dataclass
-from typing import List, Tuple, Dict, Optional
+from typing import Callable, List, Tuple, Dict, Optional
 import numpy as np
 
 from .intervention import Intervention
@@ -64,43 +64,6 @@ def get_overlap_factor(intervention_a: str, intervention_b: str) -> float:
     return OVERLAP_MATRIX.get((intervention_a, intervention_b), 1.0)
 
 
-# =============================================================================
-# DIMINISHING RETURNS MODEL
-# =============================================================================
-
-def get_diminishing_returns_factor(n_interventions: int) -> float:
-    """
-    Apply diminishing returns for stacking many interventions.
-
-    Rationale: As baseline risk decreases, additional interventions
-    have less room to provide benefit. Also, adherence typically
-    decreases with intervention complexity.
-
-    Model: Exponential decay with floor
-    - 1 intervention: 1.0 (full effect)
-    - 2 interventions: 0.95
-    - 3 interventions: 0.90
-    - 4 interventions: 0.85
-    - 5+ interventions: 0.80 floor
-
-    Args:
-        n_interventions: Number of interventions being combined
-
-    Returns:
-        Multiplier for the marginal effect of additional interventions
-    """
-    if n_interventions <= 1:
-        return 1.0
-
-    # Exponential decay: 0.95^(n-1) with floor at 0.80
-    factor = 0.95 ** (n_interventions - 1)
-    return max(factor, 0.80)
-
-
-# =============================================================================
-# COMBINED HAZARD RATIO CALCULATION
-# =============================================================================
-
 @dataclass
 class CombinedEffect:
     """Result of combining multiple interventions."""
@@ -108,7 +71,6 @@ class CombinedEffect:
     combined_hr: float  # Combined hazard ratio
     individual_hrs: Dict[str, float]  # HR for each intervention
     overlap_adjustments: Dict[Tuple[str, str], float]  # Overlap penalties applied
-    diminishing_returns_factor: float  # Global diminishing returns
     effective_log_hr: float  # log(combined_hr) after all adjustments
 
     @property
@@ -121,7 +83,6 @@ def combine_intervention_effects(
     interventions: List[Intervention],
     profile: Optional[Profile] = None,
     apply_overlap: bool = True,
-    apply_diminishing_returns: bool = True,
 ) -> CombinedEffect:
     """
     Combine multiple intervention effects using multiplicative HR model.
@@ -130,14 +91,12 @@ def combine_intervention_effects(
     1. Start with each intervention's hazard ratio
     2. Apply profile-specific effect modifiers (if profile provided)
     3. Apply overlap corrections for interventions with shared mechanisms
-    4. Apply global diminishing returns for stacking many interventions
-    5. Multiply all adjusted HRs
+    4. Multiply all adjusted HRs
 
     Args:
         interventions: List of Intervention objects to combine
         profile: Optional demographic profile for effect modifiers
         apply_overlap: Whether to apply overlap corrections
-        apply_diminishing_returns: Whether to apply stacking penalty
 
     Returns:
         CombinedEffect with combined HR and breakdown
@@ -147,7 +106,6 @@ def combine_intervention_effects(
             combined_hr=1.0,
             individual_hrs={},
             overlap_adjustments={},
-            diminishing_returns_factor=1.0,
             effective_log_hr=0.0,
         )
 
@@ -194,11 +152,7 @@ def combine_intervention_effects(
     # Sum log HRs
     total_log_hr = sum(effective_log_hrs.values())
 
-    # Apply diminishing returns
-    dr_factor = get_diminishing_returns_factor(len(interventions)) if apply_diminishing_returns else 1.0
-    adjusted_log_hr = total_log_hr * dr_factor
-
-    combined_hr = np.exp(adjusted_log_hr)
+    combined_hr = np.exp(total_log_hr)
 
     # Cap at reasonable minimum (can't reduce mortality by more than 90%)
     combined_hr = max(combined_hr, 0.10)
@@ -207,8 +161,7 @@ def combine_intervention_effects(
         combined_hr=combined_hr,
         individual_hrs=individual_hrs,
         overlap_adjustments=overlap_adjustments,
-        diminishing_returns_factor=dr_factor,
-        effective_log_hr=adjusted_log_hr,
+        effective_log_hr=total_log_hr,
     )
 
 
@@ -222,7 +175,6 @@ def simulate_combined_qaly(
     n_simulations: int = 5000,
     discount_rate: float = 0.03,
     apply_overlap: bool = True,
-    apply_diminishing_returns: bool = True,
 ) -> SimulationResult:
     """
     Simulate QALY gains from a combination of interventions.
@@ -236,7 +188,6 @@ def simulate_combined_qaly(
         n_simulations: Number of Monte Carlo samples
         discount_rate: Annual discount rate for future QALYs
         apply_overlap: Whether to apply overlap corrections
-        apply_diminishing_returns: Whether to apply stacking penalty
 
     Returns:
         SimulationResult with combined QALY estimate
@@ -258,7 +209,6 @@ def simulate_combined_qaly(
         interventions,
         profile,
         apply_overlap=apply_overlap,
-        apply_diminishing_returns=apply_diminishing_returns,
     )
 
     # Create synthetic combined intervention
@@ -304,14 +254,13 @@ def estimate_combined_qaly_from_singles(
     single_qalys: Dict[str, float],
     intervention_ids: List[str],
     apply_overlap: bool = True,
-    apply_diminishing_returns: bool = True,
 ) -> float:
     """
     Quick estimate of combined QALY from precomputed single QALYs.
 
     This is an approximation that assumes:
     - QALY gains are roughly proportional to log(HR)
-    - Overlap and diminishing returns apply to the gains
+    - Overlap corrections apply to the gains
 
     More accurate than simple addition, less accurate than full simulation.
 
@@ -319,7 +268,6 @@ def estimate_combined_qaly_from_singles(
         single_qalys: Dict mapping intervention ID to single QALY gain
         intervention_ids: List of intervention IDs to combine
         apply_overlap: Whether to apply overlap corrections
-        apply_diminishing_returns: Whether to apply stacking penalty
 
     Returns:
         Estimated combined QALY gain
@@ -347,11 +295,6 @@ def estimate_combined_qaly_from_singles(
 
         total_qaly += qaly
 
-    # Apply diminishing returns
-    if apply_diminishing_returns:
-        dr_factor = get_diminishing_returns_factor(len(intervention_ids))
-        total_qaly *= dr_factor
-
     return total_qaly
 
 
@@ -374,7 +317,9 @@ def find_optimal_portfolio(
     Args:
         interventions: Available interventions
         profile: Demographic profile
-        max_interventions: Maximum portfolio size
+        max_interventions: Maximum number of greedy additions. When
+            `preselected` is provided, these are additions beyond the
+            preselected base state.
         precomputed_qalys: Optional precomputed single QALYs (faster)
 
     Returns:
@@ -432,89 +377,278 @@ def find_optimal_portfolio(
 def find_optimal_portfolio_with_costs(
     single_qalys: Dict[str, float],
     annual_costs: Dict[str, float],
+    cost_values: Optional[Dict[str, float]] = None,
     wtp: float = 200_000,
     horizon_years: float = 40,
     max_interventions: int = 50,
     exclude: Optional[List[str]] = None,
-    complexity_free_slots: int = 3,
-    complexity_cost_per_item: float = 0.0005,
+    preselected: Optional[List[str]] = None,
+    stack_interaction_penalty_fn: Optional[Callable[[List[str]], float]] = None,
+    marginal_cost_value_fn: Optional[Callable[[List[str], str], float]] = None,
+    total_annual_cost_fn: Optional[Callable[[List[str]], float]] = None,
 ) -> List[Dict]:
     """
-    Find optimal portfolio using cost-aware greedy selection with complexity penalty.
+    Find optimal portfolio using cost-aware greedy selection.
 
     At each step, adds the intervention with highest marginal net value,
     accounting for:
-    - Diminishing returns on mortality benefit (0.95^n, floor 0.80)
-    - Regime complexity penalty (QoL cost per item beyond free slots)
+    - Explicit stack interaction penalties on the QALY side
     - Monetary cost vs willingness-to-pay
 
     Stops when no intervention has positive marginal net value.
 
     Args:
         single_qalys: Dict mapping intervention ID to single QALY gain
-        annual_costs: Dict mapping intervention ID to annual cost ($)
+        annual_costs: Dict mapping intervention ID to annual recurring cost ($)
+        cost_values: Dict mapping intervention ID to the cost value used in
+            net value calculations (e.g. discounted lifetime cost). Defaults to
+            annual_cost * horizon_years for backward compatibility.
         wtp: Willingness-to-pay per QALY ($/QALY)
         horizon_years: Planning horizon in years
         max_interventions: Maximum portfolio size
         exclude: Intervention IDs to exclude
-        complexity_free_slots: Number of items before complexity penalty kicks in
-        complexity_cost_per_item: QALYs/yr QoL cost per item beyond free slots
+        preselected: Intervention IDs already selected before greedy ranking
+        marginal_cost_value_fn: Optional callback returning the incremental cost
+            value of adding `candidate_id` given `selected_ids`. Use for shared
+            product pricing so second ingredients from the same bottle are not
+            charged again.
+        total_annual_cost_fn: Optional callback returning actual annual spend for
+            the selected stack.
 
     Returns:
         List of dicts with step, added_intervention, marginal_qaly,
-        marginal_net_value, total_qaly, total_cost, diminishing_returns_factor,
-        complexity_penalty
+        marginal_net_value, total_qaly, total_cost, interaction_penalty_qaly
     """
-    exclude = set(exclude or [])
+    preselected = [item_id for item_id in (preselected or []) if item_id in single_qalys]
+    exclude = set(exclude or []) | set(preselected)
     available = set(single_qalys.keys()) - exclude
-    selected: List[str] = []
+    cost_values = cost_values or {
+        intervention_id: annual_cost * horizon_years
+        for intervention_id, annual_cost in annual_costs.items()
+    }
+    selected: List[str] = preselected.copy()
     portfolio_path: List[Dict] = []
-    stack_num = 0
+    penalty_cache: Dict[tuple[str, ...], float] = {}
 
-    while available and stack_num < max_interventions:
+    def _base_total_qaly(item_ids: List[str]) -> float:
+        return sum(single_qalys[s] for s in item_ids)
+
+    def _interaction_penalty(item_ids: List[str]) -> float:
+        if stack_interaction_penalty_fn is None:
+            return 0.0
+        key = tuple(sorted(item_ids))
+        if key not in penalty_cache:
+            penalty_cache[key] = float(stack_interaction_penalty_fn(item_ids))
+        return penalty_cache[key]
+
+    def _total_cost_value(item_ids: List[str]) -> float:
+        if marginal_cost_value_fn is None:
+            return sum(cost_values.get(item_id, 0.0) for item_id in item_ids)
+
+        total = 0.0
+        running: List[str] = []
+        for item_id in item_ids:
+            total += float(marginal_cost_value_fn(running.copy(), item_id))
+            running.append(item_id)
+        return total
+
+    def _total_annual_cost(item_ids: List[str]) -> float:
+        if total_annual_cost_fn is not None:
+            return float(total_annual_cost_fn(item_ids))
+        return float(sum(annual_costs.get(item_id, 0.0) for item_id in item_ids))
+
+    while available and len(portfolio_path) < max_interventions:
         best_id = None
         best_marginal_net = -float('inf')
-        best_dr = 1.0
-        best_cp = 0.0
+        best_marginal_qaly = 0.0
+        best_total_qaly = 0.0
+        best_interaction_penalty = 0.0
+        best_marginal_interaction = 0.0
+        best_total_cost_value = 0.0
+        best_marginal_cost_value = 0.0
+        current_total_qaly = _base_total_qaly(selected) + _interaction_penalty(selected)
+        current_interaction_penalty = _interaction_penalty(selected)
+        current_total_cost_value = _total_cost_value(selected)
 
         for int_id in available:
-            pos = stack_num + 1
-            dr_factor = max(0.95 ** stack_num, 0.80)
-            marginal_qaly = single_qalys[int_id] * dr_factor
+            candidate_selected = selected + [int_id]
+            candidate_base_total_qaly = _base_total_qaly(candidate_selected)
+            candidate_interaction_penalty = _interaction_penalty(candidate_selected)
+            candidate_total_qaly = candidate_base_total_qaly + candidate_interaction_penalty
+            marginal_qaly = candidate_total_qaly - current_total_qaly
 
-            cp = complexity_cost_per_item * horizon_years if pos > complexity_free_slots else 0
-            total_cost = annual_costs.get(int_id, 0) * horizon_years
-            marginal_net = (marginal_qaly - cp) * wtp - total_cost
+            candidate_total_cost_value = _total_cost_value(candidate_selected)
+            marginal_cost_value = candidate_total_cost_value - current_total_cost_value
+            marginal_net = marginal_qaly * wtp - marginal_cost_value
 
             if marginal_net > best_marginal_net:
                 best_marginal_net = marginal_net
                 best_id = int_id
-                best_dr = dr_factor
-                best_cp = cp
+                best_marginal_qaly = marginal_qaly
+                best_total_qaly = candidate_total_qaly
+                best_interaction_penalty = candidate_interaction_penalty
+                best_marginal_interaction = candidate_interaction_penalty - current_interaction_penalty
+                best_total_cost_value = candidate_total_cost_value
+                best_marginal_cost_value = marginal_cost_value
 
         if best_id is None or best_marginal_net <= 0:
             break
 
         selected.append(best_id)
         available.remove(best_id)
-        stack_num += 1
 
         portfolio_path.append({
-            "step": stack_num,
+            "step": len(portfolio_path) + 1,
             "added_intervention": best_id,
-            "marginal_qaly": single_qalys[best_id] * best_dr,
+            "marginal_qaly": best_marginal_qaly,
             "marginal_net_value": best_marginal_net,
-            "diminishing_returns_factor": best_dr,
-            "complexity_penalty": best_cp,
-            "total_qaly": sum(
-                single_qalys[s] * max(0.95 ** i, 0.80)
-                for i, s in enumerate(selected)
-            ),
-            "total_annual_cost": sum(annual_costs.get(s, 0) for s in selected),
+            "marginal_interaction_qaly": best_marginal_interaction,
+            "interaction_penalty_qaly": best_interaction_penalty,
+            "total_qaly": best_total_qaly,
+            "total_base_qaly": _base_total_qaly(selected),
+            "marginal_cost_value": best_marginal_cost_value,
+            "total_cost_value": best_total_cost_value,
+            "total_annual_cost": _total_annual_cost(selected),
+            "preselected_interventions": preselected.copy(),
             "selected_interventions": selected.copy(),
         })
 
     return portfolio_path
+
+
+def rank_interventions_by_marginal_cost_per_qaly(
+    single_qalys: Dict[str, float],
+    annual_costs: Dict[str, float],
+    cost_values: Optional[Dict[str, float]] = None,
+    horizon_years: float = 40,
+    max_interventions: int = 50,
+    exclude: Optional[List[str]] = None,
+    preselected: Optional[List[str]] = None,
+    stack_interaction_penalty_fn: Optional[Callable[[List[str]], float]] = None,
+    marginal_cost_value_fn: Optional[Callable[[List[str], str], float]] = None,
+    total_annual_cost_fn: Optional[Callable[[List[str]], float]] = None,
+    exclusive_groups: Optional[Dict[str, str]] = None,
+) -> List[Dict]:
+    """
+    Rank interventions by marginal cost-effectiveness without applying a WTP cutoff.
+
+    At each step, add the remaining intervention with the lowest positive
+    marginal cost per QALY, after explicit interaction penalties and shared
+    product pricing. Stop when no remaining intervention has positive marginal
+    QALY.
+    """
+    preselected = [item_id for item_id in (preselected or []) if item_id in single_qalys]
+    exclude = set(exclude or []) | set(preselected)
+    available = set(single_qalys.keys()) - exclude
+    cost_values = cost_values or {
+        intervention_id: annual_cost * horizon_years
+        for intervention_id, annual_cost in annual_costs.items()
+    }
+    selected: List[str] = preselected.copy()
+    ranking: List[Dict] = []
+    penalty_cache: Dict[tuple[str, ...], float] = {}
+
+    def _base_total_qaly(item_ids: List[str]) -> float:
+        return sum(single_qalys[s] for s in item_ids)
+
+    def _interaction_penalty(item_ids: List[str]) -> float:
+        if stack_interaction_penalty_fn is None:
+            return 0.0
+        key = tuple(sorted(item_ids))
+        if key not in penalty_cache:
+            penalty_cache[key] = float(stack_interaction_penalty_fn(item_ids))
+        return penalty_cache[key]
+
+    def _total_cost_value(item_ids: List[str]) -> float:
+        if marginal_cost_value_fn is None:
+            return sum(cost_values.get(item_id, 0.0) for item_id in item_ids)
+
+        total = 0.0
+        running: List[str] = []
+        for item_id in item_ids:
+            total += float(marginal_cost_value_fn(running.copy(), item_id))
+            running.append(item_id)
+        return total
+
+    def _total_annual_cost(item_ids: List[str]) -> float:
+        if total_annual_cost_fn is not None:
+            return float(total_annual_cost_fn(item_ids))
+        return float(sum(annual_costs.get(item_id, 0.0) for item_id in item_ids))
+
+    while available and len(ranking) < max_interventions:
+        current_total_qaly = _base_total_qaly(selected) + _interaction_penalty(selected)
+        current_interaction_penalty = _interaction_penalty(selected)
+        current_total_cost_value = _total_cost_value(selected)
+        selected_exclusive_groups = {
+            exclusive_groups[item_id]
+            for item_id in selected
+            if exclusive_groups and item_id in exclusive_groups and exclusive_groups[item_id]
+        }
+
+        best_id = None
+        best_ratio = float("inf")
+        best_marginal_qaly = 0.0
+        best_total_qaly = current_total_qaly
+        best_interaction_penalty = current_interaction_penalty
+        best_marginal_interaction = 0.0
+        best_total_cost_value = current_total_cost_value
+        best_marginal_cost_value = 0.0
+
+        for int_id in available:
+            if exclusive_groups:
+                group = exclusive_groups.get(int_id)
+                if group and group in selected_exclusive_groups:
+                    continue
+            candidate_selected = selected + [int_id]
+            candidate_base_total_qaly = _base_total_qaly(candidate_selected)
+            candidate_interaction_penalty = _interaction_penalty(candidate_selected)
+            candidate_total_qaly = candidate_base_total_qaly + candidate_interaction_penalty
+            marginal_qaly = candidate_total_qaly - current_total_qaly
+            if marginal_qaly <= 0:
+                continue
+
+            candidate_total_cost_value = _total_cost_value(candidate_selected)
+            marginal_cost_value = candidate_total_cost_value - current_total_cost_value
+            if marginal_cost_value <= 0:
+                ratio = 0.0
+            else:
+                ratio = marginal_cost_value / marginal_qaly
+
+            if (
+                ratio < best_ratio
+                or (ratio == best_ratio and marginal_qaly > best_marginal_qaly)
+            ):
+                best_id = int_id
+                best_ratio = ratio
+                best_marginal_qaly = marginal_qaly
+                best_total_qaly = candidate_total_qaly
+                best_interaction_penalty = candidate_interaction_penalty
+                best_marginal_interaction = candidate_interaction_penalty - current_interaction_penalty
+                best_total_cost_value = candidate_total_cost_value
+                best_marginal_cost_value = marginal_cost_value
+
+        if best_id is None:
+            break
+
+        selected.append(best_id)
+        available.remove(best_id)
+        ranking.append({
+            "step": len(ranking) + 1,
+            "added_intervention": best_id,
+            "marginal_qaly": best_marginal_qaly,
+            "marginal_cost_per_qaly": best_ratio,
+            "marginal_interaction_qaly": best_marginal_interaction,
+            "interaction_penalty_qaly": best_interaction_penalty,
+            "total_qaly": best_total_qaly,
+            "total_base_qaly": _base_total_qaly(selected),
+            "marginal_cost_value": best_marginal_cost_value,
+            "total_cost_value": best_total_cost_value,
+            "total_annual_cost": _total_annual_cost(selected),
+            "preselected_interventions": preselected.copy(),
+            "selected_interventions": selected.copy(),
+        })
+
+    return ranking
 
 
 def find_optimal_portfolio_from_qalys(

@@ -85,9 +85,52 @@ evidence:
     - citation: "Aune et al. 2016"
       doi: "10.1001/jamainternmed.2015.8254"
 
+lineage:
+  model_version: canonical-v1-draft
+  estimand: Lifetime net QALY delta versus not doing the intervention
+  studies:
+    - id: aune2016_main
+      citation: "Aune et al. 2016"
+      year: 2016
+      study_type: meta-analysis
+      sample_size: 459833
+      role: direct-effect
+      notes: Primary pooled walking estimate
+  parameter_lineage:
+    - parameter: mortality.hazard_ratio
+      derivation: meta-analytic pooled log-HR mapped to LogNormal
+      source_ids: [aune2016_main]
+      assumptions:
+        - Transportable to similar baseline populations with confounding shrinkage
+  prior_lineage:
+    - parameter: confounding.causal_fraction
+      family: beta
+      rationale: Exercise mortality estimates are heavily confounded
+      source_ids: [aune2016_main]
+  notes:
+    - Draft lineage fixture for parser coverage
+
 caveats:
   - Observational evidence only
   - Healthy user bias possible
+
+harm_model:
+  - id: gi_upset
+    description: Mild GI upset while adapting
+    annual_qaly_loss:
+      type: point
+      value: 0.002
+
+interaction_tags: [sedating, serotonergic]
+
+interaction_rules:
+  - id: sedation_stack
+    requires_tags: [sedating]
+    minimum_matches: 2
+    description: Extra grogginess when stacked with other sedating agents
+    annual_qaly_loss:
+      type: point
+      value: 0.001
 """
 
     def test_load_from_yaml_string(self, walking_yaml):
@@ -107,6 +150,25 @@ caveats:
         # Should get exercise category prior
         assert intervention.confounding_prior is not None
         assert intervention.confounding_prior.mean < 0.5  # Skeptical
+
+    def test_lineage_parsed(self, walking_yaml):
+        intervention = Intervention.from_yaml_string(walking_yaml)
+        assert intervention.lineage is not None
+        assert intervention.lineage.model_version == "canonical-v1-draft"
+        assert intervention.lineage.estimand.startswith("Lifetime net QALY delta")
+        assert len(intervention.lineage.studies) == 1
+        assert intervention.lineage.studies[0]["study_type"] == "meta-analysis"
+        assert intervention.lineage.parameter_lineage[0]["parameter"] == "mortality.hazard_ratio"
+        assert intervention.lineage.prior_lineage[0]["family"] == "beta"
+
+    def test_harm_model_and_interaction_rules_parsed(self, walking_yaml):
+        intervention = Intervention.from_yaml_string(walking_yaml)
+        assert len(intervention.harm_model) == 1
+        assert intervention.harm_model[0].annual_qaly_loss is not None
+        assert intervention.harm_model[0].annual_qaly_loss.mean == pytest.approx(0.002)
+        assert intervention.interaction_tags == ["sedating", "serotonergic"]
+        assert len(intervention.interaction_rules) == 1
+        assert intervention.interaction_rules[0].minimum_matches == 2
 
 
 class TestInterventionPathwayHRs:

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Use freely available Pan-UKB GWAS summary statistics to validate OptiqAL's QALY estimates without UK Biobank data access fees.
+Use freely available Pan-UKB GWAS summary statistics to validate Optiqal's QALY estimates without UK Biobank data access fees.
 
 ## What's Available (Free)
 

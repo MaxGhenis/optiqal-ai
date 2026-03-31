@@ -23,6 +23,79 @@ export type Distribution =
   | { type: "beta"; alpha: number; beta: number } // For probabilities, utilities
   | { type: "uniform"; min: number; max: number };
 
+export type EvidenceStudyType =
+  | "meta-analysis"
+  | "rct"
+  | "cohort"
+  | "case-control"
+  | "review"
+  | "expert"
+  | "other";
+
+export type EvidenceRole =
+  | "direct-effect"
+  | "mechanism-link"
+  | "prior-calibration"
+  | "transport"
+  | "harm-model"
+  | "baseline-risk"
+  | "heuristic";
+
+export interface EvidenceStudy {
+  id: string;
+  citation: string;
+  year?: number;
+  studyType: EvidenceStudyType;
+  sampleSize?: number;
+  role: EvidenceRole;
+  notes?: string;
+}
+
+export interface ParameterLineage {
+  parameter: string;
+  derivation: string;
+  sourceIds: string[];
+  assumptions?: string[];
+}
+
+export interface PriorLineage {
+  parameter: string;
+  family: "beta" | "normal" | "lognormal" | "custom";
+  rationale: string;
+  sourceIds: string[];
+}
+
+export interface InterventionLineage {
+  modelVersion?: string;
+  estimand: string;
+  studies: EvidenceStudy[];
+  parameterLineage: ParameterLineage[];
+  priorLineage?: PriorLineage[];
+  notes?: string[];
+}
+
+export interface HarmEffect {
+  id: string;
+  description?: string;
+  annualQalyLoss?: Distribution;
+  eventProbability?: Distribution;
+  eventQalyLoss?: Distribution;
+  maxEvents?: number;
+  source?: string;
+}
+
+export interface InteractionRule {
+  id: string;
+  requiresTags: string[];
+  minimumMatches?: number;
+  description?: string;
+  annualQalyLoss?: Distribution;
+  eventProbability?: Distribution;
+  eventQalyLoss?: Distribution;
+  maxEvents?: number;
+  source?: string;
+}
+
 /**
  * Mortality effect of an intervention
  */
@@ -196,6 +269,15 @@ export interface InterventionEffect {
   /** DERIVED: Effect on mortality (can be computed from mechanisms) */
   mortality: MortalityEffect | null;
 
+  /** Direct adverse effects while taking the intervention */
+  harmModel?: HarmEffect[];
+
+  /** Tags used for stack-aware interaction rules */
+  interactionTags?: string[];
+
+  /** Harm penalties triggered by stack context */
+  interactionRules?: InteractionRule[];
+
   /** DERIVED: Effect on quality of life (can be computed from mechanisms) */
   quality: QualityEffect | null;
 
@@ -218,6 +300,9 @@ export interface InterventionEffect {
 
   /** How user profile affects this estimate */
   profileAdjustments: string[];
+
+  /** Study- and prior-level provenance for the estimate */
+  lineage?: InterventionLineage;
 }
 
 /**
@@ -290,8 +375,23 @@ export interface QALYSimulationResult {
   /** Probability of positive effect */
   probPositive: number;
 
+  /** Probability of net harm */
+  probNegative: number;
+
   /** Probability of > 1 year QALY gain */
   probMoreThanOneYear: number;
+
+  /** Mean of the positive tail, scaled by its probability */
+  expectedUpside: number;
+
+  /** Mean of the negative tail, scaled by its probability */
+  expectedDownside: number;
+
+  /** Mean effect conditional on net benefit */
+  conditionalUpside: number;
+
+  /** Mean effect conditional on net harm */
+  conditionalDownside: number;
 
   /** Full distribution (percentiles) */
   percentiles: { p: number; value: number }[];

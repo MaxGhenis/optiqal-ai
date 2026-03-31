@@ -6,9 +6,10 @@ sys.path.insert(0, 'python')
 
 from optiqal.combination import (
     get_overlap_factor,
-    get_diminishing_returns_factor,
     estimate_combined_qaly_from_singles,
     find_optimal_portfolio_from_qalys,
+    find_optimal_portfolio_with_costs,
+    rank_interventions_by_marginal_cost_per_qaly,
     OVERLAP_MATRIX,
 )
 
@@ -38,32 +39,8 @@ class TestOverlapFactors:
         assert overlap == 0.5
 
 
-class TestDiminishingReturns:
-    """Test diminishing returns factor."""
-
-    def test_single_intervention_no_penalty(self):
-        """Single intervention has no penalty."""
-        assert get_diminishing_returns_factor(1) == 1.0
-
-    def test_two_interventions_small_penalty(self):
-        """Two interventions have small penalty."""
-        factor = get_diminishing_returns_factor(2)
-        assert 0.9 < factor < 1.0
-
-    def test_many_interventions_floor(self):
-        """Many interventions hit floor at 0.80."""
-        assert get_diminishing_returns_factor(10) == 0.80
-        assert get_diminishing_returns_factor(20) == 0.80
-
-    def test_monotonically_decreasing(self):
-        """Factor decreases with more interventions."""
-        factors = [get_diminishing_returns_factor(n) for n in range(1, 10)]
-        for i in range(len(factors) - 1):
-            assert factors[i] >= factors[i + 1]
-
-
 class TestCombinedQalyEstimation:
-    """Test QALY combination with overlap and diminishing returns."""
+    """Test QALY combination with overlap."""
 
     @pytest.fixture
     def sample_qalys(self):
@@ -85,15 +62,13 @@ class TestCombinedQalyEstimation:
         assert result == pytest.approx(0.50, rel=0.01)
 
     def test_non_overlapping_near_additive(self, sample_qalys):
-        """Non-overlapping interventions are nearly additive."""
+        """Non-overlapping interventions are additive."""
         result = estimate_combined_qaly_from_singles(
             sample_qalys,
             ["mediterranean_diet", "meditation_daily"]
         )
         simple_sum = 0.50 + 0.10
-        # Should be close but slightly less due to diminishing returns
-        assert result < simple_sum
-        assert result > simple_sum * 0.9
+        assert result == pytest.approx(simple_sum)
 
     def test_overlapping_reduced(self, sample_qalys):
         """Overlapping interventions are reduced."""
@@ -133,22 +108,6 @@ class TestCombinedQalyEstimation:
             apply_overlap=False
         )
         assert without_overlap > with_overlap
-
-    def test_no_diminishing_returns_option(self, sample_qalys):
-        """Can disable diminishing returns."""
-        all_ids = list(sample_qalys.keys())
-        with_dr = estimate_combined_qaly_from_singles(
-            sample_qalys,
-            all_ids,
-            apply_diminishing_returns=True
-        )
-        without_dr = estimate_combined_qaly_from_singles(
-            sample_qalys,
-            all_ids,
-            apply_diminishing_returns=False
-        )
-        assert without_dr > with_dr
-
 
 class TestOptimalPortfolio:
     """Test optimal portfolio selection."""
@@ -206,6 +165,111 @@ class TestOptimalPortfolio:
 
         # Exercise should come before walking (higher raw QALY, no prior overlap)
         assert positions.get("daily_exercise_moderate", 99) < positions.get("walking_30min_daily", 99)
+
+
+class TestMarginalCostEffectivenessRanking:
+    """Test threshold-free marginal cost-effectiveness ordering."""
+
+    def test_orders_by_lowest_marginal_cost_per_qaly_first(self):
+        ranking = rank_interventions_by_marginal_cost_per_qaly(
+            single_qalys={"a": 1.0, "b": 0.5, "c": 0.2},
+            annual_costs={"a": 100_000, "b": 10_000, "c": 1_000},
+            cost_values={"a": 100_000, "b": 10_000, "c": 1_000},
+        )
+
+        assert [step["added_intervention"] for step in ranking] == ["c", "b", "a"]
+        assert ranking[0]["marginal_cost_per_qaly"] == pytest.approx(5_000)
+        assert ranking[1]["marginal_cost_per_qaly"] == pytest.approx(20_000)
+        assert ranking[2]["marginal_cost_per_qaly"] == pytest.approx(100_000)
+
+    def test_shared_product_zero_marginal_cost_moves_second_item_up(self):
+        def marginal_cost_value(selected_ids, candidate_id):
+            if candidate_id == "b" and "a" in selected_ids:
+                return 0.0
+            return {"a": 1_000.0, "b": 1_000.0, "c": 30_000.0}[candidate_id]
+
+        ranking = rank_interventions_by_marginal_cost_per_qaly(
+            single_qalys={"a": 0.1, "b": 0.05, "c": 0.2},
+            annual_costs={"a": 100, "b": 100, "c": 100},
+            cost_values={"a": 1_000, "b": 1_000, "c": 30_000},
+            marginal_cost_value_fn=marginal_cost_value,
+        )
+
+        assert [step["added_intervention"] for step in ranking] == ["a", "b", "c"]
+        assert ranking[1]["marginal_cost_per_qaly"] == pytest.approx(0.0)
+
+    def test_stops_when_remaining_marginal_qaly_is_nonpositive(self):
+        def stack_penalty(item_ids):
+            return -0.2 if set(item_ids) == {"a", "b"} else 0.0
+
+        ranking = rank_interventions_by_marginal_cost_per_qaly(
+            single_qalys={"a": 0.1, "b": 0.05},
+            annual_costs={"a": 100, "b": 100},
+            cost_values={"a": 100, "b": 100},
+            stack_interaction_penalty_fn=stack_penalty,
+        )
+
+        assert [step["added_intervention"] for step in ranking] == ["a"]
+
+    def test_respects_exclusive_groups(self):
+        ranking = rank_interventions_by_marginal_cost_per_qaly(
+            single_qalys={"hiit_1": 0.01, "hiit_2": 0.02, "c": 0.005},
+            annual_costs={"hiit_1": 0, "hiit_2": 0, "c": 100},
+            cost_values={"hiit_1": 0, "hiit_2": 0, "c": 100},
+            exclusive_groups={"hiit_1": "hiit", "hiit_2": "hiit"},
+        )
+
+        assert [step["added_intervention"] for step in ranking] == ["hiit_2", "c"]
+
+    def test_preselected_state_changes_conditional_ranking(self):
+        ranking = rank_interventions_by_marginal_cost_per_qaly(
+            single_qalys={"a": 0.10, "b": 0.06, "c": 0.03},
+            annual_costs={"a": 100, "b": 500, "c": 50},
+            cost_values={"a": 100, "b": 500, "c": 50},
+            preselected=["a"],
+        )
+
+        assert [step["added_intervention"] for step in ranking] == ["c", "b"]
+        assert ranking[0]["preselected_interventions"] == ["a"]
+        assert ranking[0]["selected_interventions"] == ["a", "c"]
+
+    def test_preselected_exclusive_group_blocks_other_members(self):
+        ranking = rank_interventions_by_marginal_cost_per_qaly(
+            single_qalys={"traz": 0.02, "dora": 0.03, "mel": 0.01},
+            annual_costs={"traz": 100, "dora": 1000, "mel": 20},
+            cost_values={"traz": 100, "dora": 1000, "mel": 20},
+            preselected=["traz"],
+            exclusive_groups={"traz": "insomnia", "dora": "insomnia"},
+        )
+
+        assert [step["added_intervention"] for step in ranking] == ["mel"]
+
+    def test_preselected_stack_uses_max_additions_not_total_size(self):
+        ranking = rank_interventions_by_marginal_cost_per_qaly(
+            single_qalys={"base1": 0.01, "base2": 0.01, "base3": 0.01, "a": 0.05, "b": 0.02},
+            annual_costs={"base1": 10, "base2": 10, "base3": 10, "a": 50, "b": 20},
+            cost_values={"base1": 10, "base2": 10, "base3": 10, "a": 50, "b": 20},
+            preselected=["base1", "base2", "base3"],
+            max_interventions=2,
+        )
+
+        assert [step["added_intervention"] for step in ranking] == ["b", "a"]
+        assert ranking[-1]["selected_interventions"] == ["base1", "base2", "base3", "b", "a"]
+
+
+class TestCostAwarePortfolioWithPreselectedState:
+    def test_preselected_stack_uses_max_additions_not_total_size(self):
+        portfolio = find_optimal_portfolio_with_costs(
+            single_qalys={"base1": 0.01, "base2": 0.01, "base3": 0.01, "a": 0.05, "b": 0.02},
+            annual_costs={"base1": 10, "base2": 10, "base3": 10, "a": 50, "b": 20},
+            cost_values={"base1": 10, "base2": 10, "base3": 10, "a": 50, "b": 20},
+            wtp=10_000,
+            preselected=["base1", "base2", "base3"],
+            max_interventions=2,
+        )
+
+        assert [step["added_intervention"] for step in portfolio] == ["a", "b"]
+        assert portfolio[-1]["selected_interventions"] == ["base1", "base2", "base3", "a", "b"]
 
 
 if __name__ == "__main__":

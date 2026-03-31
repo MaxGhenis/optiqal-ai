@@ -282,6 +282,63 @@ function runSingleSimulation(
   return interventionQALYs - baselineQALYs;
 }
 
+function getPercentileValue(sortedValues: number[], percentile: number): number {
+  const index = Math.min(
+    sortedValues.length - 1,
+    Math.floor((sortedValues.length * percentile) / 100)
+  );
+  return sortedValues[index];
+}
+
+function summarizePosterior(sortedResults: number[]) {
+  const n = sortedResults.length;
+
+  let sum = 0;
+  let positiveCount = 0;
+  let negativeCount = 0;
+  let greaterThanOneYearCount = 0;
+  let upsideSum = 0;
+  let downsideSum = 0;
+
+  for (const value of sortedResults) {
+    sum += value;
+    if (value > 0) {
+      positiveCount += 1;
+      upsideSum += value;
+    } else if (value < 0) {
+      negativeCount += 1;
+      downsideSum += value;
+    }
+    if (value > 1) {
+      greaterThanOneYearCount += 1;
+    }
+  }
+
+  return {
+    mean: sum / n,
+    median: getPercentileValue(sortedResults, 50),
+    ci95: {
+      low: getPercentileValue(sortedResults, 2.5),
+      high: getPercentileValue(sortedResults, 97.5),
+    },
+    ci50: {
+      low: getPercentileValue(sortedResults, 25),
+      high: getPercentileValue(sortedResults, 75),
+    },
+    probPositive: positiveCount / n,
+    probNegative: negativeCount / n,
+    probMoreThanOneYear: greaterThanOneYearCount / n,
+    expectedUpside: upsideSum / n,
+    expectedDownside: downsideSum / n,
+    conditionalUpside: positiveCount > 0 ? upsideSum / positiveCount : 0,
+    conditionalDownside: negativeCount > 0 ? downsideSum / negativeCount : 0,
+    percentiles: [1, 5, 10, 25, 50, 75, 90, 95, 99].map((p) => ({
+      p,
+      value: getPercentileValue(sortedResults, p),
+    })),
+  };
+}
+
 /**
  * Run Monte Carlo simulation with optional confounding adjustment
  *
@@ -344,42 +401,23 @@ export function simulateQALYImpact(
 
   // Sort for percentile calculations
   results.sort((a, b) => a - b);
-
-  // Calculate statistics
-  const mean = results.reduce((a, b) => a + b, 0) / nSimulations;
-  const median = results[Math.floor(nSimulations / 2)];
-
-  const ci95Low = results[Math.floor(nSimulations * 0.025)];
-  const ci95High = results[Math.floor(nSimulations * 0.975)];
-
-  const ci50Low = results[Math.floor(nSimulations * 0.25)];
-  const ci50High = results[Math.floor(nSimulations * 0.75)];
-
-  const probPositive = results.filter((r) => r > 0).length / nSimulations;
-  const probMoreThanOneYear =
-    results.filter((r) => r > 1).length / nSimulations;
-
-  // Percentiles for distribution visualization
-  const percentiles = [1, 5, 10, 25, 50, 75, 90, 95, 99].map((p) => ({
-    p,
-    value: results[Math.floor((nSimulations * p) / 100)],
-  }));
+  const posterior = summarizePosterior(results);
 
   // For breakdown, we'd need to run separate simulations
   // This is a simplified version
   const breakdown = {
     mortalityQALYs: {
-      median: effect.mortality ? median * 0.6 : 0, // Rough split
+      median: effect.mortality ? posterior.median * 0.6 : 0, // Rough split
       ci95: {
-        low: effect.mortality ? ci95Low * 0.6 : 0,
-        high: effect.mortality ? ci95High * 0.6 : 0,
+        low: effect.mortality ? posterior.ci95.low * 0.6 : 0,
+        high: effect.mortality ? posterior.ci95.high * 0.6 : 0,
       },
     },
     qualityQALYs: {
-      median: effect.quality ? median * 0.4 : 0,
+      median: effect.quality ? posterior.median * 0.4 : 0,
       ci95: {
-        low: effect.quality ? ci95Low * 0.4 : 0,
-        high: effect.quality ? ci95High * 0.4 : 0,
+        low: effect.quality ? posterior.ci95.low * 0.4 : 0,
+        high: effect.quality ? posterior.ci95.high * 0.4 : 0,
       },
     },
     costQALYs: {
@@ -401,11 +439,11 @@ export function simulateQALYImpact(
     const { eValue: eValueCI } = calculateEValue(ciHighHR);
 
     const unadjustedMedian = unadjustedResults.length > 0
-      ? unadjustedResults[Math.floor(unadjustedResults.length / 2)]
-      : median;
+      ? summarizePosterior(unadjustedResults).median
+      : posterior.median;
 
     const reductionPercent = unadjustedMedian !== 0
-      ? ((unadjustedMedian - median) / unadjustedMedian) * 100
+      ? ((unadjustedMedian - posterior.median) / unadjustedMedian) * 100
       : 0;
 
     confounding = {
@@ -419,20 +457,25 @@ export function simulateQALYImpact(
       },
       comparison: {
         unadjustedMedian,
-        adjustedMedian: median,
+        adjustedMedian: posterior.median,
         reductionPercent,
       },
     };
   }
 
   return {
-    median,
-    mean,
-    ci95: { low: ci95Low, high: ci95High },
-    ci50: { low: ci50Low, high: ci50High },
-    probPositive,
-    probMoreThanOneYear,
-    percentiles,
+    median: posterior.median,
+    mean: posterior.mean,
+    ci95: posterior.ci95,
+    ci50: posterior.ci50,
+    probPositive: posterior.probPositive,
+    probNegative: posterior.probNegative,
+    probMoreThanOneYear: posterior.probMoreThanOneYear,
+    expectedUpside: posterior.expectedUpside,
+    expectedDownside: posterior.expectedDownside,
+    conditionalUpside: posterior.conditionalUpside,
+    conditionalDownside: posterior.conditionalDownside,
+    percentiles: posterior.percentiles,
     breakdown,
     confounding,
     nSimulations,
@@ -707,24 +750,7 @@ export function simulateQALYImpactRigorous(
   otherContributions.sort((a, b) => a - b);
   lifeYearsResults.sort((a, b) => a - b);
   qualityResults.sort((a, b) => a - b);
-
-  // Calculate statistics
-  const mean = results.reduce((a, b) => a + b, 0) / nSimulations;
-  const median = results[Math.floor(nSimulations / 2)];
-
-  const ci95Low = results[Math.floor(nSimulations * 0.025)];
-  const ci95High = results[Math.floor(nSimulations * 0.975)];
-
-  const ci50Low = results[Math.floor(nSimulations * 0.25)];
-  const ci50High = results[Math.floor(nSimulations * 0.75)];
-
-  const probPositive = results.filter((r) => r > 0).length / nSimulations;
-  const probMoreThanOneYear = results.filter((r) => r > 1).length / nSimulations;
-
-  const percentiles = [1, 5, 10, 25, 50, 75, 90, 95, 99].map((p) => ({
-    p,
-    value: results[Math.floor((nSimulations * p) / 100)],
-  }));
+  const posterior = summarizePosterior(results);
 
   // Build confounding result
   let confounding: ConfoundingResult | undefined;
@@ -745,8 +771,8 @@ export function simulateQALYImpactRigorous(
         interpretation,
       },
       comparison: {
-        unadjustedMedian: median / getExpectedCausalFraction(confoundingConfig),
-        adjustedMedian: median,
+        unadjustedMedian: posterior.median / getExpectedCausalFraction(confoundingConfig),
+        adjustedMedian: posterior.median,
         reductionPercent:
           (1 - getExpectedCausalFraction(confoundingConfig)) * 100,
       },
@@ -763,17 +789,22 @@ export function simulateQALYImpactRigorous(
   });
 
   return {
-    median,
-    mean,
-    ci95: { low: ci95Low, high: ci95High },
-    ci50: { low: ci50Low, high: ci50High },
-    probPositive,
-    probMoreThanOneYear,
-    percentiles,
+    median: posterior.median,
+    mean: posterior.mean,
+    ci95: posterior.ci95,
+    ci50: posterior.ci50,
+    probPositive: posterior.probPositive,
+    probNegative: posterior.probNegative,
+    probMoreThanOneYear: posterior.probMoreThanOneYear,
+    expectedUpside: posterior.expectedUpside,
+    expectedDownside: posterior.expectedDownside,
+    conditionalUpside: posterior.conditionalUpside,
+    conditionalDownside: posterior.conditionalDownside,
+    percentiles: posterior.percentiles,
     breakdown: {
       mortalityQALYs: {
-        median: median - getCI(qualityResults).median, // Subtract quality to get pure mortality
-        ci95: { low: ci95Low, high: ci95High },
+        median: posterior.median - getCI(qualityResults).median, // Subtract quality to get pure mortality
+        ci95: posterior.ci95,
       },
       qualityQALYs: getCI(qualityResults),
       costQALYs: {

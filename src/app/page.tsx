@@ -1,504 +1,419 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { LogoLockup } from "@/components/brand/logo";
 import {
-  Activity,
-  Check,
-  Search,
-  TrendingUp,
-  BookOpen,
   ArrowRight,
   Sparkles,
-  Zap,
+  Clock3,
+  FlaskConical,
+  Shield,
+  Pill,
+  BarChart3,
+  BookOpen,
+  Target,
 } from "lucide-react";
 import { MobileNav } from "@/components/mobile-nav";
 
-function LifeMeter() {
+const focusAreas = [
+  {
+    icon: Clock3,
+    title: "Sleep extension",
+    detail: "Boring, high-value, often under-prioritized.",
+    value: "+0.18 expected QALYs",
+  },
+  {
+    icon: FlaskConical,
+    title: "ApoB reduction",
+    detail: "A classic example of something clinically strong but easy to ignore.",
+    value: "81% probability of benefit",
+  },
+  {
+    icon: Shield,
+    title: "Daily sunscreen",
+    detail: "Small habit, asymmetric upside, minimal burden.",
+    value: "Low burden, durable gain",
+  },
+  {
+    icon: Pill,
+    title: "Supplement swaps",
+    detail: "Where Bayesian shrinkage matters most.",
+    value: "Avoid expensive noise",
+  },
+] as const;
+
+const outputs = [
+  {
+    title: "Expected value",
+    body: "How much net QALY gain the intervention is worth for you, not for an abstract population average.",
+  },
+  {
+    title: "Probability of benefit",
+    body: "A clearer question than “is this good?” - how likely is it to help at all?",
+  },
+  {
+    title: "Downside risk",
+    body: "Harms, fragility, and reversibility belong in the same frame as upside.",
+  },
+  {
+    title: "Burden and cost",
+    body: "The best move is not always the biggest effect. It is the best tradeoff.",
+  },
+] as const;
+
+const steps = [
+  {
+    title: "Build your baseline",
+    body: "Start with profile, habits, conditions, and the stack you already run.",
+  },
+  {
+    title: "Estimate the posterior",
+    body: "Combine priors, published evidence, uncertainty, and profile fit into a net distribution.",
+  },
+  {
+    title: "Rank the next move",
+    body: "Compare additions, removals, and swaps on one explicit decision surface.",
+  },
+] as const;
+
+function DecisionBoard() {
   return (
-    <div className="relative w-72 h-72 mx-auto">
-      {/* Outer glow */}
-      <div className="absolute inset-0 rounded-full bg-primary/20 blur-3xl animate-pulse-glow" />
-
-      {/* Decorative orbiting elements */}
-      <div
-        className="absolute inset-0 animate-orbit"
-        style={{ animationDuration: "25s" }}
-      >
-        <div className="w-3 h-3 rounded-full bg-primary/60 blur-sm" />
-      </div>
-      <div
-        className="absolute inset-0 animate-orbit"
-        style={{ animationDuration: "35s", animationDirection: "reverse" }}
-      >
-        <div className="w-2 h-2 rounded-full bg-accent/60 blur-sm" />
-      </div>
-
-      {/* Main SVG ring */}
-      <svg
-        className="w-full h-full -rotate-90 animate-breathe"
-        viewBox="0 0 160 160"
-      >
-        {/* Background ring */}
-        <circle
-          cx="80"
-          cy="80"
-          r="70"
-          fill="none"
-          stroke="hsl(var(--muted))"
-          strokeWidth="4"
-          opacity="0.3"
-        />
-        {/* Progress ring */}
-        <circle
-          cx="80"
-          cy="80"
-          r="70"
-          fill="none"
-          stroke="url(#lifeGradient)"
-          strokeWidth="6"
-          strokeLinecap="round"
-          className="life-ring"
-        />
-        {/* Gradient definition */}
-        <defs>
-          <linearGradient id="lifeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="hsl(var(--primary))" />
-            <stop offset="50%" stopColor="hsl(var(--cyan-glow))" />
-            <stop offset="100%" stopColor="hsl(var(--coral))" />
-          </linearGradient>
-        </defs>
-      </svg>
-
-      {/* Center content */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <div className="text-center space-y-1">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-            35-year-old female
-          </p>
-          <p className="text-4xl font-serif font-semibold gradient-text text-glow">
-            42 years
-          </p>
-          <p className="text-sm text-muted-foreground">life expectancy remaining</p>
+    <Card className="decision-card card-highlight hover-lift">
+      <CardContent className="p-0">
+        <div className="border-b border-border/80 px-6 py-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.24em] text-primary mb-2">
+                Decision board
+              </p>
+              <h2 className="font-serif text-3xl font-semibold leading-tight">
+                What is most worth doing next?
+              </h2>
+            </div>
+            <span className="data-pill">Personalized</span>
+          </div>
         </div>
-      </div>
-    </div>
-  );
-}
 
-function FloatingParticle({
-  className,
-  delay,
-  duration,
-}: {
-  className?: string;
-  delay?: string;
-  duration?: string;
-}) {
-  return (
-    <div
-      className={`absolute w-1 h-1 rounded-full bg-primary/30 animate-float ${className}`}
-      style={{ animationDelay: delay, animationDuration: duration }}
-    />
+        <div className="space-y-3 px-6 py-5">
+          {[
+            {
+              rank: "01",
+              title: "Add 45 minutes of sleep",
+              expected: "+0.18",
+              probability: "72%",
+              burden: "Moderate",
+            },
+            {
+              rank: "02",
+              title: "Push ApoB below 60",
+              expected: "+0.14",
+              probability: "81%",
+              burden: "Medium",
+            },
+            {
+              rank: "03",
+              title: "Make sunscreen daily",
+              expected: "+0.05",
+              probability: "88%",
+              burden: "Low",
+            },
+          ].map((item) => (
+            <div
+              key={item.rank}
+              className="surface-panel-soft rounded-2xl p-4"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex gap-4">
+                  <div className="text-xs font-mono text-muted-foreground pt-1">
+                    {item.rank}
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-[1.02rem]">{item.title}</h3>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="data-pill">E[Δ] {item.expected} QALYs</span>
+                      <span className="data-pill">P(benefit) {item.probability}</span>
+                      <span className="data-pill">Burden {item.burden}</span>
+                    </div>
+                  </div>
+                </div>
+                <Target className="h-4 w-4 text-primary mt-1" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t border-border/80 px-6 py-4 text-sm text-muted-foreground">
+          Same unit. Different actions. Explicit tradeoffs.
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
 export default function Home() {
   return (
-    <div className="min-h-screen mesh-gradient relative overflow-hidden">
-      {/* Noise texture */}
+    <div className="min-h-screen mesh-gradient paper-grid relative overflow-hidden">
       <div className="noise-overlay fixed inset-0 pointer-events-none" />
 
-      {/* Floating particles */}
-      <FloatingParticle className="top-1/4 left-1/4" delay="0s" duration="8s" />
-      <FloatingParticle
-        className="top-1/3 right-1/3"
-        delay="2s"
-        duration="10s"
-      />
-      <FloatingParticle
-        className="bottom-1/4 left-1/3"
-        delay="4s"
-        duration="7s"
-      />
-      <FloatingParticle
-        className="top-1/2 right-1/4"
-        delay="1s"
-        duration="9s"
-      />
+      <div className="pointer-events-none absolute left-[-8rem] top-24 h-72 w-72 rounded-full bg-primary/10 blur-[100px]" />
+      <div className="pointer-events-none absolute right-[-6rem] top-40 h-80 w-80 rounded-full bg-accent/10 blur-[110px]" />
 
-      {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 glass">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="relative">
-              <Activity className="h-7 w-7 text-primary transition-transform group-hover:scale-110" />
-              <div className="absolute inset-0 bg-primary/30 blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
-            </div>
-            <span className="text-xl font-semibold tracking-tight">optiqal</span>
+            <LogoLockup
+              size="sm"
+              markClassName="transition-transform group-hover:scale-[1.04]"
+            />
           </Link>
-          {/* Desktop nav */}
+
           <nav className="hidden sm:flex items-center gap-2">
             <Button
               variant="ghost"
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="text-muted-foreground hover:text-foreground"
               asChild
             >
               <Link href="#how-it-works">How it works</Link>
             </Button>
             <Button
-              className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90"
+              className="btn-glow bg-primary text-primary-foreground hover:bg-primary/95"
               asChild
             >
-              <Link href="/predict">
-                Try it free
+              <Link href="/analyze">
+                Start analysis
                 <Sparkles className="ml-1.5 h-4 w-4" />
               </Link>
             </Button>
           </nav>
-          {/* Mobile nav */}
+
           <div className="sm:hidden">
             <MobileNav />
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="relative pt-24 sm:pt-32 pb-12 sm:pb-20 px-4 sm:px-6">
-        <div className="max-w-5xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
-            {/* Text content */}
+      <main className="relative z-10">
+        <section className="px-4 sm:px-6 pt-28 sm:pt-36 pb-18 sm:pb-24">
+          <div className="max-w-6xl mx-auto grid lg:grid-cols-[1.05fr_0.95fr] gap-10 lg:gap-14 items-center">
             <div className="space-y-8 opacity-0 animate-slide-up">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/30 bg-primary/5 text-primary text-sm font-medium">
-                <Zap className="h-3.5 w-3.5" />
-                AI-powered life expectancy prediction
+              <div className="section-chip">
+                <BarChart3 className="h-4 w-4" />
+                Bayesian health decision engine
               </div>
 
-              <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-medium leading-[1.1] tracking-tight">
-                Predict your
-                <br />
-                <span className="gradient-text">life expectancy</span>
-              </h1>
+              <div className="space-y-5">
+                <h1 className="font-serif text-5xl sm:text-6xl lg:text-7xl font-semibold leading-[0.98] tracking-[-0.04em] max-w-3xl">
+                  Stop collecting health advice.
+                  <span className="block gradient-text">
+                    Start ranking it.
+                  </span>
+                </h1>
 
-              <p className="text-lg text-muted-foreground max-w-lg leading-relaxed">
-                Optiqal predicts your remaining life expectancy based on your
-                profile—age, sex, lifestyle, and health conditions—using
-                published research and actuarial data.
-              </p>
+                <p className="max-w-2xl text-lg sm:text-xl text-muted-foreground leading-relaxed">
+                  Optiqal compares sleep, exercise, lipids, supplements,
+                  sunscreen, and other interventions on one common decision
+                  surface so you can see what is actually worth doing next.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <span className="data-pill">Expected net QALY delta</span>
+                <span className="data-pill">Probability of benefit</span>
+                <span className="data-pill">Downside tail risk</span>
+                <span className="data-pill">Burden and cost</span>
+              </div>
 
               <div className="flex flex-wrap gap-4 pt-2">
                 <Button
                   size="lg"
-                  className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-8 text-base"
+                  className="btn-glow bg-primary text-primary-foreground hover:bg-primary/95 h-12 px-8 text-base"
                   asChild
                 >
-                  <Link href="/predict">
-                    Explore now
+                  <Link href="/analyze">
+                    Open analyzer
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
                 <Button
                   variant="outline"
                   size="lg"
-                  className="h-12 px-8 text-base border-border/50 hover:border-primary/50 hover:bg-primary/5"
+                  className="h-12 px-8 text-base border-primary/15 bg-surface-panel/70 hover:bg-surface-panel"
                   asChild
                 >
-                  <Link href="#how-it-works">Learn more</Link>
+                  <Link href="#how-it-works">See the logic</Link>
                 </Button>
               </div>
             </div>
 
-            {/* Life meter visualization */}
-            <div className="opacity-0 animate-scale-in delay-300">
-              <LifeMeter />
+            <div className="opacity-0 animate-scale-in delay-200">
+              <DecisionBoard />
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Example Section */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-muted/30 to-transparent" />
-        <div className="max-w-4xl mx-auto relative">
-          <div className="text-center mb-12 opacity-0 animate-slide-up">
-            <p className="text-xs uppercase tracking-[0.25em] text-primary mb-3">
-              Example prediction
-            </p>
-            <h2 className="font-serif text-3xl md:text-4xl font-medium">
-              50-year-old male, non-smoker
-            </h2>
-          </div>
-
-          <Card className="max-w-2xl mx-auto mesh-gradient-card border-border/50 card-highlight hover-lift opacity-0 animate-scale-in delay-200">
-            <CardContent className="p-8">
-              <div className="text-center space-y-6">
-                <p className="text-sm text-muted-foreground uppercase tracking-wider">
-                  Remaining life expectancy
+        <section className="px-4 sm:px-6 py-16 sm:py-20">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex items-end justify-between gap-6 mb-10">
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-primary mb-3">
+                  Common unit, different actions
                 </p>
-                <div className="space-y-2">
-                  <div className="text-5xl sm:text-6xl font-serif font-semibold gradient-text text-glow">
-                    25 years
-                  </div>
-                  <p className="text-muted-foreground">90% prediction interval: 7–39 years</p>
-                </div>
-
-                <div className="flex justify-center gap-8 sm:gap-12 pt-6 border-t border-border/50">
-                  <div className="text-center">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                      Profile completeness
-                    </p>
-                    <p className="text-2xl font-semibold text-primary">
-                      42%
-                    </p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                      Uncertainty
-                    </p>
-                    <p className="text-2xl font-semibold text-accent">
-                      ±16 years
-                    </p>
-                  </div>
-                </div>
-
-                <p className="text-xs text-muted-foreground pt-2">
-                  Add more details to narrow your prediction interval
-                </p>
+                <h2 className="font-serif text-3xl md:text-4xl font-semibold tracking-[-0.03em]">
+                  The product is memorable if the comparisons are.
+                </h2>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
+              <div className="hidden md:block text-sm text-muted-foreground max-w-sm">
+                People do not need one more dashboard. They need a way to stack
+                unlike health moves against each other.
+              </div>
+            </div>
 
-      {/* How it Works */}
-      <section id="how-it-works" className="py-16 sm:py-24 px-4 sm:px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16 opacity-0 animate-slide-up">
-            <p className="text-xs uppercase tracking-[0.25em] text-primary mb-3">
-              The process
-            </p>
-            <h2 className="font-serif text-4xl md:text-5xl font-medium">
-              How it works
-            </h2>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              {
-                icon: Search,
-                title: "Enter your profile",
-                description:
-                  "Provide basic info like age, sex, BMI, and lifestyle factors such as smoking status and activity level.",
-                delay: "delay-100",
-              },
-              {
-                icon: BookOpen,
-                title: "We search the research",
-                description:
-                  "Optiqal synthesizes data from CDC life tables, meta-analyses, and cohort studies to estimate effects.",
-                delay: "delay-200",
-              },
-              {
-                icon: TrendingUp,
-                title: "See the estimates",
-                description:
-                  "View life expectancy projections based on your profile—with uncertainty ranges.",
-                delay: "delay-300",
-              },
-            ].map((step, index) => (
-              <Card
-                key={step.title}
-                className={`mesh-gradient-card border-border/50 card-highlight hover-lift opacity-0 animate-slide-up ${step.delay}`}
-              >
-                <CardContent className="p-8 space-y-5">
-                  <div className="relative w-14 h-14">
-                    <div className="absolute inset-0 rounded-2xl bg-primary/20 blur-xl animate-pulse-glow" />
-                    <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-transparent border border-primary/30 flex items-center justify-center">
-                      <step.icon className="h-6 w-6 text-primary" />
+            <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+              {focusAreas.map((item, index) => (
+                <Card
+                  key={item.title}
+                  className="mesh-gradient-card card-highlight hover-lift opacity-0 animate-slide-up"
+                  style={{ animationDelay: `${(index + 1) * 100}ms` }}
+                >
+                  <CardContent className="p-6 space-y-5">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 border border-primary/12">
+                      <item.icon className="h-5 w-5 text-primary" />
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono text-muted-foreground">
-                      0{index + 1}
-                    </span>
-                    <h3 className="font-serif text-xl font-medium">
-                      {step.title}
-                    </h3>
-                  </div>
-                  <p className="text-muted-foreground leading-relaxed">
-                    {step.description}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
+                    <div className="space-y-2">
+                      <h3 className="font-medium text-lg">{item.title}</h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {item.detail}
+                      </p>
+                    </div>
+                    <div className="editorial-rule" />
+                    <div className="text-sm font-medium text-primary">
+                      {item.value}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Features */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-muted/30 to-transparent" />
-        <div className="max-w-6xl mx-auto relative">
-          <div className="text-center mb-16 opacity-0 animate-slide-up">
-            <p className="text-xs uppercase tracking-[0.25em] text-primary mb-3">
-              Capabilities
-            </p>
-            <h2 className="font-serif text-4xl md:text-5xl font-medium">
-              Features
-            </h2>
+        <section id="how-it-works" className="px-4 sm:px-6 py-16 sm:py-20">
+          <div className="max-w-6xl mx-auto">
+            <div className="mb-10">
+              <p className="text-xs uppercase tracking-[0.24em] text-primary mb-3">
+                Workflow
+              </p>
+              <h2 className="font-serif text-3xl md:text-4xl font-semibold tracking-[-0.03em]">
+                Structured enough to trust, simple enough to use.
+              </h2>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-4">
+              {steps.map((step, index) => (
+                <Card
+                  key={step.title}
+                  className="decision-card hover-lift opacity-0 animate-slide-up"
+                  style={{ animationDelay: `${(index + 1) * 100}ms` }}
+                >
+                  <CardContent className="p-6 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold">
+                        0{index + 1}
+                      </div>
+                      <h3 className="font-medium text-lg">{step.title}</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {step.body}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
+        </section>
 
-          <div className="grid md:grid-cols-2 gap-4 max-w-4xl mx-auto">
-            {[
-              "Prediction intervals that narrow as you add details",
-              "Based on CDC life tables and peer-reviewed research",
-              "Personalized to your age, sex, and health conditions",
-              "Shows uncertainty—not false precision",
-              "Transparent about data sources and limitations",
-              "No account required—try it instantly",
-            ].map((feature, index) => (
-              <div
-                key={feature}
-                className={`flex items-start gap-4 p-4 rounded-xl hover:bg-muted/30 transition-colors opacity-0 animate-slide-up`}
-                style={{ animationDelay: `${100 + index * 50}ms` }}
-              >
-                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center mt-0.5">
-                  <Check className="h-3.5 w-3.5 text-primary" />
+        <section className="px-4 sm:px-6 py-16 sm:py-20">
+          <div className="max-w-6xl mx-auto grid lg:grid-cols-[0.92fr_1.08fr] gap-8 lg:gap-12 items-start">
+            <div className="space-y-6">
+              <p className="text-xs uppercase tracking-[0.24em] text-primary">
+                What you actually get
+              </p>
+              <h2 className="font-serif text-3xl md:text-4xl font-semibold tracking-[-0.03em]">
+                Not a vibe. A decision card.
+              </h2>
+              <p className="text-lg text-muted-foreground leading-relaxed">
+                The interface should make it obvious why one action ranks above
+                another and how fragile that ranking is.
+              </p>
+              <div className="rounded-3xl border border-primary/12 bg-card/80 p-6 shadow-[0_24px_56px_-40px_rgba(28,52,48,0.28)]">
+                <div className="flex items-center gap-3 mb-4">
+                  <BookOpen className="h-5 w-5 text-primary" />
+                  <h3 className="font-medium">App for decisions, paper for methods</h3>
                 </div>
-                <span className="text-foreground/90">{feature}</span>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  The product should feel operational and comparative. The
+                  manuscript should handle methodology, limitations, and
+                  citations in full.
+                </p>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Profile factors */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6">
-        <div className="max-w-5xl mx-auto text-center">
-          <div className="mb-12 opacity-0 animate-slide-up">
-            <p className="text-xs uppercase tracking-[0.25em] text-primary mb-3">
-              Factors we consider
-            </p>
-            <h2 className="font-serif text-4xl md:text-5xl font-medium mb-4">
-              Your profile shapes your prediction
-            </h2>
-            <p className="text-muted-foreground text-lg">
-              Each detail you add narrows your prediction interval
-            </p>
-          </div>
-
-          <div className="flex flex-wrap justify-center gap-3 opacity-0 animate-scale-in delay-200">
-            {[
-              "Age",
-              "Sex",
-              "Smoking status",
-              "BMI",
-              "Exercise frequency",
-              "Sleep duration",
-              "Diabetes",
-              "Hypertension",
-              "Heart disease",
-              "Education level",
-            ].map((factor) => (
-              <span
-                key={factor}
-                className="px-5 py-2.5 rounded-full border border-border/50 bg-card/50 text-sm"
-              >
-                {factor}
-              </span>
-            ))}
-          </div>
-
-          <div className="mt-8">
-            <Button
-              size="lg"
-              className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90"
-              asChild
-            >
-              <Link href="/predict">
-                Start your prediction
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="py-20 sm:py-32 px-4 sm:px-6 relative">
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-t from-primary/10 via-transparent to-transparent" />
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px]" />
-        </div>
-        <div className="max-w-2xl mx-auto text-center relative">
-          <div className="space-y-8 opacity-0 animate-slide-up">
-            <h2 className="font-serif text-4xl md:text-5xl lg:text-6xl font-medium leading-tight">
-              Ready to predict
-              <br />
-              <span className="gradient-text">your life expectancy?</span>
-            </h2>
-            <p className="text-lg text-muted-foreground max-w-md mx-auto">
-              See how lifestyle factors affect your life expectancy based on
-              published research.
-            </p>
-            <Button
-              size="lg"
-              className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 h-14 px-10 text-lg"
-              asChild
-            >
-              <Link href="/predict">
-                Get your prediction
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="py-12 px-4 sm:px-6 border-t border-border/30">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-6">
-            <div className="flex items-center gap-3">
-              <Activity className="h-5 w-5 text-primary" />
-              <span className="text-sm text-muted-foreground">
-                &copy; {new Date().getFullYear()} optiqal. Created by Max Ghenis.
-              </span>
             </div>
-            <div className="flex items-center gap-4 sm:gap-6 flex-wrap justify-center">
-              <Link
-                href="/about"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                About
-              </Link>
-              <Link
-                href="/faq"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                FAQ
-              </Link>
-              <Link
-                href="/terms"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Terms
-              </Link>
-              <Link
-                href="/privacy"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Privacy
-              </Link>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              {outputs.map((item, index) => (
+                <Card
+                  key={item.title}
+                  className="mesh-gradient-card hover-lift opacity-0 animate-scale-in"
+                  style={{ animationDelay: `${(index + 1) * 100}ms` }}
+                >
+                  <CardContent className="p-6">
+                    <p className="text-xs uppercase tracking-[0.2em] text-primary mb-3">
+                      0{index + 1}
+                    </p>
+                    <h3 className="font-medium text-xl mb-3">{item.title}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {item.body}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </div>
-          <p className="text-xs text-muted-foreground max-w-2xl mx-auto text-center leading-relaxed">
-            Optiqal generates personalized predictions by applying hazard ratios from peer-reviewed
-            meta-analyses to CDC life tables. Prediction intervals reflect uncertainty in the underlying
-            research. Your actual outcomes may differ due to genetics and other unmodeled factors.
-            Not medical advice—consult a healthcare professional for health decisions.
-          </p>
-        </div>
-      </footer>
+        </section>
+
+        <section className="px-4 sm:px-6 py-18 sm:py-24">
+          <div className="max-w-5xl mx-auto">
+            <Card className="decision-card border-primary/18 card-highlight overflow-hidden">
+              <CardContent className="p-8 sm:p-10">
+                <div className="grid lg:grid-cols-[1fr_auto] gap-8 items-end">
+                  <div className="space-y-5">
+                    <p className="text-xs uppercase tracking-[0.24em] text-primary">
+                      Ready to pressure test it?
+                    </p>
+                    <h2 className="font-serif text-4xl sm:text-5xl font-semibold tracking-[-0.04em] leading-[1.02]">
+                      Rank the next health move before you buy the next stack.
+                    </h2>
+                    <p className="max-w-2xl text-lg text-muted-foreground leading-relaxed">
+                      Use the analyzer to compare actions, not just admire a
+                      score. That is where the product becomes useful.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-4">
+                    <Button
+                      size="lg"
+                      className="btn-glow bg-primary text-primary-foreground hover:bg-primary/95 h-12 px-8"
+                      asChild
+                    >
+                      <Link href="/analyze">
+                        Start analysis
+                        <Sparkles className="ml-2 h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+      </main>
     </div>
   );
 }

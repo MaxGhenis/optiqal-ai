@@ -1,5 +1,5 @@
 """
-OptiqAL - Bayesian QALY Estimation for Lifestyle Interventions
+Optiqal - Bayesian QALY Estimation for Lifestyle Interventions
 
 This package provides rigorous, evidence-based QALY calculations with:
 - Bayesian MCMC inference using PyMC
@@ -25,7 +25,7 @@ Usage:
 
 __version__ = "0.1.0"
 
-from .intervention import Intervention
+from .intervention import HarmEffect, InteractionRule, Intervention
 from .lifecycle import LifecycleModel, CDC_LIFE_TABLE, CAUSE_FRACTIONS
 from .confounding import ConfoundingPrior, CATEGORY_PRIORS, publication_bias_correct
 from .simulate import simulate_qaly, simulate_qaly_profile, SimulationResult
@@ -42,16 +42,73 @@ from .combination import (
     find_optimal_portfolio,
     find_optimal_portfolio_from_qalys,
     find_optimal_portfolio_with_costs,
+    rank_interventions_by_marginal_cost_per_qaly,
     CombinedEffect,
     OVERLAP_MATRIX,
 )
-from .catalog import CatalogEntry, CATALOG, get_catalog, simulate_catalog
+from .catalog import (
+    CatalogEntry,
+    CATALOG,
+    get_catalog,
+    simulate_catalog,
+    public_display_category,
+    is_publicly_rankable,
+    public_rankability_reason,
+)
 from .bundles import Bundle, BUNDLES, recommend_bundles
 from .analyzer import AnalysisConfig, AnalysisResult, Decision, analyze
-from .report import format_full_report
+from .report import (
+    format_full_report,
+    round_cost_per_qaly,
+    serialize_bundle_recommendations,
+    serialize_choice_evaluation,
+    serialize_decision_state_evaluations,
+    serialize_decision_sequence,
+    serialize_frontier_evaluation,
+    serialize_item_results,
+    serialize_ranked_steps,
+)
+from .sleep import (
+    SleepMetrics,
+    SleepStudyResult,
+    SleepBurdenEstimate,
+    apply_sleep_study,
+    estimate_sleep_burden,
+    sleep_baseline_mortality_multiplier,
+    sleep_intervention_mortality_hr_multiplier,
+)
+from .protocol_personalization import (
+    apply_protocol_spec,
+    build_protocol_specs,
+    load_protocol_baseline,
+    load_protocol_context,
+    load_protocol_items,
+    load_protocol_profile,
+    protocol_metadata_from_specs,
+    protocol_sleep_estimate_from_baseline,
+)
+from .stack_interactions import (
+    build_stack_interaction_penalty_fn,
+    expected_stack_interaction_qaly,
+)
+from .decision_states import (
+    build_public_sleep_decision_sequence,
+    build_public_sleep_decision_specs,
+    ChoiceOptionSpec,
+    DecisionSequenceStepSpec,
+    ChoiceStateSpec,
+    FrontierStateSpec,
+    evaluate_decision_states,
+    ordered_unique,
+    evaluate_frontier_state,
+    summarize_stack_from_qalys,
+    evaluate_choice_set,
+)
 
 __all__ = [
     "Intervention",
+    "HarmEffect",
+    "InteractionRule",
     "LifecycleModel",
     "CDC_LIFE_TABLE",
     "CAUSE_FRACTIONS",
@@ -75,10 +132,14 @@ __all__ = [
     "OVERLAP_MATRIX",
     "publication_bias_correct",
     "find_optimal_portfolio_with_costs",
+    "rank_interventions_by_marginal_cost_per_qaly",
     "CatalogEntry",
     "CATALOG",
     "get_catalog",
     "simulate_catalog",
+    "public_display_category",
+    "is_publicly_rankable",
+    "public_rankability_reason",
     "Bundle",
     "BUNDLES",
     "recommend_bundles",
@@ -87,6 +148,42 @@ __all__ = [
     "Decision",
     "analyze",
     "format_full_report",
+    "round_cost_per_qaly",
+    "serialize_bundle_recommendations",
+    "serialize_choice_evaluation",
+    "serialize_decision_state_evaluations",
+    "serialize_decision_sequence",
+    "serialize_frontier_evaluation",
+    "serialize_item_results",
+    "serialize_ranked_steps",
+    "SleepMetrics",
+    "SleepStudyResult",
+    "SleepBurdenEstimate",
+    "apply_sleep_study",
+    "estimate_sleep_burden",
+    "sleep_baseline_mortality_multiplier",
+    "sleep_intervention_mortality_hr_multiplier",
+    "apply_protocol_spec",
+    "build_protocol_specs",
+    "load_protocol_baseline",
+    "load_protocol_context",
+    "load_protocol_items",
+    "load_protocol_profile",
+    "protocol_metadata_from_specs",
+    "protocol_sleep_estimate_from_baseline",
+    "build_stack_interaction_penalty_fn",
+    "expected_stack_interaction_qaly",
+    "ChoiceOptionSpec",
+    "build_public_sleep_decision_sequence",
+    "build_public_sleep_decision_specs",
+    "DecisionSequenceStepSpec",
+    "ChoiceStateSpec",
+    "FrontierStateSpec",
+    "evaluate_decision_states",
+    "ordered_unique",
+    "evaluate_frontier_state",
+    "summarize_stack_from_qalys",
+    "evaluate_choice_set",
 ]
 
 

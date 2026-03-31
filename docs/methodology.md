@@ -1,10 +1,10 @@
 # Methodology
 
-This document describes the technical methodology underlying the OptiqAL Quality-Adjusted Life Year (QALY) framework for estimating health intervention impacts.
+This document describes the technical methodology underlying the Optiqal Quality-Adjusted Life Year (QALY) framework for estimating health intervention impacts.
 
 ## Overview
 
-OptiqAL estimates the lifetime QALY gains from health interventions using a lifecycle simulation model with Monte Carlo uncertainty quantification. The framework incorporates:
+Optiqal estimates the lifetime QALY gains from health interventions using a lifecycle simulation model with Monte Carlo uncertainty quantification. The framework incorporates:
 
 1. CDC life tables adjusted for individual risk profiles
 2. Pathway-specific hazard ratios (cardiovascular disease, cancer, other causes)
@@ -25,7 +25,7 @@ $$
 where:
 - $S(t)$ is the survival probability at time $t$ years from baseline
 - $Q(t)$ is the quality-of-life weight at age $\text{age}_0 + t$
-- $D(t) = (1 + r)^{-t}$ is the discount factor with rate $r$ (default 3% per year)
+- $D(t) = (1 + r)^{-t}$ is the discount factor with rate $r$ (default 0% for QALYs)
 - $T_{\max} = 100$ is the maximum age in the life table
 
 ### Survival Probability
@@ -57,7 +57,7 @@ Values are linearly interpolated between age points.
 
 ### Discount Rate
 
-Future QALYs are discounted at an annual rate of 3%, following recommendations from the Second Panel on Cost-Effectiveness in Health and Medicine (Sanders et al., 2016). This reflects time preference and the opportunity cost of capital.
+Future QALYs are not discounted in the default Optiqal configuration. This treats a healthy year later in life as equally valuable to a healthy year sooner in life, while leaving cost discounting to handle opportunity cost separately.
 
 ## Pathway Decomposition
 
@@ -105,7 +105,7 @@ These weights are calibrated to meta-analytic evidence on cause-specific mortali
 
 ### Causal Fraction Model
 
-Observational studies often overestimate causal effects due to healthy user bias and residual confounding. OptiqAL adjusts hazard ratios using evidence-calibrated causal fractions:
+Observational studies often overestimate causal effects due to healthy user bias and residual confounding. Optiqal adjusts hazard ratios using evidence-calibrated causal fractions:
 
 $$
 \log(\text{HR}_{\text{causal}}) = \theta \times \log(\text{HR}_{\text{obs}})
@@ -117,7 +117,7 @@ where $\theta \in [0,1]$ is the causal fraction:
 
 ### Beta Prior Distributions
 
-The causal fraction $\theta$ is uncertain and varies by intervention category. OptiqAL uses Beta distributions calibrated to RCT vs. observational discrepancies:
+The causal fraction $\theta$ is uncertain and varies by intervention category. Optiqal uses Beta distributions calibrated to RCT vs. observational discrepancies:
 
 $$
 \theta \sim \text{Beta}(\alpha, \beta)

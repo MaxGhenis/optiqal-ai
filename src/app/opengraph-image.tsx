@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
 
-export const alt = "Optiqal — Predict Your Healthspan";
+export const alt = "Optiqal — Rank Your Health Interventions";
 export const size = {
   width: 1200,
   height: 630,
@@ -56,45 +56,62 @@ export default async function Image() {
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 16,
+            gap: 18,
             marginBottom: 40,
           }}
         >
-          {/* Pulse icon */}
           <svg
-            width="64"
-            height="64"
-            viewBox="0 0 32 32"
+            width="78"
+            height="78"
+            viewBox="0 0 48 48"
             fill="none"
-            style={{ color: "#14b8a6" }}
+            xmlns="http://www.w3.org/2000/svg"
           >
-            <circle
-              cx="16"
-              cy="16"
-              r="14"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              fill="none"
+            <rect
+              x="4"
+              y="4"
+              width="40"
+              height="40"
+              rx="13"
+              fill="rgba(246, 241, 232, 0.08)"
+              stroke="rgba(86, 196, 191, 0.24)"
+              strokeWidth="1.4"
             />
+            <circle cx="22" cy="22" r="10" stroke="#56c4bf" strokeWidth="2.5" />
+            <path d="M28.5 28.5L35 35" stroke="#e08a73" strokeWidth="2.8" strokeLinecap="round" />
+            <rect x="15" y="24" width="3.5" height="6.5" rx="1.75" fill="#7dd8d2" />
+            <rect x="21" y="20.5" width="3.5" height="10" rx="1.75" fill="#56c4bf" />
+            <rect x="27" y="17" width="3.5" height="13.5" rx="1.75" fill="#e08a73" fillOpacity="0.92" />
             <path
-              d="M6 16 L11 16 L13 10 L16 22 L19 14 L21 16 L26 16"
-              stroke="currentColor"
-              strokeWidth="2.5"
+              d="M12.5 29.5C16.1 27.6 19.6 24.8 23.1 21.2C25.5 18.7 28.1 16.9 31 15.8"
+              stroke="rgba(248, 250, 252, 0.18)"
+              strokeWidth="1.6"
               strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
             />
           </svg>
-          <span
-            style={{
-              fontSize: 48,
-              fontWeight: 600,
-              color: "white",
-              letterSpacing: "-0.02em",
-            }}
-          >
-            optiqal
-          </span>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <div
+              style={{
+                fontSize: 50,
+                fontWeight: 600,
+                color: "white",
+                letterSpacing: "-0.05em",
+              }}
+            >
+              Opti<span style={{ color: "#56c4bf" }}>q</span>al
+            </div>
+            <div
+              style={{
+                marginTop: 4,
+                fontSize: 14,
+                letterSpacing: "0.34em",
+                textTransform: "uppercase",
+                color: "#94a3b8",
+              }}
+            >
+              Decision engine
+            </div>
+          </div>
         </div>
 
         {/* Main headline */}
@@ -110,7 +127,7 @@ export default async function Image() {
             alignItems: "center",
           }}
         >
-          <span style={{ color: "white" }}>Predict your</span>
+          <span style={{ color: "white" }}>Rank your next</span>
           <span
             style={{
               background: "linear-gradient(90deg, #14b8a6 0%, #06b6d4 50%, #f472b6 100%)",
@@ -118,7 +135,7 @@ export default async function Image() {
               color: "transparent",
             }}
           >
-            healthspan
+            health move
           </span>
         </div>
 
@@ -132,8 +149,8 @@ export default async function Image() {
             lineHeight: 1.4,
           }}
         >
-          Explore how lifestyle factors affect life expectancy
-          and quality of life, based on published research.
+          Compare sleep, exercise, lipids, supplements, and more on one
+          evidence-aware scale.
         </p>
 
         {/* Bottom tag */}
@@ -151,7 +168,7 @@ export default async function Image() {
           }}
         >
           <span style={{ fontSize: 18, color: "#14b8a6" }}>
-            AI-powered QALY estimation
+            Personalized intervention ranking
           </span>
         </div>
       </div>

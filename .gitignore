@@ -56,4 +56,5 @@ next-env.d.ts
 
 # Vercel
 .vercel
+.model-service
 precompute.log

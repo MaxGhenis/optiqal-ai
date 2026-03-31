@@ -1,4 +1,4 @@
-# OptiqAL Python
+# Optiqal Python
 
 Bayesian QALY estimation for lifestyle interventions.
 
@@ -72,7 +72,7 @@ precompute_all_interventions(
 - **Pathway Decomposition**: Separates effects into CVD, cancer, and other mortality
 - **Confounding Adjustment**: Beta priors based on intervention category and evidence type
 - **E-Value Calculation**: Robustness assessment per VanderWeele & Ding (2017)
-- **Discounting**: Standard 3% annual rate per ICER/NICE guidelines
+- **Discounting**: Undiscounted QALYs by default; costs discounted at 5% real
 - **YAML DSL**: Shared intervention format with TypeScript package
 
 ## License
