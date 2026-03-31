@@ -60,6 +60,12 @@ function formatRunTime(timestamp: number | null): string {
   return `Last updated ${timeFormatter.format(timestamp)}.`;
 }
 
+function hasMeaningfulSleepBurden(results: FrontierResponse | null): boolean {
+  if (!results?.sleep_estimate) return false;
+  if (results.sleep_estimate.annual_qaly_loss > 0.00005) return true;
+  return Object.values(results.sleep_estimate.component_losses).some((value) => value > 0.00005);
+}
+
 function humanizeCategory(value: string): string {
   return value.replaceAll("_", " ");
 }
@@ -294,7 +300,9 @@ export function FrontierWorkbench() {
     }
   };
 
-  const frontierTotal = results?.frontier.at(-1) ?? null;
+  const bestFrontierStep = results?.frontier[0] ?? null;
+  const showSleepBurden = hasMeaningfulSleepBurden(results);
+  const sleepEstimate = showSleepBurden ? results?.sleep_estimate ?? null : null;
 
   return (
     <div className="min-h-screen mesh-gradient paper-grid relative">
@@ -542,18 +550,20 @@ export function FrontierWorkbench() {
               </Card>
               <Card className="decision-card">
                 <CardContent className="p-5 space-y-2">
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Frontier total</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Best marginal gain</p>
                   <p className="text-3xl font-serif">
-                    {frontierTotal ? `${frontierTotal.total_days.toFixed(1)}d` : "0d"}
+                    {bestFrontierStep ? `${bestFrontierStep.marginal_days.toFixed(1)}d` : "0d"}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {frontierTotal ? formatCurrency(frontierTotal.total_annual_cost) : "$0"}/yr
+                    {bestFrontierStep
+                      ? `${formatCurrency(bestFrontierStep.marginal_cost_value)}/yr marginal`
+                      : "$0/yr marginal"}
                   </p>
                 </CardContent>
               </Card>
             </div>
 
-            {results.sleep_estimate ? (
+            {sleepEstimate ? (
               <Card className="decision-card">
                 <CardContent className="p-6 space-y-4">
                   <div className="flex items-center justify-between">
@@ -563,11 +573,11 @@ export function FrontierWorkbench() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-muted-foreground">Annual burden</p>
-                      <p className="text-2xl font-serif">{results.sleep_estimate.annual_qaly_loss.toFixed(4)} QALY</p>
+                      <p className="text-2xl font-serif">{sleepEstimate.annual_qaly_loss.toFixed(4)} QALY</p>
                     </div>
                   </div>
                   <div className="grid md:grid-cols-3 gap-4">
-                    {Object.entries(results.sleep_estimate.component_losses).map(([key, value]) => (
+                    {Object.entries(sleepEstimate.component_losses).map(([key, value]) => (
                       <div key={key} className="rounded-2xl bg-muted/15 px-4 py-3">
                         <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
                           {humanizeCategory(key)}
