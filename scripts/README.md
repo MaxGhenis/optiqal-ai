@@ -101,13 +101,15 @@ The app now deploys as two Vercel projects:
 Because previews are protected by Vercel Authentication, cross-project preview
 requests from the frontend to the model require an explicit protection bypass
 secret. Set one shared secret for the `optiqal-model` project in Vercel’s
-deployment protection settings, then export it locally before deploying:
+deployment protection settings, then export it locally before deploying previews:
 
 ```bash
 export MODEL_PROTECTION_BYPASS_SECRET=...
 ```
 
-The deploy scripts will fail fast if this variable is missing.
+Preview deploys will fail fast if this variable is missing. Production deploys
+can use the public `https://optiqal-model.vercel.app` alias without a local
+bypass secret.
 
 Preview deploy and smoke test:
 

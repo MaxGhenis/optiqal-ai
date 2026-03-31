@@ -7,7 +7,6 @@ import {
   Sparkles,
   Clock3,
   FlaskConical,
-  Shield,
   Pill,
   BarChart3,
   BookOpen,
@@ -18,27 +17,27 @@ import { MobileNav } from "@/components/mobile-nav";
 const focusAreas = [
   {
     icon: Clock3,
-    title: "Sleep extension",
-    detail: "Boring, high-value, often under-prioritized.",
-    value: "+0.18 expected QALYs",
+    title: "Head elevation nightly",
+    detail: "Behavioral · $0/yr",
+    value: "Category: sleep",
   },
   {
     icon: FlaskConical,
-    title: "ApoB reduction",
-    detail: "A classic example of something clinically strong but easy to ignore.",
-    value: "81% probability of benefit",
+    title: "Rosuvastatin 5 mg",
+    detail: "Prescription · $120/yr",
+    value: "Category: medication",
   },
   {
-    icon: Shield,
-    title: "Daily sunscreen",
-    detail: "Small habit, asymmetric upside, minimal burden.",
-    value: "Low burden, durable gain",
+    icon: Target,
+    title: "HIIT 2x/week",
+    detail: "Exercise · $0/yr",
+    value: "Category: exercise",
   },
   {
     icon: Pill,
-    title: "Supplement swaps",
-    detail: "Where Bayesian shrinkage matters most.",
-    value: "Avoid expensive noise",
+    title: "Melatonin 300 mcg",
+    detail: "OTC · $27/yr",
+    value: "Category: supplement",
   },
 ] as const;
 
@@ -56,8 +55,8 @@ const outputs = [
     body: "Harms, fragility, and reversibility belong in the same frame as upside.",
   },
   {
-    title: "Burden and cost",
-    body: "The best move is not always the biggest effect. It is the best tradeoff.",
+    title: "Annual cost",
+    body: "Cash cost belongs on the same card as expected benefit and risk.",
   },
 ] as const;
 
@@ -98,24 +97,24 @@ function DecisionBoard() {
           {[
             {
               rank: "01",
-              title: "Add 45 minutes of sleep",
-              expected: "+0.18",
-              probability: "72%",
-              burden: "Moderate",
+              title: "Raise the head of your bed",
+              expected: "+0.03",
+              probability: "68%",
+              annualCost: "$0/yr",
             },
             {
               rank: "02",
-              title: "Push ApoB below 60",
-              expected: "+0.14",
-              probability: "81%",
-              burden: "Medium",
+              title: "Start a low-dose statin",
+              expected: "+0.12",
+              probability: "79%",
+              annualCost: "$120/yr",
             },
             {
               rank: "03",
-              title: "Make sunscreen daily",
-              expected: "+0.05",
-              probability: "88%",
-              burden: "Low",
+              title: "Do interval cardio twice a week",
+              expected: "+0.07",
+              probability: "71%",
+              annualCost: "$0/yr",
             },
           ].map((item) => (
             <div
@@ -132,7 +131,7 @@ function DecisionBoard() {
                     <div className="mt-3 flex flex-wrap gap-2">
                       <span className="data-pill">E[Δ] {item.expected} QALYs</span>
                       <span className="data-pill">P(benefit) {item.probability}</span>
-                      <span className="data-pill">Burden {item.burden}</span>
+                      <span className="data-pill">Annual cost {item.annualCost}</span>
                     </div>
                   </div>
                 </div>
@@ -210,9 +209,9 @@ export default function Home() {
                 </h1>
 
                 <p className="max-w-2xl text-lg sm:text-xl text-muted-foreground leading-relaxed">
-                  Optiqal compares sleep, exercise, lipids, supplements,
-                  sunscreen, and other interventions on one common decision
-                  surface so you can see what is actually worth doing next.
+                  Optiqal compares sleep, exercise, medications, supplements,
+                  and other interventions on one common decision surface so you
+                  can see what is actually worth doing next.
                 </p>
               </div>
 
@@ -220,7 +219,7 @@ export default function Home() {
                 <span className="data-pill">Expected net QALY delta</span>
                 <span className="data-pill">Probability of benefit</span>
                 <span className="data-pill">Downside tail risk</span>
-                <span className="data-pill">Burden and cost</span>
+                <span className="data-pill">Annual cost</span>
               </div>
 
               <div className="flex flex-wrap gap-4 pt-2">

@@ -66,7 +66,6 @@ function getProductionModelAlias(modelUrl, modelCwd) {
 }
 
 function deployFrontend(modelUrl, runtimeModelUrl = modelUrl) {
-  const bypassSecret = requireModelProtectionBypassSecret();
   const deployArgs = [
     "deploy",
     "--yes",
@@ -76,11 +75,15 @@ function deployFrontend(modelUrl, runtimeModelUrl = modelUrl) {
     `MODEL_URL=${runtimeModelUrl}`,
     "-e",
     `MODEL_URL=${runtimeModelUrl}`,
-    "-b",
-    `MODEL_PROTECTION_BYPASS_SECRET=${bypassSecret}`,
-    "-e",
-    `MODEL_PROTECTION_BYPASS_SECRET=${bypassSecret}`,
   ];
+  if (modelProtectionBypassSecret) {
+    deployArgs.push(
+      "-b",
+      `MODEL_PROTECTION_BYPASS_SECRET=${modelProtectionBypassSecret}`,
+      "-e",
+      `MODEL_PROTECTION_BYPASS_SECRET=${modelProtectionBypassSecret}`
+    );
+  }
   if (isProduction) {
     deployArgs.push("--prod");
   }
@@ -91,7 +94,9 @@ function deployFrontend(modelUrl, runtimeModelUrl = modelUrl) {
 }
 
 function main() {
-  requireModelProtectionBypassSecret();
+  if (!isProduction) {
+    requireModelProtectionBypassSecret();
+  }
 
   const modelCwd = run("node", ["scripts/prepare-model-deploy.mjs"], projectRoot);
 

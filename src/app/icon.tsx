@@ -41,24 +41,18 @@ export default function Icon() {
             strokeWidth="1.4"
           />
           <circle
-            cx="22"
-            cy="22"
-            r="10"
+            cx="21"
+            cy="21"
+            r="9.5"
             stroke="#2d7168"
             strokeWidth="2.6"
             fill="none"
           />
-          <path d="M28.5 28.5L35 35" stroke="#d97a5e" strokeWidth="2.8" strokeLinecap="round" />
-          <rect x="15" y="24" width="3.5" height="6.5" rx="1.75" fill="#74d0ca" />
-          <rect x="21" y="20.5" width="3.5" height="10" rx="1.75" fill="#2d7168" fillOpacity="0.8" />
-          <rect x="27" y="17" width="3.5" height="13.5" rx="1.75" fill="#d97a5e" fillOpacity="0.82" />
-          <path
-            d="M12.5 29.5C16.1 27.6 19.6 24.8 23.1 21.2C25.5 18.7 28.1 16.9 31 15.8"
-            stroke="#1f2729"
-            strokeOpacity="0.18"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-          />
+          <path d="M27.8 27.8L34.6 34.6" stroke="#d97a5e" strokeWidth="2.8" strokeLinecap="round" />
+          <rect x="15.5" y="22" width="2.6" height="7.5" rx="1.3" fill="#74d0ca" />
+          <rect x="20.6" y="18.5" width="2.6" height="10" rx="1.3" fill="#2d7168" fillOpacity="0.8" />
+          <rect x="25.7" y="15" width="2.6" height="13.5" rx="1.3" fill="#d97a5e" fillOpacity="0.82" />
+          <circle cx="21" cy="21" r="1.7" fill="#1f2729" fillOpacity="0.18" />
         </svg>
       </div>
     ),

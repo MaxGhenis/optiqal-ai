@@ -51,18 +51,11 @@ export function getRemoteModelHeaders(
     options?.requestOrigin &&
     isCrossOriginVercelService(options.remoteBaseUrl, options.requestOrigin);
 
-  if (needsDedicatedBypass && !bypassSecret) {
-    throw new Error(
-      "Cross-project Vercel model access requires MODEL_PROTECTION_BYPASS_SECRET " +
-        "(or OPTIQAL_MODEL_BYPASS_SECRET)."
-    );
-  }
-
   return {
     cookie: headers.get("cookie") ?? undefined,
     "x-vercel-protection-bypass":
       needsDedicatedBypass
-        ? bypassSecret
+        ? bypassSecret ?? undefined
         : headers.get("x-vercel-protection-bypass") ??
           process.env.VERCEL_AUTOMATION_BYPASS_SECRET ??
           bypassSecret ??

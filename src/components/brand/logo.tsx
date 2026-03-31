@@ -20,19 +20,25 @@ type LogoLockupProps = LogoWordmarkProps & {
 const SIZE_STYLES = {
   sm: {
     mark: "h-9 w-9",
-    name: "text-lg",
+    name: "text-[0.98rem]",
+    q: "w-[0.68em]",
+    qTail: "h-[0.24em] w-[0.38em]",
     descriptor: "text-[0.62rem]",
     gap: "gap-2.5",
   },
   md: {
     mark: "h-10 w-10",
-    name: "text-xl",
+    name: "text-[1.08rem]",
+    q: "w-[0.72em]",
+    qTail: "h-[0.26em] w-[0.42em]",
     descriptor: "text-[0.66rem]",
     gap: "gap-3",
   },
   lg: {
     mark: "h-14 w-14",
-    name: "text-3xl",
+    name: "text-[1.68rem]",
+    q: "w-[0.8em]",
+    qTail: "h-[0.32em] w-[0.5em]",
     descriptor: "text-[0.72rem]",
     gap: "gap-3.5",
   },
@@ -58,48 +64,43 @@ export function LogoMark({ className }: LogoMarkProps) {
         strokeWidth="1.4"
       />
       <circle
-        cx="22"
-        cy="22"
-        r="10"
+        cx="21"
+        cy="21"
+        r="9.5"
         stroke="hsl(var(--brand))"
         strokeWidth="2.4"
       />
       <path
-        d="M28.5 28.5L35 35"
+        d="M27.8 27.8L34.6 34.6"
         stroke="hsl(var(--accent))"
         strokeWidth="2.6"
         strokeLinecap="round"
       />
       <rect
-        x="15"
-        y="24"
-        width="3.5"
-        height="6.5"
-        rx="1.75"
+        x="15.5"
+        y="22"
+        width="2.6"
+        height="7.5"
+        rx="1.3"
         fill="hsl(var(--brand) / 0.55)"
       />
       <rect
-        x="21"
-        y="20.5"
-        width="3.5"
+        x="20.6"
+        y="18.5"
+        width="2.6"
         height="10"
-        rx="1.75"
+        rx="1.3"
         fill="hsl(var(--brand) / 0.78)"
       />
       <rect
-        x="27"
-        y="17"
-        width="3.5"
+        x="25.7"
+        y="15"
+        width="2.6"
         height="13.5"
-        rx="1.75"
+        rx="1.3"
         fill="hsl(var(--accent) / 0.78)"
       />
-      <path
-        d="M12.5 29.5C16.1 27.6 19.6 24.8 23.1 21.2C25.5 18.7 28.1 16.9 31 15.8"
-        stroke="hsl(var(--foreground) / 0.18)"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
+      <circle cx="21" cy="21" r="1.7" fill="hsl(var(--foreground) / 0.12)" />
     </svg>
   );
 }
@@ -118,12 +119,22 @@ export function LogoWordmark({
     <div className={cn("min-w-0 leading-none", className)}>
       <div
         className={cn(
-          "font-serif font-semibold tracking-[-0.06em] text-foreground",
+          "flex items-center gap-[0.02em] font-sans font-semibold uppercase tracking-[0.17em] text-foreground",
           styles.name,
           nameClassName
         )}
       >
-        Opti<span className="text-primary">q</span>al
+        <span>OPTI</span>
+        <span className={cn("relative inline-flex justify-center", styles.q)}>
+          <span>Q</span>
+          <span
+            className={cn(
+              "absolute left-[62%] top-[68%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[hsl(var(--accent)/0.75)] rotate-[46deg]",
+              styles.qTail
+            )}
+          />
+        </span>
+        <span>AL</span>
       </div>
       {showDescriptor ? (
         <div

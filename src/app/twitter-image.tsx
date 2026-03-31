@@ -77,28 +77,50 @@ export default async function Image() {
               stroke="rgba(86, 196, 191, 0.24)"
               strokeWidth="1.4"
             />
-            <circle cx="22" cy="22" r="10" stroke="#56c4bf" strokeWidth="2.5" />
-            <path d="M28.5 28.5L35 35" stroke="#e08a73" strokeWidth="2.8" strokeLinecap="round" />
-            <rect x="15" y="24" width="3.5" height="6.5" rx="1.75" fill="#7dd8d2" />
-            <rect x="21" y="20.5" width="3.5" height="10" rx="1.75" fill="#56c4bf" />
-            <rect x="27" y="17" width="3.5" height="13.5" rx="1.75" fill="#e08a73" fillOpacity="0.92" />
-            <path
-              d="M12.5 29.5C16.1 27.6 19.6 24.8 23.1 21.2C25.5 18.7 28.1 16.9 31 15.8"
-              stroke="rgba(248, 250, 252, 0.18)"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-            />
+            <circle cx="21" cy="21" r="9.5" stroke="#56c4bf" strokeWidth="2.5" />
+            <path d="M27.8 27.8L34.6 34.6" stroke="#e08a73" strokeWidth="2.8" strokeLinecap="round" />
+            <rect x="15.5" y="22" width="2.6" height="7.5" rx="1.3" fill="#7dd8d2" />
+            <rect x="20.6" y="18.5" width="2.6" height="10" rx="1.3" fill="#56c4bf" />
+            <rect x="25.7" y="15" width="2.6" height="13.5" rx="1.3" fill="#e08a73" fillOpacity="0.92" />
+            <circle cx="21" cy="21" r="1.7" fill="rgba(248, 250, 252, 0.18)" />
           </svg>
           <div style={{ display: "flex", flexDirection: "column" }}>
             <div
               style={{
-                fontSize: 50,
+                display: "flex",
+                alignItems: "center",
+                gap: 3,
+                fontSize: 44,
                 fontWeight: 600,
                 color: "white",
-                letterSpacing: "-0.05em",
+                letterSpacing: "0.16em",
+                textTransform: "uppercase",
               }}
             >
-              Opti<span style={{ color: "#56c4bf" }}>q</span>al
+              <span>OPTI</span>
+              <span
+                style={{
+                  position: "relative",
+                  display: "inline-flex",
+                  justifyContent: "center",
+                  width: 28,
+                }}
+              >
+                <span>Q</span>
+                <span
+                  style={{
+                    position: "absolute",
+                    left: "62%",
+                    top: "68%",
+                    width: 10,
+                    height: 3,
+                    borderRadius: 999,
+                    background: "rgba(224, 138, 115, 0.8)",
+                    transform: "translate(-50%, -50%) rotate(46deg)",
+                  }}
+                />
+              </span>
+              <span>AL</span>
             </div>
             <div
               style={{

@@ -61,13 +61,17 @@ describe("model service helpers", () => {
     });
   });
 
-  it("requires a dedicated bypass secret for cross-project vercel model services", () => {
-    expect(() =>
+  it("allows public cross-project vercel model services without a dedicated bypass secret", () => {
+    expect(
       getRemoteModelHeaders(new Headers(), {
-        remoteBaseUrl: "https://optiqal-model-preview.vercel.app",
-        requestOrigin: "https://optiqal-preview.vercel.app",
+        remoteBaseUrl: "https://optiqal-model.vercel.app",
+        requestOrigin: "https://optiqal.ai",
       })
-    ).toThrow("MODEL_PROTECTION_BYPASS_SECRET");
+    ).toEqual({
+      cookie: undefined,
+      "x-vercel-protection-bypass": undefined,
+      "x-vercel-set-bypass-cookie": undefined,
+    });
   });
 
   it("uses the dedicated model bypass secret for cross-project vercel model services", () => {

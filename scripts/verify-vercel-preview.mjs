@@ -75,15 +75,9 @@ function main() {
   assertIncludes(predictHtml, "Activity level", "/predict HTML");
 
   if (modelDeployment) {
-    if (!modelProtectionBypassSecret) {
-      throw new Error(
-        "Missing MODEL_PROTECTION_BYPASS_SECRET (or OPTIQAL_MODEL_BYPASS_SECRET) for preview verification"
-      );
-    }
-
     const modelHealthResponse = parseVerifiedJson(
       runVercelCurl("/health", modelDeployment, [], modelCwd, {
-        protectionBypass: modelProtectionBypassSecret,
+        protectionBypass: modelProtectionBypassSecret || undefined,
       }),
       "Model /health"
     );
@@ -117,7 +111,7 @@ function main() {
         ],
         modelCwd,
         {
-          protectionBypass: modelProtectionBypassSecret,
+          protectionBypass: modelProtectionBypassSecret || undefined,
         }
       ),
       "Model /baseline"
