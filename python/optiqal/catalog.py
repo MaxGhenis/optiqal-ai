@@ -1684,7 +1684,11 @@ PUBLIC_SERVICE_IDS = {
 }
 
 PUBLIC_CONSUMER_PUBLIC_IDS = set(PUBLIC_EXERCISE_IDS)
-PUBLIC_CONDITIONAL_PUBLIC_IDS = set(PUBLIC_SLEEP_IDS)
+PUBLIC_CARDIOMETABOLIC_IDS = {
+    "metformin_500mg",
+    "statin_5mg",
+}
+PUBLIC_CONDITIONAL_PUBLIC_IDS = set(PUBLIC_SLEEP_IDS) | set(PUBLIC_CARDIOMETABOLIC_IDS)
 
 PUBLIC_GENERIC_EXCLUDED_REASONS = {
     "aspirin_81mg": (
@@ -1727,13 +1731,78 @@ def has_meaningful_public_airway_signal(
     )
 
 
-def public_recommendation_lane(entry: CatalogEntry) -> PublicRecommendationLane:
+def has_meaningful_public_statin_signal(profile: Optional[Profile]) -> bool:
+    """Simple public-safe gate for surfacing a generic statin discussion."""
+    if profile is None:
+        return False
+
+    score = 0
+    if profile.age >= 60:
+        score += 2
+    elif profile.age >= 50:
+        score += 1
+
+    if profile.bmi_category == "overweight":
+        score += 1
+    elif profile.bmi_category in {"obese", "severely_obese"}:
+        score += 2
+
+    if profile.smoking_status == "current":
+        score += 2
+    if profile.has_hypertension:
+        score += 2
+    if profile.has_diabetes:
+        score += 3
+
+    return score >= 3
+
+
+def has_meaningful_public_metformin_signal(profile: Optional[Profile]) -> bool:
+    """Simple public-safe gate for surfacing a generic metformin discussion."""
+    if profile is None:
+        return False
+
+    score = 0
+    if profile.has_diabetes:
+        score += 4
+    if profile.bmi_category == "overweight":
+        score += 1
+    elif profile.bmi_category in {"obese", "severely_obese"}:
+        score += 2
+    if profile.has_hypertension:
+        score += 1
+    if profile.age >= 50:
+        score += 1
+
+    return score >= 3
+
+
+def public_recommendation_lane(
+    entry: CatalogEntry,
+    profile: Optional[Profile] = None,
+) -> PublicRecommendationLane:
     """Top-level public product lane for this intervention."""
+    del profile
     if entry.id in PUBLIC_CONSUMER_PUBLIC_IDS:
         return "consumer_public"
     if entry.id in PUBLIC_CONDITIONAL_PUBLIC_IDS:
         return "conditional_public"
     return "personal_only"
+
+
+def has_meaningful_public_condition_signal(
+    entry: CatalogEntry,
+    profile: Optional[Profile],
+    sleep_estimate: Optional[SleepBurdenEstimate],
+) -> bool:
+    """Whether a conditional-public intervention has the needed qualifying signal."""
+    if entry.id in PUBLIC_SLEEP_IDS:
+        return has_meaningful_public_airway_signal(sleep_estimate)
+    if entry.id == "statin_5mg":
+        return has_meaningful_public_statin_signal(profile)
+    if entry.id == "metformin_500mg":
+        return has_meaningful_public_metformin_signal(profile)
+    return False
 
 
 def public_display_category(entry: CatalogEntry) -> str:
@@ -1755,13 +1824,16 @@ def is_publicly_rankable(
     sleep_estimate: Optional[SleepBurdenEstimate] = None,
 ) -> bool:
     """Whether an entry belongs in the public ranked frontier for this phenotype."""
-    del profile  # Reserved for richer public gating once more eligibility inputs are modeled.
     lane = public_recommendation_lane(entry)
     if lane == "personal_only":
         return False
     if entry.id in PUBLIC_GENERIC_EXCLUDED_REASONS:
         return False
-    if lane == "conditional_public" and not has_meaningful_public_airway_signal(sleep_estimate):
+    if lane == "conditional_public" and not has_meaningful_public_condition_signal(
+        entry,
+        profile,
+        sleep_estimate,
+    ):
         return False
     return entry.annual_cost > 0 or entry.id in PUBLIC_FREE_INTERVENTION_IDS
 
@@ -1777,10 +1849,29 @@ def public_rankability_reason(
     lane = public_recommendation_lane(entry)
     if entry.id in PUBLIC_GENERIC_EXCLUDED_REASONS:
         return PUBLIC_GENERIC_EXCLUDED_REASONS[entry.id]
-    if lane == "conditional_public" and not has_meaningful_public_airway_signal(sleep_estimate):
+    if lane == "conditional_public" and not has_meaningful_public_condition_signal(
+        entry,
+        profile,
+        sleep_estimate,
+    ):
+        if entry.id in PUBLIC_SLEEP_IDS:
+            return (
+                "Hidden from the generic public frontier unless the sleep inputs show a "
+                "meaningful airway-related burden."
+            )
+        if entry.id == "statin_5mg":
+            return (
+                "Hidden from the generic public frontier unless the profile shows a "
+                "meaningful cardiometabolic risk signal."
+            )
+        if entry.id == "metformin_500mg":
+            return (
+                "Hidden from the generic public frontier unless the profile shows a "
+                "meaningful metabolic-risk signal."
+            )
         return (
-            "Hidden from the generic public frontier unless the sleep inputs show a "
-            "meaningful airway-related burden."
+            "Hidden from the generic public frontier unless the current profile "
+            "triggers a matching conditional lane."
         )
     if entry.id in PUBLIC_SERVICE_IDS:
         return (

@@ -389,7 +389,8 @@ def test_healthy_young_female_public_frontier_excludes_condition_specific_generi
     assert "indication-specific personal medication" in items_by_id["finasteride_1.25mg"]["rankability_reason"]
     assert "indication- and population-specific" in items_by_id["tadalafil_2.5mg"]["rankability_reason"]
     assert "deficiency risk" in items_by_id["vitamin_d_2000"]["rankability_reason"]
-    assert "clinician-mediated or condition-specific module" in items_by_id["metformin_500mg"]["rankability_reason"]
+    assert "meaningful metabolic-risk signal" in items_by_id["metformin_500mg"]["rankability_reason"]
+    assert "meaningful cardiometabolic risk signal" in items_by_id["statin_5mg"]["rankability_reason"]
     assert "personal current-stack item" in items_by_id["vitamin_k2"]["rankability_reason"]
     assert "not yet curated as a broad public recommendation" in items_by_id["quercetin_500"]["rankability_reason"]
 
@@ -431,3 +432,32 @@ def test_airway_triggered_public_sleep_pathway_keeps_contextual_rx_options():
         "lemborexant_5mg",
         "suvorexant_10mg",
     }.issubset(option_ids)
+
+
+def test_higher_risk_public_profile_can_surface_statin_and_metformin():
+    response = build_frontier_response(
+        {
+            "profile": {
+                "age": 58,
+                "sex": "male",
+                "weight_kg": 95,
+                "height_cm": 175,
+                "smoker": True,
+                "has_diabetes": False,
+                "has_hypertension": True,
+                "activity_level": "light",
+                "sleep_hours_per_night": 7.0,
+            },
+            "n_simulations": 500,
+        }
+    )
+
+    frontier_ids = [step["added_intervention"] for step in response["frontier"]]
+    assert "statin_5mg" in frontier_ids
+    assert "metformin_500mg" in frontier_ids
+
+    items_by_id = {item["id"]: item for item in response["items"]}
+    assert items_by_id["statin_5mg"]["rankability_reason"] is None
+    assert items_by_id["metformin_500mg"]["rankability_reason"] is None
+    assert items_by_id["statin_5mg"]["public_lane"] == "conditional_public"
+    assert items_by_id["metformin_500mg"]["public_lane"] == "conditional_public"

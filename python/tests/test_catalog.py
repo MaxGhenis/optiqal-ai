@@ -8,6 +8,8 @@ from optiqal.catalog import (
     CATALOG,
     CatalogEntry,
     get_catalog,
+    has_meaningful_public_metformin_signal,
+    has_meaningful_public_statin_signal,
     is_publicly_rankable,
     public_display_category,
     public_recommendation_lane,
@@ -297,8 +299,39 @@ class TestCatalog:
     def test_public_recommendation_lane_splits_consumer_conditional_and_personal_items(self):
         assert public_recommendation_lane(CATALOG["hiit_2x_week"]) == "consumer_public"
         assert public_recommendation_lane(CATALOG["head_elevation_nightly"]) == "conditional_public"
-        assert public_recommendation_lane(CATALOG["statin_5mg"]) == "personal_only"
+        assert public_recommendation_lane(CATALOG["statin_5mg"]) == "conditional_public"
+        assert public_recommendation_lane(CATALOG["metformin_500mg"]) == "conditional_public"
         assert public_recommendation_lane(CATALOG["quercetin_500"]) == "personal_only"
+
+    def test_public_cardiometabolic_signal_helpers_are_selective(self):
+        healthy = Profile(
+            age=35,
+            sex="female",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=False,
+            has_hypertension=False,
+            activity_level="light",
+        )
+        higher_risk = Profile(
+            age=58,
+            sex="male",
+            bmi_category="obese",
+            smoking_status="current",
+            has_diabetes=False,
+            has_hypertension=True,
+            activity_level="light",
+        )
+
+        assert has_meaningful_public_statin_signal(healthy) is False
+        assert has_meaningful_public_metformin_signal(healthy) is False
+        assert has_meaningful_public_statin_signal(higher_risk) is True
+        assert has_meaningful_public_metformin_signal(higher_risk) is True
+
+        assert is_publicly_rankable(CATALOG["statin_5mg"], profile=healthy) is False
+        assert is_publicly_rankable(CATALOG["metformin_500mg"], profile=healthy) is False
+        assert is_publicly_rankable(CATALOG["statin_5mg"], profile=higher_risk) is True
+        assert is_publicly_rankable(CATALOG["metformin_500mg"], profile=higher_risk) is True
 
     def test_public_rankability_excludes_bundle_dependent_zero_cost_items(self):
         assert is_publicly_rankable(CATALOG["astaxanthin_12"]) is False
