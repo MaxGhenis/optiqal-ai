@@ -8,7 +8,9 @@ correction (raw observed values from studies).
 Use with `publication_bias_correct()` from `confounding.py` before simulation.
 """
 
+import json
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, List, Literal, Mapping, Optional
 
 import numpy as np
@@ -124,6 +126,33 @@ PublicProfileRuleField = Literal[
 PublicProfileRuleOperator = Literal["gte", "eq", "in"]
 PublicConditionEvaluationKind = Literal["sleep_any_threshold", "profile_score"]
 
+PUBLIC_CONDITION_VALUES: tuple[PublicCondition, ...] = (
+    "airway_signal",
+    "cardiometabolic_signal",
+    "metabolic_signal",
+    "glp1_signal",
+)
+PUBLIC_THRESHOLD_SIGNAL_VALUES: tuple[PublicThresholdSignal, ...] = (
+    "sleep_breathing_burden",
+    "sleep_airway_response_signal",
+    "sleep_upper_airway_probability",
+    "sleep_nasal_inflammation_probability",
+    "sleep_mucus_probability",
+)
+PUBLIC_PROFILE_RULE_FIELDS: tuple[PublicProfileRuleField, ...] = (
+    "age",
+    "bmi_category",
+    "smoking_status",
+    "has_diabetes",
+    "has_hypertension",
+)
+PUBLIC_PROFILE_RULE_OPERATORS: tuple[PublicProfileRuleOperator, ...] = ("gte", "eq", "in")
+PUBLIC_CONDITION_EVALUATION_KINDS: tuple[PublicConditionEvaluationKind, ...] = (
+    "sleep_any_threshold",
+    "profile_score",
+)
+PUBLIC_CONDITION_DATA_PATH = Path(__file__).parent / "data" / "public_policy_conditions.json"
+
 
 @dataclass(frozen=True)
 class PublicThresholdRule:
@@ -183,101 +212,80 @@ PUBLIC_LANE_SPECS: Dict[PublicRecommendationLane, Dict[str, str]] = {
     },
 }
 
-PUBLIC_CONDITION_SPECS: Dict[PublicCondition, PublicConditionSpec] = {
-    "airway_signal": PublicConditionSpec(
-        id="airway_signal",
-        label="Airway-heavy sleep signal",
-        description="Triggered by meaningful airway-related sleep burden from the sleep inputs.",
-        evaluation_kind="sleep_any_threshold",
-        hidden_reason=(
-            "Hidden from the generic public frontier unless the sleep inputs show a "
-            "meaningful airway-related burden."
-        ),
-        threshold_rules=(
-            PublicThresholdRule(
-                signal="sleep_breathing_burden",
-                threshold=0.05,
-                label="Breathing burden at least 0.05 QALY/yr",
+def _load_public_condition_specs() -> Dict[PublicCondition, PublicConditionSpec]:
+    """Load declarative public condition definitions from packaged JSON."""
+    raw_specs = json.loads(PUBLIC_CONDITION_DATA_PATH.read_text())
+    loaded_specs: Dict[PublicCondition, PublicConditionSpec] = {}
+
+    if set(raw_specs) != set(PUBLIC_CONDITION_VALUES):
+        raise ValueError(
+            "public_policy_conditions.json must define exactly "
+            f"{sorted(PUBLIC_CONDITION_VALUES)}, got {sorted(raw_specs)}"
+        )
+
+    for condition_id, raw_spec in raw_specs.items():
+        if condition_id not in PUBLIC_CONDITION_VALUES:
+            raise ValueError(f"Unexpected public condition id: {condition_id}")
+
+        evaluation_kind = raw_spec["evaluation_kind"]
+        if evaluation_kind not in PUBLIC_CONDITION_EVALUATION_KINDS:
+            raise ValueError(f"Unexpected evaluation kind for {condition_id}: {evaluation_kind}")
+
+        threshold_rules = []
+        for rule in raw_spec.get("threshold_rules", []):
+            signal = rule["signal"]
+            if signal not in PUBLIC_THRESHOLD_SIGNAL_VALUES:
+                raise ValueError(f"Unexpected threshold signal for {condition_id}: {signal}")
+            threshold_rules.append(
+                PublicThresholdRule(
+                    signal=signal,
+                    threshold=float(rule["threshold"]),
+                    label=str(rule["label"]),
+                )
+            )
+
+        profile_rules = []
+        for rule in raw_spec.get("profile_rules", []):
+            field_name = rule["field"]
+            operator = rule["operator"]
+            value = rule["value"]
+            if field_name not in PUBLIC_PROFILE_RULE_FIELDS:
+                raise ValueError(f"Unexpected profile field for {condition_id}: {field_name}")
+            if operator not in PUBLIC_PROFILE_RULE_OPERATORS:
+                raise ValueError(f"Unexpected profile operator for {condition_id}: {operator}")
+            if operator == "in" and isinstance(value, list):
+                value = tuple(value)
+            profile_rules.append(
+                PublicProfileScoreRule(
+                    field=field_name,
+                    operator=operator,
+                    value=value,
+                    points=int(rule["points"]),
+                    label=str(rule["label"]),
+                )
+            )
+
+        profile_score_threshold = raw_spec.get("profile_score_threshold")
+        if evaluation_kind == "profile_score" and profile_score_threshold is None:
+            raise ValueError(f"profile_score condition {condition_id} requires profile_score_threshold")
+
+        loaded_specs[condition_id] = PublicConditionSpec(
+            id=condition_id,
+            label=str(raw_spec["label"]),
+            description=str(raw_spec["description"]),
+            evaluation_kind=evaluation_kind,
+            hidden_reason=str(raw_spec["hidden_reason"]),
+            threshold_rules=tuple(threshold_rules),
+            profile_rules=tuple(profile_rules),
+            profile_score_threshold=(
+                int(profile_score_threshold) if profile_score_threshold is not None else None
             ),
-            PublicThresholdRule(
-                signal="sleep_airway_response_signal",
-                threshold=0.10,
-                label="Airway response signal at least 0.10",
-            ),
-            PublicThresholdRule(
-                signal="sleep_upper_airway_probability",
-                threshold=0.15,
-                label="Upper-airway probability at least 0.15",
-            ),
-            PublicThresholdRule(
-                signal="sleep_nasal_inflammation_probability",
-                threshold=0.10,
-                label="Nasal-inflammation probability at least 0.10",
-            ),
-            PublicThresholdRule(
-                signal="sleep_mucus_probability",
-                threshold=0.06,
-                label="Mucus probability at least 0.06",
-            ),
-        ),
-    ),
-    "cardiometabolic_signal": PublicConditionSpec(
-        id="cardiometabolic_signal",
-        label="Cardiometabolic risk signal",
-        description="Triggered by age plus smoking, hypertension, diabetes, or elevated BMI.",
-        evaluation_kind="profile_score",
-        hidden_reason=(
-            "Hidden from the generic public frontier unless the profile shows a "
-            "meaningful cardiometabolic risk signal."
-        ),
-        profile_score_threshold=3,
-        profile_rules=(
-            PublicProfileScoreRule("age", "gte", 60, 2, "Age 60+"),
-            PublicProfileScoreRule("age", "gte", 50, 1, "Age 50+"),
-            PublicProfileScoreRule("bmi_category", "eq", "overweight", 1, "BMI in overweight range"),
-            PublicProfileScoreRule("bmi_category", "in", ("obese", "severely_obese"), 2, "BMI in obese range"),
-            PublicProfileScoreRule("smoking_status", "eq", "current", 2, "Current smoker"),
-            PublicProfileScoreRule("has_hypertension", "eq", True, 2, "Has hypertension"),
-            PublicProfileScoreRule("has_diabetes", "eq", True, 3, "Has diabetes"),
-        ),
-    ),
-    "metabolic_signal": PublicConditionSpec(
-        id="metabolic_signal",
-        label="Metabolic risk signal",
-        description="Triggered mainly by diabetes or obesity-weighted metabolic risk.",
-        evaluation_kind="profile_score",
-        hidden_reason=(
-            "Hidden from the generic public frontier unless the profile shows a "
-            "meaningful metabolic-risk signal."
-        ),
-        profile_score_threshold=3,
-        profile_rules=(
-            PublicProfileScoreRule("has_diabetes", "eq", True, 4, "Has diabetes"),
-            PublicProfileScoreRule("bmi_category", "eq", "overweight", 1, "BMI in overweight range"),
-            PublicProfileScoreRule("bmi_category", "in", ("obese", "severely_obese"), 2, "BMI in obese range"),
-            PublicProfileScoreRule("has_hypertension", "eq", True, 1, "Has hypertension"),
-            PublicProfileScoreRule("age", "gte", 50, 1, "Age 50+"),
-        ),
-    ),
-    "glp1_signal": PublicConditionSpec(
-        id="glp1_signal",
-        label="Obesity or diabetes GLP-1 signal",
-        description="Triggered by obesity- or diabetes-weighted profiles where GLP-1 therapy becomes a plausible public discussion item.",
-        evaluation_kind="profile_score",
-        hidden_reason=(
-            "Hidden from the generic public frontier unless the profile shows a "
-            "meaningful obesity- or diabetes-weighted GLP-1 signal."
-        ),
-        profile_score_threshold=4,
-        profile_rules=(
-            PublicProfileScoreRule("has_diabetes", "eq", True, 4, "Has diabetes"),
-            PublicProfileScoreRule("bmi_category", "eq", "overweight", 1, "BMI in overweight range"),
-            PublicProfileScoreRule("bmi_category", "in", ("obese", "severely_obese"), 3, "BMI in obese range"),
-            PublicProfileScoreRule("has_hypertension", "eq", True, 1, "Has hypertension"),
-            PublicProfileScoreRule("age", "gte", 50, 1, "Age 50+"),
-        ),
-    ),
-}
+        )
+
+    return loaded_specs
+
+
+PUBLIC_CONDITION_SPECS: Dict[PublicCondition, PublicConditionSpec] = _load_public_condition_specs()
 
 
 def _profile_adjusted_hr(hr: float, multiplier: float) -> float:

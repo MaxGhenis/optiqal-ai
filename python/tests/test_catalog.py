@@ -7,6 +7,7 @@ from optiqal.confounding import publication_bias_correct
 from optiqal.catalog import (
     CATALOG,
     CatalogEntry,
+    PUBLIC_CONDITION_DATA_PATH,
     build_public_policy_spec,
     get_catalog,
     has_meaningful_public_glp1_signal,
@@ -353,6 +354,7 @@ class TestCatalog:
         assert public_display_category(CATALOG["quercetin_500"]) == "supplement"
 
     def test_public_policy_spec_exports_condition_rules(self):
+        assert PUBLIC_CONDITION_DATA_PATH.exists()
         policy = build_public_policy_spec(CATALOG)
         conditions = {condition["id"]: condition for condition in policy["conditions"]}
 

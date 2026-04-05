@@ -1,0 +1,181 @@
+{
+  "airway_signal": {
+    "label": "Airway-heavy sleep signal",
+    "description": "Triggered by meaningful airway-related sleep burden from the sleep inputs.",
+    "evaluation_kind": "sleep_any_threshold",
+    "hidden_reason": "Hidden from the generic public frontier unless the sleep inputs show a meaningful airway-related burden.",
+    "threshold_rules": [
+      {
+        "signal": "sleep_breathing_burden",
+        "threshold": 0.05,
+        "label": "Breathing burden at least 0.05 QALY/yr"
+      },
+      {
+        "signal": "sleep_airway_response_signal",
+        "threshold": 0.1,
+        "label": "Airway response signal at least 0.10"
+      },
+      {
+        "signal": "sleep_upper_airway_probability",
+        "threshold": 0.15,
+        "label": "Upper-airway probability at least 0.15"
+      },
+      {
+        "signal": "sleep_nasal_inflammation_probability",
+        "threshold": 0.1,
+        "label": "Nasal-inflammation probability at least 0.10"
+      },
+      {
+        "signal": "sleep_mucus_probability",
+        "threshold": 0.06,
+        "label": "Mucus probability at least 0.06"
+      }
+    ]
+  },
+  "cardiometabolic_signal": {
+    "label": "Cardiometabolic risk signal",
+    "description": "Triggered by age plus smoking, hypertension, diabetes, or elevated BMI.",
+    "evaluation_kind": "profile_score",
+    "hidden_reason": "Hidden from the generic public frontier unless the profile shows a meaningful cardiometabolic risk signal.",
+    "profile_score_threshold": 3,
+    "profile_rules": [
+      {
+        "field": "age",
+        "operator": "gte",
+        "value": 60,
+        "points": 2,
+        "label": "Age 60+"
+      },
+      {
+        "field": "age",
+        "operator": "gte",
+        "value": 50,
+        "points": 1,
+        "label": "Age 50+"
+      },
+      {
+        "field": "bmi_category",
+        "operator": "eq",
+        "value": "overweight",
+        "points": 1,
+        "label": "BMI in overweight range"
+      },
+      {
+        "field": "bmi_category",
+        "operator": "in",
+        "value": ["obese", "severely_obese"],
+        "points": 2,
+        "label": "BMI in obese range"
+      },
+      {
+        "field": "smoking_status",
+        "operator": "eq",
+        "value": "current",
+        "points": 2,
+        "label": "Current smoker"
+      },
+      {
+        "field": "has_hypertension",
+        "operator": "eq",
+        "value": true,
+        "points": 2,
+        "label": "Has hypertension"
+      },
+      {
+        "field": "has_diabetes",
+        "operator": "eq",
+        "value": true,
+        "points": 3,
+        "label": "Has diabetes"
+      }
+    ]
+  },
+  "metabolic_signal": {
+    "label": "Metabolic risk signal",
+    "description": "Triggered mainly by diabetes or obesity-weighted metabolic risk.",
+    "evaluation_kind": "profile_score",
+    "hidden_reason": "Hidden from the generic public frontier unless the profile shows a meaningful metabolic-risk signal.",
+    "profile_score_threshold": 3,
+    "profile_rules": [
+      {
+        "field": "has_diabetes",
+        "operator": "eq",
+        "value": true,
+        "points": 4,
+        "label": "Has diabetes"
+      },
+      {
+        "field": "bmi_category",
+        "operator": "eq",
+        "value": "overweight",
+        "points": 1,
+        "label": "BMI in overweight range"
+      },
+      {
+        "field": "bmi_category",
+        "operator": "in",
+        "value": ["obese", "severely_obese"],
+        "points": 2,
+        "label": "BMI in obese range"
+      },
+      {
+        "field": "has_hypertension",
+        "operator": "eq",
+        "value": true,
+        "points": 1,
+        "label": "Has hypertension"
+      },
+      {
+        "field": "age",
+        "operator": "gte",
+        "value": 50,
+        "points": 1,
+        "label": "Age 50+"
+      }
+    ]
+  },
+  "glp1_signal": {
+    "label": "Obesity or diabetes GLP-1 signal",
+    "description": "Triggered by obesity- or diabetes-weighted profiles where GLP-1 therapy becomes a plausible public discussion item.",
+    "evaluation_kind": "profile_score",
+    "hidden_reason": "Hidden from the generic public frontier unless the profile shows a meaningful obesity- or diabetes-weighted GLP-1 signal.",
+    "profile_score_threshold": 4,
+    "profile_rules": [
+      {
+        "field": "has_diabetes",
+        "operator": "eq",
+        "value": true,
+        "points": 4,
+        "label": "Has diabetes"
+      },
+      {
+        "field": "bmi_category",
+        "operator": "eq",
+        "value": "overweight",
+        "points": 1,
+        "label": "BMI in overweight range"
+      },
+      {
+        "field": "bmi_category",
+        "operator": "in",
+        "value": ["obese", "severely_obese"],
+        "points": 3,
+        "label": "BMI in obese range"
+      },
+      {
+        "field": "has_hypertension",
+        "operator": "eq",
+        "value": true,
+        "points": 1,
+        "label": "Has hypertension"
+      },
+      {
+        "field": "age",
+        "operator": "gte",
+        "value": 50,
+        "points": 1,
+        "label": "Age 50+"
+      }
+    ]
+  }
+}
