@@ -125,6 +125,11 @@ PublicProfileRuleField = Literal[
 ]
 PublicProfileRuleOperator = Literal["gte", "eq", "in"]
 PublicConditionEvaluationKind = Literal["sleep_any_threshold", "profile_score"]
+PUBLIC_RECOMMENDATION_LANE_VALUES: tuple[PublicRecommendationLane, ...] = (
+    "consumer_public",
+    "conditional_public",
+    "personal_only",
+)
 
 PUBLIC_CONDITION_VALUES: tuple[PublicCondition, ...] = (
     "airway_signal",
@@ -151,6 +156,7 @@ PUBLIC_CONDITION_EVALUATION_KINDS: tuple[PublicConditionEvaluationKind, ...] = (
     "sleep_any_threshold",
     "profile_score",
 )
+PUBLIC_LANE_DATA_PATH = Path(__file__).parent / "data" / "public_policy_lanes.json"
 PUBLIC_CONDITION_DATA_PATH = Path(__file__).parent / "data" / "public_policy_conditions.json"
 
 
@@ -197,20 +203,36 @@ class PublicConditionSpec:
     profile_rules: tuple[PublicProfileScoreRule, ...] = ()
     profile_score_threshold: Optional[int] = None
 
-PUBLIC_LANE_SPECS: Dict[PublicRecommendationLane, Dict[str, str]] = {
-    "consumer_public": {
-        "label": "Broad public recommendations",
-        "description": "Always-on public suggestions that are broadly applicable and low-regret.",
-    },
-    "conditional_public": {
-        "label": "Conditional public recommendations",
-        "description": "Items that only surface when the profile or sleep phenotype triggers a matching condition.",
-    },
-    "personal_only": {
-        "label": "Personal or clinician-mediated items",
-        "description": "Current-stack, diagnosis-specific, or clinician-mediated items that stay out of the generic public frontier.",
-    },
-}
+@dataclass(frozen=True)
+class PublicLaneSpec:
+    """Declarative public lane definition used for export and UI."""
+
+    id: PublicRecommendationLane
+    label: str
+    description: str
+
+
+def _load_public_lane_specs() -> Dict[PublicRecommendationLane, PublicLaneSpec]:
+    """Load declarative public lane definitions from packaged JSON."""
+    raw_specs = json.loads(PUBLIC_LANE_DATA_PATH.read_text())
+    loaded_specs: Dict[PublicRecommendationLane, PublicLaneSpec] = {}
+
+    if set(raw_specs) != set(PUBLIC_RECOMMENDATION_LANE_VALUES):
+        raise ValueError(
+            "public_policy_lanes.json must define exactly "
+            f"{sorted(PUBLIC_RECOMMENDATION_LANE_VALUES)}, got {sorted(raw_specs)}"
+        )
+
+    for lane_id, raw_spec in raw_specs.items():
+        if lane_id not in PUBLIC_RECOMMENDATION_LANE_VALUES:
+            raise ValueError(f"Unexpected public lane id: {lane_id}")
+        loaded_specs[lane_id] = PublicLaneSpec(
+            id=lane_id,
+            label=str(raw_spec["label"]),
+            description=str(raw_spec["description"]),
+        )
+
+    return loaded_specs
 
 def _load_public_condition_specs() -> Dict[PublicCondition, PublicConditionSpec]:
     """Load declarative public condition definitions from packaged JSON."""
@@ -286,6 +308,7 @@ def _load_public_condition_specs() -> Dict[PublicCondition, PublicConditionSpec]
 
 
 PUBLIC_CONDITION_SPECS: Dict[PublicCondition, PublicConditionSpec] = _load_public_condition_specs()
+PUBLIC_LANE_SPECS: Dict[PublicRecommendationLane, PublicLaneSpec] = _load_public_lane_specs()
 
 
 def _profile_adjusted_hr(hr: float, multiplier: float) -> float:
@@ -2140,8 +2163,8 @@ def build_public_policy_spec(
         })
         lanes.append({
             "id": lane_id,
-            "label": meta["label"],
-            "description": meta["description"],
+            "label": meta.label,
+            "description": meta.description,
             "item_ids": item_ids,
             "item_count": len(item_ids),
             "condition_ids": condition_ids,

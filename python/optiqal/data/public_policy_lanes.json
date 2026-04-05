@@ -1,0 +1,14 @@
+{
+  "consumer_public": {
+    "label": "Broad public recommendations",
+    "description": "Always-on public suggestions that are broadly applicable and low-regret."
+  },
+  "conditional_public": {
+    "label": "Conditional public recommendations",
+    "description": "Items that only surface when the profile or sleep phenotype triggers a matching condition."
+  },
+  "personal_only": {
+    "label": "Personal or clinician-mediated items",
+    "description": "Current-stack, diagnosis-specific, or clinician-mediated items that stay out of the generic public frontier."
+  }
+}
