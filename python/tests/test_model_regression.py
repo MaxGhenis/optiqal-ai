@@ -461,3 +461,26 @@ def test_higher_risk_public_profile_can_surface_statin_and_metformin():
     assert items_by_id["metformin_500mg"]["rankability_reason"] is None
     assert items_by_id["statin_5mg"]["public_lane"] == "conditional_public"
     assert items_by_id["metformin_500mg"]["public_lane"] == "conditional_public"
+
+
+def test_obesity_and_diabetes_profile_can_surface_semaglutide():
+    response = build_frontier_response(
+        {
+            "profile": {
+                "age": 52,
+                "sex": "female",
+                "weight_kg": 98,
+                "height_cm": 165,
+                "smoker": False,
+                "has_diabetes": True,
+                "has_hypertension": True,
+                "activity_level": "light",
+                "sleep_hours_per_night": 7.0,
+            },
+            "n_simulations": 500,
+        }
+    )
+
+    items_by_id = {item["id"]: item for item in response["items"]}
+    assert items_by_id["semaglutide"]["public_lane"] == "conditional_public"
+    assert items_by_id["semaglutide"]["rankability_reason"] is None

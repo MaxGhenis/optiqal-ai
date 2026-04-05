@@ -8,6 +8,7 @@ from optiqal.catalog import (
     CATALOG,
     CatalogEntry,
     get_catalog,
+    has_meaningful_public_glp1_signal,
     has_meaningful_public_metformin_signal,
     has_meaningful_public_statin_signal,
     is_publicly_rankable,
@@ -301,6 +302,7 @@ class TestCatalog:
         assert public_recommendation_lane(CATALOG["head_elevation_nightly"]) == "conditional_public"
         assert public_recommendation_lane(CATALOG["statin_5mg"]) == "conditional_public"
         assert public_recommendation_lane(CATALOG["metformin_500mg"]) == "conditional_public"
+        assert public_recommendation_lane(CATALOG["semaglutide"]) == "conditional_public"
         assert public_recommendation_lane(CATALOG["quercetin_500"]) == "personal_only"
 
     def test_public_cardiometabolic_signal_helpers_are_selective(self):
@@ -325,13 +327,17 @@ class TestCatalog:
 
         assert has_meaningful_public_statin_signal(healthy) is False
         assert has_meaningful_public_metformin_signal(healthy) is False
+        assert has_meaningful_public_glp1_signal(healthy) is False
         assert has_meaningful_public_statin_signal(higher_risk) is True
         assert has_meaningful_public_metformin_signal(higher_risk) is True
+        assert has_meaningful_public_glp1_signal(higher_risk) is True
 
         assert is_publicly_rankable(CATALOG["statin_5mg"], profile=healthy) is False
         assert is_publicly_rankable(CATALOG["metformin_500mg"], profile=healthy) is False
+        assert is_publicly_rankable(CATALOG["semaglutide"], profile=healthy) is False
         assert is_publicly_rankable(CATALOG["statin_5mg"], profile=higher_risk) is True
         assert is_publicly_rankable(CATALOG["metformin_500mg"], profile=higher_risk) is True
+        assert is_publicly_rankable(CATALOG["semaglutide"], profile=higher_risk) is True
 
     def test_public_rankability_excludes_bundle_dependent_zero_cost_items(self):
         assert is_publicly_rankable(CATALOG["astaxanthin_12"]) is False

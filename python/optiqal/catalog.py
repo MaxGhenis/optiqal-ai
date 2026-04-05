@@ -99,6 +99,13 @@ EVIDENCE_CONFIDENCE_LABELS: Dict[Literal["high", "moderate", "low", "very-low"],
 }
 
 PublicRecommendationLane = Literal["consumer_public", "conditional_public", "personal_only"]
+PublicCondition = Literal[
+    "airway_signal",
+    "cardiometabolic_signal",
+    "metabolic_signal",
+    "glp1_signal",
+]
+PublicDisplayCategory = Literal["exercise", "sleep", "service", "rx", "supplement"]
 
 
 def _profile_adjusted_hr(hr: float, multiplier: float) -> float:
@@ -150,6 +157,9 @@ class CatalogEntry:
     notes: str = ""
     sources: List[str] = field(default_factory=list)
     evidence_quality: Literal["high", "moderate", "low", "very-low"] = "moderate"
+    public_lane: PublicRecommendationLane = "personal_only"
+    public_condition: Optional[PublicCondition] = None
+    public_display_category_override: Optional[PublicDisplayCategory] = None
 
     def profile_effect_multiplier(self, profile: Optional[Profile]) -> float:
         """Transport-study effects into the user profile with explicit shrinkage rules."""
@@ -608,6 +618,9 @@ _add(CatalogEntry(
         "https://pubmed.ncbi.nlm.nih.gov/15124166/",
     ],
     evidence_quality="high",
+    public_lane="conditional_public",
+    public_condition="airway_signal",
+    public_display_category_override="sleep",
 ))
 _add(CatalogEntry(
     "nasal_strips_nightly", "Nasal strips nightly", "sleep_current",
@@ -640,6 +653,9 @@ _add(CatalogEntry(
         "https://pubmed.ncbi.nlm.nih.gov/30154874/",
     ],
     evidence_quality="moderate",
+    public_lane="conditional_public",
+    public_condition="airway_signal",
+    public_display_category_override="sleep",
 ))
 _add(CatalogEntry(
     "humidifier_nightly", "Humidifier nightly", "sleep_candidate",
@@ -677,6 +693,9 @@ _add(CatalogEntry(
         "https://pubmed.ncbi.nlm.nih.gov/3348500/",
     ],
     evidence_quality="low",
+    public_lane="conditional_public",
+    public_condition="airway_signal",
+    public_display_category_override="sleep",
 ))
 _add(CatalogEntry(
     "mouth_tape_nightly", "Mouth tape nightly", "sleep_candidate",
@@ -721,6 +740,9 @@ _add(CatalogEntry(
         "https://pubmed.ncbi.nlm.nih.gov/25766699/",
     ],
     evidence_quality="low",
+    public_lane="conditional_public",
+    public_condition="airway_signal",
+    public_display_category_override="sleep",
 ))
 _add(CatalogEntry(
     "head_elevation_nightly", "Head elevation nightly", "sleep_current",
@@ -751,6 +773,9 @@ _add(CatalogEntry(
         "https://pubmed.ncbi.nlm.nih.gov/39347559/",
     ],
     evidence_quality="moderate",
+    public_lane="conditional_public",
+    public_condition="airway_signal",
+    public_display_category_override="sleep",
 ))
 _add(CatalogEntry(
     "apap_nightly", "APAP nightly", "sleep_candidate",
@@ -790,6 +815,9 @@ _add(CatalogEntry(
         "https://pubmed.ncbi.nlm.nih.gov/30736887/",
     ],
     evidence_quality="high",
+    public_lane="conditional_public",
+    public_condition="airway_signal",
+    public_display_category_override="sleep",
 ))
 _add(CatalogEntry(
     "oral_appliance_custom", "Custom oral appliance", "sleep_candidate",
@@ -829,6 +857,9 @@ _add(CatalogEntry(
         "https://pubmed.ncbi.nlm.nih.gov/26094920/",
     ],
     evidence_quality="high",
+    public_lane="conditional_public",
+    public_condition="airway_signal",
+    public_display_category_override="sleep",
 ))
 _add(CatalogEntry(
     "hiit_1x_week", "HIIT 1x/week", "supplement_candidate",
@@ -844,6 +875,8 @@ _add(CatalogEntry(
         "https://pubmed.ncbi.nlm.nih.gov/26243014/",
         "https://pubmed.ncbi.nlm.nih.gov/38599681/",
     ],
+    public_lane="consumer_public",
+    public_display_category_override="exercise",
 ))
 _add(CatalogEntry(
     "hiit_2x_week", "HIIT 2x/week", "supplement_candidate",
@@ -860,6 +893,8 @@ _add(CatalogEntry(
         "https://pubmed.ncbi.nlm.nih.gov/38599681/",
         "https://pubmed.ncbi.nlm.nih.gov/40976973/",
     ],
+    public_lane="consumer_public",
+    public_display_category_override="exercise",
 ))
 _add(CatalogEntry(
     "hiit_3x_week", "HIIT 3x/week", "supplement_candidate",
@@ -876,6 +911,8 @@ _add(CatalogEntry(
         "https://pubmed.ncbi.nlm.nih.gov/38599681/",
         "https://pubmed.ncbi.nlm.nih.gov/40976973/",
     ],
+    public_lane="consumer_public",
+    public_display_category_override="exercise",
 ))
 _add(CatalogEntry(
     "zone2_cardio_2x_week", "Zone 2 cardio 2x/week", "supplement_candidate",
@@ -890,6 +927,8 @@ _add(CatalogEntry(
     sources=[
         "https://pubmed.ncbi.nlm.nih.gov/38599681/",
     ],
+    public_lane="consumer_public",
+    public_display_category_override="exercise",
 ))
 _add(CatalogEntry(
     "tempo_run_1x_week", "Tempo run 1x/week", "supplement_candidate",
@@ -905,6 +944,8 @@ _add(CatalogEntry(
         "https://pubmed.ncbi.nlm.nih.gov/26243014/",
         "https://pubmed.ncbi.nlm.nih.gov/38599681/",
     ],
+    public_lane="consumer_public",
+    public_display_category_override="exercise",
 ))
 _add(CatalogEntry(
     "strength_maintenance", "Strength maintenance", "supplement_candidate",
@@ -918,6 +959,8 @@ _add(CatalogEntry(
     sources=[
         "https://pubmed.ncbi.nlm.nih.gov/38599681/",
     ],
+    public_lane="consumer_public",
+    public_display_category_override="exercise",
 ))
 
 # ---------------------------------------------------------------------------
@@ -935,6 +978,9 @@ _add(CatalogEntry(
     annual_cost=48, qol_annual=0.000,
     benefit_tags=["cardiometabolic_support"],
     notes="Bannister 2014: diabetics on metformin outlived controls. TAME pending.",
+    public_lane="conditional_public",
+    public_condition="metabolic_signal",
+    public_display_category_override="rx",
 ))
 _add(CatalogEntry(
     "acarbose_50mg", "Acarbose 50mg", "rx_candidate",
@@ -992,6 +1038,9 @@ _add(CatalogEntry(
         "SELECT trial: HR 0.80 MACE in overweight/obesity with established CVD. "
         "Strong transport shrinkage applied for lean, low-risk profiles plus GI/gallbladder harms."
     ),
+    public_lane="conditional_public",
+    public_condition="glp1_signal",
+    public_display_category_override="rx",
 ))
 _add(CatalogEntry(
     "lithium_5mg", "Low-dose lithium 5mg", "rx_candidate",
@@ -1018,6 +1067,9 @@ _add(CatalogEntry(
     annual_cost=120, qol_annual=-0.002,
     benefit_tags=["cardiometabolic_support"],
     notes="CTT meta: 21% CVD reduction per mmol/L LDL. LDL already 64.",
+    public_lane="conditional_public",
+    public_condition="cardiometabolic_signal",
+    public_display_category_override="rx",
 ))
 
 # ---------------------------------------------------------------------------
@@ -1562,6 +1614,7 @@ _add(CatalogEntry(
         "https://pmc.ncbi.nlm.nih.gov/articles/PMC9394774/",
     ],
     evidence_quality="low",
+    public_display_category_override="service",
 ))
 _add(CatalogEntry(
     "infrared_sauna_4x_week", "Infrared sauna 4x/week", "supplement_candidate",
@@ -1578,6 +1631,7 @@ _add(CatalogEntry(
         "https://pmc.ncbi.nlm.nih.gov/articles/PMC9394774/",
     ],
     evidence_quality="very-low",
+    public_display_category_override="service",
 ))
 _add(CatalogEntry(
     "hbot_60sessions", "HBOT 60-session course", "supplement_candidate",
@@ -1603,6 +1657,7 @@ _add(CatalogEntry(
         "https://www.uhms.org/pl/resources/featured-resources/hbo-indications.html",
     ],
     evidence_quality="very-low",
+    public_display_category_override="service",
 ))
 _add(CatalogEntry(
     "bpc157_cycle", "BPC-157 cycle", "supplement_candidate",
@@ -1647,48 +1702,6 @@ _add(CatalogEntry(
     ],
     evidence_quality="very-low",
 ))
-
-PUBLIC_FREE_INTERVENTION_IDS = {
-    "head_elevation_nightly",
-    "hiit_1x_week",
-    "hiit_2x_week",
-    "hiit_3x_week",
-    "zone2_cardio_2x_week",
-    "tempo_run_1x_week",
-    "strength_maintenance",
-}
-
-PUBLIC_EXERCISE_IDS = {
-    "hiit_1x_week",
-    "hiit_2x_week",
-    "hiit_3x_week",
-    "zone2_cardio_2x_week",
-    "tempo_run_1x_week",
-    "strength_maintenance",
-}
-
-PUBLIC_SLEEP_IDS = {
-    "nasacort_nightly",
-    "nasal_strips_nightly",
-    "humidifier_nightly",
-    "mouth_tape_nightly",
-    "head_elevation_nightly",
-    "apap_nightly",
-    "oral_appliance_custom",
-}
-
-PUBLIC_SERVICE_IDS = {
-    "traditional_sauna_4x_week",
-    "infrared_sauna_4x_week",
-    "hbot_60sessions",
-}
-
-PUBLIC_CONSUMER_PUBLIC_IDS = set(PUBLIC_EXERCISE_IDS)
-PUBLIC_CARDIOMETABOLIC_IDS = {
-    "metformin_500mg",
-    "statin_5mg",
-}
-PUBLIC_CONDITIONAL_PUBLIC_IDS = set(PUBLIC_SLEEP_IDS) | set(PUBLIC_CARDIOMETABOLIC_IDS)
 
 PUBLIC_GENERIC_EXCLUDED_REASONS = {
     "aspirin_81mg": (
@@ -1777,17 +1790,33 @@ def has_meaningful_public_metformin_signal(profile: Optional[Profile]) -> bool:
     return score >= 3
 
 
+def has_meaningful_public_glp1_signal(profile: Optional[Profile]) -> bool:
+    """Simple public-safe gate for surfacing a generic GLP-1 discussion."""
+    if profile is None:
+        return False
+
+    score = 0
+    if profile.has_diabetes:
+        score += 4
+    if profile.bmi_category == "overweight":
+        score += 1
+    elif profile.bmi_category in {"obese", "severely_obese"}:
+        score += 3
+    if profile.has_hypertension:
+        score += 1
+    if profile.age >= 50:
+        score += 1
+
+    return score >= 4
+
+
 def public_recommendation_lane(
     entry: CatalogEntry,
     profile: Optional[Profile] = None,
 ) -> PublicRecommendationLane:
     """Top-level public product lane for this intervention."""
     del profile
-    if entry.id in PUBLIC_CONSUMER_PUBLIC_IDS:
-        return "consumer_public"
-    if entry.id in PUBLIC_CONDITIONAL_PUBLIC_IDS:
-        return "conditional_public"
-    return "personal_only"
+    return entry.public_lane
 
 
 def has_meaningful_public_condition_signal(
@@ -1796,23 +1825,21 @@ def has_meaningful_public_condition_signal(
     sleep_estimate: Optional[SleepBurdenEstimate],
 ) -> bool:
     """Whether a conditional-public intervention has the needed qualifying signal."""
-    if entry.id in PUBLIC_SLEEP_IDS:
+    if entry.public_condition == "airway_signal":
         return has_meaningful_public_airway_signal(sleep_estimate)
-    if entry.id == "statin_5mg":
+    if entry.public_condition == "cardiometabolic_signal":
         return has_meaningful_public_statin_signal(profile)
-    if entry.id == "metformin_500mg":
+    if entry.public_condition == "metabolic_signal":
         return has_meaningful_public_metformin_signal(profile)
+    if entry.public_condition == "glp1_signal":
+        return has_meaningful_public_glp1_signal(profile)
     return False
 
 
 def public_display_category(entry: CatalogEntry) -> str:
     """Generic public-facing category, separate from Max-specific stack status."""
-    if entry.id in PUBLIC_EXERCISE_IDS:
-        return "exercise"
-    if entry.id in PUBLIC_SLEEP_IDS:
-        return "sleep"
-    if entry.id in PUBLIC_SERVICE_IDS:
-        return "service"
+    if entry.public_display_category_override is not None:
+        return entry.public_display_category_override
     if entry.category.startswith("rx_"):
         return "rx"
     return "supplement"
@@ -1835,7 +1862,7 @@ def is_publicly_rankable(
         sleep_estimate,
     ):
         return False
-    return entry.annual_cost > 0 or entry.id in PUBLIC_FREE_INTERVENTION_IDS
+    return True
 
 
 def public_rankability_reason(
@@ -1854,26 +1881,31 @@ def public_rankability_reason(
         profile,
         sleep_estimate,
     ):
-        if entry.id in PUBLIC_SLEEP_IDS:
+        if entry.public_condition == "airway_signal":
             return (
                 "Hidden from the generic public frontier unless the sleep inputs show a "
                 "meaningful airway-related burden."
             )
-        if entry.id == "statin_5mg":
+        if entry.public_condition == "cardiometabolic_signal":
             return (
                 "Hidden from the generic public frontier unless the profile shows a "
                 "meaningful cardiometabolic risk signal."
             )
-        if entry.id == "metformin_500mg":
+        if entry.public_condition == "metabolic_signal":
             return (
                 "Hidden from the generic public frontier unless the profile shows a "
                 "meaningful metabolic-risk signal."
+            )
+        if entry.public_condition == "glp1_signal":
+            return (
+                "Hidden from the generic public frontier unless the profile shows a "
+                "meaningful obesity- or diabetes-weighted GLP-1 signal."
             )
         return (
             "Hidden from the generic public frontier unless the current profile "
             "triggers a matching conditional lane."
         )
-    if entry.id in PUBLIC_SERVICE_IDS:
+    if entry.public_display_category_override == "service":
         return (
             "Hidden from the generic public frontier because high-friction services "
             "are not broad default public recommendations."
