@@ -50,6 +50,12 @@ def test_web_frontier_emits_branching_sleep_sequence_and_states():
 
     assert any(lane["id"] == "consumer_public" for lane in response["public_policy"]["lanes"])
     assert any(condition["id"] == "airway_signal" for condition in response["public_policy"]["conditions"])
+    airway_condition = next(
+        condition for condition in response["public_policy"]["conditions"] if condition["id"] == "airway_signal"
+    )
+    assert airway_condition["evaluation_kind"] == "sleep_any_threshold"
+    assert airway_condition["score_threshold"] is None
+    assert any(rule["signal"] == "sleep_breathing_burden" for rule in airway_condition["thresholds"])
     policy_items = {item["id"]: item for item in response["public_policy"]["items"]}
     assert policy_items["apap_nightly"]["lane"] == "conditional_public"
     assert policy_items["apap_nightly"]["condition"] == "airway_signal"

@@ -604,6 +604,54 @@ function parsePublicPolicyCondition(value: unknown): FrontierPublicPolicyConditi
   const description = parseString(value.description);
   const itemIds = parseStringArray(value.item_ids);
   const itemCount = parseFiniteNumber(value.item_count);
+  const evaluationKind = parseString(value.evaluation_kind);
+  const hasScoreThreshold = "score_threshold" in value;
+  const scoreThreshold = value.score_threshold === null ? null : parseFiniteNumber(value.score_threshold);
+  const thresholds = parseOptionalArray(value.thresholds, (rule) => {
+    if (!isRecord(rule)) {
+      return null;
+    }
+
+    const signal = parseString(rule.signal);
+    const thresholdLabel = parseString(rule.label);
+    const thresholdValue = parseFiniteNumber(rule.threshold);
+
+    if (signal === null || thresholdLabel === null || thresholdValue === null) {
+      return null;
+    }
+
+    return {
+      signal,
+      label: thresholdLabel,
+      threshold: thresholdValue,
+    };
+  });
+  const scoreRules = parseOptionalArray(value.score_rules, (rule) => {
+    if (!isRecord(rule)) {
+      return null;
+    }
+
+    const field = parseString(rule.field);
+    const operator = parseString(rule.operator);
+    const scoreLabel = parseString(rule.label);
+    const points = parseFiniteNumber(rule.points);
+
+    if (
+      field === null ||
+      (operator !== "gte" && operator !== "eq" && operator !== "in") ||
+      scoreLabel === null ||
+      points === null
+    ) {
+      return null;
+    }
+
+    return {
+      field,
+      operator: operator as "gte" | "eq" | "in",
+      label: scoreLabel,
+      points,
+    };
+  });
 
   if (
     (
@@ -615,7 +663,12 @@ function parsePublicPolicyCondition(value: unknown): FrontierPublicPolicyConditi
     label === null ||
     description === null ||
     itemIds === null ||
-    itemCount === null
+    itemCount === null ||
+    (evaluationKind !== "sleep_any_threshold" && evaluationKind !== "profile_score") ||
+    !hasScoreThreshold ||
+    (value.score_threshold !== null && scoreThreshold === null) ||
+    thresholds === INVALID ||
+    scoreRules === INVALID
   ) {
     return null;
   }
@@ -626,6 +679,10 @@ function parsePublicPolicyCondition(value: unknown): FrontierPublicPolicyConditi
     description,
     item_ids: itemIds,
     item_count: itemCount,
+    evaluation_kind: evaluationKind,
+    score_threshold: scoreThreshold,
+    thresholds: thresholds ?? [],
+    score_rules: scoreRules ?? [],
   };
 }
 

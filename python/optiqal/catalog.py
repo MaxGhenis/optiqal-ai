@@ -9,7 +9,7 @@ Use with `publication_bias_correct()` from `confounding.py` before simulation.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, Optional
+from typing import Dict, List, Literal, Mapping, Optional
 
 import numpy as np
 
@@ -107,6 +107,67 @@ PublicCondition = Literal[
 ]
 PublicDisplayCategory = Literal["exercise", "sleep", "service", "rx", "supplement"]
 
+PublicThresholdSignal = Literal[
+    "sleep_breathing_burden",
+    "sleep_airway_response_signal",
+    "sleep_upper_airway_probability",
+    "sleep_nasal_inflammation_probability",
+    "sleep_mucus_probability",
+]
+PublicProfileRuleField = Literal[
+    "age",
+    "bmi_category",
+    "smoking_status",
+    "has_diabetes",
+    "has_hypertension",
+]
+PublicProfileRuleOperator = Literal["gte", "eq", "in"]
+PublicConditionEvaluationKind = Literal["sleep_any_threshold", "profile_score"]
+
+
+@dataclass(frozen=True)
+class PublicThresholdRule:
+    """Threshold rule for a public condition trigger."""
+
+    signal: PublicThresholdSignal
+    threshold: float
+    label: str
+
+
+@dataclass(frozen=True)
+class PublicProfileScoreRule:
+    """Score contribution rule for a profile-based public condition."""
+
+    field: PublicProfileRuleField
+    operator: PublicProfileRuleOperator
+    value: object
+    points: int
+    label: str
+
+    def matches(self, profile: Profile) -> bool:
+        field_value = getattr(profile, self.field)
+        if self.operator == "gte":
+            return bool(field_value >= self.value)
+        if self.operator == "eq":
+            return bool(field_value == self.value)
+        if self.operator == "in":
+            return bool(field_value in self.value)
+        return False
+
+
+@dataclass(frozen=True)
+class PublicConditionSpec:
+    """Declarative public condition definition used for gating and UI."""
+
+    id: PublicCondition
+    label: str
+    description: str
+    evaluation_kind: PublicConditionEvaluationKind
+    hidden_reason: str
+    threshold_rules: tuple[PublicThresholdRule, ...] = ()
+    profile_rules: tuple[PublicProfileScoreRule, ...] = ()
+    profile_score_threshold: Optional[int] = None
+
 PUBLIC_LANE_SPECS: Dict[PublicRecommendationLane, Dict[str, str]] = {
     "consumer_public": {
         "label": "Broad public recommendations",
@@ -122,23 +183,100 @@ PUBLIC_LANE_SPECS: Dict[PublicRecommendationLane, Dict[str, str]] = {
     },
 }
 
-PUBLIC_CONDITION_SPECS: Dict[PublicCondition, Dict[str, str]] = {
-    "airway_signal": {
-        "label": "Airway-heavy sleep signal",
-        "description": "Triggered by meaningful airway-related sleep burden from the sleep inputs.",
-    },
-    "cardiometabolic_signal": {
-        "label": "Cardiometabolic risk signal",
-        "description": "Triggered by age plus smoking, hypertension, diabetes, or elevated BMI.",
-    },
-    "metabolic_signal": {
-        "label": "Metabolic risk signal",
-        "description": "Triggered mainly by diabetes or obesity-weighted metabolic risk.",
-    },
-    "glp1_signal": {
-        "label": "Obesity or diabetes GLP-1 signal",
-        "description": "Triggered by obesity- or diabetes-weighted profiles where GLP-1 therapy becomes a plausible public discussion item.",
-    },
+PUBLIC_CONDITION_SPECS: Dict[PublicCondition, PublicConditionSpec] = {
+    "airway_signal": PublicConditionSpec(
+        id="airway_signal",
+        label="Airway-heavy sleep signal",
+        description="Triggered by meaningful airway-related sleep burden from the sleep inputs.",
+        evaluation_kind="sleep_any_threshold",
+        hidden_reason=(
+            "Hidden from the generic public frontier unless the sleep inputs show a "
+            "meaningful airway-related burden."
+        ),
+        threshold_rules=(
+            PublicThresholdRule(
+                signal="sleep_breathing_burden",
+                threshold=0.05,
+                label="Breathing burden at least 0.05 QALY/yr",
+            ),
+            PublicThresholdRule(
+                signal="sleep_airway_response_signal",
+                threshold=0.10,
+                label="Airway response signal at least 0.10",
+            ),
+            PublicThresholdRule(
+                signal="sleep_upper_airway_probability",
+                threshold=0.15,
+                label="Upper-airway probability at least 0.15",
+            ),
+            PublicThresholdRule(
+                signal="sleep_nasal_inflammation_probability",
+                threshold=0.10,
+                label="Nasal-inflammation probability at least 0.10",
+            ),
+            PublicThresholdRule(
+                signal="sleep_mucus_probability",
+                threshold=0.06,
+                label="Mucus probability at least 0.06",
+            ),
+        ),
+    ),
+    "cardiometabolic_signal": PublicConditionSpec(
+        id="cardiometabolic_signal",
+        label="Cardiometabolic risk signal",
+        description="Triggered by age plus smoking, hypertension, diabetes, or elevated BMI.",
+        evaluation_kind="profile_score",
+        hidden_reason=(
+            "Hidden from the generic public frontier unless the profile shows a "
+            "meaningful cardiometabolic risk signal."
+        ),
+        profile_score_threshold=3,
+        profile_rules=(
+            PublicProfileScoreRule("age", "gte", 60, 2, "Age 60+"),
+            PublicProfileScoreRule("age", "gte", 50, 1, "Age 50+"),
+            PublicProfileScoreRule("bmi_category", "eq", "overweight", 1, "BMI in overweight range"),
+            PublicProfileScoreRule("bmi_category", "in", ("obese", "severely_obese"), 2, "BMI in obese range"),
+            PublicProfileScoreRule("smoking_status", "eq", "current", 2, "Current smoker"),
+            PublicProfileScoreRule("has_hypertension", "eq", True, 2, "Has hypertension"),
+            PublicProfileScoreRule("has_diabetes", "eq", True, 3, "Has diabetes"),
+        ),
+    ),
+    "metabolic_signal": PublicConditionSpec(
+        id="metabolic_signal",
+        label="Metabolic risk signal",
+        description="Triggered mainly by diabetes or obesity-weighted metabolic risk.",
+        evaluation_kind="profile_score",
+        hidden_reason=(
+            "Hidden from the generic public frontier unless the profile shows a "
+            "meaningful metabolic-risk signal."
+        ),
+        profile_score_threshold=3,
+        profile_rules=(
+            PublicProfileScoreRule("has_diabetes", "eq", True, 4, "Has diabetes"),
+            PublicProfileScoreRule("bmi_category", "eq", "overweight", 1, "BMI in overweight range"),
+            PublicProfileScoreRule("bmi_category", "in", ("obese", "severely_obese"), 2, "BMI in obese range"),
+            PublicProfileScoreRule("has_hypertension", "eq", True, 1, "Has hypertension"),
+            PublicProfileScoreRule("age", "gte", 50, 1, "Age 50+"),
+        ),
+    ),
+    "glp1_signal": PublicConditionSpec(
+        id="glp1_signal",
+        label="Obesity or diabetes GLP-1 signal",
+        description="Triggered by obesity- or diabetes-weighted profiles where GLP-1 therapy becomes a plausible public discussion item.",
+        evaluation_kind="profile_score",
+        hidden_reason=(
+            "Hidden from the generic public frontier unless the profile shows a "
+            "meaningful obesity- or diabetes-weighted GLP-1 signal."
+        ),
+        profile_score_threshold=4,
+        profile_rules=(
+            PublicProfileScoreRule("has_diabetes", "eq", True, 4, "Has diabetes"),
+            PublicProfileScoreRule("bmi_category", "eq", "overweight", 1, "BMI in overweight range"),
+            PublicProfileScoreRule("bmi_category", "in", ("obese", "severely_obese"), 3, "BMI in obese range"),
+            PublicProfileScoreRule("has_hypertension", "eq", True, 1, "Has hypertension"),
+            PublicProfileScoreRule("age", "gte", 50, 1, "Age 50+"),
+        ),
+    ),
 }
 
 
@@ -1761,87 +1899,85 @@ def has_meaningful_public_airway_signal(
     sleep_estimate: Optional[SleepBurdenEstimate],
 ) -> bool:
     """Whether public sleep interventions should surface for this phenotype."""
-    if sleep_estimate is None or sleep_estimate.airway is None:
-        return False
-
-    breathing_burden = float(sleep_estimate.component_burdens.get("breathing", 0.0))
-    airway = sleep_estimate.airway
-    return any(
-        signal >= threshold
-        for signal, threshold in (
-            (breathing_burden, 0.05),
-            (float(airway.response_signal), 0.10),
-            (float(airway.upper_airway_probability), 0.15),
-            (float(airway.nasal_inflammation_probability), 0.10),
-            (float(airway.mucus_probability), 0.06),
-        )
+    return evaluate_public_condition(
+        PUBLIC_CONDITION_SPECS["airway_signal"],
+        profile=None,
+        sleep_estimate=sleep_estimate,
     )
 
 
 def has_meaningful_public_statin_signal(profile: Optional[Profile]) -> bool:
     """Simple public-safe gate for surfacing a generic statin discussion."""
-    if profile is None:
-        return False
-
-    score = 0
-    if profile.age >= 60:
-        score += 2
-    elif profile.age >= 50:
-        score += 1
-
-    if profile.bmi_category == "overweight":
-        score += 1
-    elif profile.bmi_category in {"obese", "severely_obese"}:
-        score += 2
-
-    if profile.smoking_status == "current":
-        score += 2
-    if profile.has_hypertension:
-        score += 2
-    if profile.has_diabetes:
-        score += 3
-
-    return score >= 3
+    return evaluate_public_condition(
+        PUBLIC_CONDITION_SPECS["cardiometabolic_signal"],
+        profile=profile,
+        sleep_estimate=None,
+    )
 
 
 def has_meaningful_public_metformin_signal(profile: Optional[Profile]) -> bool:
     """Simple public-safe gate for surfacing a generic metformin discussion."""
-    if profile is None:
-        return False
-
-    score = 0
-    if profile.has_diabetes:
-        score += 4
-    if profile.bmi_category == "overweight":
-        score += 1
-    elif profile.bmi_category in {"obese", "severely_obese"}:
-        score += 2
-    if profile.has_hypertension:
-        score += 1
-    if profile.age >= 50:
-        score += 1
-
-    return score >= 3
+    return evaluate_public_condition(
+        PUBLIC_CONDITION_SPECS["metabolic_signal"],
+        profile=profile,
+        sleep_estimate=None,
+    )
 
 
 def has_meaningful_public_glp1_signal(profile: Optional[Profile]) -> bool:
     """Simple public-safe gate for surfacing a generic GLP-1 discussion."""
-    if profile is None:
-        return False
+    return evaluate_public_condition(
+        PUBLIC_CONDITION_SPECS["glp1_signal"],
+        profile=profile,
+        sleep_estimate=None,
+    )
 
-    score = 0
-    if profile.has_diabetes:
-        score += 4
-    if profile.bmi_category == "overweight":
-        score += 1
-    elif profile.bmi_category in {"obese", "severely_obese"}:
-        score += 3
-    if profile.has_hypertension:
-        score += 1
-    if profile.age >= 50:
-        score += 1
 
-    return score >= 4
+def _public_sleep_signal_value(
+    signal: PublicThresholdSignal,
+    sleep_estimate: SleepBurdenEstimate,
+) -> float:
+    airway = sleep_estimate.airway
+    if signal == "sleep_breathing_burden":
+        return float(sleep_estimate.component_burdens.get("breathing", 0.0))
+    if airway is None:
+        return 0.0
+    if signal == "sleep_airway_response_signal":
+        return float(airway.response_signal)
+    if signal == "sleep_upper_airway_probability":
+        return float(airway.upper_airway_probability)
+    if signal == "sleep_nasal_inflammation_probability":
+        return float(airway.nasal_inflammation_probability)
+    if signal == "sleep_mucus_probability":
+        return float(airway.mucus_probability)
+    return 0.0
+
+
+def evaluate_public_condition(
+    spec: PublicConditionSpec,
+    *,
+    profile: Optional[Profile],
+    sleep_estimate: Optional[SleepBurdenEstimate],
+) -> bool:
+    """Evaluate a declarative public condition against a profile/sleep phenotype."""
+    if spec.evaluation_kind == "sleep_any_threshold":
+        if sleep_estimate is None:
+            return False
+        return any(
+            _public_sleep_signal_value(rule.signal, sleep_estimate) >= rule.threshold
+            for rule in spec.threshold_rules
+        )
+
+    if spec.evaluation_kind == "profile_score":
+        if profile is None or spec.profile_score_threshold is None:
+            return False
+        field_scores: dict[str, int] = {}
+        for rule in spec.profile_rules:
+            if rule.matches(profile):
+                field_scores[rule.field] = max(field_scores.get(rule.field, 0), rule.points)
+        return sum(field_scores.values()) >= spec.profile_score_threshold
+
+    return False
 
 
 def public_recommendation_lane(
@@ -1859,14 +1995,16 @@ def has_meaningful_public_condition_signal(
     sleep_estimate: Optional[SleepBurdenEstimate],
 ) -> bool:
     """Whether a conditional-public intervention has the needed qualifying signal."""
-    if entry.public_condition == "airway_signal":
-        return has_meaningful_public_airway_signal(sleep_estimate)
-    if entry.public_condition == "cardiometabolic_signal":
-        return has_meaningful_public_statin_signal(profile)
-    if entry.public_condition == "metabolic_signal":
-        return has_meaningful_public_metformin_signal(profile)
-    if entry.public_condition == "glp1_signal":
-        return has_meaningful_public_glp1_signal(profile)
+    if entry.public_condition is None:
+        return False
+    spec = PUBLIC_CONDITION_SPECS.get(entry.public_condition)
+    if spec is None:
+        return False
+    return evaluate_public_condition(
+        spec,
+        profile=profile,
+        sleep_estimate=sleep_estimate,
+    )
     return False
 
 
@@ -1915,26 +2053,9 @@ def public_rankability_reason(
         profile,
         sleep_estimate,
     ):
-        if entry.public_condition == "airway_signal":
-            return (
-                "Hidden from the generic public frontier unless the sleep inputs show a "
-                "meaningful airway-related burden."
-            )
-        if entry.public_condition == "cardiometabolic_signal":
-            return (
-                "Hidden from the generic public frontier unless the profile shows a "
-                "meaningful cardiometabolic risk signal."
-            )
-        if entry.public_condition == "metabolic_signal":
-            return (
-                "Hidden from the generic public frontier unless the profile shows a "
-                "meaningful metabolic-risk signal."
-            )
-        if entry.public_condition == "glp1_signal":
-            return (
-                "Hidden from the generic public frontier unless the profile shows a "
-                "meaningful obesity- or diabetes-weighted GLP-1 signal."
-            )
+        spec = PUBLIC_CONDITION_SPECS.get(entry.public_condition)
+        if spec is not None:
+            return spec.hidden_reason
         return (
             "Hidden from the generic public frontier unless the current profile "
             "triggers a matching conditional lane."
@@ -2025,10 +2146,29 @@ def build_public_policy_spec(
             continue
         conditions.append({
             "id": condition_id,
-            "label": meta["label"],
-            "description": meta["description"],
+            "label": meta.label,
+            "description": meta.description,
             "item_ids": item_ids,
             "item_count": len(item_ids),
+            "evaluation_kind": meta.evaluation_kind,
+            "score_threshold": meta.profile_score_threshold,
+            "thresholds": [
+                {
+                    "signal": rule.signal,
+                    "label": rule.label,
+                    "threshold": rule.threshold,
+                }
+                for rule in meta.threshold_rules
+            ],
+            "score_rules": [
+                {
+                    "field": rule.field,
+                    "operator": rule.operator,
+                    "label": rule.label,
+                    "points": rule.points,
+                }
+                for rule in meta.profile_rules
+            ],
         })
 
     items.sort(key=lambda item: (str(item["lane"]), str(item["display_category"]), str(item["name"])))

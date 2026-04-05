@@ -195,8 +195,36 @@ export interface FrontierDecisionSequenceStep {
   alternative_state_id?: string;
 }
 
+export type FrontierPublicPolicyLaneId =
+  | "consumer_public"
+  | "conditional_public"
+  | "personal_only";
+
+export type FrontierPublicPolicyConditionId =
+  | "airway_signal"
+  | "cardiometabolic_signal"
+  | "metabolic_signal"
+  | "glp1_signal";
+
+export type FrontierPublicPolicyConditionEvaluationKind =
+  | "sleep_any_threshold"
+  | "profile_score";
+
+export interface FrontierPublicPolicyThresholdRule {
+  signal: string;
+  label: string;
+  threshold: number;
+}
+
+export interface FrontierPublicPolicyScoreRule {
+  field: string;
+  operator: "gte" | "eq" | "in";
+  label: string;
+  points: number;
+}
+
 export interface FrontierPublicPolicyLane {
-  id: "consumer_public" | "conditional_public" | "personal_only";
+  id: FrontierPublicPolicyLaneId;
   label: string;
   description: string;
   item_ids: string[];
@@ -205,18 +233,22 @@ export interface FrontierPublicPolicyLane {
 }
 
 export interface FrontierPublicPolicyCondition {
-  id: "airway_signal" | "cardiometabolic_signal" | "metabolic_signal" | "glp1_signal";
+  id: FrontierPublicPolicyConditionId;
   label: string;
   description: string;
   item_ids: string[];
   item_count: number;
+  evaluation_kind: FrontierPublicPolicyConditionEvaluationKind;
+  score_threshold: number | null;
+  thresholds: FrontierPublicPolicyThresholdRule[];
+  score_rules: FrontierPublicPolicyScoreRule[];
 }
 
 export interface FrontierPublicPolicyItem {
   id: string;
   name: string;
-  lane: "consumer_public" | "conditional_public" | "personal_only";
-  condition: "airway_signal" | "cardiometabolic_signal" | "metabolic_signal" | "glp1_signal" | null;
+  lane: FrontierPublicPolicyLaneId;
+  condition: FrontierPublicPolicyConditionId | null;
   display_category: string;
   explicitly_excluded: boolean;
 }

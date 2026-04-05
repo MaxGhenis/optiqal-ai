@@ -7,6 +7,7 @@ from optiqal.confounding import publication_bias_correct
 from optiqal.catalog import (
     CATALOG,
     CatalogEntry,
+    build_public_policy_spec,
     get_catalog,
     has_meaningful_public_glp1_signal,
     has_meaningful_public_metformin_signal,
@@ -350,6 +351,20 @@ class TestCatalog:
         assert public_display_category(CATALOG["mouth_tape_nightly"]) == "sleep"
         assert public_display_category(CATALOG["statin_5mg"]) == "rx"
         assert public_display_category(CATALOG["quercetin_500"]) == "supplement"
+
+    def test_public_policy_spec_exports_condition_rules(self):
+        policy = build_public_policy_spec(CATALOG)
+        conditions = {condition["id"]: condition for condition in policy["conditions"]}
+
+        airway = conditions["airway_signal"]
+        assert airway["evaluation_kind"] == "sleep_any_threshold"
+        assert airway["score_threshold"] is None
+        assert any(rule["signal"] == "sleep_breathing_burden" for rule in airway["thresholds"])
+
+        cardiometabolic = conditions["cardiometabolic_signal"]
+        assert cardiometabolic["evaluation_kind"] == "profile_score"
+        assert cardiometabolic["score_threshold"] == 3
+        assert any(rule["field"] == "has_diabetes" and rule["points"] == 3 for rule in cardiometabolic["score_rules"])
         assert public_display_category(CATALOG["traditional_sauna_4x_week"]) == "service"
 
     def test_sleep_access_profiles_capture_coverage_and_friction(self):

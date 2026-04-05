@@ -13,6 +13,7 @@ import { DEFAULT_PROFILE, type UserProfile } from "@/types";
 import { useLatestRequest } from "@/hooks/use-latest-request";
 import type {
   FrontierItem,
+  FrontierPublicPolicyCondition,
   FrontierRequest,
   FrontierResponse,
   FrontierSleepInput,
@@ -152,6 +153,23 @@ function humanizePublicLane(value: FrontierItem["public_lane"]): string {
   }
 }
 
+function formatPolicyThreshold(value: number): string {
+  if (value >= 0 && value <= 1) {
+    return `${Math.round(value * 100)}%`;
+  }
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function summarizePublicCondition(condition: FrontierPublicPolicyCondition): string {
+  if (condition.evaluation_kind === "sleep_any_threshold") {
+    return "Show when any threshold fires.";
+  }
+  if (condition.score_threshold === null) {
+    return "Show when the profile rule score is met.";
+  }
+  return `Show when score is at least ${condition.score_threshold}.`;
+}
+
 function buildSleepPayload(
   profile: UserProfile,
   sleep: FrontierSleepInput
@@ -266,13 +284,10 @@ export function FrontierWorkbench() {
   }, [results]);
 
   const publicPolicyConditionsById = useMemo(() => {
-    const conditions = new Map<string, { label: string; description: string }>();
+    const conditions = new Map<string, FrontierPublicPolicyCondition>();
     if (!results) return conditions;
     for (const condition of results.public_policy.conditions) {
-      conditions.set(condition.id, {
-        label: condition.label,
-        description: condition.description,
-      });
+      conditions.set(condition.id, condition);
     }
     return conditions;
   }, [results]);
@@ -648,17 +663,72 @@ export function FrontierWorkbench() {
                         </div>
 
                         {lane.condition_ids.length > 0 ? (
-                          <div className="flex flex-wrap gap-2">
+                          <div className="space-y-3">
                             {lane.condition_ids.map((conditionId) => {
                               const condition = publicPolicyConditionsById.get(conditionId);
+                              if (!condition) {
+                                return (
+                                  <span
+                                    key={conditionId}
+                                    className="inline-flex rounded-full bg-primary/8 px-3 py-1 text-xs text-foreground"
+                                  >
+                                    {conditionId}
+                                  </span>
+                                );
+                              }
+
                               return (
-                                <span
+                                <div
                                   key={conditionId}
-                                  className="rounded-full bg-primary/8 px-3 py-1 text-xs text-foreground"
-                                  title={condition?.description}
+                                  className="rounded-2xl border border-border/40 bg-background/70 px-4 py-3 space-y-3"
                                 >
-                                  {condition?.label ?? conditionId}
-                                </span>
+                                  <div className="space-y-1">
+                                    <span
+                                      className="inline-flex rounded-full bg-primary/8 px-3 py-1 text-xs text-foreground"
+                                      title={condition.description}
+                                    >
+                                      {condition.label}
+                                    </span>
+                                    <p className="text-sm text-muted-foreground">
+                                      {summarizePublicCondition(condition)}
+                                    </p>
+                                  </div>
+
+                                  {condition.evaluation_kind === "sleep_any_threshold" ? (
+                                    <div className="space-y-2">
+                                      <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                                        Any threshold
+                                      </p>
+                                      <div className="flex flex-wrap gap-2">
+                                        {condition.thresholds.map((rule) => (
+                                          <span
+                                            key={`${condition.id}-${rule.signal}`}
+                                            className="rounded-full border border-border/40 px-3 py-1 text-xs text-muted-foreground"
+                                          >
+                                            {rule.label} ≥ {formatPolicyThreshold(rule.threshold)}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-2">
+                                      <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                                        Score rules
+                                      </p>
+                                      <div className="space-y-2">
+                                        {condition.score_rules.map((rule) => (
+                                          <div
+                                            key={`${condition.id}-${rule.field}-${rule.label}`}
+                                            className="flex items-center justify-between gap-3 rounded-xl bg-muted/15 px-3 py-2 text-xs"
+                                          >
+                                            <span className="text-muted-foreground">{rule.label}</span>
+                                            <span className="font-medium text-foreground">+{rule.points}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
                               );
                             })}
                           </div>

@@ -102,6 +102,16 @@ describe("frontier contract", () => {
             description: "Triggered by airway-weighted sleep inputs.",
             item_ids: ["apap_nightly"],
             item_count: 1,
+            evaluation_kind: "sleep_any_threshold",
+            score_threshold: null,
+            thresholds: [
+              {
+                signal: "sleep_breathing_burden",
+                label: "Breathing burden",
+                threshold: 0.05,
+              },
+            ],
+            score_rules: [],
           },
         ],
         items: [
@@ -241,6 +251,12 @@ describe("frontier contract", () => {
       alternative_state_id: "rx_after_oral_appliance_if_needed",
     });
     expect(parsed?.public_policy.lanes[0]?.condition_ids).toEqual(["airway_signal"]);
+    expect(parsed?.public_policy.conditions[0]).toMatchObject({
+      evaluation_kind: "sleep_any_threshold",
+      score_threshold: null,
+      thresholds: [{ signal: "sleep_breathing_burden", threshold: 0.05 }],
+      score_rules: [],
+    });
   });
 
   it("rejects malformed nested response fields", () => {
