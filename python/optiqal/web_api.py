@@ -17,6 +17,7 @@ from optiqal import (
     has_meaningful_public_airway_signal,
     is_publicly_rankable,
     public_display_category,
+    public_recommendation_lane,
     public_rankability_reason,
     rank_interventions_by_marginal_cost_per_qaly,
     serialize_decision_sequence,
@@ -524,6 +525,7 @@ def build_frontier_response(payload: Dict[str, Any]) -> dict[str, Any]:
             "name": entry.name,
             "category": entry.category,
             "display_category": public_display_category(entry),
+            "public_lane": public_recommendation_lane(entry),
             "annual_cost": None if unpriced else round(float(raw["annual_cost"]), 2),
             "total_cost": round(float(raw["total_cost"]), 2),
             "cost_per_qaly": None if unpriced else _round_or_none(raw["cost_per_qaly"], 0),
@@ -595,15 +597,50 @@ def build_frontier_response(payload: Dict[str, Any]) -> dict[str, Any]:
     decision_sequence = []
     if has_meaningful_public_airway_signal(config.sleep_estimate):
         decision_specs = build_public_sleep_decision_specs()
+        decision_item_ids: list[str] = []
+        seen_decision_ids: set[str] = set()
+        for spec in decision_specs:
+            for item_id in spec.base_item_ids:
+                if item_id not in seen_decision_ids:
+                    decision_item_ids.append(item_id)
+                    seen_decision_ids.add(item_id)
+            if getattr(spec, "options", None) is None:
+                continue
+            for option in spec.options:
+                for item_id in option.added_item_ids:
+                    if item_id not in seen_decision_ids:
+                        decision_item_ids.append(item_id)
+                        seen_decision_ids.add(item_id)
+
+        decision_single_qalys = {
+            item_id: analysis.item_results_by_id[item_id]["total_qaly"]
+            for item_id in decision_item_ids
+            if item_id in analysis.item_results_by_id
+        }
+        decision_annual_costs = {
+            item_id: analysis.item_results_by_id[item_id]["annual_cost"]
+            for item_id in decision_item_ids
+            if item_id in analysis.item_results_by_id
+        }
+        decision_cost_values = {
+            item_id: analysis.item_results_by_id[item_id]["total_cost"]
+            for item_id in decision_item_ids
+            if item_id in analysis.item_results_by_id
+        }
+        decision_exclusive_groups = {
+            item_id: entry.exclusive_group
+            for item_id, entry in entries.items()
+            if entry.exclusive_group and item_id in decision_single_qalys
+        }
         raw_decision_states = evaluate_decision_states(
             decision_specs,
-            single_qalys=single_qalys,
-            annual_costs=annual_costs,
-            cost_values=cost_values,
+            single_qalys=decision_single_qalys,
+            annual_costs=decision_annual_costs,
+            cost_values=decision_cost_values,
             horizon_years=config.horizon_years,
             stack_interaction_penalty_fn=stack_penalty_fn,
-            total_cost_value_fn=lambda ids: sum(cost_values[item_id] for item_id in ids),
-            exclusive_groups=exclusive_groups,
+            total_cost_value_fn=lambda ids: sum(decision_cost_values[item_id] for item_id in ids),
+            exclusive_groups=decision_exclusive_groups,
         )
         serialized_states = serialize_decision_state_evaluations(
             raw_decision_states,

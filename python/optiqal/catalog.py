@@ -98,6 +98,8 @@ EVIDENCE_CONFIDENCE_LABELS: Dict[Literal["high", "moderate", "low", "very-low"],
     "very-low": "low",
 }
 
+PublicRecommendationLane = Literal["consumer_public", "conditional_public", "personal_only"]
+
 
 def _profile_adjusted_hr(hr: float, multiplier: float) -> float:
     if multiplier == 1.0:
@@ -1681,6 +1683,9 @@ PUBLIC_SERVICE_IDS = {
     "hbot_60sessions",
 }
 
+PUBLIC_CONSUMER_PUBLIC_IDS = set(PUBLIC_EXERCISE_IDS)
+PUBLIC_CONDITIONAL_PUBLIC_IDS = set(PUBLIC_SLEEP_IDS)
+
 PUBLIC_GENERIC_EXCLUDED_REASONS = {
     "aspirin_81mg": (
         "Hidden from the generic public frontier because low-dose aspirin is a "
@@ -1722,6 +1727,15 @@ def has_meaningful_public_airway_signal(
     )
 
 
+def public_recommendation_lane(entry: CatalogEntry) -> PublicRecommendationLane:
+    """Top-level public product lane for this intervention."""
+    if entry.id in PUBLIC_CONSUMER_PUBLIC_IDS:
+        return "consumer_public"
+    if entry.id in PUBLIC_CONDITIONAL_PUBLIC_IDS:
+        return "conditional_public"
+    return "personal_only"
+
+
 def public_display_category(entry: CatalogEntry) -> str:
     """Generic public-facing category, separate from Max-specific stack status."""
     if entry.id in PUBLIC_EXERCISE_IDS:
@@ -1742,9 +1756,12 @@ def is_publicly_rankable(
 ) -> bool:
     """Whether an entry belongs in the public ranked frontier for this phenotype."""
     del profile  # Reserved for richer public gating once more eligibility inputs are modeled.
+    lane = public_recommendation_lane(entry)
+    if lane == "personal_only":
+        return False
     if entry.id in PUBLIC_GENERIC_EXCLUDED_REASONS:
         return False
-    if entry.id in PUBLIC_SLEEP_IDS and not has_meaningful_public_airway_signal(sleep_estimate):
+    if lane == "conditional_public" and not has_meaningful_public_airway_signal(sleep_estimate):
         return False
     return entry.annual_cost > 0 or entry.id in PUBLIC_FREE_INTERVENTION_IDS
 
@@ -1757,12 +1774,38 @@ def public_rankability_reason(
     """Explain why an item is excluded from the public ranked frontier."""
     if is_publicly_rankable(entry, profile=profile, sleep_estimate=sleep_estimate):
         return None
+    lane = public_recommendation_lane(entry)
     if entry.id in PUBLIC_GENERIC_EXCLUDED_REASONS:
         return PUBLIC_GENERIC_EXCLUDED_REASONS[entry.id]
-    if entry.id in PUBLIC_SLEEP_IDS and not has_meaningful_public_airway_signal(sleep_estimate):
+    if lane == "conditional_public" and not has_meaningful_public_airway_signal(sleep_estimate):
         return (
             "Hidden from the generic public frontier unless the sleep inputs show a "
             "meaningful airway-related burden."
+        )
+    if entry.id in PUBLIC_SERVICE_IDS:
+        return (
+            "Hidden from the generic public frontier because high-friction services "
+            "are not broad default public recommendations."
+        )
+    if entry.category.startswith("rx_"):
+        return (
+            "Hidden from the generic public frontier because this prescription belongs "
+            "in a clinician-mediated or condition-specific module, not the generic public lane."
+        )
+    if entry.category in {"supplement_current", "supplement_bought"}:
+        return (
+            "Hidden from the generic public frontier because this is modeled as a "
+            "personal current-stack item, not a broad public recommendation."
+        )
+    if entry.category == "supplement_candidate":
+        return (
+            "Hidden from the generic public frontier because this supplement is not yet "
+            "curated as a broad public recommendation."
+        )
+    if entry.category.startswith("sleep_"):
+        return (
+            "Hidden from the generic public frontier because this sleep intervention only "
+            "belongs in a condition-specific pathway."
         )
     return (
         "Unpriced in the public catalog because the current estimate depends on a "

@@ -355,6 +355,16 @@ def test_healthy_young_female_public_frontier_excludes_condition_specific_generi
     )
 
     frontier_ids = [step["added_intervention"] for step in response["frontier"]]
+    allowed_public_ids = {
+        "hiit_1x_week",
+        "hiit_2x_week",
+        "hiit_3x_week",
+        "zone2_cardio_2x_week",
+        "tempo_run_1x_week",
+        "strength_maintenance",
+    }
+    assert set(frontier_ids).issubset(allowed_public_ids)
+
     banned_ids = {
         "aspirin_81mg",
         "finasteride_1.25mg",
@@ -363,6 +373,14 @@ def test_healthy_young_female_public_frontier_excludes_condition_specific_generi
         "head_elevation_nightly",
         "apap_nightly",
         "oral_appliance_custom",
+        "metformin_500mg",
+        "statin_5mg",
+        "lithium_5mg",
+        "vitamin_k2",
+        "nac_1200",
+        "creatine_5g",
+        "quercetin_500",
+        "prebiotics",
     }
     assert set(frontier_ids).isdisjoint(banned_ids)
 
@@ -371,3 +389,45 @@ def test_healthy_young_female_public_frontier_excludes_condition_specific_generi
     assert "indication-specific personal medication" in items_by_id["finasteride_1.25mg"]["rankability_reason"]
     assert "indication- and population-specific" in items_by_id["tadalafil_2.5mg"]["rankability_reason"]
     assert "deficiency risk" in items_by_id["vitamin_d_2000"]["rankability_reason"]
+    assert "clinician-mediated or condition-specific module" in items_by_id["metformin_500mg"]["rankability_reason"]
+    assert "personal current-stack item" in items_by_id["vitamin_k2"]["rankability_reason"]
+    assert "not yet curated as a broad public recommendation" in items_by_id["quercetin_500"]["rankability_reason"]
+
+
+def test_airway_triggered_public_sleep_pathway_keeps_contextual_rx_options():
+    response = build_frontier_response(
+        {
+            "profile": {
+                "age": 35,
+                "sex": "female",
+                "weight_kg": 62,
+                "height_cm": 165,
+                "smoker": False,
+                "has_diabetes": False,
+                "has_hypertension": False,
+                "activity_level": "light",
+                "sleep_hours_per_night": 6.5,
+            },
+            "sleep_metrics": {
+                "duration_hours": 6.5,
+                "breathing_score": 0.72,
+                "spo2": 94.8,
+                "snore_pct": 4.0,
+                "sleep_quality_score": 78,
+            },
+            "n_simulations": 500,
+        }
+    )
+
+    choice_states = {state["id"]: state for state in response["decision_states"] if state["kind"] == "choice"}
+    assert "rx_after_apap_if_needed" in choice_states
+
+    option_ids = {option["id"] for option in choice_states["rx_after_apap_if_needed"]["options"]}
+    assert {
+        "no_insomnia_rx",
+        "trazodone_50mg",
+        "doxepin_3mg",
+        "daridorexant_25mg",
+        "lemborexant_5mg",
+        "suvorexant_10mg",
+    }.issubset(option_ids)

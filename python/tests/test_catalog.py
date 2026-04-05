@@ -10,6 +10,7 @@ from optiqal.catalog import (
     get_catalog,
     is_publicly_rankable,
     public_display_category,
+    public_recommendation_lane,
     public_rankability_reason,
     simulate_catalog,
 )
@@ -292,6 +293,12 @@ class TestCatalog:
             CATALOG["head_elevation_nightly"],
             sleep_estimate=airway_sleep,
         ) is None
+
+    def test_public_recommendation_lane_splits_consumer_conditional_and_personal_items(self):
+        assert public_recommendation_lane(CATALOG["hiit_2x_week"]) == "consumer_public"
+        assert public_recommendation_lane(CATALOG["head_elevation_nightly"]) == "conditional_public"
+        assert public_recommendation_lane(CATALOG["statin_5mg"]) == "personal_only"
+        assert public_recommendation_lane(CATALOG["quercetin_500"]) == "personal_only"
 
     def test_public_rankability_excludes_bundle_dependent_zero_cost_items(self):
         assert is_publicly_rankable(CATALOG["astaxanthin_12"]) is False

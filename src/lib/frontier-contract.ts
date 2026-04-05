@@ -341,6 +341,7 @@ function parseFrontierItem(value: unknown): FrontierItem | null {
   const name = parseString(value.name);
   const category = parseString(value.category);
   const displayCategory = parseString(value.display_category);
+  const publicLane = parseString(value.public_lane);
   const annualCost = parseNullableFiniteNumber(value.annual_cost);
   const totalCost = parseFiniteNumber(value.total_cost);
   const costPerQaly = parseNullableFiniteNumber(value.cost_per_qaly);
@@ -371,6 +372,11 @@ function parseFrontierItem(value: unknown): FrontierItem | null {
     name === null ||
     category === null ||
     displayCategory === null ||
+    (
+      publicLane !== "consumer_public" &&
+      publicLane !== "conditional_public" &&
+      publicLane !== "personal_only"
+    ) ||
     annualCost === INVALID ||
     totalCost === null ||
     costPerQaly === INVALID ||
@@ -403,6 +409,7 @@ function parseFrontierItem(value: unknown): FrontierItem | null {
     name,
     category,
     display_category: displayCategory,
+    public_lane: publicLane,
     annual_cost: annualCost,
     total_cost: totalCost,
     cost_per_qaly: costPerQaly,

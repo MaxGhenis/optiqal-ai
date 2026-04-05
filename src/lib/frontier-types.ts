@@ -60,6 +60,7 @@ export interface FrontierItem {
   name: string;
   category: string;
   display_category: string;
+  public_lane: "consumer_public" | "conditional_public" | "personal_only";
   annual_cost: number | null;
   total_cost: number;
   cost_per_qaly: number | null;

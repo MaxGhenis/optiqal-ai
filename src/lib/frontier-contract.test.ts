@@ -91,6 +91,7 @@ describe("frontier contract", () => {
           name: "APAP nightly",
           category: "sleep",
           display_category: "sleep",
+          public_lane: "conditional_public",
           annual_cost: 300,
           total_cost: 1000,
           cost_per_qaly: 95000,
