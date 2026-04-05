@@ -1169,6 +1169,23 @@ _add(CatalogEntry(
     notes="Gut health markers.",
 ))
 _add(CatalogEntry(
+    "probiotic_daily", "Daily probiotics", "supplement_candidate",
+    hr_observed=1.0, log_sd=0.08, conf_alpha=1.2, conf_beta=5.6,
+    annual_cost=258, qol_annual=0.001,
+    has_direct_mortality_effect=False,
+    evidence_quality="low",
+    benefit_tags=["gut_support"],
+    notes=(
+        "Modeled as a low-evidence GI-support intervention, not a hard-endpoint longevity lever. "
+        "Annual cost uses Sports Research Probiotic 60 Billion at the current official subscribe-and-save price."
+    ),
+    sources=[
+        "https://preview.sportsresearch.com/products/daily-probiotics",
+        "https://pubmed.ncbi.nlm.nih.gov/24230488/",
+        "https://pubmed.ncbi.nlm.nih.gov/41233756/",
+    ],
+))
+_add(CatalogEntry(
     "lutein_zeaxanthin", "Lutein+Zeaxanthin", "supplement_current",
     hr_observed=0.97, log_sd=0.10, conf_alpha=1.0, conf_beta=5.5,
     annual_cost=0, qol_annual=0.002,
@@ -1664,6 +1681,46 @@ PUBLIC_SERVICE_IDS = {
     "hbot_60sessions",
 }
 
+PUBLIC_GENERIC_EXCLUDED_REASONS = {
+    "aspirin_81mg": (
+        "Hidden from the generic public frontier because low-dose aspirin is a "
+        "risk-gated, clinician-mediated decision rather than a broad default recommendation."
+    ),
+    "finasteride_1.25mg": (
+        "Hidden from the generic public frontier because finasteride is an "
+        "indication-specific personal medication, not a broad public recommendation."
+    ),
+    "tadalafil_2.5mg": (
+        "Hidden from the generic public frontier because tadalafil 2.5mg is "
+        "indication- and population-specific, not a generic wellness intervention."
+    ),
+    "vitamin_d_2000": (
+        "Hidden from the generic public frontier because the public model does not "
+        "yet capture deficiency risk, intake, or lab status well enough to recommend it broadly."
+    ),
+}
+
+
+def has_meaningful_public_airway_signal(
+    sleep_estimate: Optional[SleepBurdenEstimate],
+) -> bool:
+    """Whether public sleep interventions should surface for this phenotype."""
+    if sleep_estimate is None or sleep_estimate.airway is None:
+        return False
+
+    breathing_burden = float(sleep_estimate.component_burdens.get("breathing", 0.0))
+    airway = sleep_estimate.airway
+    return any(
+        signal >= threshold
+        for signal, threshold in (
+            (breathing_burden, 0.05),
+            (float(airway.response_signal), 0.10),
+            (float(airway.upper_airway_probability), 0.15),
+            (float(airway.nasal_inflammation_probability), 0.10),
+            (float(airway.mucus_probability), 0.06),
+        )
+    )
+
 
 def public_display_category(entry: CatalogEntry) -> str:
     """Generic public-facing category, separate from Max-specific stack status."""
@@ -1678,15 +1735,35 @@ def public_display_category(entry: CatalogEntry) -> str:
     return "supplement"
 
 
-def is_publicly_rankable(entry: CatalogEntry) -> bool:
-    """Whether an entry has pricing suitable for the public ranked frontier."""
+def is_publicly_rankable(
+    entry: CatalogEntry,
+    profile: Optional[Profile] = None,
+    sleep_estimate: Optional[SleepBurdenEstimate] = None,
+) -> bool:
+    """Whether an entry belongs in the public ranked frontier for this phenotype."""
+    del profile  # Reserved for richer public gating once more eligibility inputs are modeled.
+    if entry.id in PUBLIC_GENERIC_EXCLUDED_REASONS:
+        return False
+    if entry.id in PUBLIC_SLEEP_IDS and not has_meaningful_public_airway_signal(sleep_estimate):
+        return False
     return entry.annual_cost > 0 or entry.id in PUBLIC_FREE_INTERVENTION_IDS
 
 
-def public_rankability_reason(entry: CatalogEntry) -> Optional[str]:
+def public_rankability_reason(
+    entry: CatalogEntry,
+    profile: Optional[Profile] = None,
+    sleep_estimate: Optional[SleepBurdenEstimate] = None,
+) -> Optional[str]:
     """Explain why an item is excluded from the public ranked frontier."""
-    if is_publicly_rankable(entry):
+    if is_publicly_rankable(entry, profile=profile, sleep_estimate=sleep_estimate):
         return None
+    if entry.id in PUBLIC_GENERIC_EXCLUDED_REASONS:
+        return PUBLIC_GENERIC_EXCLUDED_REASONS[entry.id]
+    if entry.id in PUBLIC_SLEEP_IDS and not has_meaningful_public_airway_signal(sleep_estimate):
+        return (
+            "Hidden from the generic public frontier unless the sleep inputs show a "
+            "meaningful airway-related burden."
+        )
     return (
         "Unpriced in the public catalog because the current estimate depends on a "
         "bundle, sunk personal setup, or other non-portable pricing assumption."

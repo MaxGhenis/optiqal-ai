@@ -15,6 +15,7 @@ from optiqal import (
     evaluate_decision_states,
     serialize_decision_state_evaluations,
 )
+from optiqal.web_api import build_baseline_response, build_frontier_response
 from optiqal.sleep import (
     SleepMetrics,
     SleepStudyResult,
@@ -215,3 +216,158 @@ def test_public_sleep_decision_states_match_golden_ranges():
                     bounds,
                     f"{state_id}.{option_id}.{field}",
                 )
+
+
+def test_web_baseline_activity_monotonicity_holds_across_profile_matrix():
+    ages = [25, 35, 50, 65, 75]
+    activities = ["sedentary", "light", "moderate", "active"]
+
+    for sex in ("male", "female"):
+        for age in ages:
+            expected_death_ages = []
+            for activity in activities:
+                response = build_baseline_response(
+                    {
+                        "profile": {
+                            "age": age,
+                            "sex": sex,
+                            "weight_kg": 75 if sex == "male" else 62,
+                            "height_cm": 177 if sex == "male" else 165,
+                            "smoker": False,
+                            "has_diabetes": False,
+                            "has_hypertension": False,
+                            "activity_level": activity,
+                            "sleep_hours_per_night": 7.0,
+                        }
+                    }
+                )
+                expected_death_ages.append(response["point_estimate"]["expected_death_age"])
+
+            assert expected_death_ages == sorted(expected_death_ages), (
+                f"activity monotonicity failed for age={age}, sex={sex}: "
+                f"{list(zip(activities, expected_death_ages))}"
+            )
+
+
+def test_public_sleep_pathway_requires_meaningful_airway_signal():
+    healthy_profile = {
+        "age": 35,
+        "sex": "female",
+        "weight_kg": 62,
+        "height_cm": 165,
+        "smoker": False,
+        "has_diabetes": False,
+        "has_hypertension": False,
+        "activity_level": "light",
+    }
+
+    no_sleep_issue = build_frontier_response(
+        {
+            "profile": {
+                **healthy_profile,
+                "sleep_hours_per_night": 7.0,
+            },
+            "n_simulations": 500,
+        }
+    )
+    assert no_sleep_issue["sleep_estimate"]["annual_qaly_loss"] == 0.0
+    assert no_sleep_issue["decision_states"] == []
+    assert {
+        step["added_intervention"] for step in no_sleep_issue["frontier"]
+    }.isdisjoint(
+        {
+            "nasacort_nightly",
+            "nasal_strips_nightly",
+            "humidifier_nightly",
+            "mouth_tape_nightly",
+            "head_elevation_nightly",
+            "apap_nightly",
+            "oral_appliance_custom",
+        }
+    )
+
+    pure_short_sleep = build_frontier_response(
+        {
+            "profile": {
+                **healthy_profile,
+                "sleep_hours_per_night": 5.5,
+            },
+            "n_simulations": 500,
+        }
+    )
+    assert pure_short_sleep["sleep_estimate"]["component_burdens"]["breathing"] == 0.0
+    assert pure_short_sleep["decision_states"] == []
+    assert {
+        step["added_intervention"] for step in pure_short_sleep["frontier"]
+    }.isdisjoint(
+        {
+            "nasacort_nightly",
+            "nasal_strips_nightly",
+            "humidifier_nightly",
+            "mouth_tape_nightly",
+            "head_elevation_nightly",
+            "apap_nightly",
+            "oral_appliance_custom",
+        }
+    )
+
+    airway_weighted_sleep = build_frontier_response(
+        {
+            "profile": {
+                **healthy_profile,
+                "sleep_hours_per_night": 6.5,
+            },
+            "sleep_metrics": {
+                "duration_hours": 6.5,
+                "breathing_score": 0.72,
+                "spo2": 94.8,
+                "snore_pct": 4.0,
+                "sleep_quality_score": 78,
+            },
+            "n_simulations": 500,
+        }
+    )
+    assert airway_weighted_sleep["sleep_estimate"]["component_burdens"]["breathing"] > 0.0
+    assert [state["id"] for state in airway_weighted_sleep["decision_states"]] == [
+        "conservative_airway_support",
+        "primary_osa_therapy_choice",
+        "rx_after_apap_if_needed",
+        "rx_after_oral_appliance_if_needed",
+    ]
+
+
+def test_healthy_young_female_public_frontier_excludes_condition_specific_generic_misses():
+    response = build_frontier_response(
+        {
+            "profile": {
+                "age": 35,
+                "sex": "female",
+                "weight_kg": 62,
+                "height_cm": 165,
+                "smoker": False,
+                "has_diabetes": False,
+                "has_hypertension": False,
+                "activity_level": "light",
+                "sleep_hours_per_night": 7.0,
+            },
+            "n_simulations": 500,
+        }
+    )
+
+    frontier_ids = [step["added_intervention"] for step in response["frontier"]]
+    banned_ids = {
+        "aspirin_81mg",
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg",
+        "vitamin_d_2000",
+        "head_elevation_nightly",
+        "apap_nightly",
+        "oral_appliance_custom",
+    }
+    assert set(frontier_ids).isdisjoint(banned_ids)
+
+    items_by_id = {item["id"]: item for item in response["items"]}
+    assert "clinician-mediated" in items_by_id["aspirin_81mg"]["rankability_reason"]
+    assert "indication-specific personal medication" in items_by_id["finasteride_1.25mg"]["rankability_reason"]
+    assert "indication- and population-specific" in items_by_id["tadalafil_2.5mg"]["rankability_reason"]
+    assert "deficiency risk" in items_by_id["vitamin_d_2000"]["rankability_reason"]

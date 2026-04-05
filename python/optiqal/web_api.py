@@ -14,6 +14,7 @@ from optiqal import (
     build_stack_interaction_penalty_fn,
     evaluate_decision_states,
     get_catalog,
+    has_meaningful_public_airway_signal,
     is_publicly_rankable,
     public_display_category,
     public_rankability_reason,
@@ -465,7 +466,11 @@ def build_frontier_response(payload: Dict[str, Any]) -> dict[str, Any]:
     rankable_ids = [
         item_id
         for item_id, entry in entries.items()
-        if is_publicly_rankable(entry)
+        if is_publicly_rankable(
+            entry,
+            profile=config.profile,
+            sleep_estimate=config.sleep_estimate,
+        )
     ]
 
     single_qalys = {
@@ -509,7 +514,11 @@ def build_frontier_response(payload: Dict[str, Any]) -> dict[str, Any]:
     items = []
     for raw in analysis.item_results:
         entry = entries[raw["id"]]
-        unpriced = not is_publicly_rankable(entry)
+        unpriced = not is_publicly_rankable(
+            entry,
+            profile=config.profile,
+            sleep_estimate=config.sleep_estimate,
+        )
         items.append({
             "id": raw["id"],
             "name": entry.name,
@@ -536,7 +545,11 @@ def build_frontier_response(payload: Dict[str, Any]) -> dict[str, Any]:
             "sources": list(entry.sources),
             "selected_in_frontier": raw["id"] in selected_ids,
             "pricing_status": "unpriced" if unpriced else ("free" if raw["annual_cost"] <= 0 else "priced"),
-            "rankability_reason": public_rankability_reason(entry),
+            "rankability_reason": public_rankability_reason(
+                entry,
+                profile=config.profile,
+                sleep_estimate=config.sleep_estimate,
+            ),
             "access": _access_payload(entry),
         })
 
@@ -580,7 +593,7 @@ def build_frontier_response(payload: Dict[str, Any]) -> dict[str, Any]:
 
     decision_states = []
     decision_sequence = []
-    if config.sleep_estimate is not None and config.sleep_estimate.airway is not None:
+    if has_meaningful_public_airway_signal(config.sleep_estimate):
         decision_specs = build_public_sleep_decision_specs()
         raw_decision_states = evaluate_decision_states(
             decision_specs,

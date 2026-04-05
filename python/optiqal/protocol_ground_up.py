@@ -2020,6 +2020,30 @@ def build_additional_specs(
             personalization="Useful mainly if you have a real GI barrier/irritation problem; otherwise near zero.",
             rationale="Zinc carnosine is a phenotype-specific gut-symptom intervention, not a broad longevity tool.",
         ),
+        "probiotic_daily": make_spec(
+            "probiotic_daily",
+            observed_hr=1.0,
+            log_sd=0.05,
+            conf_alpha=1.3,
+            conf_beta=5.5,
+            qol_annual=0.0004,
+            qol_years=10,
+            low_qaly=-0.002,
+            high_qaly=0.01,
+            personalization=(
+                "Downweighted because you do not have a strong documented GI indication, "
+                "and you already run other gut-support items, so most of the plausible value here is small symptomatic upside."
+            ),
+            rationale=(
+                "Daily probiotics are reasonable to test for GI comfort, but the broad long-run health case is weak "
+                "and the marginal value on top of your existing gut stack should be small."
+            ),
+            sources=(
+                "https://preview.sportsresearch.com/products/daily-probiotics",
+                "https://pubmed.ncbi.nlm.nih.gov/24230488/",
+                "https://pubmed.ncbi.nlm.nih.gov/41233756/",
+            ),
+        ),
         "apap_nightly": make_spec(
             "apap_nightly",
             qol_annual=0.0002,

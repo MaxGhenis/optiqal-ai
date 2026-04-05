@@ -199,6 +199,15 @@ class TestCatalog:
         assert glycine.to_intervention(pub_bias_shrinkage=0.30).mortality is None
         assert taurine.to_intervention(pub_bias_shrinkage=0.30).mortality is None
 
+    def test_probiotic_candidate_is_low_evidence_gut_support_without_direct_mortality(self):
+        probiotic = CATALOG["probiotic_daily"]
+
+        assert probiotic.annual_cost == 258
+        assert probiotic.evidence_quality == "low"
+        assert probiotic.benefit_tags == ["gut_support"]
+        assert probiotic.has_direct_mortality_effect is False
+        assert probiotic.to_intervention(pub_bias_shrinkage=0.30).mortality is None
+
     def test_airway_and_trazodone_entries_without_direct_mortality_return_none(self):
         for item_id in [
             "trazodone_50mg",
@@ -263,8 +272,26 @@ class TestCatalog:
 
     def test_public_rankability_keeps_true_free_behavioral_items(self):
         assert is_publicly_rankable(CATALOG["hiit_2x_week"]) is True
-        assert is_publicly_rankable(CATALOG["head_elevation_nightly"]) is True
-        assert public_rankability_reason(CATALOG["head_elevation_nightly"]) is None
+        assert is_publicly_rankable(CATALOG["head_elevation_nightly"]) is False
+        assert public_rankability_reason(CATALOG["head_elevation_nightly"]) is not None
+
+        airway_sleep = estimate_sleep_burden(
+            SleepMetrics(
+                duration_hours=6.5,
+                sleep_quality_score=78.0,
+                breathing_score=0.72,
+                spo2=94.8,
+                snore_pct=4.0,
+            )
+        )
+        assert is_publicly_rankable(
+            CATALOG["head_elevation_nightly"],
+            sleep_estimate=airway_sleep,
+        ) is True
+        assert public_rankability_reason(
+            CATALOG["head_elevation_nightly"],
+            sleep_estimate=airway_sleep,
+        ) is None
 
     def test_public_rankability_excludes_bundle_dependent_zero_cost_items(self):
         assert is_publicly_rankable(CATALOG["astaxanthin_12"]) is False
