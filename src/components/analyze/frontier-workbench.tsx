@@ -530,14 +530,18 @@ export function FrontierWorkbench() {
             <div className="grid md:grid-cols-4 gap-4">
               <Card className="decision-card">
                 <CardContent className="p-5 space-y-2">
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Analyzed</p>
-                  <p className="text-3xl font-serif">{results.meta.analyzed_count}</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Rankable now</p>
+                  <p className="text-3xl font-serif">{results.meta.rankable_count}</p>
+                  <p className="text-sm text-muted-foreground">Broad public items plus any triggered conditional lane.</p>
                 </CardContent>
               </Card>
               <Card className="decision-card">
                 <CardContent className="p-5 space-y-2">
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Positive</p>
-                  <p className="text-3xl font-serif">{results.meta.positive_count}</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Held out</p>
+                  <p className="text-3xl font-serif">
+                    {Math.max(results.meta.analyzed_count - results.meta.rankable_count, 0)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Personal, current-stack, or condition-specific items.</p>
                 </CardContent>
               </Card>
               <Card className="decision-card">
@@ -793,8 +797,11 @@ export function FrontierWorkbench() {
                       <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Ordered frontier</p>
                       <h2 className="text-xl font-semibold">Marginal $/QALY ranking</h2>
                     </div>
-                    <p className="text-sm text-muted-foreground">No threshold applied</p>
+                    <p className="text-sm text-muted-foreground">Curated public lane only</p>
                   </div>
+                  <p className="text-sm text-muted-foreground">
+                    This ranking excludes personal current-stack items and clinician-mediated interventions unless a qualifying pathway is triggered.
+                  </p>
 
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
