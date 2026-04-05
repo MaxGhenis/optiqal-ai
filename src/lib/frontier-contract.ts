@@ -8,6 +8,10 @@ import type {
   FrontierFrontierState,
   FrontierFrontierStateStep,
   FrontierItem,
+  FrontierPublicPolicy,
+  FrontierPublicPolicyCondition,
+  FrontierPublicPolicyItem,
+  FrontierPublicPolicyLane,
   FrontierRequest,
   FrontierResponse,
   FrontierSleepEstimate,
@@ -557,6 +561,139 @@ function parseSleepEstimate(value: unknown): FrontierSleepEstimate | null {
   };
 }
 
+function parsePublicPolicyLane(value: unknown): FrontierPublicPolicyLane | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const id = parseString(value.id);
+  const label = parseString(value.label);
+  const description = parseString(value.description);
+  const itemIds = parseStringArray(value.item_ids);
+  const itemCount = parseFiniteNumber(value.item_count);
+  const conditionIds = parseStringArray(value.condition_ids);
+
+  if (
+    (id !== "consumer_public" && id !== "conditional_public" && id !== "personal_only") ||
+    label === null ||
+    description === null ||
+    itemIds === null ||
+    itemCount === null ||
+    conditionIds === null
+  ) {
+    return null;
+  }
+
+  return {
+    id,
+    label,
+    description,
+    item_ids: itemIds,
+    item_count: itemCount,
+    condition_ids: conditionIds,
+  };
+}
+
+function parsePublicPolicyCondition(value: unknown): FrontierPublicPolicyCondition | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const id = parseString(value.id);
+  const label = parseString(value.label);
+  const description = parseString(value.description);
+  const itemIds = parseStringArray(value.item_ids);
+  const itemCount = parseFiniteNumber(value.item_count);
+
+  if (
+    (
+      id !== "airway_signal" &&
+      id !== "cardiometabolic_signal" &&
+      id !== "metabolic_signal" &&
+      id !== "glp1_signal"
+    ) ||
+    label === null ||
+    description === null ||
+    itemIds === null ||
+    itemCount === null
+  ) {
+    return null;
+  }
+
+  return {
+    id,
+    label,
+    description,
+    item_ids: itemIds,
+    item_count: itemCount,
+  };
+}
+
+function parsePublicPolicyItem(value: unknown): FrontierPublicPolicyItem | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const id = parseString(value.id);
+  const name = parseString(value.name);
+  const lane = parseString(value.lane);
+  const conditionRaw = value.condition === null ? null : parseString(value.condition);
+  const displayCategory = parseString(value.display_category);
+  const explicitlyExcluded = parseBoolean(value.explicitly_excluded);
+
+  let condition: FrontierPublicPolicyItem["condition"] = null;
+  if (conditionRaw !== null) {
+    if (
+      conditionRaw !== "airway_signal" &&
+      conditionRaw !== "cardiometabolic_signal" &&
+      conditionRaw !== "metabolic_signal" &&
+      conditionRaw !== "glp1_signal"
+    ) {
+      return null;
+    }
+    condition = conditionRaw;
+  }
+
+  if (
+    id === null ||
+    name === null ||
+    (lane !== "consumer_public" && lane !== "conditional_public" && lane !== "personal_only") ||
+    displayCategory === null ||
+    explicitlyExcluded === null
+  ) {
+    return null;
+  }
+
+  return {
+    id,
+    name,
+    lane,
+    condition,
+    display_category: displayCategory,
+    explicitly_excluded: explicitlyExcluded,
+  };
+}
+
+function parsePublicPolicy(value: unknown): FrontierPublicPolicy | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const lanes = parseOptionalArray(value.lanes, parsePublicPolicyLane);
+  const conditions = parseOptionalArray(value.conditions, parsePublicPolicyCondition);
+  const items = parseOptionalArray(value.items, parsePublicPolicyItem);
+
+  if (lanes === INVALID || conditions === INVALID || items === INVALID) {
+    return null;
+  }
+
+  return {
+    lanes: lanes ?? [],
+    conditions: conditions ?? [],
+    items: items ?? [],
+  };
+}
+
 export function parseFrontierRequest(value: unknown): FrontierRequest | null {
   if (!isRecord(value)) {
     return null;
@@ -591,6 +728,7 @@ export function parseFrontierResponse(value: unknown): FrontierResponse | null {
   const rankableCount = parseFiniteNumber(value.meta.rankable_count);
   const profile = parseMetaProfile(value.meta.profile);
   const sleepEstimate = parseSleepEstimate(value.sleep_estimate);
+  const publicPolicy = parsePublicPolicy(value.public_policy);
   const frontier = parseOptionalArray(value.frontier, parseFrontierStep);
   const items = parseOptionalArray(value.items, parseFrontierItem);
   const decisionStates = parseOptionalArray(value.decision_states, parseDecisionState);
@@ -606,6 +744,7 @@ export function parseFrontierResponse(value: unknown): FrontierResponse | null {
     rankableCount === null ||
     profile === null ||
     (value.sleep_estimate !== null && sleepEstimate === null) ||
+    publicPolicy === null ||
     frontier === INVALID ||
     items === INVALID ||
     decisionStates === INVALID ||
@@ -626,6 +765,7 @@ export function parseFrontierResponse(value: unknown): FrontierResponse | null {
       profile,
     },
     sleep_estimate: sleepEstimate,
+    public_policy: publicPolicy,
     frontier: frontier ?? [],
     items: items ?? [],
     decision_states: decisionStates ?? [],

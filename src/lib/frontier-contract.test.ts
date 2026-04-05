@@ -84,6 +84,37 @@ describe("frontier contract", () => {
         },
       },
       sleep_estimate: null,
+      public_policy: {
+        lanes: [
+          {
+            id: "conditional_public",
+            label: "Conditional public recommendations",
+            description: "Shown only when a matching condition fires.",
+            item_ids: ["apap_nightly"],
+            item_count: 1,
+            condition_ids: ["airway_signal"],
+          },
+        ],
+        conditions: [
+          {
+            id: "airway_signal",
+            label: "Airway-heavy sleep signal",
+            description: "Triggered by airway-weighted sleep inputs.",
+            item_ids: ["apap_nightly"],
+            item_count: 1,
+          },
+        ],
+        items: [
+          {
+            id: "apap_nightly",
+            name: "APAP nightly",
+            lane: "conditional_public",
+            condition: "airway_signal",
+            display_category: "sleep",
+            explicitly_excluded: false,
+          },
+        ],
+      },
       frontier: [],
       items: [
         {
@@ -209,6 +240,7 @@ describe("frontier contract", () => {
       preferred_state_id: "rx_after_apap_if_needed",
       alternative_state_id: "rx_after_oral_appliance_if_needed",
     });
+    expect(parsed?.public_policy.lanes[0]?.condition_ids).toEqual(["airway_signal"]);
   });
 
   it("rejects malformed nested response fields", () => {
@@ -233,6 +265,11 @@ describe("frontier contract", () => {
           },
         },
         sleep_estimate: null,
+        public_policy: {
+          lanes: [],
+          conditions: [],
+          items: [],
+        },
         frontier: [],
         items: [
           {

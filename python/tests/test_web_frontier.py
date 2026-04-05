@@ -48,6 +48,13 @@ def test_web_frontier_emits_branching_sleep_sequence_and_states():
 
     response = run_web_frontier(payload)
 
+    assert any(lane["id"] == "consumer_public" for lane in response["public_policy"]["lanes"])
+    assert any(condition["id"] == "airway_signal" for condition in response["public_policy"]["conditions"])
+    policy_items = {item["id"]: item for item in response["public_policy"]["items"]}
+    assert policy_items["apap_nightly"]["lane"] == "conditional_public"
+    assert policy_items["apap_nightly"]["condition"] == "airway_signal"
+    assert policy_items["hiit_2x_week"]["lane"] == "consumer_public"
+
     assert response["decision_sequence"][-1] == {
         "step": 3,
         "id": "rx_after_apap_if_needed",

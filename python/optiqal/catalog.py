@@ -107,6 +107,40 @@ PublicCondition = Literal[
 ]
 PublicDisplayCategory = Literal["exercise", "sleep", "service", "rx", "supplement"]
 
+PUBLIC_LANE_SPECS: Dict[PublicRecommendationLane, Dict[str, str]] = {
+    "consumer_public": {
+        "label": "Broad public recommendations",
+        "description": "Always-on public suggestions that are broadly applicable and low-regret.",
+    },
+    "conditional_public": {
+        "label": "Conditional public recommendations",
+        "description": "Items that only surface when the profile or sleep phenotype triggers a matching condition.",
+    },
+    "personal_only": {
+        "label": "Personal or clinician-mediated items",
+        "description": "Current-stack, diagnosis-specific, or clinician-mediated items that stay out of the generic public frontier.",
+    },
+}
+
+PUBLIC_CONDITION_SPECS: Dict[PublicCondition, Dict[str, str]] = {
+    "airway_signal": {
+        "label": "Airway-heavy sleep signal",
+        "description": "Triggered by meaningful airway-related sleep burden from the sleep inputs.",
+    },
+    "cardiometabolic_signal": {
+        "label": "Cardiometabolic risk signal",
+        "description": "Triggered by age plus smoking, hypertension, diabetes, or elevated BMI.",
+    },
+    "metabolic_signal": {
+        "label": "Metabolic risk signal",
+        "description": "Triggered mainly by diabetes or obesity-weighted metabolic risk.",
+    },
+    "glp1_signal": {
+        "label": "Obesity or diabetes GLP-1 signal",
+        "description": "Triggered by obesity- or diabetes-weighted profiles where GLP-1 therapy becomes a plausible public discussion item.",
+    },
+}
+
 
 def _profile_adjusted_hr(hr: float, multiplier: float) -> float:
     if multiplier == 1.0:
@@ -1934,6 +1968,75 @@ def public_rankability_reason(
         "Unpriced in the public catalog because the current estimate depends on a "
         "bundle, sunk personal setup, or other non-portable pricing assumption."
     )
+
+
+def build_public_policy_spec(
+    catalog_entries: Optional[Mapping[str, CatalogEntry]] = None,
+) -> dict[str, list[dict[str, object]]]:
+    """Serialize the public gating policy so the UI can visualize it automatically."""
+    entries = catalog_entries or CATALOG
+    items: list[dict[str, object]] = []
+    lane_to_item_ids: dict[str, list[str]] = {
+        lane: [] for lane in PUBLIC_LANE_SPECS
+    }
+    condition_to_item_ids: dict[str, list[str]] = {
+        condition: [] for condition in PUBLIC_CONDITION_SPECS
+    }
+
+    for item_id, entry in entries.items():
+        lane = public_recommendation_lane(entry)
+        condition = entry.public_condition
+        display_category = public_display_category(entry)
+        explicitly_excluded = item_id in PUBLIC_GENERIC_EXCLUDED_REASONS
+
+        items.append({
+            "id": item_id,
+            "name": entry.name,
+            "lane": lane,
+            "condition": condition,
+            "display_category": display_category,
+            "explicitly_excluded": explicitly_excluded,
+        })
+        lane_to_item_ids[lane].append(item_id)
+        if condition is not None:
+            condition_to_item_ids[condition].append(item_id)
+
+    lanes = []
+    for lane_id, meta in PUBLIC_LANE_SPECS.items():
+        item_ids = sorted(lane_to_item_ids[lane_id])
+        condition_ids = sorted({
+            str(entries[item_id].public_condition)
+            for item_id in item_ids
+            if entries[item_id].public_condition is not None
+        })
+        lanes.append({
+            "id": lane_id,
+            "label": meta["label"],
+            "description": meta["description"],
+            "item_ids": item_ids,
+            "item_count": len(item_ids),
+            "condition_ids": condition_ids,
+        })
+
+    conditions = []
+    for condition_id, meta in PUBLIC_CONDITION_SPECS.items():
+        item_ids = sorted(condition_to_item_ids[condition_id])
+        if not item_ids:
+            continue
+        conditions.append({
+            "id": condition_id,
+            "label": meta["label"],
+            "description": meta["description"],
+            "item_ids": item_ids,
+            "item_count": len(item_ids),
+        })
+
+    items.sort(key=lambda item: (str(item["lane"]), str(item["display_category"]), str(item["name"])))
+    return {
+        "lanes": lanes,
+        "conditions": conditions,
+        "items": items,
+    }
 
 
 def get_catalog(

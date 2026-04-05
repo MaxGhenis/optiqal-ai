@@ -49,6 +49,7 @@ from .combination import (
 from .catalog import (
     CatalogEntry,
     CATALOG,
+    build_public_policy_spec,
     get_catalog,
     simulate_catalog,
     has_meaningful_public_airway_signal,
@@ -137,6 +138,7 @@ __all__ = [
     "rank_interventions_by_marginal_cost_per_qaly",
     "CatalogEntry",
     "CATALOG",
+    "build_public_policy_spec",
     "get_catalog",
     "simulate_catalog",
     "has_meaningful_public_airway_signal",

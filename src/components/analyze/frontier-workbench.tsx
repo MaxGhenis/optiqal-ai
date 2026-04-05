@@ -139,6 +139,19 @@ function describeSequenceTargets(
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
+function humanizePublicLane(value: FrontierItem["public_lane"]): string {
+  switch (value) {
+    case "consumer_public":
+      return "Broad public";
+    case "conditional_public":
+      return "Conditional";
+    case "personal_only":
+      return "Personal only";
+    default:
+      return value;
+  }
+}
+
 function buildSleepPayload(
   profile: UserProfile,
   sleep: FrontierSleepInput
@@ -241,6 +254,27 @@ export function FrontierWorkbench() {
       labels.set(state.id, state.label);
     }
     return labels;
+  }, [results]);
+
+  const publicPolicyItemsById = useMemo(() => {
+    const items = new Map<string, string>();
+    if (!results) return items;
+    for (const item of results.public_policy.items) {
+      items.set(item.id, item.name);
+    }
+    return items;
+  }, [results]);
+
+  const publicPolicyConditionsById = useMemo(() => {
+    const conditions = new Map<string, { label: string; description: string }>();
+    if (!results) return conditions;
+    for (const condition of results.public_policy.conditions) {
+      conditions.set(condition.id, {
+        label: condition.label,
+        description: condition.description,
+      });
+    }
+    return conditions;
   }, [results]);
 
   const updateProfile = (key: keyof UserProfile, value: UserProfile[keyof UserProfile]) => {
@@ -566,6 +600,89 @@ export function FrontierWorkbench() {
                 </CardContent>
               </Card>
             </div>
+
+            <Card className="decision-card">
+              <CardContent className="p-6 space-y-5">
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Public policy</p>
+                    <h2 className="text-xl font-semibold">Automatic curation map</h2>
+                  </div>
+                  <p className="text-sm text-muted-foreground max-w-2xl text-right">
+                    Generated from intervention specs. The public frontier is not just a sort over all items; it follows these lanes and condition triggers.
+                  </p>
+                </div>
+
+                <div className="grid lg:grid-cols-3 gap-4">
+                  {results.public_policy.lanes.map((lane) => {
+                    const sampleNames = lane.item_ids
+                      .slice(0, lane.id === "personal_only" ? 4 : 6)
+                      .map((itemId) => publicPolicyItemsById.get(itemId) ?? itemId);
+
+                    return (
+                      <div
+                        key={lane.id}
+                        className="rounded-[1.5rem] border border-border/40 bg-muted/5 p-5 space-y-4"
+                      >
+                        <div className="space-y-1">
+                          <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                            {humanizePublicLane(lane.id)}
+                          </p>
+                          <h3 className="text-base font-semibold">{lane.label}</h3>
+                          <p className="text-sm text-muted-foreground">{lane.description}</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div className="rounded-xl bg-muted/15 px-3 py-2">
+                            <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                              Items
+                            </p>
+                            <p className="text-lg font-medium">{lane.item_count}</p>
+                          </div>
+                          <div className="rounded-xl bg-muted/15 px-3 py-2">
+                            <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                              Conditions
+                            </p>
+                            <p className="text-lg font-medium">{lane.condition_ids.length}</p>
+                          </div>
+                        </div>
+
+                        {lane.condition_ids.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {lane.condition_ids.map((conditionId) => {
+                              const condition = publicPolicyConditionsById.get(conditionId);
+                              return (
+                                <span
+                                  key={conditionId}
+                                  className="rounded-full bg-primary/8 px-3 py-1 text-xs text-foreground"
+                                  title={condition?.description}
+                                >
+                                  {condition?.label ?? conditionId}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Examples</p>
+                          <div className="flex flex-wrap gap-2">
+                            {sampleNames.map((name) => (
+                              <span
+                                key={name}
+                                className="rounded-full border border-border/40 px-3 py-1 text-xs text-muted-foreground"
+                              >
+                                {name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
 
             {sleepEstimate ? (
               <Card className="decision-card">

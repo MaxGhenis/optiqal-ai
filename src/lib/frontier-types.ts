@@ -195,6 +195,38 @@ export interface FrontierDecisionSequenceStep {
   alternative_state_id?: string;
 }
 
+export interface FrontierPublicPolicyLane {
+  id: "consumer_public" | "conditional_public" | "personal_only";
+  label: string;
+  description: string;
+  item_ids: string[];
+  item_count: number;
+  condition_ids: string[];
+}
+
+export interface FrontierPublicPolicyCondition {
+  id: "airway_signal" | "cardiometabolic_signal" | "metabolic_signal" | "glp1_signal";
+  label: string;
+  description: string;
+  item_ids: string[];
+  item_count: number;
+}
+
+export interface FrontierPublicPolicyItem {
+  id: string;
+  name: string;
+  lane: "consumer_public" | "conditional_public" | "personal_only";
+  condition: "airway_signal" | "cardiometabolic_signal" | "metabolic_signal" | "glp1_signal" | null;
+  display_category: string;
+  explicitly_excluded: boolean;
+}
+
+export interface FrontierPublicPolicy {
+  lanes: FrontierPublicPolicyLane[];
+  conditions: FrontierPublicPolicyCondition[];
+  items: FrontierPublicPolicyItem[];
+}
+
 export interface FrontierResponse {
   meta: {
     selection_mode: string;
@@ -215,6 +247,7 @@ export interface FrontierResponse {
     };
   };
   sleep_estimate: FrontierSleepEstimate | null;
+  public_policy: FrontierPublicPolicy;
   frontier: FrontierStep[];
   items: FrontierItem[];
   decision_states: FrontierDecisionState[];
