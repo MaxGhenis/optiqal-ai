@@ -9,7 +9,7 @@ Use with `publication_bias_correct()` from `confounding.py` before simulation.
 """
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Dict, List, Literal, Mapping, Optional
 
@@ -130,6 +130,13 @@ PUBLIC_RECOMMENDATION_LANE_VALUES: tuple[PublicRecommendationLane, ...] = (
     "conditional_public",
     "personal_only",
 )
+PUBLIC_DISPLAY_CATEGORY_VALUES: tuple[PublicDisplayCategory, ...] = (
+    "exercise",
+    "sleep",
+    "service",
+    "rx",
+    "supplement",
+)
 
 PUBLIC_CONDITION_VALUES: tuple[PublicCondition, ...] = (
     "airway_signal",
@@ -158,6 +165,7 @@ PUBLIC_CONDITION_EVALUATION_KINDS: tuple[PublicConditionEvaluationKind, ...] = (
 )
 PUBLIC_LANE_DATA_PATH = Path(__file__).parent / "data" / "public_policy_lanes.json"
 PUBLIC_CONDITION_DATA_PATH = Path(__file__).parent / "data" / "public_policy_conditions.json"
+PUBLIC_ITEM_POLICY_DATA_PATH = Path(__file__).parent / "data" / "public_policy_items.json"
 
 
 @dataclass(frozen=True)
@@ -212,6 +220,16 @@ class PublicLaneSpec:
     description: str
 
 
+@dataclass(frozen=True)
+class PublicItemPolicySpec:
+    """Declarative per-item public policy metadata."""
+
+    item_id: str
+    public_lane: Optional[PublicRecommendationLane] = None
+    public_condition: Optional[PublicCondition] = None
+    public_display_category_override: Optional[PublicDisplayCategory] = None
+
+
 def _load_public_lane_specs() -> Dict[PublicRecommendationLane, PublicLaneSpec]:
     """Load declarative public lane definitions from packaged JSON."""
     raw_specs = json.loads(PUBLIC_LANE_DATA_PATH.read_text())
@@ -230,6 +248,35 @@ def _load_public_lane_specs() -> Dict[PublicRecommendationLane, PublicLaneSpec]:
             id=lane_id,
             label=str(raw_spec["label"]),
             description=str(raw_spec["description"]),
+        )
+
+    return loaded_specs
+
+
+def _load_public_item_policy_specs() -> Dict[str, PublicItemPolicySpec]:
+    """Load declarative per-item public metadata from packaged JSON."""
+    raw_specs = json.loads(PUBLIC_ITEM_POLICY_DATA_PATH.read_text())
+    loaded_specs: Dict[str, PublicItemPolicySpec] = {}
+
+    for item_id, raw_spec in raw_specs.items():
+        public_lane = raw_spec.get("public_lane")
+        public_condition = raw_spec.get("public_condition")
+        display_category = raw_spec.get("public_display_category_override")
+
+        if public_lane is not None and public_lane not in PUBLIC_RECOMMENDATION_LANE_VALUES:
+            raise ValueError(f"Unexpected public lane for {item_id}: {public_lane}")
+        if public_condition is not None and public_condition not in PUBLIC_CONDITION_VALUES:
+            raise ValueError(f"Unexpected public condition for {item_id}: {public_condition}")
+        if display_category is not None and display_category not in PUBLIC_DISPLAY_CATEGORY_VALUES:
+            raise ValueError(
+                f"Unexpected public display category override for {item_id}: {display_category}"
+            )
+
+        loaded_specs[item_id] = PublicItemPolicySpec(
+            item_id=item_id,
+            public_lane=public_lane,
+            public_condition=public_condition,
+            public_display_category_override=display_category,
         )
 
     return loaded_specs
@@ -309,6 +356,7 @@ def _load_public_condition_specs() -> Dict[PublicCondition, PublicConditionSpec]
 
 PUBLIC_CONDITION_SPECS: Dict[PublicCondition, PublicConditionSpec] = _load_public_condition_specs()
 PUBLIC_LANE_SPECS: Dict[PublicRecommendationLane, PublicLaneSpec] = _load_public_lane_specs()
+PUBLIC_ITEM_POLICY_SPECS: Dict[str, PublicItemPolicySpec] = _load_public_item_policy_specs()
 
 
 def _profile_adjusted_hr(hr: float, multiplier: float) -> float:
@@ -535,6 +583,16 @@ DUPLICATE_VITAMIN_D_RULE = InteractionRule(
 
 
 def _add(entry: CatalogEntry) -> None:
+    policy = PUBLIC_ITEM_POLICY_SPECS.get(entry.id)
+    if policy is not None:
+        entry = replace(
+            entry,
+            public_lane=policy.public_lane or entry.public_lane,
+            public_condition=policy.public_condition,
+            public_display_category_override=(
+                policy.public_display_category_override or entry.public_display_category_override
+            ),
+        )
     CATALOG[entry.id] = entry
 
 
@@ -821,9 +879,6 @@ _add(CatalogEntry(
         "https://pubmed.ncbi.nlm.nih.gov/15124166/",
     ],
     evidence_quality="high",
-    public_lane="conditional_public",
-    public_condition="airway_signal",
-    public_display_category_override="sleep",
 ))
 _add(CatalogEntry(
     "nasal_strips_nightly", "Nasal strips nightly", "sleep_current",
@@ -856,9 +911,6 @@ _add(CatalogEntry(
         "https://pubmed.ncbi.nlm.nih.gov/30154874/",
     ],
     evidence_quality="moderate",
-    public_lane="conditional_public",
-    public_condition="airway_signal",
-    public_display_category_override="sleep",
 ))
 _add(CatalogEntry(
     "humidifier_nightly", "Humidifier nightly", "sleep_candidate",
@@ -896,9 +948,6 @@ _add(CatalogEntry(
         "https://pubmed.ncbi.nlm.nih.gov/3348500/",
     ],
     evidence_quality="low",
-    public_lane="conditional_public",
-    public_condition="airway_signal",
-    public_display_category_override="sleep",
 ))
 _add(CatalogEntry(
     "mouth_tape_nightly", "Mouth tape nightly", "sleep_candidate",
@@ -943,9 +992,6 @@ _add(CatalogEntry(
         "https://pubmed.ncbi.nlm.nih.gov/25766699/",
     ],
     evidence_quality="low",
-    public_lane="conditional_public",
-    public_condition="airway_signal",
-    public_display_category_override="sleep",
 ))
 _add(CatalogEntry(
     "head_elevation_nightly", "Head elevation nightly", "sleep_current",
@@ -976,9 +1022,6 @@ _add(CatalogEntry(
         "https://pubmed.ncbi.nlm.nih.gov/39347559/",
     ],
     evidence_quality="moderate",
-    public_lane="conditional_public",
-    public_condition="airway_signal",
-    public_display_category_override="sleep",
 ))
 _add(CatalogEntry(
     "apap_nightly", "APAP nightly", "sleep_candidate",
@@ -1018,9 +1061,6 @@ _add(CatalogEntry(
         "https://pubmed.ncbi.nlm.nih.gov/30736887/",
     ],
     evidence_quality="high",
-    public_lane="conditional_public",
-    public_condition="airway_signal",
-    public_display_category_override="sleep",
 ))
 _add(CatalogEntry(
     "oral_appliance_custom", "Custom oral appliance", "sleep_candidate",
@@ -1060,9 +1100,6 @@ _add(CatalogEntry(
         "https://pubmed.ncbi.nlm.nih.gov/26094920/",
     ],
     evidence_quality="high",
-    public_lane="conditional_public",
-    public_condition="airway_signal",
-    public_display_category_override="sleep",
 ))
 _add(CatalogEntry(
     "hiit_1x_week", "HIIT 1x/week", "supplement_candidate",
@@ -1078,8 +1115,6 @@ _add(CatalogEntry(
         "https://pubmed.ncbi.nlm.nih.gov/26243014/",
         "https://pubmed.ncbi.nlm.nih.gov/38599681/",
     ],
-    public_lane="consumer_public",
-    public_display_category_override="exercise",
 ))
 _add(CatalogEntry(
     "hiit_2x_week", "HIIT 2x/week", "supplement_candidate",
@@ -1096,8 +1131,6 @@ _add(CatalogEntry(
         "https://pubmed.ncbi.nlm.nih.gov/38599681/",
         "https://pubmed.ncbi.nlm.nih.gov/40976973/",
     ],
-    public_lane="consumer_public",
-    public_display_category_override="exercise",
 ))
 _add(CatalogEntry(
     "hiit_3x_week", "HIIT 3x/week", "supplement_candidate",
@@ -1114,8 +1147,6 @@ _add(CatalogEntry(
         "https://pubmed.ncbi.nlm.nih.gov/38599681/",
         "https://pubmed.ncbi.nlm.nih.gov/40976973/",
     ],
-    public_lane="consumer_public",
-    public_display_category_override="exercise",
 ))
 _add(CatalogEntry(
     "zone2_cardio_2x_week", "Zone 2 cardio 2x/week", "supplement_candidate",
@@ -1130,8 +1161,6 @@ _add(CatalogEntry(
     sources=[
         "https://pubmed.ncbi.nlm.nih.gov/38599681/",
     ],
-    public_lane="consumer_public",
-    public_display_category_override="exercise",
 ))
 _add(CatalogEntry(
     "tempo_run_1x_week", "Tempo run 1x/week", "supplement_candidate",
@@ -1147,8 +1176,6 @@ _add(CatalogEntry(
         "https://pubmed.ncbi.nlm.nih.gov/26243014/",
         "https://pubmed.ncbi.nlm.nih.gov/38599681/",
     ],
-    public_lane="consumer_public",
-    public_display_category_override="exercise",
 ))
 _add(CatalogEntry(
     "strength_maintenance", "Strength maintenance", "supplement_candidate",
@@ -1162,8 +1189,6 @@ _add(CatalogEntry(
     sources=[
         "https://pubmed.ncbi.nlm.nih.gov/38599681/",
     ],
-    public_lane="consumer_public",
-    public_display_category_override="exercise",
 ))
 
 # ---------------------------------------------------------------------------
@@ -1181,9 +1206,6 @@ _add(CatalogEntry(
     annual_cost=48, qol_annual=0.000,
     benefit_tags=["cardiometabolic_support"],
     notes="Bannister 2014: diabetics on metformin outlived controls. TAME pending.",
-    public_lane="conditional_public",
-    public_condition="metabolic_signal",
-    public_display_category_override="rx",
 ))
 _add(CatalogEntry(
     "acarbose_50mg", "Acarbose 50mg", "rx_candidate",
@@ -1241,9 +1263,6 @@ _add(CatalogEntry(
         "SELECT trial: HR 0.80 MACE in overweight/obesity with established CVD. "
         "Strong transport shrinkage applied for lean, low-risk profiles plus GI/gallbladder harms."
     ),
-    public_lane="conditional_public",
-    public_condition="glp1_signal",
-    public_display_category_override="rx",
 ))
 _add(CatalogEntry(
     "lithium_5mg", "Low-dose lithium 5mg", "rx_candidate",
@@ -1270,9 +1289,6 @@ _add(CatalogEntry(
     annual_cost=120, qol_annual=-0.002,
     benefit_tags=["cardiometabolic_support"],
     notes="CTT meta: 21% CVD reduction per mmol/L LDL. LDL already 64.",
-    public_lane="conditional_public",
-    public_condition="cardiometabolic_signal",
-    public_display_category_override="rx",
 ))
 
 # ---------------------------------------------------------------------------
@@ -1817,7 +1833,6 @@ _add(CatalogEntry(
         "https://pmc.ncbi.nlm.nih.gov/articles/PMC9394774/",
     ],
     evidence_quality="low",
-    public_display_category_override="service",
 ))
 _add(CatalogEntry(
     "infrared_sauna_4x_week", "Infrared sauna 4x/week", "supplement_candidate",
@@ -1834,7 +1849,6 @@ _add(CatalogEntry(
         "https://pmc.ncbi.nlm.nih.gov/articles/PMC9394774/",
     ],
     evidence_quality="very-low",
-    public_display_category_override="service",
 ))
 _add(CatalogEntry(
     "hbot_60sessions", "HBOT 60-session course", "supplement_candidate",
@@ -1860,7 +1874,6 @@ _add(CatalogEntry(
         "https://www.uhms.org/pl/resources/featured-resources/hbo-indications.html",
     ],
     evidence_quality="very-low",
-    public_display_category_override="service",
 ))
 _add(CatalogEntry(
     "bpc157_cycle", "BPC-157 cycle", "supplement_candidate",
@@ -1905,6 +1918,15 @@ _add(CatalogEntry(
     ],
     evidence_quality="very-low",
 ))
+
+missing_public_policy_items = sorted(
+    item_id for item_id in PUBLIC_ITEM_POLICY_SPECS if item_id not in CATALOG
+)
+if missing_public_policy_items:
+    raise ValueError(
+        "public_policy_items.json references unknown catalog ids: "
+        f"{missing_public_policy_items}"
+    )
 
 PUBLIC_GENERIC_EXCLUDED_REASONS = {
     "aspirin_81mg": (

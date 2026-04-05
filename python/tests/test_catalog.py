@@ -8,6 +8,7 @@ from optiqal.catalog import (
     CATALOG,
     CatalogEntry,
     PUBLIC_CONDITION_DATA_PATH,
+    PUBLIC_ITEM_POLICY_DATA_PATH,
     PUBLIC_LANE_DATA_PATH,
     build_public_policy_spec,
     get_catalog,
@@ -356,13 +357,18 @@ class TestCatalog:
 
     def test_public_policy_spec_exports_condition_rules(self):
         assert PUBLIC_CONDITION_DATA_PATH.exists()
+        assert PUBLIC_ITEM_POLICY_DATA_PATH.exists()
         assert PUBLIC_LANE_DATA_PATH.exists()
         policy = build_public_policy_spec(CATALOG)
         lanes = {lane["id"]: lane for lane in policy["lanes"]}
         conditions = {condition["id"]: condition for condition in policy["conditions"]}
+        items = {item["id"]: item for item in policy["items"]}
 
         assert lanes["consumer_public"]["label"] == "Broad public recommendations"
         assert lanes["personal_only"]["description"].startswith("Current-stack")
+        assert items["hiit_2x_week"]["lane"] == "consumer_public"
+        assert items["apap_nightly"]["condition"] == "airway_signal"
+        assert items["traditional_sauna_4x_week"]["display_category"] == "service"
 
         airway = conditions["airway_signal"]
         assert airway["evaluation_kind"] == "sleep_any_threshold"

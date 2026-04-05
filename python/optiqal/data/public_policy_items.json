@@ -1,0 +1,85 @@
+{
+  "nasacort_nightly": {
+    "public_lane": "conditional_public",
+    "public_condition": "airway_signal",
+    "public_display_category_override": "sleep"
+  },
+  "nasal_strips_nightly": {
+    "public_lane": "conditional_public",
+    "public_condition": "airway_signal",
+    "public_display_category_override": "sleep"
+  },
+  "humidifier_nightly": {
+    "public_lane": "conditional_public",
+    "public_condition": "airway_signal",
+    "public_display_category_override": "sleep"
+  },
+  "mouth_tape_nightly": {
+    "public_lane": "conditional_public",
+    "public_condition": "airway_signal",
+    "public_display_category_override": "sleep"
+  },
+  "head_elevation_nightly": {
+    "public_lane": "conditional_public",
+    "public_condition": "airway_signal",
+    "public_display_category_override": "sleep"
+  },
+  "apap_nightly": {
+    "public_lane": "conditional_public",
+    "public_condition": "airway_signal",
+    "public_display_category_override": "sleep"
+  },
+  "oral_appliance_custom": {
+    "public_lane": "conditional_public",
+    "public_condition": "airway_signal",
+    "public_display_category_override": "sleep"
+  },
+  "hiit_1x_week": {
+    "public_lane": "consumer_public",
+    "public_display_category_override": "exercise"
+  },
+  "hiit_2x_week": {
+    "public_lane": "consumer_public",
+    "public_display_category_override": "exercise"
+  },
+  "hiit_3x_week": {
+    "public_lane": "consumer_public",
+    "public_display_category_override": "exercise"
+  },
+  "zone2_cardio_2x_week": {
+    "public_lane": "consumer_public",
+    "public_display_category_override": "exercise"
+  },
+  "tempo_run_1x_week": {
+    "public_lane": "consumer_public",
+    "public_display_category_override": "exercise"
+  },
+  "strength_maintenance": {
+    "public_lane": "consumer_public",
+    "public_display_category_override": "exercise"
+  },
+  "metformin_500mg": {
+    "public_lane": "conditional_public",
+    "public_condition": "metabolic_signal",
+    "public_display_category_override": "rx"
+  },
+  "semaglutide": {
+    "public_lane": "conditional_public",
+    "public_condition": "glp1_signal",
+    "public_display_category_override": "rx"
+  },
+  "statin_5mg": {
+    "public_lane": "conditional_public",
+    "public_condition": "cardiometabolic_signal",
+    "public_display_category_override": "rx"
+  },
+  "traditional_sauna_4x_week": {
+    "public_display_category_override": "service"
+  },
+  "infrared_sauna_4x_week": {
+    "public_display_category_override": "service"
+  },
+  "hbot_60sessions": {
+    "public_display_category_override": "service"
+  }
+}
