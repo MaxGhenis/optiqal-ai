@@ -1,0 +1,184 @@
+[
+  {
+    "id": "healthy_35f_public",
+    "label": "Healthy 35F public canary",
+    "description": "Healthy young public profile should stay conservative and avoid Rx leakage.",
+    "tags": ["healthy_public", "female", "public_canary"],
+    "payload": {
+      "profile": {
+        "age": 35,
+        "sex": "female",
+        "weight_kg": 65,
+        "height_cm": 170,
+        "smoker": false,
+        "has_diabetes": false,
+        "has_hypertension": false,
+        "activity_level": "light",
+        "sleep_hours_per_night": 7
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 10,
+      "banned_top_ids": [
+        "aspirin_81mg",
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg",
+        "head_elevation_nightly",
+        "statin_5mg",
+        "metformin_500mg",
+        "semaglutide"
+      ],
+      "banned_visible_ids": [
+        "apap_nightly",
+        "oral_appliance_custom"
+      ],
+      "required_top_any_of": [
+        "hiit_2x_week",
+        "strength_maintenance"
+      ],
+      "forbidden_visible_pairs": [
+        ["finasteride_1.25mg", "tadalafil_2.5mg"]
+      ],
+      "expected_airway_decision_states": false
+    }
+  },
+  {
+    "id": "high_risk_58m_public",
+    "label": "High-risk 58M public canary",
+    "description": "Older obese smoker with hypertension should surface cardiometabolic Rx candidates.",
+    "tags": ["cardiometabolic", "public_canary", "male"],
+    "payload": {
+      "profile": {
+        "age": 58,
+        "sex": "male",
+        "weight_kg": 102,
+        "height_cm": 175,
+        "smoker": true,
+        "has_diabetes": false,
+        "has_hypertension": true,
+        "activity_level": "light",
+        "sleep_hours_per_night": 7
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 12,
+      "required_visible_ids": [
+        "statin_5mg",
+        "metformin_500mg"
+      ],
+      "banned_visible_ids": [
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg"
+      ],
+      "expected_airway_decision_states": false
+    }
+  },
+  {
+    "id": "glp1_52f_diabetes_obesity",
+    "label": "GLP-1 weighted 52F canary",
+    "description": "Obesity plus diabetes profile should allow GLP-1 discussion alongside metabolic items.",
+    "tags": ["glp1", "metabolic", "public_canary", "female"],
+    "payload": {
+      "profile": {
+        "age": 52,
+        "sex": "female",
+        "weight_kg": 106,
+        "height_cm": 165,
+        "smoker": false,
+        "has_diabetes": true,
+        "has_hypertension": true,
+        "activity_level": "light",
+        "sleep_hours_per_night": 7
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 12,
+      "required_visible_ids": [
+        "semaglutide",
+        "metformin_500mg",
+        "statin_5mg"
+      ],
+      "banned_visible_ids": [
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg"
+      ],
+      "expected_airway_decision_states": false
+    }
+  },
+  {
+    "id": "airway_sleep_39m",
+    "label": "Airway-weighted sleep canary",
+    "description": "Airway-heavy sleep inputs should unlock sleep pathway decisions and airway interventions.",
+    "tags": ["sleep_airway", "public_canary", "male"],
+    "payload": {
+      "profile": {
+        "age": 39,
+        "sex": "male",
+        "weight_kg": 74.8,
+        "height_cm": 178,
+        "smoker": false,
+        "has_diabetes": false,
+        "has_hypertension": false,
+        "activity_level": "active",
+        "sleep_hours_per_night": 6.8
+      },
+      "sleep_metrics": {
+        "duration_hours": 6.8,
+        "breathing_score": 0.78,
+        "spo2": 95.1,
+        "snore_pct": 3.2,
+        "airway_response_signal": 0.4
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 15,
+      "required_visible_ids": [
+        "apap_nightly",
+        "head_elevation_nightly"
+      ],
+      "banned_visible_ids": [
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg"
+      ],
+      "expected_airway_decision_states": true
+    }
+  },
+  {
+    "id": "duration_only_sleep_39m",
+    "label": "Duration-only sleep canary",
+    "description": "Short sleep without airway-heavy metrics should not unlock airway treatment pathways.",
+    "tags": ["sleep_duration_only", "public_canary", "male"],
+    "payload": {
+      "profile": {
+        "age": 39,
+        "sex": "male",
+        "weight_kg": 74.8,
+        "height_cm": 178,
+        "smoker": false,
+        "has_diabetes": false,
+        "has_hypertension": false,
+        "activity_level": "active",
+        "sleep_hours_per_night": 6
+      },
+      "sleep_metrics": {
+        "duration_hours": 6,
+        "sleep_quality_score": 78,
+        "routine_score": 72
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 12,
+      "banned_visible_ids": [
+        "apap_nightly",
+        "oral_appliance_custom",
+        "head_elevation_nightly"
+      ],
+      "expected_airway_decision_states": false
+    }
+  }
+]

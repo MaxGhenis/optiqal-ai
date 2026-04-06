@@ -1,0 +1,453 @@
+"""Benchmark harness for public-frontier plausibility and safety."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+import json
+from pathlib import Path
+import random
+from typing import Any, Optional
+
+from .web_api import build_frontier_response
+
+
+BENCHMARK_SCENARIOS_PATH = Path(__file__).parent / "data" / "public_frontier_benchmark_scenarios.json"
+JUDGE_PROMPT_TEMPLATE_PATH = Path(__file__).parent / "data" / "public_frontier_judge_prompt.md"
+
+
+@dataclass(frozen=True)
+class PublicFrontierBenchmarkRules:
+    """Hard rules for one benchmark scenario."""
+
+    top_n: int = 10
+    banned_top_ids: tuple[str, ...] = ()
+    banned_visible_ids: tuple[str, ...] = ()
+    required_top_any_of: tuple[str, ...] = ()
+    required_visible_ids: tuple[str, ...] = ()
+    forbidden_visible_pairs: tuple[tuple[str, str], ...] = ()
+    expected_airway_decision_states: Optional[bool] = None
+
+
+@dataclass(frozen=True)
+class PublicFrontierBenchmarkScenario:
+    """Single scenario to evaluate against the public frontier."""
+
+    id: str
+    label: str
+    description: str
+    payload: dict[str, Any]
+    rules: PublicFrontierBenchmarkRules
+    tags: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class PublicFrontierBenchmarkFailure:
+    """One hard-rule failure for a scenario."""
+
+    rule: str
+    message: str
+
+
+@dataclass(frozen=True)
+class PublicFrontierBenchmarkCaseResult:
+    """Scored output for one scenario."""
+
+    scenario_id: str
+    label: str
+    passed: bool
+    checks_run: int
+    checks_failed: int
+    score: float
+    failures: tuple[PublicFrontierBenchmarkFailure, ...]
+    frontier_ids: tuple[str, ...]
+    top_ids: tuple[str, ...]
+    airway_decision_states_present: bool
+    response: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class PublicFrontierBenchmarkReport:
+    """Aggregate benchmark report across scenarios."""
+
+    case_results: tuple[PublicFrontierBenchmarkCaseResult, ...]
+    total_checks: int
+    total_failures: int
+    score: float
+
+
+def _load_benchmark_scenarios() -> tuple[PublicFrontierBenchmarkScenario, ...]:
+    raw_cases = json.loads(BENCHMARK_SCENARIOS_PATH.read_text())
+    scenarios: list[PublicFrontierBenchmarkScenario] = []
+
+    for raw_case in raw_cases:
+        rules = raw_case["rules"]
+        scenarios.append(
+            PublicFrontierBenchmarkScenario(
+                id=str(raw_case["id"]),
+                label=str(raw_case["label"]),
+                description=str(raw_case["description"]),
+                payload=dict(raw_case["payload"]),
+                rules=PublicFrontierBenchmarkRules(
+                    top_n=int(rules.get("top_n", 10)),
+                    banned_top_ids=tuple(rules.get("banned_top_ids", [])),
+                    banned_visible_ids=tuple(rules.get("banned_visible_ids", [])),
+                    required_top_any_of=tuple(rules.get("required_top_any_of", [])),
+                    required_visible_ids=tuple(rules.get("required_visible_ids", [])),
+                    forbidden_visible_pairs=tuple(
+                        tuple(pair) for pair in rules.get("forbidden_visible_pairs", [])
+                    ),
+                    expected_airway_decision_states=rules.get("expected_airway_decision_states"),
+                ),
+                tags=tuple(raw_case.get("tags", [])),
+            )
+        )
+
+    return tuple(scenarios)
+
+
+CANONICAL_PUBLIC_FRONTIER_SCENARIOS = _load_benchmark_scenarios()
+
+
+def _healthy_payload(rng: random.Random, *, sex: str) -> dict[str, Any]:
+    height_cm = rng.choice([165, 170, 175, 178])
+    weight_kg = rng.choice([60, 65, 70, 74])
+    return {
+        "profile": {
+            "age": rng.choice([28, 32, 35, 38]),
+            "sex": sex,
+            "weight_kg": weight_kg,
+            "height_cm": height_cm,
+            "smoker": False,
+            "has_diabetes": False,
+            "has_hypertension": False,
+            "activity_level": rng.choice(["light", "active"]),
+            "sleep_hours_per_night": rng.choice([7, 7.5]),
+        },
+        "n_simulations": 1000,
+    }
+
+
+def _cardiometabolic_payload(rng: random.Random) -> dict[str, Any]:
+    return {
+        "profile": {
+            "age": rng.choice([54, 58, 62]),
+            "sex": rng.choice(["male", "female"]),
+            "weight_kg": rng.choice([95, 102, 110]),
+            "height_cm": rng.choice([165, 175, 180]),
+            "smoker": rng.choice([True, False]),
+            "has_diabetes": False,
+            "has_hypertension": True,
+            "activity_level": "light",
+            "sleep_hours_per_night": 7,
+        },
+        "n_simulations": 1000,
+    }
+
+
+def _glp1_payload(rng: random.Random) -> dict[str, Any]:
+    return {
+        "profile": {
+            "age": rng.choice([48, 52, 57]),
+            "sex": rng.choice(["male", "female"]),
+            "weight_kg": rng.choice([100, 106, 114]),
+            "height_cm": rng.choice([165, 170, 175]),
+            "smoker": False,
+            "has_diabetes": True,
+            "has_hypertension": rng.choice([True, False]),
+            "activity_level": "light",
+            "sleep_hours_per_night": 7,
+        },
+        "n_simulations": 1000,
+    }
+
+
+def _airway_payload(rng: random.Random) -> dict[str, Any]:
+    return {
+        "profile": {
+            "age": rng.choice([37, 39, 42]),
+            "sex": rng.choice(["male", "female"]),
+            "weight_kg": rng.choice([70, 74.8, 82]),
+            "height_cm": rng.choice([168, 175, 178]),
+            "smoker": False,
+            "has_diabetes": False,
+            "has_hypertension": False,
+            "activity_level": rng.choice(["light", "active"]),
+            "sleep_hours_per_night": rng.choice([6.6, 6.8, 7.0]),
+        },
+        "sleep_metrics": {
+            "duration_hours": rng.choice([6.6, 6.8, 7.0]),
+            "breathing_score": rng.choice([0.74, 0.78, 0.82]),
+            "spo2": rng.choice([94.8, 95.1, 95.5]),
+            "snore_pct": rng.choice([2.5, 3.2, 4.4]),
+            "airway_response_signal": rng.choice([0.35, 0.4, 0.5]),
+        },
+        "n_simulations": 1000,
+    }
+
+
+def _duration_only_payload(rng: random.Random) -> dict[str, Any]:
+    return {
+        "profile": {
+            "age": rng.choice([37, 39, 42]),
+            "sex": rng.choice(["male", "female"]),
+            "weight_kg": rng.choice([70, 74.8, 82]),
+            "height_cm": rng.choice([168, 175, 178]),
+            "smoker": False,
+            "has_diabetes": False,
+            "has_hypertension": False,
+            "activity_level": rng.choice(["light", "active"]),
+            "sleep_hours_per_night": rng.choice([5.8, 6.0, 6.2]),
+        },
+        "sleep_metrics": {
+            "duration_hours": rng.choice([5.8, 6.0, 6.2]),
+            "sleep_quality_score": rng.choice([74, 78, 82]),
+            "routine_score": rng.choice([70, 72, 76]),
+        },
+        "n_simulations": 1000,
+    }
+
+
+def generate_stratified_public_frontier_scenarios(
+    *,
+    seed: int = 42,
+    cases_per_stratum: int = 1,
+) -> tuple[PublicFrontierBenchmarkScenario, ...]:
+    """Generate extra benchmark scenarios across key public-product strata."""
+    rng = random.Random(seed)
+    scenarios: list[PublicFrontierBenchmarkScenario] = []
+
+    strata = [
+        (
+            "healthy_public",
+            lambda: _healthy_payload(rng, sex=rng.choice(["male", "female"])),
+            PublicFrontierBenchmarkRules(
+                top_n=10,
+                banned_top_ids=(
+                    "aspirin_81mg",
+                    "finasteride_1.25mg",
+                    "tadalafil_2.5mg",
+                    "head_elevation_nightly",
+                    "statin_5mg",
+                    "metformin_500mg",
+                    "semaglutide",
+                ),
+                banned_visible_ids=("apap_nightly", "oral_appliance_custom"),
+                required_top_any_of=("hiit_2x_week", "strength_maintenance"),
+                forbidden_visible_pairs=(("finasteride_1.25mg", "tadalafil_2.5mg"),),
+                expected_airway_decision_states=False,
+            ),
+        ),
+        (
+            "cardiometabolic_public",
+            lambda: _cardiometabolic_payload(rng),
+            PublicFrontierBenchmarkRules(
+                top_n=12,
+                required_visible_ids=("statin_5mg", "metformin_500mg"),
+                banned_visible_ids=("finasteride_1.25mg", "tadalafil_2.5mg"),
+                expected_airway_decision_states=False,
+            ),
+        ),
+        (
+            "glp1_public",
+            lambda: _glp1_payload(rng),
+            PublicFrontierBenchmarkRules(
+                top_n=12,
+                required_visible_ids=("semaglutide", "metformin_500mg"),
+                banned_visible_ids=("finasteride_1.25mg", "tadalafil_2.5mg"),
+                expected_airway_decision_states=False,
+            ),
+        ),
+        (
+            "airway_sleep",
+            lambda: _airway_payload(rng),
+            PublicFrontierBenchmarkRules(
+                top_n=15,
+                required_visible_ids=("apap_nightly", "head_elevation_nightly"),
+                banned_visible_ids=("finasteride_1.25mg", "tadalafil_2.5mg"),
+                expected_airway_decision_states=True,
+            ),
+        ),
+        (
+            "duration_only_sleep",
+            lambda: _duration_only_payload(rng),
+            PublicFrontierBenchmarkRules(
+                top_n=12,
+                banned_visible_ids=("apap_nightly", "oral_appliance_custom", "head_elevation_nightly"),
+                expected_airway_decision_states=False,
+            ),
+        ),
+    ]
+
+    for stratum_id, payload_factory, rules in strata:
+        for index in range(cases_per_stratum):
+            scenarios.append(
+                PublicFrontierBenchmarkScenario(
+                    id=f"{stratum_id}_{index + 1}",
+                    label=stratum_id.replace("_", " "),
+                    description=f"Generated {stratum_id} benchmark case.",
+                    payload=payload_factory(),
+                    rules=rules,
+                    tags=(stratum_id, "generated"),
+                )
+            )
+
+    return tuple(scenarios)
+
+
+def evaluate_public_frontier_case(
+    scenario: PublicFrontierBenchmarkScenario,
+) -> PublicFrontierBenchmarkCaseResult:
+    """Run one scenario through the public frontier and score hard rules."""
+    response = build_frontier_response(scenario.payload)
+    frontier_ids = tuple(row["added_intervention"] for row in response["frontier"])
+    top_ids = frontier_ids[: scenario.rules.top_n]
+    failures: list[PublicFrontierBenchmarkFailure] = []
+    checks_run = 0
+
+    for item_id in scenario.rules.banned_top_ids:
+        checks_run += 1
+        if item_id in top_ids:
+            failures.append(
+                PublicFrontierBenchmarkFailure(
+                    rule="banned_top_ids",
+                    message=f"{item_id} appeared in the top {scenario.rules.top_n}.",
+                )
+            )
+
+    for item_id in scenario.rules.banned_visible_ids:
+        checks_run += 1
+        if item_id in frontier_ids:
+            failures.append(
+                PublicFrontierBenchmarkFailure(
+                    rule="banned_visible_ids",
+                    message=f"{item_id} appeared anywhere in the visible frontier.",
+                )
+            )
+
+    if scenario.rules.required_top_any_of:
+        checks_run += 1
+        if not any(item_id in top_ids for item_id in scenario.rules.required_top_any_of):
+            failures.append(
+                PublicFrontierBenchmarkFailure(
+                    rule="required_top_any_of",
+                    message=(
+                        "None of the required broad-public items appeared in the top "
+                        f"{scenario.rules.top_n}: {list(scenario.rules.required_top_any_of)}"
+                    ),
+                )
+            )
+
+    for item_id in scenario.rules.required_visible_ids:
+        checks_run += 1
+        if item_id not in frontier_ids:
+            failures.append(
+                PublicFrontierBenchmarkFailure(
+                    rule="required_visible_ids",
+                    message=f"{item_id} did not appear in the visible frontier.",
+                )
+            )
+
+    for left_id, right_id in scenario.rules.forbidden_visible_pairs:
+        checks_run += 1
+        if left_id in frontier_ids and right_id in frontier_ids:
+            failures.append(
+                PublicFrontierBenchmarkFailure(
+                    rule="forbidden_visible_pairs",
+                    message=f"{left_id} and {right_id} both appeared in the same visible frontier.",
+                )
+            )
+
+    airway_states_present = bool(response["decision_states"])
+    if scenario.rules.expected_airway_decision_states is not None:
+        checks_run += 1
+        if airway_states_present != scenario.rules.expected_airway_decision_states:
+            failures.append(
+                PublicFrontierBenchmarkFailure(
+                    rule="expected_airway_decision_states",
+                    message=(
+                        "Airway decision-state presence mismatch: "
+                        f"expected {scenario.rules.expected_airway_decision_states}, got {airway_states_present}."
+                    ),
+                )
+            )
+
+    checks_failed = len(failures)
+    score = 1.0 if checks_run == 0 else max(0.0, (checks_run - checks_failed) / checks_run)
+
+    return PublicFrontierBenchmarkCaseResult(
+        scenario_id=scenario.id,
+        label=scenario.label,
+        passed=checks_failed == 0,
+        checks_run=checks_run,
+        checks_failed=checks_failed,
+        score=score,
+        failures=tuple(failures),
+        frontier_ids=frontier_ids,
+        top_ids=top_ids,
+        airway_decision_states_present=airway_states_present,
+        response=response,
+    )
+
+
+def run_public_frontier_benchmark(
+    scenarios: Optional[tuple[PublicFrontierBenchmarkScenario, ...]] = None,
+) -> PublicFrontierBenchmarkReport:
+    """Run the canonical or provided benchmark scenario set."""
+    active_scenarios = scenarios or CANONICAL_PUBLIC_FRONTIER_SCENARIOS
+    case_results = tuple(evaluate_public_frontier_case(scenario) for scenario in active_scenarios)
+    total_checks = sum(result.checks_run for result in case_results)
+    total_failures = sum(result.checks_failed for result in case_results)
+    score = 1.0 if total_checks == 0 else max(0.0, (total_checks - total_failures) / total_checks)
+    return PublicFrontierBenchmarkReport(
+        case_results=case_results,
+        total_checks=total_checks,
+        total_failures=total_failures,
+        score=score,
+    )
+
+
+def _candidate_summary(response: dict[str, Any]) -> dict[str, Any]:
+    frontier_rows = response["frontier"][:10]
+    return {
+        "profile": response["meta"]["profile"],
+        "frontier_top_10": [
+            {
+                "rank": index + 1,
+                "id": row["added_intervention"],
+                "name": row["added_name"],
+                "marginal_days": row["marginal_days"],
+                "marginal_cost_per_qaly": row["marginal_cost_per_qaly"],
+            }
+            for index, row in enumerate(frontier_rows)
+        ],
+        "decision_state_ids": [state["id"] for state in response["decision_states"]],
+    }
+
+
+def render_public_frontier_judge_prompt(
+    scenario: PublicFrontierBenchmarkScenario,
+    candidate_a_response: dict[str, Any],
+    candidate_b_response: dict[str, Any],
+) -> str:
+    """Render a pairwise LLM judge prompt for one scenario."""
+    template = JUDGE_PROMPT_TEMPLATE_PATH.read_text()
+    return (
+        template
+        .replace("{{scenario}}", json.dumps({
+            "id": scenario.id,
+            "label": scenario.label,
+            "description": scenario.description,
+            "tags": list(scenario.tags),
+            "rules": {
+                "top_n": scenario.rules.top_n,
+                "banned_top_ids": list(scenario.rules.banned_top_ids),
+                "banned_visible_ids": list(scenario.rules.banned_visible_ids),
+                "required_top_any_of": list(scenario.rules.required_top_any_of),
+                "required_visible_ids": list(scenario.rules.required_visible_ids),
+                "forbidden_visible_pairs": [list(pair) for pair in scenario.rules.forbidden_visible_pairs],
+                "expected_airway_decision_states": scenario.rules.expected_airway_decision_states,
+            },
+        }, indent=2))
+        .replace("{{candidate_a}}", json.dumps(_candidate_summary(candidate_a_response), indent=2))
+        .replace("{{candidate_b}}", json.dumps(_candidate_summary(candidate_b_response), indent=2))
+    )

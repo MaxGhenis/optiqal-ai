@@ -107,6 +107,20 @@ from .decision_states import (
     summarize_stack_from_qalys,
     evaluate_choice_set,
 )
+from .public_frontier_benchmark import (
+    CANONICAL_PUBLIC_FRONTIER_SCENARIOS,
+    BENCHMARK_SCENARIOS_PATH,
+    JUDGE_PROMPT_TEMPLATE_PATH,
+    PublicFrontierBenchmarkRules,
+    PublicFrontierBenchmarkScenario,
+    PublicFrontierBenchmarkFailure,
+    PublicFrontierBenchmarkCaseResult,
+    PublicFrontierBenchmarkReport,
+    evaluate_public_frontier_case,
+    generate_stratified_public_frontier_scenarios,
+    render_public_frontier_judge_prompt,
+    run_public_frontier_benchmark,
+)
 
 __all__ = [
     "Intervention",
@@ -190,6 +204,18 @@ __all__ = [
     "evaluate_frontier_state",
     "summarize_stack_from_qalys",
     "evaluate_choice_set",
+    "CANONICAL_PUBLIC_FRONTIER_SCENARIOS",
+    "BENCHMARK_SCENARIOS_PATH",
+    "JUDGE_PROMPT_TEMPLATE_PATH",
+    "PublicFrontierBenchmarkRules",
+    "PublicFrontierBenchmarkScenario",
+    "PublicFrontierBenchmarkFailure",
+    "PublicFrontierBenchmarkCaseResult",
+    "PublicFrontierBenchmarkReport",
+    "evaluate_public_frontier_case",
+    "generate_stratified_public_frontier_scenarios",
+    "render_public_frontier_judge_prompt",
+    "run_public_frontier_benchmark",
 ]
 
 
