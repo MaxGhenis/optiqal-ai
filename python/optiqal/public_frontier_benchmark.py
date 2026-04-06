@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import json
 from pathlib import Path
 import random
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from .web_api import build_frontier_response
 
@@ -73,6 +73,31 @@ class PublicFrontierBenchmarkReport:
     total_checks: int
     total_failures: int
     score: float
+
+
+@dataclass(frozen=True)
+class PublicFrontierJudgePacket:
+    """Pairwise prompt packet for one scenario."""
+
+    scenario_id: str
+    label: str
+    prompt: str
+    candidate_a_summary: dict[str, Any]
+    candidate_b_summary: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class PublicFrontierJudgeVerdict:
+    """Structured offline verdict from an LLM judge."""
+
+    scenario_id: str
+    winner: Literal["A", "B", "tie"]
+    confidence: float
+    summary: str
+    safety_issues: tuple[str, ...] = ()
+    ranking_issues: tuple[str, ...] = ()
+    best_aspects_a: tuple[str, ...] = ()
+    best_aspects_b: tuple[str, ...] = ()
 
 
 def _load_benchmark_scenarios() -> tuple[PublicFrontierBenchmarkScenario, ...]:
@@ -406,6 +431,72 @@ def run_public_frontier_benchmark(
     )
 
 
+def benchmark_report_to_dict(
+    report: PublicFrontierBenchmarkReport,
+    *,
+    include_responses: bool = True,
+) -> dict[str, Any]:
+    """Serialize a benchmark report for storage or later pairwise review."""
+    return {
+        "score": report.score,
+        "total_checks": report.total_checks,
+        "total_failures": report.total_failures,
+        "cases": [
+            {
+                "scenario_id": result.scenario_id,
+                "label": result.label,
+                "passed": result.passed,
+                "score": result.score,
+                "checks_run": result.checks_run,
+                "checks_failed": result.checks_failed,
+                "frontier_ids": list(result.frontier_ids),
+                "top_ids": list(result.top_ids),
+                "airway_decision_states_present": result.airway_decision_states_present,
+                "failures": [
+                    {"rule": failure.rule, "message": failure.message}
+                    for failure in result.failures
+                ],
+                "response": result.response if include_responses else None,
+            }
+            for result in report.case_results
+        ],
+    }
+
+
+def benchmark_report_from_dict(payload: dict[str, Any]) -> PublicFrontierBenchmarkReport:
+    """Deserialize a stored benchmark report."""
+    case_results = []
+    for raw_case in payload.get("cases", []):
+        case_results.append(
+            PublicFrontierBenchmarkCaseResult(
+                scenario_id=str(raw_case["scenario_id"]),
+                label=str(raw_case["label"]),
+                passed=bool(raw_case["passed"]),
+                checks_run=int(raw_case["checks_run"]),
+                checks_failed=int(raw_case["checks_failed"]),
+                score=float(raw_case["score"]),
+                failures=tuple(
+                    PublicFrontierBenchmarkFailure(
+                        rule=str(failure["rule"]),
+                        message=str(failure["message"]),
+                    )
+                    for failure in raw_case.get("failures", [])
+                ),
+                frontier_ids=tuple(raw_case.get("frontier_ids", [])),
+                top_ids=tuple(raw_case.get("top_ids", [])),
+                airway_decision_states_present=bool(raw_case.get("airway_decision_states_present", False)),
+                response=dict(raw_case["response"] or {}),
+            )
+        )
+
+    return PublicFrontierBenchmarkReport(
+        case_results=tuple(case_results),
+        total_checks=int(payload["total_checks"]),
+        total_failures=int(payload["total_failures"]),
+        score=float(payload["score"]),
+    )
+
+
 def _candidate_summary(response: dict[str, Any]) -> dict[str, Any]:
     frontier_rows = response["frontier"][:10]
     return {
@@ -451,3 +542,119 @@ def render_public_frontier_judge_prompt(
         .replace("{{candidate_a}}", json.dumps(_candidate_summary(candidate_a_response), indent=2))
         .replace("{{candidate_b}}", json.dumps(_candidate_summary(candidate_b_response), indent=2))
     )
+
+
+def build_pairwise_judge_packets(
+    candidate_a_report: PublicFrontierBenchmarkReport,
+    candidate_b_report: PublicFrontierBenchmarkReport,
+    *,
+    scenarios: Optional[tuple[PublicFrontierBenchmarkScenario, ...]] = None,
+) -> tuple[PublicFrontierJudgePacket, ...]:
+    """Build pairwise judge packets comparing candidate A vs B on matching scenarios."""
+    active_scenarios = scenarios or CANONICAL_PUBLIC_FRONTIER_SCENARIOS
+    candidate_a_cases = {result.scenario_id: result for result in candidate_a_report.case_results}
+    candidate_b_cases = {result.scenario_id: result for result in candidate_b_report.case_results}
+
+    packets = []
+    for scenario in active_scenarios:
+        scenario_id = scenario.id
+        if scenario_id not in candidate_a_cases or scenario_id not in candidate_b_cases:
+            continue
+        case_a = candidate_a_cases[scenario_id]
+        case_b = candidate_b_cases[scenario_id]
+        if not case_a.response or not case_b.response:
+            raise ValueError(
+                f"Pairwise judge packets require stored responses for scenario {scenario_id}."
+            )
+        packets.append(
+            PublicFrontierJudgePacket(
+                scenario_id=scenario_id,
+                label=scenario.label,
+                prompt=render_public_frontier_judge_prompt(
+                    scenario,
+                    case_a.response,
+                    case_b.response,
+                ),
+                candidate_a_summary=_candidate_summary(case_a.response),
+                candidate_b_summary=_candidate_summary(case_b.response),
+            )
+        )
+
+    return tuple(packets)
+
+
+def judge_packet_to_dict(packet: PublicFrontierJudgePacket) -> dict[str, Any]:
+    """Serialize one pairwise judge packet."""
+    return {
+        "scenario_id": packet.scenario_id,
+        "label": packet.label,
+        "prompt": packet.prompt,
+        "candidate_a_summary": packet.candidate_a_summary,
+        "candidate_b_summary": packet.candidate_b_summary,
+    }
+
+
+def parse_public_frontier_judge_verdicts(
+    payload: list[dict[str, Any]],
+) -> tuple[PublicFrontierJudgeVerdict, ...]:
+    """Parse stored offline judge verdicts."""
+    verdicts = []
+    for raw_verdict in payload:
+        winner = raw_verdict["winner"]
+        if winner not in {"A", "B", "tie"}:
+            raise ValueError(f"Unexpected judge winner: {winner}")
+        verdicts.append(
+            PublicFrontierJudgeVerdict(
+                scenario_id=str(raw_verdict["scenario_id"]),
+                winner=winner,
+                confidence=float(raw_verdict["confidence"]),
+                summary=str(raw_verdict["summary"]),
+                safety_issues=tuple(raw_verdict.get("safety_issues", [])),
+                ranking_issues=tuple(raw_verdict.get("ranking_issues", [])),
+                best_aspects_a=tuple((raw_verdict.get("best_aspects") or {}).get("A", [])),
+                best_aspects_b=tuple((raw_verdict.get("best_aspects") or {}).get("B", [])),
+            )
+        )
+    return tuple(verdicts)
+
+
+def compute_pairwise_judge_score(
+    verdicts: tuple[PublicFrontierJudgeVerdict, ...],
+) -> float:
+    """Score candidate A preference from offline judge verdicts."""
+    if not verdicts:
+        return 0.5
+
+    weighted_total = 0.0
+    weight_sum = 0.0
+    for verdict in verdicts:
+        weight = max(0.0, min(1.0, verdict.confidence))
+        if verdict.winner == "A":
+            points = 1.0
+        elif verdict.winner == "B":
+            points = 0.0
+        else:
+            points = 0.5
+        weighted_total += points * weight
+        weight_sum += weight
+
+    if weight_sum == 0:
+        return 0.5
+    return weighted_total / weight_sum
+
+
+def compute_hybrid_public_frontier_score(
+    *,
+    hard_score: float,
+    judge_score: Optional[float],
+    judge_weight: float = 0.2,
+) -> float:
+    """Combine hard benchmark score with optional judge preference score.
+
+    Hard-rule failures dominate. The judge only matters once the hard benchmark is perfect.
+    """
+    if hard_score < 1.0 or judge_score is None:
+        return hard_score
+
+    bounded_weight = max(0.0, min(1.0, judge_weight))
+    return (1.0 - bounded_weight) * hard_score + bounded_weight * judge_score

@@ -40,6 +40,28 @@ From [`python`](../python/):
 ./.venv/bin/python scripts/run_public_frontier_benchmark.py --cases-per-stratum 2 --seed 42
 ```
 
+To save a full candidate report for later pairwise review:
+
+```bash
+./.venv/bin/python scripts/run_public_frontier_benchmark.py --output-report /tmp/candidate-a.json
+```
+
+To compare the current candidate against another saved report and emit judge packets:
+
+```bash
+./.venv/bin/python scripts/run_public_frontier_benchmark.py \
+  --judge-against-report /tmp/incumbent.json \
+  --emit-judge-packets /tmp/judge-packets.json
+```
+
+To combine offline judge verdicts back into a hybrid score:
+
+```bash
+./.venv/bin/python scripts/run_public_frontier_benchmark.py \
+  --judge-verdicts /tmp/judge-verdicts.json \
+  --json
+```
+
 ## Current edit boundary
 
 If you use AutoAgent or another optimizer, restrict edits to the public-policy layer:
@@ -68,6 +90,18 @@ Not:
 - which candidate is more interesting
 - which candidate has more interventions
 - which candidate has lower modeled cost/QALY in isolation
+
+The current runner supports:
+
+- hard benchmark score
+- pairwise judge packet generation against a saved incumbent report
+- offline verdict parsing
+- hybrid score computation
+
+Hybrid scoring rule:
+
+- if hard benchmark score is below `1.0`, that score dominates
+- judge preference only affects the result once hard rules pass
 
 ## Success criterion
 

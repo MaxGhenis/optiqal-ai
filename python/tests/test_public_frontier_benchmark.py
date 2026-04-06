@@ -4,8 +4,14 @@ from __future__ import annotations
 
 from optiqal.public_frontier_benchmark import (
     CANONICAL_PUBLIC_FRONTIER_SCENARIOS,
+    benchmark_report_from_dict,
+    benchmark_report_to_dict,
+    build_pairwise_judge_packets,
+    compute_hybrid_public_frontier_score,
+    compute_pairwise_judge_score,
     evaluate_public_frontier_case,
     generate_stratified_public_frontier_scenarios,
+    parse_public_frontier_judge_verdicts,
     render_public_frontier_judge_prompt,
     run_public_frontier_benchmark,
 )
@@ -44,3 +50,58 @@ def test_judge_prompt_includes_scenario_rules_and_candidate_summaries():
     assert "frontier_top_10" in prompt
     assert '"winner": "A" | "B" | "tie"' in prompt
     assert "required_top_any_of" in prompt
+
+
+def test_benchmark_report_round_trips_for_pairwise_review():
+    report = run_public_frontier_benchmark()
+    round_tripped = benchmark_report_from_dict(
+        benchmark_report_to_dict(report, include_responses=True)
+    )
+
+    assert round_tripped.score == report.score
+    assert round_tripped.case_results[0].scenario_id == report.case_results[0].scenario_id
+    assert round_tripped.case_results[0].response["meta"]["profile"] == report.case_results[0].response["meta"]["profile"]
+
+
+def test_pairwise_packets_and_hybrid_score_work_with_offline_verdicts():
+    report = run_public_frontier_benchmark()
+    packets = build_pairwise_judge_packets(report, report)
+
+    assert len(packets) == len(CANONICAL_PUBLIC_FRONTIER_SCENARIOS)
+    assert packets[0].scenario_id == CANONICAL_PUBLIC_FRONTIER_SCENARIOS[0].id
+
+    verdicts = parse_public_frontier_judge_verdicts(
+        [
+            {
+                "scenario_id": packets[0].scenario_id,
+                "winner": "A",
+                "confidence": 0.9,
+                "summary": "A is safer.",
+                "safety_issues": [],
+                "ranking_issues": [],
+                "best_aspects": {"A": ["safer"], "B": ["none"]},
+            },
+            {
+                "scenario_id": packets[1].scenario_id,
+                "winner": "tie",
+                "confidence": 0.6,
+                "summary": "Roughly equal.",
+                "safety_issues": [],
+                "ranking_issues": [],
+                "best_aspects": {"A": ["stable"], "B": ["stable"]},
+            },
+        ]
+    )
+    judge_score = compute_pairwise_judge_score(verdicts)
+
+    assert 0.7 < judge_score < 0.9
+    assert compute_hybrid_public_frontier_score(
+        hard_score=1.0,
+        judge_score=judge_score,
+        judge_weight=0.2,
+    ) > 0.9
+    assert compute_hybrid_public_frontier_score(
+        hard_score=0.8,
+        judge_score=judge_score,
+        judge_weight=0.2,
+    ) == 0.8
