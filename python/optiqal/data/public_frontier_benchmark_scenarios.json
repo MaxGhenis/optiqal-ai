@@ -46,7 +46,7 @@
   {
     "id": "high_risk_58m_public",
     "label": "High-risk 58M public canary",
-    "description": "Older obese smoker with hypertension should surface cardiometabolic Rx candidates.",
+    "description": "Older obese smoker with hypertension should surface statin and obesity-weighted GLP-1 discussion, but not generic metformin.",
     "tags": ["cardiometabolic", "public_canary", "male"],
     "payload": {
       "profile": {
@@ -66,9 +66,10 @@
       "top_n": 12,
       "required_visible_ids": [
         "statin_5mg",
-        "metformin_500mg"
+        "semaglutide"
       ],
       "banned_visible_ids": [
+        "metformin_500mg",
         "finasteride_1.25mg",
         "tadalafil_2.5mg"
       ],
@@ -102,6 +103,72 @@
         "statin_5mg"
       ],
       "banned_visible_ids": [
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg"
+      ],
+      "expected_airway_decision_states": false
+    }
+  },
+  {
+    "id": "mild_metabolic_50m_public",
+    "label": "Mild metabolic 50M canary",
+    "description": "Borderline non-diabetic metabolic risk should surface statin discussion but not metformin or GLP-1 therapy.",
+    "tags": ["metabolic_borderline", "public_canary", "male"],
+    "payload": {
+      "profile": {
+        "age": 50,
+        "sex": "male",
+        "weight_kg": 88,
+        "height_cm": 178,
+        "smoker": false,
+        "has_diabetes": false,
+        "has_hypertension": true,
+        "activity_level": "light",
+        "sleep_hours_per_night": 7
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 12,
+      "required_visible_ids": [
+        "statin_5mg"
+      ],
+      "banned_visible_ids": [
+        "metformin_500mg",
+        "semaglutide",
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg"
+      ],
+      "expected_airway_decision_states": false
+    }
+  },
+  {
+    "id": "obesity_glp1_52f_public",
+    "label": "Obesity GLP-1 52F canary",
+    "description": "Obesity plus hypertension without diabetes can justify GLP-1 discussion, but should not leak generic metformin.",
+    "tags": ["glp1", "obesity", "public_canary", "female"],
+    "payload": {
+      "profile": {
+        "age": 52,
+        "sex": "female",
+        "weight_kg": 106,
+        "height_cm": 165,
+        "smoker": false,
+        "has_diabetes": false,
+        "has_hypertension": true,
+        "activity_level": "light",
+        "sleep_hours_per_night": 7
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 12,
+      "required_visible_ids": [
+        "statin_5mg",
+        "semaglutide"
+      ],
+      "banned_visible_ids": [
+        "metformin_500mg",
         "finasteride_1.25mg",
         "tadalafil_2.5mg"
       ],

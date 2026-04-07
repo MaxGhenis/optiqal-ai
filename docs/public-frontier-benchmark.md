@@ -26,6 +26,10 @@ It evaluates:
   - forbidden co-ranking pairs
   - expected airway decision-state presence
 
+The current canonical set intentionally includes a few scenarios the incumbent
+policy still fails, so the benchmark provides a real optimization gradient for
+policy tuning rather than a flat `1.0` baseline.
+
 The LLM-judge scaffold lives in:
 
 - [`public_frontier_judge_prompt.md`](../python/optiqal/data/public_frontier_judge_prompt.md)
@@ -126,7 +130,9 @@ Hybrid scoring rule:
 
 ## Success criterion
 
-Short term, the benchmark should stay at `1.0` on canonical canaries while policy edits are made.
+Short term, the goal is for a candidate policy to drive the canonical score
+toward `1.0` while the incumbent may remain below that mark as new canaries are
+added.
 
 Longer term, the harness should expand with:
 

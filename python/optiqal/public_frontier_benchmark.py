@@ -187,6 +187,40 @@ def _glp1_payload(rng: random.Random) -> dict[str, Any]:
     }
 
 
+def _borderline_metabolic_payload(rng: random.Random) -> dict[str, Any]:
+    return {
+        "profile": {
+            "age": rng.choice([50, 52, 55]),
+            "sex": rng.choice(["male", "female"]),
+            "weight_kg": rng.choice([84, 88, 92]),
+            "height_cm": rng.choice([172, 178, 182]),
+            "smoker": False,
+            "has_diabetes": False,
+            "has_hypertension": True,
+            "activity_level": "light",
+            "sleep_hours_per_night": 7,
+        },
+        "n_simulations": 1000,
+    }
+
+
+def _obesity_glp1_no_diabetes_payload(rng: random.Random) -> dict[str, Any]:
+    return {
+        "profile": {
+            "age": rng.choice([50, 52, 56]),
+            "sex": rng.choice(["male", "female"]),
+            "weight_kg": rng.choice([100, 106, 112]),
+            "height_cm": rng.choice([162, 168, 175]),
+            "smoker": False,
+            "has_diabetes": False,
+            "has_hypertension": True,
+            "activity_level": "light",
+            "sleep_hours_per_night": 7,
+        },
+        "n_simulations": 1000,
+    }
+
+
 def _airway_payload(rng: random.Random) -> dict[str, Any]:
     return {
         "profile": {
@@ -268,8 +302,8 @@ def generate_stratified_public_frontier_scenarios(
             lambda: _cardiometabolic_payload(rng),
             PublicFrontierBenchmarkRules(
                 top_n=12,
-                required_visible_ids=("statin_5mg", "metformin_500mg"),
-                banned_visible_ids=("finasteride_1.25mg", "tadalafil_2.5mg"),
+                required_visible_ids=("statin_5mg", "semaglutide"),
+                banned_visible_ids=("metformin_500mg", "finasteride_1.25mg", "tadalafil_2.5mg"),
                 expected_airway_decision_states=False,
             ),
         ),
@@ -280,6 +314,26 @@ def generate_stratified_public_frontier_scenarios(
                 top_n=12,
                 required_visible_ids=("semaglutide", "metformin_500mg"),
                 banned_visible_ids=("finasteride_1.25mg", "tadalafil_2.5mg"),
+                expected_airway_decision_states=False,
+            ),
+        ),
+        (
+            "borderline_metabolic_public",
+            lambda: _borderline_metabolic_payload(rng),
+            PublicFrontierBenchmarkRules(
+                top_n=12,
+                required_visible_ids=("statin_5mg",),
+                banned_visible_ids=("metformin_500mg", "semaglutide", "finasteride_1.25mg", "tadalafil_2.5mg"),
+                expected_airway_decision_states=False,
+            ),
+        ),
+        (
+            "obesity_glp1_no_diabetes_public",
+            lambda: _obesity_glp1_no_diabetes_payload(rng),
+            PublicFrontierBenchmarkRules(
+                top_n=12,
+                required_visible_ids=("statin_5mg", "semaglutide"),
+                banned_visible_ids=("metformin_500mg", "finasteride_1.25mg", "tadalafil_2.5mg"),
                 expected_airway_decision_states=False,
             ),
         ),

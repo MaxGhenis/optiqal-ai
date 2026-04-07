@@ -20,22 +20,26 @@ from optiqal.public_frontier_benchmark import (
 )
 
 
-def test_canonical_public_frontier_benchmark_cases_all_pass_current_policy():
+def test_canonical_public_frontier_benchmark_exposes_current_policy_gaps():
     report = run_public_frontier_benchmark()
 
-    assert report.total_failures == 0
-    assert report.score == 1.0
-    assert all(case.passed for case in report.case_results)
+    assert report.total_failures > 0
+    assert report.score < 1.0
+    by_id = {case.scenario_id: case for case in report.case_results}
+    assert any(failure.rule == "banned_visible_ids" for failure in by_id["mild_metabolic_50m_public"].failures)
+    assert any(failure.rule == "banned_visible_ids" for failure in by_id["obesity_glp1_52f_public"].failures)
 
 
 def test_generated_stratified_cases_cover_expected_strata():
     generated = generate_stratified_public_frontier_scenarios(seed=7, cases_per_stratum=2)
 
-    assert len(generated) == 10
+    assert len(generated) == 14
     tags = {tag for scenario in generated for tag in scenario.tags}
     assert "healthy_public" in tags
     assert "cardiometabolic_public" in tags
     assert "glp1_public" in tags
+    assert "borderline_metabolic_public" in tags
+    assert "obesity_glp1_no_diabetes_public" in tags
     assert "airway_sleep" in tags
     assert "duration_only_sleep" in tags
 
@@ -130,3 +134,22 @@ def test_candidate_policy_override_changes_benchmark_outcome(tmp_path):
     assert report.score < 1.0
     assert not healthy_case.passed
     assert any(failure.rule == "required_top_any_of" for failure in healthy_case.failures)
+
+
+def test_candidate_policy_can_fix_non_diabetic_metformin_leakage(tmp_path):
+    candidate_path = tmp_path / "candidate-policy.json"
+    candidate_path.write_text(json.dumps({
+        "conditions": {
+            "metabolic_signal": {"profile_score_threshold": 5},
+        },
+    }, indent=2))
+
+    incumbent = run_public_frontier_benchmark()
+    improved = run_public_frontier_benchmark(
+        public_policy=load_public_policy_override(candidate_path)
+    )
+    by_id = {case.scenario_id: case for case in improved.case_results}
+
+    assert improved.score > incumbent.score
+    assert by_id["mild_metabolic_50m_public"].passed
+    assert by_id["obesity_glp1_52f_public"].passed

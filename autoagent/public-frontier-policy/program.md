@@ -8,7 +8,7 @@ Your goal is to maximize the public-frontier benchmark while keeping outputs con
 
 Optimize the candidate policy in [`agent.py`](./agent.py) so that:
 
-1. hard benchmark score stays at `1.0` on canonical public-safety canaries
+1. hard benchmark score moves toward `1.0` and improves over the incumbent baseline
 2. generated stratified scenarios stay plausible
 3. pairwise judge packets would likely prefer the candidate over the incumbent
 
