@@ -19,6 +19,22 @@ TASK_AGENT = (
     / "files"
     / "agent.py"
 )
+TASK_DOCKERFILE = (
+    ROOT
+    / "autoagent"
+    / "public-frontier-policy"
+    / "tasks"
+    / "public-frontier-policy"
+    / "environment"
+    / "Dockerfile"
+)
+
+
+def test_harbor_task_dockerfile_does_not_copy_task_files_from_wrong_context() -> None:
+    dockerfile = TASK_DOCKERFILE.read_text()
+
+    assert "COPY files/" not in dockerfile
+    assert "chmod +x /app/agent.py" not in dockerfile
 
 
 def test_harbor_task_agent_emits_summary_json() -> None:
