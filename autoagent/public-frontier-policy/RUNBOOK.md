@@ -57,7 +57,7 @@ The Harbor task environment already installs Optiqal from GitHub in its own Dock
 ```bash
 cd /tmp/optiqal-autoagent
 python agent.py --summary-json
-python agent.py --summary-json --cases-per-stratum 4
+python agent.py --summary-json --cases-per-stratum 8
 ```
 
 ## 6. Smoke test the Harbor task directly

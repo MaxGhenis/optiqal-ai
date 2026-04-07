@@ -33,6 +33,9 @@ CANDIDATE_POLICY: dict[str, Any] = {
         "cardiometabolic_signal": {
             "profile_score_threshold": 4,
         },
+        "metabolic_signal": {
+            "profile_score_threshold": 5,
+        },
     },
     "items": {
         "statin_5mg": {
@@ -46,7 +49,7 @@ CANDIDATE_POLICY: dict[str, Any] = {
     },
 }
 
-DEFAULT_CASES_PER_STRATUM = 2
+DEFAULT_CASES_PER_STRATUM = 4
 DEFAULT_JUDGE_WEIGHT = 0.2
 
 

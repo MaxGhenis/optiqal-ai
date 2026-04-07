@@ -44,6 +44,18 @@ def test_generated_stratified_cases_cover_expected_strata():
     assert "duration_only_sleep" in tags
 
 
+def test_generated_metabolic_strata_respect_intended_bmi_bands():
+    generated = generate_stratified_public_frontier_scenarios(seed=42, cases_per_stratum=8)
+
+    for scenario in generated:
+        profile = scenario.payload["profile"]
+        bmi = profile["weight_kg"] / ((profile["height_cm"] / 100) ** 2)
+        if "cardiometabolic_public" in scenario.tags:
+            assert bmi >= 30
+        if "borderline_metabolic_public" in scenario.tags:
+            assert 25 <= bmi < 30
+
+
 def test_judge_prompt_includes_scenario_rules_and_candidate_summaries():
     scenario = CANONICAL_PUBLIC_FRONTIER_SCENARIOS[0]
     case_result = evaluate_public_frontier_case(scenario)

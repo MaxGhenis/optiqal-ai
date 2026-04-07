@@ -154,12 +154,19 @@ def _healthy_payload(rng: random.Random, *, sex: str) -> dict[str, Any]:
 
 
 def _cardiometabolic_payload(rng: random.Random) -> dict[str, Any]:
+    height_cm, weight_kg = rng.choice(
+        [
+            (165, 95),
+            (175, 102),
+            (180, 110),
+        ]
+    )
     return {
         "profile": {
             "age": rng.choice([54, 58, 62]),
             "sex": rng.choice(["male", "female"]),
-            "weight_kg": rng.choice([95, 102, 110]),
-            "height_cm": rng.choice([165, 175, 180]),
+            "weight_kg": weight_kg,
+            "height_cm": height_cm,
             "smoker": rng.choice([True, False]),
             "has_diabetes": False,
             "has_hypertension": True,
@@ -188,12 +195,19 @@ def _glp1_payload(rng: random.Random) -> dict[str, Any]:
 
 
 def _borderline_metabolic_payload(rng: random.Random) -> dict[str, Any]:
+    height_cm, weight_kg = rng.choice(
+        [
+            (172, 84),
+            (178, 88),
+            (182, 92),
+        ]
+    )
     return {
         "profile": {
             "age": rng.choice([50, 52, 55]),
             "sex": rng.choice(["male", "female"]),
-            "weight_kg": rng.choice([84, 88, 92]),
-            "height_cm": rng.choice([172, 178, 182]),
+            "weight_kg": weight_kg,
+            "height_cm": height_cm,
             "smoker": False,
             "has_diabetes": False,
             "has_hypertension": True,
