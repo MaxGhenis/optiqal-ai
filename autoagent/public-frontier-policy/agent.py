@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Single-file public-policy harness for AutoAgent-style optimization."""
+"""Single-file Harbor-compatible public-policy harness for AutoAgent optimization."""
 
 from __future__ import annotations
 
@@ -8,8 +8,19 @@ import json
 import subprocess
 import sys
 import tempfile
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+try:
+    from harbor.agents.base import BaseAgent
+    from harbor.environments.base import BaseEnvironment
+    from harbor.models.agent.context import AgentContext
+except ModuleNotFoundError:  # pragma: no cover - local CLI path may not have harbor installed.
+    BaseAgent = object  # type: ignore[assignment]
+    BaseEnvironment = Any  # type: ignore[assignment]
+    AgentContext = Any  # type: ignore[assignment]
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -247,6 +258,118 @@ def run_candidate_benchmark(
         candidate_path.unlink(missing_ok=True)
 
 
+def compute_reward(summary: dict[str, Any]) -> tuple[float, dict[str, Any]]:
+    comparison = summary["comparison"]
+    candidate_score = float(comparison["candidate_score"])
+    incumbent_score = float(comparison["incumbent_score"])
+    reward = max(0.0, min(1.0, candidate_score + max(0.0, candidate_score - incumbent_score)))
+    diagnostics = {
+        "candidate_score": candidate_score,
+        "incumbent_score": incumbent_score,
+        "score_delta": float(comparison["score_delta"]),
+        "changed_case_count": int(comparison["changed_case_count"]),
+        "reward": reward,
+    }
+    return reward, diagnostics
+
+
+def _atif_trajectory(summary: dict[str, Any], duration_ms: int) -> dict[str, Any]:
+    comparison = summary["comparison"]
+    now = datetime.now(timezone.utc).isoformat()
+    changed_cases = comparison["changed_cases"][:5]
+    changed_summary = (
+        "\n".join(
+            f"- {case['scenario_id']}: {case['score_delta']:+.3f} "
+            f"{case['candidate_top_ids']} vs {case['incumbent_top_ids']}"
+            for case in changed_cases
+        )
+        if changed_cases
+        else "No changed cases."
+    )
+    return {
+        "schema_version": "ATIF-v1.6",
+        "session_id": f"public-policy-{int(time.time() * 1000)}",
+        "agent": {"name": "autoagent", "version": "0.1.0", "model_name": "static-policy"},
+        "steps": [
+            {
+                "step_id": 1,
+                "timestamp": now,
+                "source": "agent",
+                "message": (
+                    "Evaluated the current candidate public policy against the incumbent.\n"
+                    f"Candidate score: {comparison['candidate_score']:.3f}\n"
+                    f"Incumbent score: {comparison['incumbent_score']:.3f}\n"
+                    f"Score delta: {comparison['score_delta']:+.3f}\n"
+                    f"Changed cases:\n{changed_summary}"
+                ),
+                "model_name": "static-policy",
+            }
+        ],
+        "final_metrics": {
+            "total_prompt_tokens": 0,
+            "total_completion_tokens": 0,
+            "total_cached_tokens": 0,
+            "total_cost_usd": 0,
+            "total_steps": 1,
+            "extra": {"duration_ms": duration_ms, "num_turns": 1},
+        },
+    }
+
+
+class AutoAgent(BaseAgent):
+    """Harbor adapter that benchmarks the embedded candidate policy directly."""
+
+    SUPPORTS_ATIF = True
+
+    @staticmethod
+    def name() -> str:
+        return "autoagent"
+
+    def version(self) -> str | None:
+        return "0.1.0"
+
+    async def setup(self, environment: BaseEnvironment) -> None:
+        await environment.exec(command="mkdir -p /logs/verifier /task")
+
+    async def run(self, instruction: str, environment: BaseEnvironment, context: AgentContext) -> None:
+        t0 = time.time()
+        summary = run_candidate_benchmark()
+        duration_ms = int((time.time() - t0) * 1000)
+        reward, diagnostics = compute_reward(summary)
+
+        verifier_dir = self.logs_dir / "verifier"
+        verifier_dir.mkdir(parents=True, exist_ok=True)
+        summary_path = verifier_dir / "summary.json"
+        reward_json_path = verifier_dir / "reward.json"
+        reward_txt_path = verifier_dir / "reward.txt"
+        policy_path = self.logs_dir / "candidate_policy.json"
+        trajectory_path = self.logs_dir / "trajectory.json"
+
+        summary_path.write_text(json.dumps(summary, indent=2))
+        reward_json_path.write_text(json.dumps(diagnostics, indent=2))
+        reward_txt_path.write_text(f"{reward}\n")
+        policy_path.write_text(_candidate_policy_json())
+        trajectory_path.write_text(json.dumps(_atif_trajectory(summary, duration_ms), indent=2))
+
+        await environment.exec(command="mkdir -p /logs/verifier /task")
+        await environment.upload_file(source_path=summary_path, target_path="/logs/verifier/summary.json")
+        await environment.upload_file(source_path=reward_json_path, target_path="/logs/verifier/reward.json")
+        await environment.upload_file(source_path=reward_txt_path, target_path="/logs/verifier/reward.txt")
+        await environment.upload_file(source_path=policy_path, target_path="/task/candidate_policy.json")
+
+        comparison = summary["comparison"]
+        context.cost_usd = 0
+        context.n_input_tokens = 0
+        context.n_output_tokens = 0
+        context.n_cache_tokens = 0
+        print(
+            "policy benchmark "
+            f"candidate={comparison['candidate_score']:.3f} "
+            f"incumbent={comparison['incumbent_score']:.3f} "
+            f"reward={reward:.3f} duration_ms={duration_ms}"
+        )
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -310,6 +433,9 @@ def main() -> None:
     parser = _build_parser()
     parser.print_help(sys.stderr)
     raise SystemExit(1)
+
+
+__all__ = ["AutoAgent"]
 
 
 if __name__ == "__main__":

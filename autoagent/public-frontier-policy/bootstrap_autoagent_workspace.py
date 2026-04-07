@@ -11,9 +11,12 @@ from pathlib import Path
 SIDECAR_ROOT = Path(__file__).resolve().parent
 TASK_ROOT = SIDECAR_ROOT / "tasks" / "public-frontier-policy"
 
-COPY_MAP = {
+ROOT_COPY_MAP = {
     SIDECAR_ROOT / "agent.py": Path("agent.py"),
     SIDECAR_ROOT / "program.md": Path("program.md"),
+}
+
+TASK_COPY_MAP = {
     TASK_ROOT / "instruction.md": Path("tasks") / "public-frontier-policy" / "instruction.md",
     TASK_ROOT / "task.toml": Path("tasks") / "public-frontier-policy" / "task.toml",
     TASK_ROOT / "environment" / "Dockerfile": (
@@ -52,6 +55,11 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Print planned writes without modifying the target workspace.",
     )
+    parser.add_argument(
+        "--include-root",
+        action="store_true",
+        help="Also export root agent.py/program.md even if the target already has them.",
+    )
     return parser
 
 
@@ -67,8 +75,26 @@ def _copy_file(source: Path, destination: Path, *, force: bool, dry_run: bool) -
     shutil.copy2(source, destination)
 
 
-def bootstrap_workspace(target: Path, *, force: bool = False, dry_run: bool = False) -> None:
-    for source, relative_destination in COPY_MAP.items():
+def _should_copy_root(target: Path, *, include_root: bool) -> bool:
+    if include_root:
+        return True
+    return not ((target / "agent.py").exists() or (target / "program.md").exists())
+
+
+def bootstrap_workspace(
+    target: Path,
+    *,
+    force: bool = False,
+    dry_run: bool = False,
+    include_root: bool = False,
+) -> None:
+    copy_map = dict(TASK_COPY_MAP)
+    if _should_copy_root(target, include_root=include_root):
+        copy_map = {**ROOT_COPY_MAP, **copy_map}
+    elif dry_run:
+        print("Skipping root agent.py/program.md because target already has them.")
+
+    for source, relative_destination in copy_map.items():
         _copy_file(
             source,
             target / relative_destination,
@@ -83,6 +109,7 @@ def main() -> None:
         args.target,
         force=args.force,
         dry_run=args.dry_run,
+        include_root=args.include_root,
     )
 
 

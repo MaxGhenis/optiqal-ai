@@ -61,7 +61,11 @@ To export this harness into an AutoAgent-style workspace root:
 python bootstrap_autoagent_workspace.py --target /path/to/autoagent-workspace
 ```
 
-Use `--dry-run` to inspect the copy plan and `--force` to overwrite existing files.
+By default, the bootstrap preserves an existing AutoAgent root `agent.py` and
+`program.md` and only overlays the task bundle. Use `--include-root` if you
+want the Optiqal public-policy root harness to become the workspace’s active
+Harbor agent under test. Use `--dry-run` to inspect the copy plan and `--force`
+to overwrite existing files.
 
 For the exact bootstrap and first-run sequence, see:
 

@@ -13,9 +13,12 @@ cd /tmp/optiqal-autoagent
 
 ```bash
 cd /Users/maxghenis/optiqal-ai/autoagent/public-frontier-policy
-python bootstrap_autoagent_workspace.py --target /tmp/optiqal-autoagent --force
+python bootstrap_autoagent_workspace.py --target /tmp/optiqal-autoagent --include-root --force
 ```
 
+On an existing AutoAgent clone, `--include-root` makes the Optiqal public-policy
+root harness the active Harbor agent under test. Omit `--include-root` if you
+only want to copy the task bundle without replacing the workspace root harness.
 Use `--dry-run` first if you want to inspect the copy plan.
 
 ## 3. Install AutoAgent deps
@@ -68,6 +71,15 @@ python tasks/public-frontier-policy/tests/score_task.py /tmp/public-frontier-tas
 ```
 
 ## 7. Run one Harbor benchmark pass
+
+Optional preflight:
+
+```bash
+cd /Users/maxghenis/optiqal-ai/autoagent/public-frontier-policy
+python check_autoagent_workspace.py --workspace /tmp/optiqal-autoagent
+```
+
+Then run Harbor:
 
 ```bash
 cd /tmp/optiqal-autoagent
