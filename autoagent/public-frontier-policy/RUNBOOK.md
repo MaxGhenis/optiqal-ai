@@ -29,6 +29,13 @@ uv sync
 docker build -f Dockerfile.base -t autoagent-base .
 ```
 
+If Docker Desktop is installed on macOS, make sure its credential helper is on
+your `PATH` before running Harbor:
+
+```bash
+export PATH=/Applications/Docker.app/Contents/Resources/bin:$PATH
+```
+
 ## 4. Make Optiqal importable to the root harness
 
 Choose one:
@@ -76,6 +83,7 @@ Optional preflight:
 
 ```bash
 cd /Users/maxghenis/optiqal-ai/autoagent/public-frontier-policy
+export PATH=/Applications/Docker.app/Contents/Resources/bin:$PATH
 python check_autoagent_workspace.py --workspace /tmp/optiqal-autoagent
 ```
 
@@ -83,6 +91,7 @@ Then run Harbor:
 
 ```bash
 cd /tmp/optiqal-autoagent
+export PATH=/Applications/Docker.app/Contents/Resources/bin:$PATH
 rm -rf jobs && mkdir -p jobs
 uv run harbor run \
   -p tasks/public-frontier-policy \

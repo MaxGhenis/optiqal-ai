@@ -3,6 +3,9 @@
   "conditions": {
     "cardiometabolic_signal": {
       "profile_score_threshold": 4
+    },
+    "metabolic_signal": {
+      "profile_score_threshold": 5
     }
   },
   "items": {
