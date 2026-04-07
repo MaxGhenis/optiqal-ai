@@ -7,13 +7,12 @@ import json
 from pathlib import Path
 
 from optiqal.public_frontier_benchmark import (
-    CANONICAL_PUBLIC_FRONTIER_SCENARIOS,
     benchmark_report_from_dict,
     benchmark_report_to_dict,
+    build_public_frontier_benchmark_scenarios,
     build_pairwise_judge_packets,
     compute_hybrid_public_frontier_score,
     compute_pairwise_judge_score,
-    generate_stratified_public_frontier_scenarios,
     judge_packet_to_dict,
     parse_public_frontier_judge_verdicts,
     run_public_frontier_benchmark,
@@ -33,6 +32,12 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         default=42,
         help="Seed for generated stratified scenarios.",
+    )
+    parser.add_argument(
+        "--seed-count",
+        type=int,
+        default=1,
+        help="Number of consecutive generation seeds to evaluate starting at --seed.",
     )
     parser.add_argument(
         "--json",
@@ -71,16 +76,13 @@ def _build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = _build_parser().parse_args()
 
-    scenarios = list(CANONICAL_PUBLIC_FRONTIER_SCENARIOS)
-    if args.cases_per_stratum > 0:
-        scenarios.extend(
-            generate_stratified_public_frontier_scenarios(
-                seed=args.seed,
-                cases_per_stratum=args.cases_per_stratum,
-            )
-        )
+    scenarios = build_public_frontier_benchmark_scenarios(
+        cases_per_stratum=args.cases_per_stratum,
+        seed=args.seed,
+        seed_count=args.seed_count,
+    )
 
-    report = run_public_frontier_benchmark(tuple(scenarios))
+    report = run_public_frontier_benchmark(scenarios)
     report_dict = benchmark_report_to_dict(report, include_responses=True)
 
     if args.output_report is not None:
@@ -92,7 +94,7 @@ def main() -> None:
         other_report = benchmark_report_from_dict(
             json.loads(args.judge_against_report.read_text())
         )
-        packets = build_pairwise_judge_packets(report, other_report, scenarios=tuple(scenarios))
+        packets = build_pairwise_judge_packets(report, other_report, scenarios=scenarios)
         args.emit_judge_packets.write_text(
             json.dumps([judge_packet_to_dict(packet) for packet in packets], indent=2)
         )

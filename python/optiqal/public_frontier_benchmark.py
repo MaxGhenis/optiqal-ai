@@ -388,6 +388,45 @@ def generate_stratified_public_frontier_scenarios(
     return tuple(scenarios)
 
 
+def build_public_frontier_benchmark_scenarios(
+    *,
+    cases_per_stratum: int = 0,
+    seed: int = 42,
+    seed_count: int = 1,
+    include_canonical: bool = True,
+) -> tuple[PublicFrontierBenchmarkScenario, ...]:
+    """Build a benchmark scenario set, optionally spanning multiple generation seeds."""
+    if seed_count < 1:
+        raise ValueError("seed_count must be at least 1")
+
+    scenarios: list[PublicFrontierBenchmarkScenario] = []
+    if include_canonical:
+        scenarios.extend(CANONICAL_PUBLIC_FRONTIER_SCENARIOS)
+
+    if cases_per_stratum <= 0:
+        return tuple(scenarios)
+
+    for seed_offset in range(seed_count):
+        active_seed = seed + seed_offset
+        generated = generate_stratified_public_frontier_scenarios(
+            seed=active_seed,
+            cases_per_stratum=cases_per_stratum,
+        )
+        for scenario in generated:
+            scenarios.append(
+                PublicFrontierBenchmarkScenario(
+                    id=f"seed{active_seed}__{scenario.id}",
+                    label=f"{scenario.label} [seed {active_seed}]",
+                    description=f"{scenario.description} Seed {active_seed}.",
+                    payload=scenario.payload,
+                    rules=scenario.rules,
+                    tags=(*scenario.tags, f"seed:{active_seed}"),
+                )
+            )
+
+    return tuple(scenarios)
+
+
 def evaluate_public_frontier_case(
     scenario: PublicFrontierBenchmarkScenario,
     *,

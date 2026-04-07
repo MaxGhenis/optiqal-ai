@@ -57,6 +57,7 @@ CANDIDATE_POLICY: dict[str, Any] = {
 }
 
 DEFAULT_CASES_PER_STRATUM = 4
+DEFAULT_SEED_COUNT = 2
 DEFAULT_JUDGE_WEIGHT = 0.2
 
 
@@ -125,31 +126,27 @@ def _run_candidate_benchmark_in_process(
     candidate_path: Path,
     cases_per_stratum: int,
     seed: int,
+    seed_count: int,
     judge_verdicts: Path | None,
     emit_judge_packets: Path | None,
 ) -> dict[str, Any]:
     from optiqal import load_public_policy_override
     from optiqal.public_frontier_benchmark import (
-        CANONICAL_PUBLIC_FRONTIER_SCENARIOS,
         benchmark_report_to_dict,
+        build_public_frontier_benchmark_scenarios,
         build_pairwise_judge_packets,
         compute_hybrid_public_frontier_score,
         compute_pairwise_judge_score,
-        generate_stratified_public_frontier_scenarios,
         judge_packet_to_dict,
         parse_public_frontier_judge_verdicts,
         run_public_frontier_benchmark,
     )
 
-    scenarios = list(CANONICAL_PUBLIC_FRONTIER_SCENARIOS)
-    if cases_per_stratum > 0:
-        scenarios.extend(
-            generate_stratified_public_frontier_scenarios(
-                seed=seed,
-                cases_per_stratum=cases_per_stratum,
-            )
-        )
-    scenario_tuple = tuple(scenarios)
+    scenario_tuple = build_public_frontier_benchmark_scenarios(
+        cases_per_stratum=cases_per_stratum,
+        seed=seed,
+        seed_count=seed_count,
+    )
 
     candidate_policy = load_public_policy_override(candidate_path)
     candidate_report = run_public_frontier_benchmark(
@@ -198,6 +195,7 @@ def run_candidate_benchmark(
     *,
     cases_per_stratum: int = DEFAULT_CASES_PER_STRATUM,
     seed: int = 42,
+    seed_count: int = DEFAULT_SEED_COUNT,
     judge_verdicts: Path | None = None,
     emit_judge_packets: Path | None = None,
     output: Path | None = None,
@@ -222,6 +220,8 @@ def run_candidate_benchmark(
                 str(cases_per_stratum),
                 "--seed",
                 str(seed),
+                "--seed-count",
+                str(seed_count),
                 "--json",
             ]
             if judge_verdicts is not None:
@@ -251,6 +251,7 @@ def run_candidate_benchmark(
             candidate_path=candidate_path,
             cases_per_stratum=cases_per_stratum,
             seed=seed,
+            seed_count=seed_count,
             judge_verdicts=judge_verdicts,
             emit_judge_packets=emit_judge_packets,
         )
@@ -398,6 +399,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Seed for generated stratified scenarios.",
     )
     parser.add_argument(
+        "--seed-count",
+        type=int,
+        default=DEFAULT_SEED_COUNT,
+        help="Number of consecutive generation seeds to evaluate starting at --seed.",
+    )
+    parser.add_argument(
         "--judge-verdicts",
         type=Path,
         help="Optional offline judge verdict JSON for hybrid scoring.",
@@ -425,6 +432,7 @@ def main() -> None:
         summary = run_candidate_benchmark(
             cases_per_stratum=args.cases_per_stratum,
             seed=args.seed,
+            seed_count=args.seed_count,
             judge_verdicts=args.judge_verdicts,
             emit_judge_packets=args.emit_judge_packets,
             output=args.output,

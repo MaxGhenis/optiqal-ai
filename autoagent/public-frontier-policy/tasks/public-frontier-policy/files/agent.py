@@ -11,12 +11,11 @@ from typing import Any
 
 from optiqal import load_public_policy_override
 from optiqal.public_frontier_benchmark import (
-    CANONICAL_PUBLIC_FRONTIER_SCENARIOS,
     benchmark_report_to_dict,
+    build_public_frontier_benchmark_scenarios,
     build_pairwise_judge_packets,
     compute_hybrid_public_frontier_score,
     compute_pairwise_judge_score,
-    generate_stratified_public_frontier_scenarios,
     judge_packet_to_dict,
     parse_public_frontier_judge_verdicts,
     run_public_frontier_benchmark,
@@ -50,6 +49,7 @@ CANDIDATE_POLICY: dict[str, Any] = {
 }
 
 DEFAULT_CASES_PER_STRATUM = 4
+DEFAULT_SEED_COUNT = 2
 DEFAULT_JUDGE_WEIGHT = 0.2
 
 
@@ -112,18 +112,15 @@ def run_candidate_benchmark(
     *,
     cases_per_stratum: int = DEFAULT_CASES_PER_STRATUM,
     seed: int = 42,
+    seed_count: int = DEFAULT_SEED_COUNT,
     judge_verdicts: Path | None = None,
     emit_judge_packets: Path | None = None,
 ) -> dict[str, Any]:
-    scenarios = list(CANONICAL_PUBLIC_FRONTIER_SCENARIOS)
-    if cases_per_stratum > 0:
-        scenarios.extend(
-            generate_stratified_public_frontier_scenarios(
-                seed=seed,
-                cases_per_stratum=cases_per_stratum,
-            )
-        )
-    scenario_tuple = tuple(scenarios)
+    scenario_tuple = build_public_frontier_benchmark_scenarios(
+        cases_per_stratum=cases_per_stratum,
+        seed=seed,
+        seed_count=seed_count,
+    )
 
     with tempfile.NamedTemporaryFile(
         mode="w",
@@ -186,6 +183,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--summary-json", action="store_true")
     parser.add_argument("--cases-per-stratum", type=int, default=DEFAULT_CASES_PER_STRATUM)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--seed-count", type=int, default=DEFAULT_SEED_COUNT)
     parser.add_argument("--judge-verdicts", type=Path)
     parser.add_argument("--emit-judge-packets", type=Path)
     return parser
@@ -198,6 +196,7 @@ def main() -> None:
     summary = run_candidate_benchmark(
         cases_per_stratum=args.cases_per_stratum,
         seed=args.seed,
+        seed_count=args.seed_count,
         judge_verdicts=args.judge_verdicts,
         emit_judge_packets=args.emit_judge_packets,
     )

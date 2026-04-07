@@ -9,12 +9,11 @@ from typing import Any
 
 from optiqal import load_public_policy_override
 from optiqal.public_frontier_benchmark import (
-    CANONICAL_PUBLIC_FRONTIER_SCENARIOS,
     benchmark_report_to_dict,
+    build_public_frontier_benchmark_scenarios,
     build_pairwise_judge_packets,
     compute_hybrid_public_frontier_score,
     compute_pairwise_judge_score,
-    generate_stratified_public_frontier_scenarios,
     judge_packet_to_dict,
     parse_public_frontier_judge_verdicts,
     run_public_frontier_benchmark,
@@ -45,6 +44,12 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         default=42,
         help="Seed for generated stratified scenarios.",
+    )
+    parser.add_argument(
+        "--seed-count",
+        type=int,
+        default=1,
+        help="Number of consecutive generation seeds to evaluate starting at --seed.",
     )
     parser.add_argument(
         "--emit-judge-packets",
@@ -121,15 +126,11 @@ def _comparison_summary(candidate_report: dict[str, Any], incumbent_report: dict
 def main() -> None:
     args = _build_parser().parse_args()
 
-    scenarios = list(CANONICAL_PUBLIC_FRONTIER_SCENARIOS)
-    if args.cases_per_stratum > 0:
-        scenarios.extend(
-            generate_stratified_public_frontier_scenarios(
-                seed=args.seed,
-                cases_per_stratum=args.cases_per_stratum,
-            )
-        )
-    scenario_tuple = tuple(scenarios)
+    scenario_tuple = build_public_frontier_benchmark_scenarios(
+        cases_per_stratum=args.cases_per_stratum,
+        seed=args.seed,
+        seed_count=args.seed_count,
+    )
 
     candidate_policy = load_public_policy_override(args.candidate_policy)
     incumbent_policy = (

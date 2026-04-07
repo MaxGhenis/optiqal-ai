@@ -35,7 +35,7 @@ From this directory:
 
 ```bash
 python agent.py --summary-json
-python agent.py --summary-json --cases-per-stratum 8
+python agent.py --summary-json --cases-per-stratum 8 --seed-count 4
 python agent.py --emit-policy /tmp/candidate-policy.json
 ```
 

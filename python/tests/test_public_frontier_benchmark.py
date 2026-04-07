@@ -9,6 +9,7 @@ from optiqal.public_frontier_benchmark import (
     CANONICAL_PUBLIC_FRONTIER_SCENARIOS,
     benchmark_report_from_dict,
     benchmark_report_to_dict,
+    build_public_frontier_benchmark_scenarios,
     build_pairwise_judge_packets,
     compute_hybrid_public_frontier_score,
     compute_pairwise_judge_score,
@@ -54,6 +55,20 @@ def test_generated_metabolic_strata_respect_intended_bmi_bands():
             assert bmi >= 30
         if "borderline_metabolic_public" in scenario.tags:
             assert 25 <= bmi < 30
+
+
+def test_multi_seed_benchmark_builder_prefixes_generated_ids_uniquely():
+    scenarios = build_public_frontier_benchmark_scenarios(
+        cases_per_stratum=1,
+        seed=10,
+        seed_count=2,
+    )
+
+    ids = [scenario.id for scenario in scenarios]
+    assert "healthy_35f_public" in ids
+    assert "seed10__healthy_public_1" in ids
+    assert "seed11__healthy_public_1" in ids
+    assert len(ids) == len(set(ids))
 
 
 def test_judge_prompt_includes_scenario_rules_and_candidate_summaries():

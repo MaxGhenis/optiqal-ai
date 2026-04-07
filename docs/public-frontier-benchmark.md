@@ -42,6 +42,7 @@ From [`python`](../python/):
 ./.venv/bin/python scripts/run_public_frontier_benchmark.py
 ./.venv/bin/python scripts/run_public_frontier_benchmark.py --json
 ./.venv/bin/python scripts/run_public_frontier_benchmark.py --cases-per-stratum 2 --seed 42
+./.venv/bin/python scripts/run_public_frontier_benchmark.py --cases-per-stratum 4 --seed 0 --seed-count 2
 ```
 
 To save a full candidate report for later pairwise review:
@@ -71,6 +72,9 @@ To compare a candidate policy override against the live incumbent and emit judge
 ```bash
 ./.venv/bin/python scripts/run_public_frontier_candidate.py \
   --candidate-policy optiqal/data/public_policy_candidate_template.json \
+  --cases-per-stratum 4 \
+  --seed 0 \
+  --seed-count 2 \
   --emit-judge-packets /tmp/judge-packets.json \
   --json
 ```

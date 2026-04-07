@@ -34,7 +34,7 @@ python agent.py --summary-json
 For a stronger benchmark:
 
 ```bash
-python agent.py --summary-json --cases-per-stratum 8
+python agent.py --summary-json --cases-per-stratum 8 --seed-count 4
 ```
 
 To emit pairwise judge packets for manual or LLM review:
