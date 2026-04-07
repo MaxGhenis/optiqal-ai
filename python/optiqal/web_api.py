@@ -7,6 +7,7 @@ from typing import Any, Dict, Literal, Optional
 
 from optiqal import (
     AnalysisConfig,
+    PublicPolicy,
     Profile,
     analyze,
     build_public_policy_spec,
@@ -426,6 +427,14 @@ def _round_or_none(value: Any, digits: int) -> Optional[float]:
 
 
 def build_frontier_response(payload: Dict[str, Any]) -> dict[str, Any]:
+    return build_frontier_response_with_policy(payload)
+
+
+def build_frontier_response_with_policy(
+    payload: Dict[str, Any],
+    *,
+    public_policy: Optional[PublicPolicy] = None,
+) -> dict[str, Any]:
     profile_payload = payload.get("profile") or {}
     sleep_payload = payload.get("sleep_metrics") or {}
 
@@ -472,6 +481,7 @@ def build_frontier_response(payload: Dict[str, Any]) -> dict[str, Any]:
             entry,
             profile=config.profile,
             sleep_estimate=config.sleep_estimate,
+            policy=public_policy,
         )
     ]
 
@@ -520,13 +530,14 @@ def build_frontier_response(payload: Dict[str, Any]) -> dict[str, Any]:
             entry,
             profile=config.profile,
             sleep_estimate=config.sleep_estimate,
+            policy=public_policy,
         )
         items.append({
             "id": raw["id"],
             "name": entry.name,
             "category": entry.category,
-            "display_category": public_display_category(entry),
-            "public_lane": public_recommendation_lane(entry),
+            "display_category": public_display_category(entry, public_policy),
+            "public_lane": public_recommendation_lane(entry, policy=public_policy),
             "annual_cost": None if unpriced else round(float(raw["annual_cost"]), 2),
             "total_cost": round(float(raw["total_cost"]), 2),
             "cost_per_qaly": None if unpriced else _round_or_none(raw["cost_per_qaly"], 0),
@@ -552,6 +563,7 @@ def build_frontier_response(payload: Dict[str, Any]) -> dict[str, Any]:
                 entry,
                 profile=config.profile,
                 sleep_estimate=config.sleep_estimate,
+                policy=public_policy,
             ),
             "access": _access_payload(entry),
         })
@@ -596,7 +608,7 @@ def build_frontier_response(payload: Dict[str, Any]) -> dict[str, Any]:
 
     decision_states = []
     decision_sequence = []
-    if has_meaningful_public_airway_signal(config.sleep_estimate):
+    if has_meaningful_public_airway_signal(config.sleep_estimate, policy=public_policy):
         decision_specs = build_public_sleep_decision_specs()
         decision_item_ids: list[str] = []
         seen_decision_ids: set[str] = set()
@@ -714,7 +726,7 @@ def build_frontier_response(payload: Dict[str, Any]) -> dict[str, Any]:
             },
         },
         "sleep_estimate": None,
-        "public_policy": build_public_policy_spec(entries),
+        "public_policy": build_public_policy_spec(entries, policy=public_policy),
         "frontier": frontier_rows,
         "items": items,
         "decision_states": decision_states,

@@ -8,7 +8,8 @@ from pathlib import Path
 import random
 from typing import Any, Literal, Optional
 
-from .web_api import build_frontier_response
+from .catalog import PublicPolicy
+from .web_api import build_frontier_response_with_policy
 
 
 BENCHMARK_SCENARIOS_PATH = Path(__file__).parent / "data" / "public_frontier_benchmark_scenarios.json"
@@ -321,9 +322,14 @@ def generate_stratified_public_frontier_scenarios(
 
 def evaluate_public_frontier_case(
     scenario: PublicFrontierBenchmarkScenario,
+    *,
+    public_policy: Optional[PublicPolicy] = None,
 ) -> PublicFrontierBenchmarkCaseResult:
     """Run one scenario through the public frontier and score hard rules."""
-    response = build_frontier_response(scenario.payload)
+    response = build_frontier_response_with_policy(
+        scenario.payload,
+        public_policy=public_policy,
+    )
     frontier_ids = tuple(row["added_intervention"] for row in response["frontier"])
     top_ids = frontier_ids[: scenario.rules.top_n]
     failures: list[PublicFrontierBenchmarkFailure] = []
@@ -416,10 +422,15 @@ def evaluate_public_frontier_case(
 
 def run_public_frontier_benchmark(
     scenarios: Optional[tuple[PublicFrontierBenchmarkScenario, ...]] = None,
+    *,
+    public_policy: Optional[PublicPolicy] = None,
 ) -> PublicFrontierBenchmarkReport:
     """Run the canonical or provided benchmark scenario set."""
     active_scenarios = scenarios or CANONICAL_PUBLIC_FRONTIER_SCENARIOS
-    case_results = tuple(evaluate_public_frontier_case(scenario) for scenario in active_scenarios)
+    case_results = tuple(
+        evaluate_public_frontier_case(scenario, public_policy=public_policy)
+        for scenario in active_scenarios
+    )
     total_checks = sum(result.checks_run for result in case_results)
     total_failures = sum(result.checks_failed for result in case_results)
     score = 1.0 if total_checks == 0 else max(0.0, (total_checks - total_failures) / total_checks)

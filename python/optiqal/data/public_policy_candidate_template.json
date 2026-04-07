@@ -1,0 +1,18 @@
+{
+  "lanes": {},
+  "conditions": {
+    "cardiometabolic_signal": {
+      "profile_score_threshold": 4
+    }
+  },
+  "items": {
+    "statin_5mg": {
+      "public_lane": "conditional_public",
+      "public_condition": "cardiometabolic_signal",
+      "public_display_category_override": "rx"
+    }
+  },
+  "excluded_reasons": {
+    "vitamin_d_2000": null
+  }
+}

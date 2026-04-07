@@ -11,7 +11,7 @@ Use with `publication_bias_correct()` from `confounding.py` before simulation.
 import json
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Dict, List, Literal, Mapping, Optional
+from typing import Any, Dict, List, Literal, Mapping, Optional
 
 import numpy as np
 
@@ -228,6 +228,16 @@ class PublicItemPolicySpec:
     public_lane: Optional[PublicRecommendationLane] = None
     public_condition: Optional[PublicCondition] = None
     public_display_category_override: Optional[PublicDisplayCategory] = None
+
+
+@dataclass(frozen=True)
+class PublicPolicy:
+    """Resolved public-frontier policy that can be overridden without editing the model."""
+
+    lane_specs: Mapping[PublicRecommendationLane, PublicLaneSpec]
+    condition_specs: Mapping[PublicCondition, PublicConditionSpec]
+    item_policy_specs: Mapping[str, PublicItemPolicySpec]
+    excluded_reasons: Mapping[str, str]
 
 
 def _load_public_lane_specs() -> Dict[PublicRecommendationLane, PublicLaneSpec]:
@@ -1948,39 +1958,291 @@ PUBLIC_GENERIC_EXCLUDED_REASONS = {
 }
 
 
+def get_default_public_policy() -> PublicPolicy:
+    """Return the fully resolved public policy used by the live public frontier."""
+    return PublicPolicy(
+        lane_specs=dict(PUBLIC_LANE_SPECS),
+        condition_specs=dict(PUBLIC_CONDITION_SPECS),
+        item_policy_specs={
+            item_id: PublicItemPolicySpec(
+                item_id=item_id,
+                public_lane=entry.public_lane,
+                public_condition=entry.public_condition,
+                public_display_category_override=entry.public_display_category_override,
+            )
+            for item_id, entry in CATALOG.items()
+        },
+        excluded_reasons=dict(PUBLIC_GENERIC_EXCLUDED_REASONS),
+    )
+
+
+def _active_public_policy(policy: Optional[PublicPolicy]) -> PublicPolicy:
+    return policy if policy is not None else get_default_public_policy()
+
+
+def _validate_public_lane_spec(
+    lane_id: str,
+    raw_spec: Mapping[str, Any],
+    *,
+    base_spec: PublicLaneSpec,
+) -> PublicLaneSpec:
+    if lane_id not in PUBLIC_RECOMMENDATION_LANE_VALUES:
+        raise ValueError(f"Unexpected public lane id override: {lane_id}")
+    return PublicLaneSpec(
+        id=lane_id,
+        label=str(raw_spec.get("label", base_spec.label)),
+        description=str(raw_spec.get("description", base_spec.description)),
+    )
+
+
+def _validate_public_threshold_rule(
+    raw_rule: Mapping[str, Any],
+    *,
+    condition_id: str,
+) -> PublicThresholdRule:
+    signal = str(raw_rule["signal"])
+    if signal not in PUBLIC_THRESHOLD_SIGNAL_VALUES:
+        raise ValueError(
+            f"Unexpected threshold signal {signal!r} in public condition override {condition_id}"
+        )
+    return PublicThresholdRule(
+        signal=signal,
+        threshold=float(raw_rule["threshold"]),
+        label=str(raw_rule["label"]),
+    )
+
+
+def _validate_public_profile_score_rule(
+    raw_rule: Mapping[str, Any],
+    *,
+    condition_id: str,
+) -> PublicProfileScoreRule:
+    field_name = str(raw_rule["field"])
+    operator = str(raw_rule["operator"])
+    if field_name not in PUBLIC_PROFILE_RULE_FIELDS:
+        raise ValueError(
+            f"Unexpected profile rule field {field_name!r} in public condition override {condition_id}"
+        )
+    if operator not in PUBLIC_PROFILE_RULE_OPERATORS:
+        raise ValueError(
+            f"Unexpected profile rule operator {operator!r} in public condition override {condition_id}"
+        )
+    value = raw_rule["value"]
+    if operator == "in":
+        value = tuple(value)
+    return PublicProfileScoreRule(
+        field=field_name,
+        operator=operator,
+        value=value,
+        points=int(raw_rule["points"]),
+        label=str(raw_rule["label"]),
+    )
+
+
+def _merge_public_condition_spec(
+    condition_id: str,
+    raw_override: Mapping[str, Any],
+    *,
+    base_spec: PublicConditionSpec,
+) -> PublicConditionSpec:
+    evaluation_kind = str(raw_override.get("evaluation_kind", base_spec.evaluation_kind))
+    if evaluation_kind not in PUBLIC_CONDITION_EVALUATION_KINDS:
+        raise ValueError(
+            f"Unexpected evaluation_kind {evaluation_kind!r} in public condition override {condition_id}"
+        )
+
+    threshold_rules = base_spec.threshold_rules
+    if "threshold_rules" in raw_override:
+        threshold_rules = tuple(
+            _validate_public_threshold_rule(raw_rule, condition_id=condition_id)
+            for raw_rule in raw_override["threshold_rules"]
+        )
+
+    profile_rules = base_spec.profile_rules
+    if "profile_rules" in raw_override:
+        profile_rules = tuple(
+            _validate_public_profile_score_rule(raw_rule, condition_id=condition_id)
+            for raw_rule in raw_override["profile_rules"]
+        )
+
+    profile_score_threshold = base_spec.profile_score_threshold
+    if "profile_score_threshold" in raw_override:
+        raw_threshold = raw_override["profile_score_threshold"]
+        profile_score_threshold = None if raw_threshold is None else int(raw_threshold)
+
+    return PublicConditionSpec(
+        id=condition_id,
+        label=str(raw_override.get("label", base_spec.label)),
+        description=str(raw_override.get("description", base_spec.description)),
+        evaluation_kind=evaluation_kind,
+        hidden_reason=str(raw_override.get("hidden_reason", base_spec.hidden_reason)),
+        threshold_rules=threshold_rules,
+        profile_rules=profile_rules,
+        profile_score_threshold=profile_score_threshold,
+    )
+
+
+def _merge_public_item_policy_spec(
+    item_id: str,
+    raw_override: Mapping[str, Any],
+    *,
+    base_spec: PublicItemPolicySpec,
+) -> PublicItemPolicySpec:
+    if item_id not in CATALOG:
+        raise ValueError(f"Unknown catalog id in public item policy override: {item_id}")
+
+    public_lane = base_spec.public_lane
+    if "public_lane" in raw_override:
+        public_lane = raw_override["public_lane"]
+    if public_lane is not None and public_lane not in PUBLIC_RECOMMENDATION_LANE_VALUES:
+        raise ValueError(
+            f"Unexpected public_lane {public_lane!r} in public item policy override {item_id}"
+        )
+
+    public_condition = base_spec.public_condition
+    if "public_condition" in raw_override:
+        public_condition = raw_override["public_condition"]
+    if public_condition is not None and public_condition not in PUBLIC_CONDITION_VALUES:
+        raise ValueError(
+            f"Unexpected public_condition {public_condition!r} in public item policy override {item_id}"
+        )
+
+    display_category = base_spec.public_display_category_override
+    if "public_display_category_override" in raw_override:
+        display_category = raw_override["public_display_category_override"]
+    if display_category is not None and display_category not in PUBLIC_DISPLAY_CATEGORY_VALUES:
+        raise ValueError(
+            "Unexpected public_display_category_override "
+            f"{display_category!r} in public item policy override {item_id}"
+        )
+
+    return PublicItemPolicySpec(
+        item_id=item_id,
+        public_lane=public_lane,
+        public_condition=public_condition,
+        public_display_category_override=display_category,
+    )
+
+
+def load_public_policy_override(
+    path: Path | str,
+    *,
+    base_policy: Optional[PublicPolicy] = None,
+) -> PublicPolicy:
+    """Load a candidate public-policy override JSON on top of the current resolved policy."""
+    active_policy = _active_public_policy(base_policy)
+    raw_policy = json.loads(Path(path).read_text())
+
+    lane_specs = dict(active_policy.lane_specs)
+    for lane_id, raw_spec in raw_policy.get("lanes", {}).items():
+        lane_specs[lane_id] = _validate_public_lane_spec(
+            lane_id,
+            raw_spec,
+            base_spec=lane_specs[lane_id],
+        )
+
+    condition_specs = dict(active_policy.condition_specs)
+    for condition_id, raw_spec in raw_policy.get("conditions", {}).items():
+        if condition_id not in condition_specs:
+            raise ValueError(f"Unknown public condition override id: {condition_id}")
+        condition_specs[condition_id] = _merge_public_condition_spec(
+            condition_id,
+            raw_spec,
+            base_spec=condition_specs[condition_id],
+        )
+
+    item_policy_specs = dict(active_policy.item_policy_specs)
+    for item_id, raw_spec in raw_policy.get("items", {}).items():
+        base_item_spec = item_policy_specs.get(
+            item_id,
+            PublicItemPolicySpec(item_id=item_id),
+        )
+        item_policy_specs[item_id] = _merge_public_item_policy_spec(
+            item_id,
+            raw_spec,
+            base_spec=base_item_spec,
+        )
+
+    excluded_reasons = dict(active_policy.excluded_reasons)
+    for item_id, reason in raw_policy.get("excluded_reasons", {}).items():
+        if item_id not in CATALOG:
+            raise ValueError(f"Unknown catalog id in excluded_reasons override: {item_id}")
+        if reason in (None, ""):
+            excluded_reasons.pop(item_id, None)
+            continue
+        excluded_reasons[item_id] = str(reason)
+
+    return PublicPolicy(
+        lane_specs=lane_specs,
+        condition_specs=condition_specs,
+        item_policy_specs=item_policy_specs,
+        excluded_reasons=excluded_reasons,
+    )
+
+
+def _effective_public_item_policy(
+    entry: CatalogEntry,
+    policy: Optional[PublicPolicy] = None,
+) -> PublicItemPolicySpec:
+    active_policy = _active_public_policy(policy)
+    return active_policy.item_policy_specs.get(
+        entry.id,
+        PublicItemPolicySpec(
+            item_id=entry.id,
+            public_lane=entry.public_lane,
+            public_condition=entry.public_condition,
+            public_display_category_override=entry.public_display_category_override,
+        ),
+    )
+
+
 def has_meaningful_public_airway_signal(
     sleep_estimate: Optional[SleepBurdenEstimate],
+    *,
+    policy: Optional[PublicPolicy] = None,
 ) -> bool:
     """Whether public sleep interventions should surface for this phenotype."""
     return evaluate_public_condition(
-        PUBLIC_CONDITION_SPECS["airway_signal"],
+        _active_public_policy(policy).condition_specs["airway_signal"],
         profile=None,
         sleep_estimate=sleep_estimate,
     )
 
 
-def has_meaningful_public_statin_signal(profile: Optional[Profile]) -> bool:
+def has_meaningful_public_statin_signal(
+    profile: Optional[Profile],
+    *,
+    policy: Optional[PublicPolicy] = None,
+) -> bool:
     """Simple public-safe gate for surfacing a generic statin discussion."""
     return evaluate_public_condition(
-        PUBLIC_CONDITION_SPECS["cardiometabolic_signal"],
+        _active_public_policy(policy).condition_specs["cardiometabolic_signal"],
         profile=profile,
         sleep_estimate=None,
     )
 
 
-def has_meaningful_public_metformin_signal(profile: Optional[Profile]) -> bool:
+def has_meaningful_public_metformin_signal(
+    profile: Optional[Profile],
+    *,
+    policy: Optional[PublicPolicy] = None,
+) -> bool:
     """Simple public-safe gate for surfacing a generic metformin discussion."""
     return evaluate_public_condition(
-        PUBLIC_CONDITION_SPECS["metabolic_signal"],
+        _active_public_policy(policy).condition_specs["metabolic_signal"],
         profile=profile,
         sleep_estimate=None,
     )
 
 
-def has_meaningful_public_glp1_signal(profile: Optional[Profile]) -> bool:
+def has_meaningful_public_glp1_signal(
+    profile: Optional[Profile],
+    *,
+    policy: Optional[PublicPolicy] = None,
+) -> bool:
     """Simple public-safe gate for surfacing a generic GLP-1 discussion."""
     return evaluate_public_condition(
-        PUBLIC_CONDITION_SPECS["glp1_signal"],
+        _active_public_policy(policy).condition_specs["glp1_signal"],
         profile=profile,
         sleep_estimate=None,
     )
@@ -2036,21 +2298,24 @@ def evaluate_public_condition(
 def public_recommendation_lane(
     entry: CatalogEntry,
     profile: Optional[Profile] = None,
+    policy: Optional[PublicPolicy] = None,
 ) -> PublicRecommendationLane:
     """Top-level public product lane for this intervention."""
     del profile
-    return entry.public_lane
+    return _effective_public_item_policy(entry, policy).public_lane or entry.public_lane
 
 
 def has_meaningful_public_condition_signal(
     entry: CatalogEntry,
     profile: Optional[Profile],
     sleep_estimate: Optional[SleepBurdenEstimate],
+    policy: Optional[PublicPolicy] = None,
 ) -> bool:
     """Whether a conditional-public intervention has the needed qualifying signal."""
-    if entry.public_condition is None:
+    public_condition = _effective_public_item_policy(entry, policy).public_condition
+    if public_condition is None:
         return False
-    spec = PUBLIC_CONDITION_SPECS.get(entry.public_condition)
+    spec = _active_public_policy(policy).condition_specs.get(public_condition)
     if spec is None:
         return False
     return evaluate_public_condition(
@@ -2058,13 +2323,16 @@ def has_meaningful_public_condition_signal(
         profile=profile,
         sleep_estimate=sleep_estimate,
     )
-    return False
 
 
-def public_display_category(entry: CatalogEntry) -> str:
+def public_display_category(entry: CatalogEntry, policy: Optional[PublicPolicy] = None) -> str:
     """Generic public-facing category, separate from Max-specific stack status."""
-    if entry.public_display_category_override is not None:
-        return entry.public_display_category_override
+    display_category_override = _effective_public_item_policy(
+        entry,
+        policy,
+    ).public_display_category_override
+    if display_category_override is not None:
+        return display_category_override
     if entry.category.startswith("rx_"):
         return "rx"
     return "supplement"
@@ -2074,17 +2342,19 @@ def is_publicly_rankable(
     entry: CatalogEntry,
     profile: Optional[Profile] = None,
     sleep_estimate: Optional[SleepBurdenEstimate] = None,
+    policy: Optional[PublicPolicy] = None,
 ) -> bool:
     """Whether an entry belongs in the public ranked frontier for this phenotype."""
-    lane = public_recommendation_lane(entry)
+    lane = public_recommendation_lane(entry, policy=policy)
     if lane == "personal_only":
         return False
-    if entry.id in PUBLIC_GENERIC_EXCLUDED_REASONS:
+    if entry.id in _active_public_policy(policy).excluded_reasons:
         return False
     if lane == "conditional_public" and not has_meaningful_public_condition_signal(
         entry,
         profile,
         sleep_estimate,
+        policy=policy,
     ):
         return False
     return True
@@ -2094,26 +2364,30 @@ def public_rankability_reason(
     entry: CatalogEntry,
     profile: Optional[Profile] = None,
     sleep_estimate: Optional[SleepBurdenEstimate] = None,
+    policy: Optional[PublicPolicy] = None,
 ) -> Optional[str]:
     """Explain why an item is excluded from the public ranked frontier."""
-    if is_publicly_rankable(entry, profile=profile, sleep_estimate=sleep_estimate):
+    if is_publicly_rankable(entry, profile=profile, sleep_estimate=sleep_estimate, policy=policy):
         return None
-    lane = public_recommendation_lane(entry)
-    if entry.id in PUBLIC_GENERIC_EXCLUDED_REASONS:
-        return PUBLIC_GENERIC_EXCLUDED_REASONS[entry.id]
+    active_policy = _active_public_policy(policy)
+    effective_item_policy = _effective_public_item_policy(entry, policy)
+    lane = public_recommendation_lane(entry, policy=policy)
+    if entry.id in active_policy.excluded_reasons:
+        return active_policy.excluded_reasons[entry.id]
     if lane == "conditional_public" and not has_meaningful_public_condition_signal(
         entry,
         profile,
         sleep_estimate,
+        policy=policy,
     ):
-        spec = PUBLIC_CONDITION_SPECS.get(entry.public_condition)
+        spec = active_policy.condition_specs.get(effective_item_policy.public_condition)
         if spec is not None:
             return spec.hidden_reason
         return (
             "Hidden from the generic public frontier unless the current profile "
             "triggers a matching conditional lane."
         )
-    if entry.public_display_category_override == "service":
+    if effective_item_policy.public_display_category_override == "service":
         return (
             "Hidden from the generic public frontier because high-friction services "
             "are not broad default public recommendations."
@@ -2146,22 +2420,25 @@ def public_rankability_reason(
 
 def build_public_policy_spec(
     catalog_entries: Optional[Mapping[str, CatalogEntry]] = None,
+    policy: Optional[PublicPolicy] = None,
 ) -> dict[str, list[dict[str, object]]]:
     """Serialize the public gating policy so the UI can visualize it automatically."""
     entries = catalog_entries or CATALOG
+    active_policy = _active_public_policy(policy)
     items: list[dict[str, object]] = []
     lane_to_item_ids: dict[str, list[str]] = {
-        lane: [] for lane in PUBLIC_LANE_SPECS
+        lane: [] for lane in active_policy.lane_specs
     }
     condition_to_item_ids: dict[str, list[str]] = {
-        condition: [] for condition in PUBLIC_CONDITION_SPECS
+        condition: [] for condition in active_policy.condition_specs
     }
 
     for item_id, entry in entries.items():
-        lane = public_recommendation_lane(entry)
-        condition = entry.public_condition
-        display_category = public_display_category(entry)
-        explicitly_excluded = item_id in PUBLIC_GENERIC_EXCLUDED_REASONS
+        item_policy = _effective_public_item_policy(entry, policy)
+        lane = public_recommendation_lane(entry, policy=policy)
+        condition = item_policy.public_condition
+        display_category = public_display_category(entry, policy=policy)
+        explicitly_excluded = item_id in active_policy.excluded_reasons
 
         items.append({
             "id": item_id,
@@ -2176,12 +2453,12 @@ def build_public_policy_spec(
             condition_to_item_ids[condition].append(item_id)
 
     lanes = []
-    for lane_id, meta in PUBLIC_LANE_SPECS.items():
+    for lane_id, meta in active_policy.lane_specs.items():
         item_ids = sorted(lane_to_item_ids[lane_id])
         condition_ids = sorted({
-            str(entries[item_id].public_condition)
+            str(_effective_public_item_policy(entries[item_id], policy).public_condition)
             for item_id in item_ids
-            if entries[item_id].public_condition is not None
+            if _effective_public_item_policy(entries[item_id], policy).public_condition is not None
         })
         lanes.append({
             "id": lane_id,
@@ -2193,7 +2470,7 @@ def build_public_policy_spec(
         })
 
     conditions = []
-    for condition_id, meta in PUBLIC_CONDITION_SPECS.items():
+    for condition_id, meta in active_policy.condition_specs.items():
         item_ids = sorted(condition_to_item_ids[condition_id])
         if not item_ids:
             continue

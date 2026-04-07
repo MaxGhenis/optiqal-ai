@@ -62,6 +62,15 @@ To combine offline judge verdicts back into a hybrid score:
   --json
 ```
 
+To compare a candidate policy override against the live incumbent and emit judge packets:
+
+```bash
+./.venv/bin/python scripts/run_public_frontier_candidate.py \
+  --candidate-policy optiqal/data/public_policy_candidate_template.json \
+  --emit-judge-packets /tmp/judge-packets.json \
+  --json
+```
+
 ## Current edit boundary
 
 If you use AutoAgent or another optimizer, restrict edits to the public-policy layer:
@@ -69,6 +78,7 @@ If you use AutoAgent or another optimizer, restrict edits to the public-policy l
 - [`public_policy_lanes.json`](../python/optiqal/data/public_policy_lanes.json)
 - [`public_policy_conditions.json`](../python/optiqal/data/public_policy_conditions.json)
 - [`public_policy_items.json`](../python/optiqal/data/public_policy_items.json)
+- candidate overrides like [`public_policy_candidate_template.json`](../python/optiqal/data/public_policy_candidate_template.json)
 - narrowly scoped policy helpers in [`catalog.py`](../python/optiqal/catalog.py)
 
 Do not let an optimizer mutate the full mortality/QALY engine just to improve this benchmark.

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+
+from optiqal import load_public_policy_override
 from optiqal.public_frontier_benchmark import (
     CANONICAL_PUBLIC_FRONTIER_SCENARIOS,
     benchmark_report_from_dict,
@@ -105,3 +108,25 @@ def test_pairwise_packets_and_hybrid_score_work_with_offline_verdicts():
         judge_score=judge_score,
         judge_weight=0.2,
     ) == 0.8
+
+
+def test_candidate_policy_override_changes_benchmark_outcome(tmp_path):
+    candidate_path = tmp_path / "candidate-policy.json"
+    candidate_path.write_text(json.dumps({
+        "items": {
+            "hiit_2x_week": {"public_lane": "personal_only"},
+            "strength_maintenance": {"public_lane": "personal_only"},
+        }
+    }, indent=2))
+
+    report = run_public_frontier_benchmark(
+        public_policy=load_public_policy_override(candidate_path)
+    )
+    healthy_case = next(
+        case for case in report.case_results
+        if case.scenario_id == "healthy_35f_public"
+    )
+
+    assert report.score < 1.0
+    assert not healthy_case.passed
+    assert any(failure.rule == "required_top_any_of" for failure in healthy_case.failures)
