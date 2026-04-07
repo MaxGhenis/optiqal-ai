@@ -63,6 +63,123 @@ def write_candidate_policy(path: Path) -> None:
     path.write_text(_candidate_policy_json())
 
 
+def _case_summary(candidate_case: dict[str, Any], incumbent_case: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "scenario_id": candidate_case["scenario_id"],
+        "label": candidate_case["label"],
+        "candidate_score": candidate_case["score"],
+        "incumbent_score": incumbent_case["score"],
+        "score_delta": round(candidate_case["score"] - incumbent_case["score"], 4),
+        "candidate_top_ids": candidate_case["top_ids"],
+        "incumbent_top_ids": incumbent_case["top_ids"],
+        "candidate_failures": candidate_case["failures"],
+        "incumbent_failures": incumbent_case["failures"],
+    }
+
+
+def _comparison_summary(candidate_report: dict[str, Any], incumbent_report: dict[str, Any]) -> dict[str, Any]:
+    incumbent_cases = {
+        case["scenario_id"]: case
+        for case in incumbent_report["cases"]
+    }
+    changed_cases = []
+    for candidate_case in candidate_report["cases"]:
+        incumbent_case = incumbent_cases[candidate_case["scenario_id"]]
+        changed = (
+            candidate_case["score"] != incumbent_case["score"]
+            or candidate_case["top_ids"] != incumbent_case["top_ids"]
+            or candidate_case["failures"] != incumbent_case["failures"]
+        )
+        if changed:
+            changed_cases.append(_case_summary(candidate_case, incumbent_case))
+
+    return {
+        "candidate_score": candidate_report["score"],
+        "incumbent_score": incumbent_report["score"],
+        "score_delta": round(candidate_report["score"] - incumbent_report["score"], 4),
+        "candidate_total_failures": candidate_report["total_failures"],
+        "incumbent_total_failures": incumbent_report["total_failures"],
+        "candidate_total_checks": candidate_report["total_checks"],
+        "incumbent_total_checks": incumbent_report["total_checks"],
+        "changed_case_count": len(changed_cases),
+        "changed_cases": changed_cases,
+    }
+
+
+def _run_candidate_benchmark_in_process(
+    *,
+    candidate_path: Path,
+    cases_per_stratum: int,
+    seed: int,
+    judge_verdicts: Path | None,
+    emit_judge_packets: Path | None,
+) -> dict[str, Any]:
+    from optiqal import load_public_policy_override
+    from optiqal.public_frontier_benchmark import (
+        CANONICAL_PUBLIC_FRONTIER_SCENARIOS,
+        benchmark_report_to_dict,
+        build_pairwise_judge_packets,
+        compute_hybrid_public_frontier_score,
+        compute_pairwise_judge_score,
+        generate_stratified_public_frontier_scenarios,
+        judge_packet_to_dict,
+        parse_public_frontier_judge_verdicts,
+        run_public_frontier_benchmark,
+    )
+
+    scenarios = list(CANONICAL_PUBLIC_FRONTIER_SCENARIOS)
+    if cases_per_stratum > 0:
+        scenarios.extend(
+            generate_stratified_public_frontier_scenarios(
+                seed=seed,
+                cases_per_stratum=cases_per_stratum,
+            )
+        )
+    scenario_tuple = tuple(scenarios)
+
+    candidate_policy = load_public_policy_override(candidate_path)
+    candidate_report = run_public_frontier_benchmark(
+        scenario_tuple,
+        public_policy=candidate_policy,
+    )
+    incumbent_report = run_public_frontier_benchmark(scenario_tuple)
+
+    candidate_report_dict = benchmark_report_to_dict(candidate_report, include_responses=False)
+    incumbent_report_dict = benchmark_report_to_dict(incumbent_report, include_responses=False)
+    summary = {
+        "candidate_policy_path": str(candidate_path),
+        "incumbent_policy_path": None,
+        "scenarios": [scenario.id for scenario in scenario_tuple],
+        "comparison": _comparison_summary(candidate_report_dict, incumbent_report_dict),
+        "candidate_report": candidate_report_dict,
+        "incumbent_report": incumbent_report_dict,
+    }
+
+    if emit_judge_packets is not None:
+        packets = build_pairwise_judge_packets(
+            candidate_report,
+            incumbent_report,
+            scenarios=scenario_tuple,
+        )
+        emit_judge_packets.write_text(
+            json.dumps([judge_packet_to_dict(packet) for packet in packets], indent=2)
+        )
+
+    if judge_verdicts is not None:
+        verdicts = parse_public_frontier_judge_verdicts(
+            json.loads(judge_verdicts.read_text())
+        )
+        judge_score = compute_pairwise_judge_score(verdicts)
+        summary["judge_score"] = judge_score
+        summary["hybrid_score"] = compute_hybrid_public_frontier_score(
+            hard_score=candidate_report.score,
+            judge_score=judge_score,
+            judge_weight=DEFAULT_JUDGE_WEIGHT,
+        )
+
+    return summary
+
+
 def run_candidate_benchmark(
     *,
     cases_per_stratum: int = DEFAULT_CASES_PER_STRATUM,
@@ -81,39 +198,51 @@ def run_candidate_benchmark(
         candidate_path = Path(tmp.name)
 
     try:
-        command = [
-            str(PYTHON),
-            str(RUNNER),
-            "--candidate-policy",
-            str(candidate_path),
-            "--cases-per-stratum",
-            str(cases_per_stratum),
-            "--seed",
-            str(seed),
-            "--json",
-        ]
-        if judge_verdicts is not None:
-            command.extend(
-                [
-                    "--judge-verdicts",
-                    str(judge_verdicts),
-                    "--judge-weight",
-                    str(DEFAULT_JUDGE_WEIGHT),
-                ]
-            )
-        if emit_judge_packets is not None:
-            command.extend(["--emit-judge-packets", str(emit_judge_packets)])
-        if output is not None:
-            command.extend(["--output", str(output)])
+        if RUNNER.exists() and PYTHON.exists():
+            command = [
+                str(PYTHON),
+                str(RUNNER),
+                "--candidate-policy",
+                str(candidate_path),
+                "--cases-per-stratum",
+                str(cases_per_stratum),
+                "--seed",
+                str(seed),
+                "--json",
+            ]
+            if judge_verdicts is not None:
+                command.extend(
+                    [
+                        "--judge-verdicts",
+                        str(judge_verdicts),
+                        "--judge-weight",
+                        str(DEFAULT_JUDGE_WEIGHT),
+                    ]
+                )
+            if emit_judge_packets is not None:
+                command.extend(["--emit-judge-packets", str(emit_judge_packets)])
+            if output is not None:
+                command.extend(["--output", str(output)])
 
-        result = subprocess.run(
-            command,
-            cwd=str(ROOT / "python"),
-            check=True,
-            capture_output=True,
-            text=True,
+            result = subprocess.run(
+                command,
+                cwd=str(ROOT / "python"),
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            return json.loads(result.stdout)
+
+        summary = _run_candidate_benchmark_in_process(
+            candidate_path=candidate_path,
+            cases_per_stratum=cases_per_stratum,
+            seed=seed,
+            judge_verdicts=judge_verdicts,
+            emit_judge_packets=emit_judge_packets,
         )
-        return json.loads(result.stdout)
+        if output is not None:
+            output.write_text(json.dumps(summary, indent=2))
+        return summary
     finally:
         candidate_path.unlink(missing_ok=True)
 

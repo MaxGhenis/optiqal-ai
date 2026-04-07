@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -39,3 +41,20 @@ def test_autoagent_workspace_bootstrap_exports_expected_files(tmp_path: Path) ->
         / "files"
         / "agent.py"
     ).exists()
+
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(ROOT / "python")
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(workspace / "agent.py"),
+            "--summary-json",
+        ],
+        cwd=workspace,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    payload = json.loads(result.stdout)
+    assert "comparison" in payload

@@ -63,6 +63,10 @@ python bootstrap_autoagent_workspace.py --target /path/to/autoagent-workspace
 
 Use `--dry-run` to inspect the copy plan and `--force` to overwrite existing files.
 
+For the exact bootstrap and first-run sequence, see:
+
+- [`RUNBOOK.md`](./RUNBOOK.md)
+
 There is also a Harbor-style task bundle here:
 
 - [`tasks/public-frontier-policy`](./tasks/public-frontier-policy)
