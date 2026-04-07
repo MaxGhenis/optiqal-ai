@@ -54,3 +54,15 @@ This is not a full Harbor task repo. It is a single-file harness seed that mirro
 - a human-authored [`program.md`](./program.md)
 
 If you want to use the official [`kevinrgu/autoagent`](https://github.com/kevinrgu/autoagent) loop, this directory is the intended harness content to transplant into a benchmark-specific AutoAgent workspace.
+
+There is also a Harbor-style task bundle here:
+
+- [`tasks/public-frontier-policy`](./tasks/public-frontier-policy)
+
+That task bundle includes:
+
+- task-local `files/agent.py`
+- `instruction.md`
+- `task.toml`
+- an environment Dockerfile
+- verifier scripts that score the candidate policy from `agent.py --summary-json`

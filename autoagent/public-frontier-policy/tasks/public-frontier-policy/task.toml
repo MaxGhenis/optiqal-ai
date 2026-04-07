@@ -1,0 +1,24 @@
+schema_version = "1.1"
+
+[task]
+name = "maxghenis/public-frontier-policy"
+description = "Improve the public recommendation policy for Optiqal without touching core QALY math."
+authors = [{ name = "Max Ghenis", email = "max@maxghenis.com" }]
+keywords = ["policy", "benchmark", "health", "ranking", "safety"]
+
+[metadata]
+difficulty_explanation = "Small editable policy surface, but the agent must preserve public-safety canaries while improving benchmark behavior."
+category = "agent-engineering"
+
+[verifier]
+timeout_sec = 900.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 1800.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 12288
+allow_internet = true

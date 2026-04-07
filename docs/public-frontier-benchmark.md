@@ -76,6 +76,10 @@ For a single-file AutoAgent-style harness seed, use:
 - [`autoagent/public-frontier-policy/agent.py`](../autoagent/public-frontier-policy/agent.py)
 - [`autoagent/public-frontier-policy/program.md`](../autoagent/public-frontier-policy/program.md)
 
+For a Harbor-style benchmark task bundle around that harness, use:
+
+- [`autoagent/public-frontier-policy/tasks/public-frontier-policy`](../autoagent/public-frontier-policy/tasks/public-frontier-policy)
+
 ## Current edit boundary
 
 If you use AutoAgent or another optimizer, restrict edits to the public-policy layer:
