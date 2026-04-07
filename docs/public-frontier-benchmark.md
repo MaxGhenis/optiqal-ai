@@ -75,6 +75,7 @@ For a single-file AutoAgent-style harness seed, use:
 
 - [`autoagent/public-frontier-policy/agent.py`](../autoagent/public-frontier-policy/agent.py)
 - [`autoagent/public-frontier-policy/program.md`](../autoagent/public-frontier-policy/program.md)
+- [`autoagent/public-frontier-policy/bootstrap_autoagent_workspace.py`](../autoagent/public-frontier-policy/bootstrap_autoagent_workspace.py)
 
 For a Harbor-style benchmark task bundle around that harness, use:
 

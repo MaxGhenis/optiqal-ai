@@ -55,6 +55,14 @@ This is not a full Harbor task repo. It is a single-file harness seed that mirro
 
 If you want to use the official [`kevinrgu/autoagent`](https://github.com/kevinrgu/autoagent) loop, this directory is the intended harness content to transplant into a benchmark-specific AutoAgent workspace.
 
+To export this harness into an AutoAgent-style workspace root:
+
+```bash
+python bootstrap_autoagent_workspace.py --target /path/to/autoagent-workspace
+```
+
+Use `--dry-run` to inspect the copy plan and `--force` to overwrite existing files.
+
 There is also a Harbor-style task bundle here:
 
 - [`tasks/public-frontier-policy`](./tasks/public-frontier-policy)
