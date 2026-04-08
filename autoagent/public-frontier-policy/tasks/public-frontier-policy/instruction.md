@@ -21,7 +21,9 @@ Use these commands while iterating:
 cd /app
 python agent.py --summary-json
 python agent.py --summary-json --cases-per-stratum 8 --seed-count 4
-python agent.py --summary-json --emit-judge-packets /tmp/public-frontier-packets.json
+python agent.py --summary-json \
+  --emit-judge-packets /tmp/public-frontier-packets.json \
+  --emit-judge-verdict-template /tmp/public-frontier-verdicts.template.json
 ```
 
 Do not edit:

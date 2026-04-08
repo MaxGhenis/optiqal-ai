@@ -13,6 +13,7 @@ from typing import Any
 from optiqal import load_public_policy_override
 from optiqal.public_frontier_benchmark import (
     benchmark_report_to_dict,
+    build_blank_judge_verdict_template,
     build_public_frontier_benchmark_scenarios,
     build_pairwise_judge_packets,
     compute_hybrid_public_frontier_score,
@@ -55,6 +56,7 @@ CANDIDATE_POLICY: dict[str, Any] = {
 DEFAULT_CASES_PER_STRATUM = 4
 DEFAULT_SEED_COUNT = 2
 DEFAULT_JUDGE_WEIGHT = 0.2
+DEFAULT_JUDGE_PACKET_MODE = "changed_unique"
 
 
 def candidate_policy_payload() -> dict[str, Any]:
@@ -128,6 +130,8 @@ def run_candidate_benchmark(
     seed_count: int = DEFAULT_SEED_COUNT,
     judge_verdicts: Path | None = None,
     emit_judge_packets: Path | None = None,
+    emit_judge_verdict_template: Path | None = None,
+    judge_packet_mode: str = DEFAULT_JUDGE_PACKET_MODE,
 ) -> dict[str, Any]:
     scenario_tuple = build_public_frontier_benchmark_scenarios(
         cases_per_stratum=cases_per_stratum,
@@ -171,10 +175,17 @@ def run_candidate_benchmark(
             candidate_report,
             incumbent_report,
             scenarios=scenario_tuple,
+            mode=judge_packet_mode,
         )
         emit_judge_packets.write_text(
             json.dumps([judge_packet_to_dict(packet) for packet in packets], indent=2)
         )
+        if emit_judge_verdict_template is not None:
+            emit_judge_verdict_template.write_text(
+                json.dumps(build_blank_judge_verdict_template(packets), indent=2)
+            )
+    elif emit_judge_verdict_template is not None:
+        raise ValueError("emit_judge_verdict_template requires emit_judge_packets")
 
     if judge_verdicts is not None:
         verdicts = parse_public_frontier_judge_verdicts(
@@ -199,6 +210,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed-count", type=int, default=DEFAULT_SEED_COUNT)
     parser.add_argument("--judge-verdicts", type=Path)
     parser.add_argument("--emit-judge-packets", type=Path)
+    parser.add_argument("--emit-judge-verdict-template", type=Path)
+    parser.add_argument(
+        "--judge-packet-mode",
+        choices=("all", "changed", "changed_unique"),
+        default=DEFAULT_JUDGE_PACKET_MODE,
+    )
     return parser
 
 
@@ -212,6 +229,8 @@ def main() -> None:
         seed_count=args.seed_count,
         judge_verdicts=resolve_default_judge_verdicts(args.judge_verdicts),
         emit_judge_packets=args.emit_judge_packets,
+        emit_judge_verdict_template=args.emit_judge_verdict_template,
+        judge_packet_mode=args.judge_packet_mode,
     )
     if args.summary_json:
         print(json.dumps(summary, indent=2))

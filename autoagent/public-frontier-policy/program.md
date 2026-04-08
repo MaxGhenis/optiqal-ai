@@ -40,7 +40,9 @@ python agent.py --summary-json --cases-per-stratum 8 --seed-count 4
 To emit pairwise judge packets for manual or LLM review:
 
 ```bash
-python agent.py --summary-json --emit-judge-packets /tmp/public-frontier-packets.json
+python agent.py --summary-json \
+  --emit-judge-packets /tmp/public-frontier-packets.json \
+  --emit-judge-verdict-template /tmp/public-frontier-verdicts.template.json
 ```
 
 ## What good changes look like

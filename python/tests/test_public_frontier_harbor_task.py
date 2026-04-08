@@ -101,6 +101,37 @@ def test_public_policy_root_agent_exports_autoagent_class() -> None:
     assert result.stdout.strip() == "True"
 
 
+def test_public_policy_root_agent_emits_focused_judge_packets_and_template(tmp_path: Path) -> None:
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(ROOT / "python")
+    packets_path = tmp_path / "judge-packets.json"
+    verdict_template_path = tmp_path / "judge-verdicts.template.json"
+
+    subprocess.run(
+        [
+            sys.executable,
+            str(ROOT_AGENT),
+            "--summary-json",
+            "--emit-judge-packets",
+            str(packets_path),
+            "--emit-judge-verdict-template",
+            str(verdict_template_path),
+        ],
+        cwd=ROOT,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    packets = json.loads(packets_path.read_text())
+    verdict_template = json.loads(verdict_template_path.read_text())
+    assert packets
+    assert len(verdict_template) == len(packets)
+    assert len(packets) < 10
+    assert verdict_template[0]["winner"] == "A|B|tie"
+
+
 def test_harbor_score_task_prefers_hybrid_score_when_present(tmp_path: Path) -> None:
     summary_path = tmp_path / "summary.json"
     logs_dir = tmp_path / "logs"

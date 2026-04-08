@@ -71,7 +71,9 @@ python agent.py --summary-json
 
 ```bash
 cd /tmp/optiqal-autoagent
-python agent.py --summary-json --emit-judge-packets /tmp/public-frontier-packets.json
+python agent.py --summary-json \
+  --emit-judge-packets /tmp/public-frontier-packets.json \
+  --emit-judge-verdict-template /tmp/public-frontier-verdicts.template.json
 ```
 
 Optional local verifier-style smoke:

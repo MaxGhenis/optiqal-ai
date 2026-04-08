@@ -42,8 +42,14 @@ python agent.py --emit-policy /tmp/candidate-policy.json
 To generate pairwise judge packets:
 
 ```bash
-python agent.py --summary-json --emit-judge-packets /tmp/public-frontier-packets.json
+python agent.py --summary-json \
+  --emit-judge-packets /tmp/public-frontier-packets.json \
+  --emit-judge-verdict-template /tmp/public-frontier-verdicts.template.json
 ```
+
+By default, emitted judge packets use `changed_unique` mode so review stays
+focused on representative changed cases instead of every repeated generated
+scenario. Use `--judge-packet-mode all` if you want the full scenario set.
 
 To make the harness optimize on `hybrid_score` instead of hard score alone,
 set a verdict bundle path before running it:

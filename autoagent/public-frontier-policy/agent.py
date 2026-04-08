@@ -61,6 +61,7 @@ CANDIDATE_POLICY: dict[str, Any] = {
 DEFAULT_CASES_PER_STRATUM = 4
 DEFAULT_SEED_COUNT = 2
 DEFAULT_JUDGE_WEIGHT = 0.2
+DEFAULT_JUDGE_PACKET_MODE = "changed_unique"
 
 
 def candidate_policy_payload() -> dict[str, Any]:
@@ -141,10 +142,13 @@ def _run_candidate_benchmark_in_process(
     seed_count: int,
     judge_verdicts: Path | None,
     emit_judge_packets: Path | None,
+    emit_judge_verdict_template: Path | None,
+    judge_packet_mode: str,
 ) -> dict[str, Any]:
     from optiqal import load_public_policy_override
     from optiqal.public_frontier_benchmark import (
         benchmark_report_to_dict,
+        build_blank_judge_verdict_template,
         build_public_frontier_benchmark_scenarios,
         build_pairwise_judge_packets,
         compute_hybrid_public_frontier_score,
@@ -183,10 +187,17 @@ def _run_candidate_benchmark_in_process(
             candidate_report,
             incumbent_report,
             scenarios=scenario_tuple,
+            mode=judge_packet_mode,
         )
         emit_judge_packets.write_text(
             json.dumps([judge_packet_to_dict(packet) for packet in packets], indent=2)
         )
+        if emit_judge_verdict_template is not None:
+            emit_judge_verdict_template.write_text(
+                json.dumps(build_blank_judge_verdict_template(packets), indent=2)
+            )
+    elif emit_judge_verdict_template is not None:
+        raise ValueError("emit_judge_verdict_template requires emit_judge_packets")
 
     if judge_verdicts is not None:
         verdicts = parse_public_frontier_judge_verdicts(
@@ -210,6 +221,8 @@ def run_candidate_benchmark(
     seed_count: int = DEFAULT_SEED_COUNT,
     judge_verdicts: Path | None = None,
     emit_judge_packets: Path | None = None,
+    emit_judge_verdict_template: Path | None = None,
+    judge_packet_mode: str = DEFAULT_JUDGE_PACKET_MODE,
     output: Path | None = None,
 ) -> dict[str, Any]:
     with tempfile.NamedTemporaryFile(
@@ -246,7 +259,18 @@ def run_candidate_benchmark(
                     ]
                 )
             if emit_judge_packets is not None:
-                command.extend(["--emit-judge-packets", str(emit_judge_packets)])
+                command.extend(
+                    [
+                        "--emit-judge-packets",
+                        str(emit_judge_packets),
+                        "--judge-packet-mode",
+                        judge_packet_mode,
+                    ]
+                )
+            if emit_judge_verdict_template is not None:
+                command.extend(
+                    ["--emit-judge-verdict-template", str(emit_judge_verdict_template)]
+                )
             if output is not None:
                 command.extend(["--output", str(output)])
 
@@ -266,6 +290,8 @@ def run_candidate_benchmark(
             seed_count=seed_count,
             judge_verdicts=judge_verdicts,
             emit_judge_packets=emit_judge_packets,
+            emit_judge_verdict_template=emit_judge_verdict_template,
+            judge_packet_mode=judge_packet_mode,
         )
         if output is not None:
             output.write_text(json.dumps(summary, indent=2))
@@ -432,6 +458,17 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Optional path to write pairwise judge packets.",
     )
     parser.add_argument(
+        "--emit-judge-verdict-template",
+        type=Path,
+        help="Optional path to write a blank verdict template for the emitted judge packets.",
+    )
+    parser.add_argument(
+        "--judge-packet-mode",
+        choices=("all", "changed", "changed_unique"),
+        default=DEFAULT_JUDGE_PACKET_MODE,
+        help="Which scenario comparisons to include in emitted judge packets.",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         help="Optional path to write the comparison JSON.",
@@ -452,6 +489,8 @@ def main() -> None:
             seed_count=args.seed_count,
             judge_verdicts=resolve_default_judge_verdicts(args.judge_verdicts),
             emit_judge_packets=args.emit_judge_packets,
+            emit_judge_verdict_template=args.emit_judge_verdict_template,
+            judge_packet_mode=args.judge_packet_mode,
             output=args.output,
         )
         if args.summary_json:

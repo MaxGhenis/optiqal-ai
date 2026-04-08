@@ -75,9 +75,15 @@ To compare a candidate policy override against the live incumbent and emit judge
   --cases-per-stratum 4 \
   --seed 0 \
   --seed-count 2 \
+  --judge-packet-mode changed_unique \
   --emit-judge-packets /tmp/judge-packets.json \
+  --emit-judge-verdict-template /tmp/judge-verdicts.template.json \
   --json
 ```
+
+`changed_unique` is the default packet mode for the candidate runner. It keeps
+judge review focused on representative candidate-vs-incumbent differences
+instead of dumping every repeated generated case.
 
 For a single-file AutoAgent-style harness seed, use:
 

@@ -10,6 +10,7 @@ from typing import Any
 from optiqal import load_public_policy_override
 from optiqal.public_frontier_benchmark import (
     benchmark_report_to_dict,
+    build_blank_judge_verdict_template,
     build_public_frontier_benchmark_scenarios,
     build_pairwise_judge_packets,
     compute_hybrid_public_frontier_score,
@@ -55,6 +56,17 @@ def _build_parser() -> argparse.ArgumentParser:
         "--emit-judge-packets",
         type=Path,
         help="Write pairwise judge packets JSON comparing candidate A vs incumbent B.",
+    )
+    parser.add_argument(
+        "--emit-judge-verdict-template",
+        type=Path,
+        help="Write a blank verdict template JSON matching the emitted judge packets.",
+    )
+    parser.add_argument(
+        "--judge-packet-mode",
+        choices=("all", "changed", "changed_unique"),
+        default="changed_unique",
+        help="Which candidate/incumbent comparisons to include in judge packets.",
     )
     parser.add_argument(
         "--judge-verdicts",
@@ -166,10 +178,17 @@ def main() -> None:
             candidate_report,
             incumbent_report,
             scenarios=scenario_tuple,
+            mode=args.judge_packet_mode,
         )
         args.emit_judge_packets.write_text(
             json.dumps([judge_packet_to_dict(packet) for packet in packets], indent=2)
         )
+        if args.emit_judge_verdict_template is not None:
+            args.emit_judge_verdict_template.write_text(
+                json.dumps(build_blank_judge_verdict_template(packets), indent=2)
+            )
+    elif args.emit_judge_verdict_template is not None:
+        raise SystemExit("--emit-judge-verdict-template requires --emit-judge-packets")
 
     if args.judge_verdicts is not None:
         verdicts = parse_public_frontier_judge_verdicts(
@@ -215,6 +234,9 @@ def main() -> None:
     if args.judge_verdicts is not None:
         print(f"Judge score (candidate A preference): {summary['judge_score']:.3f}")
         print(f"Hybrid score: {summary['hybrid_score']:.3f}")
+    if args.emit_judge_packets is not None:
+        packet_count = len(json.loads(args.emit_judge_packets.read_text()))
+        print(f"Judge packets written: {packet_count} ({args.judge_packet_mode})")
 
 
 if __name__ == "__main__":

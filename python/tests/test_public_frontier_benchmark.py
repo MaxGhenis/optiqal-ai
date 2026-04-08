@@ -9,6 +9,7 @@ from optiqal.public_frontier_benchmark import (
     CANONICAL_PUBLIC_FRONTIER_SCENARIOS,
     benchmark_report_from_dict,
     benchmark_report_to_dict,
+    build_blank_judge_verdict_template,
     build_public_frontier_benchmark_scenarios,
     build_pairwise_judge_packets,
     compute_hybrid_public_frontier_score,
@@ -139,6 +140,57 @@ def test_pairwise_packets_and_hybrid_score_work_with_offline_verdicts():
         judge_score=judge_score,
         judge_weight=0.2,
     ) == 0.8
+
+
+def test_pairwise_packet_modes_focus_on_changed_representative_cases(tmp_path):
+    scenarios = build_public_frontier_benchmark_scenarios(
+        cases_per_stratum=2,
+        seed=0,
+        seed_count=1,
+    )
+    candidate_path = tmp_path / "candidate-policy.json"
+    candidate_path.write_text(json.dumps({
+        "conditions": {
+            "metabolic_signal": {"profile_score_threshold": 5},
+        },
+    }, indent=2))
+
+    incumbent = run_public_frontier_benchmark(scenarios)
+    candidate = run_public_frontier_benchmark(
+        scenarios,
+        public_policy=load_public_policy_override(candidate_path),
+    )
+
+    all_packets = build_pairwise_judge_packets(candidate, incumbent, scenarios=scenarios)
+    changed_packets = build_pairwise_judge_packets(
+        candidate,
+        incumbent,
+        scenarios=scenarios,
+        mode="changed",
+    )
+    unique_packets = build_pairwise_judge_packets(
+        candidate,
+        incumbent,
+        scenarios=scenarios,
+        mode="changed_unique",
+    )
+
+    assert len(all_packets) == len(scenarios)
+    assert len(changed_packets) < len(all_packets)
+    assert len(unique_packets) < len(changed_packets)
+    assert any(packet.scenario_id == "high_risk_58m_public" for packet in unique_packets)
+    assert any(packet.scenario_id == "obesity_glp1_52f_public" for packet in unique_packets)
+
+
+def test_blank_judge_verdict_template_matches_packets():
+    report = run_public_frontier_benchmark()
+    packets = build_pairwise_judge_packets(report, report)
+    template = build_blank_judge_verdict_template(packets)
+
+    assert len(template) == len(packets)
+    assert template[0]["scenario_id"] == packets[0].scenario_id
+    assert template[0]["winner"] == "A|B|tie"
+    assert template[0]["best_aspects"] == {"A": [], "B": []}
 
 
 def test_candidate_policy_override_changes_benchmark_outcome(tmp_path):

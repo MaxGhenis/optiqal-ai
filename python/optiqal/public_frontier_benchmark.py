@@ -101,6 +101,9 @@ class PublicFrontierJudgeVerdict:
     best_aspects_b: tuple[str, ...] = ()
 
 
+PairwiseJudgePacketMode = Literal["all", "changed", "changed_unique"]
+
+
 def _load_benchmark_scenarios() -> tuple[PublicFrontierBenchmarkScenario, ...]:
     raw_cases = json.loads(BENCHMARK_SCENARIOS_PATH.read_text())
     scenarios: list[PublicFrontierBenchmarkScenario] = []
@@ -633,6 +636,46 @@ def _candidate_summary(response: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _scenario_rules_signature(scenario: PublicFrontierBenchmarkScenario) -> tuple[Any, ...]:
+    return (
+        scenario.rules.top_n,
+        scenario.rules.banned_top_ids,
+        scenario.rules.banned_visible_ids,
+        scenario.rules.required_top_any_of,
+        scenario.rules.required_visible_ids,
+        scenario.rules.forbidden_visible_pairs,
+        scenario.rules.expected_airway_decision_states,
+    )
+
+
+def _case_diff_signature(
+    case_a: PublicFrontierBenchmarkCaseResult,
+    case_b: PublicFrontierBenchmarkCaseResult,
+    scenario: PublicFrontierBenchmarkScenario,
+) -> tuple[Any, ...]:
+    return (
+        round(case_a.score, 6),
+        round(case_b.score, 6),
+        case_a.top_ids,
+        case_b.top_ids,
+        tuple((failure.rule, failure.message) for failure in case_a.failures),
+        tuple((failure.rule, failure.message) for failure in case_b.failures),
+        _scenario_rules_signature(scenario),
+    )
+
+
+def _cases_differ(
+    case_a: PublicFrontierBenchmarkCaseResult,
+    case_b: PublicFrontierBenchmarkCaseResult,
+) -> bool:
+    return (
+        case_a.score != case_b.score
+        or case_a.top_ids != case_b.top_ids
+        or case_a.failures != case_b.failures
+        or case_a.airway_decision_states_present != case_b.airway_decision_states_present
+    )
+
+
 def render_public_frontier_judge_prompt(
     scenario: PublicFrontierBenchmarkScenario,
     candidate_a_response: dict[str, Any],
@@ -667,6 +710,7 @@ def build_pairwise_judge_packets(
     candidate_b_report: PublicFrontierBenchmarkReport,
     *,
     scenarios: Optional[tuple[PublicFrontierBenchmarkScenario, ...]] = None,
+    mode: PairwiseJudgePacketMode = "all",
 ) -> tuple[PublicFrontierJudgePacket, ...]:
     """Build pairwise judge packets comparing candidate A vs B on matching scenarios."""
     active_scenarios = scenarios or CANONICAL_PUBLIC_FRONTIER_SCENARIOS
@@ -674,12 +718,23 @@ def build_pairwise_judge_packets(
     candidate_b_cases = {result.scenario_id: result for result in candidate_b_report.case_results}
 
     packets = []
+    seen_signatures: set[tuple[Any, ...]] = set()
     for scenario in active_scenarios:
         scenario_id = scenario.id
         if scenario_id not in candidate_a_cases or scenario_id not in candidate_b_cases:
             continue
         case_a = candidate_a_cases[scenario_id]
         case_b = candidate_b_cases[scenario_id]
+        if mode != "all":
+            changed = _cases_differ(case_a, case_b)
+            if not changed:
+                continue
+            if mode == "changed_unique":
+                signature = _case_diff_signature(case_a, case_b, scenario)
+                is_public_canary = "public_canary" in scenario.tags
+                if not is_public_canary and signature in seen_signatures:
+                    continue
+                seen_signatures.add(signature)
         if not case_a.response or not case_b.response:
             raise ValueError(
                 f"Pairwise judge packets require stored responses for scenario {scenario_id}."
@@ -699,6 +754,28 @@ def build_pairwise_judge_packets(
         )
 
     return tuple(packets)
+
+
+def build_blank_judge_verdict_template(
+    packets: tuple[PublicFrontierJudgePacket, ...],
+) -> list[dict[str, Any]]:
+    """Create a fill-in template for offline pairwise judge verdicts."""
+    return [
+        {
+            "scenario_id": packet.scenario_id,
+            "label": packet.label,
+            "winner": "A|B|tie",
+            "confidence": 0.5,
+            "summary": "",
+            "safety_issues": [],
+            "ranking_issues": [],
+            "best_aspects": {
+                "A": [],
+                "B": [],
+            },
+        }
+        for packet in packets
+    ]
 
 
 def judge_packet_to_dict(packet: PublicFrontierJudgePacket) -> dict[str, Any]:
