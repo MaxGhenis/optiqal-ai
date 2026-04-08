@@ -8,7 +8,13 @@ from pathlib import Path
 import random
 from typing import Any, Literal, Optional
 
-from .catalog import PublicPolicy
+from .catalog import (
+    PublicPolicy,
+    has_meaningful_public_airway_signal,
+    has_meaningful_public_nasal_dryness_signal,
+    has_meaningful_public_osa_therapy_signal,
+)
+from .sleep import SleepMetrics, estimate_sleep_burden
 from .web_api import build_frontier_response_with_policy
 
 
@@ -341,27 +347,37 @@ def _duration_only_payload(rng: random.Random) -> dict[str, Any]:
 
 
 def _nasal_support_only_payload(rng: random.Random) -> dict[str, Any]:
-    return {
-        "profile": {
-            "age": rng.choice([37, 39, 42]),
-            "sex": rng.choice(["male", "female"]),
-            "weight_kg": rng.choice([70, 74.8, 82]),
-            "height_cm": rng.choice([168, 175, 178]),
-            "smoker": False,
-            "has_diabetes": False,
-            "has_hypertension": False,
-            "activity_level": rng.choice(["light", "active"]),
-            "sleep_hours_per_night": rng.choice([6.6, 6.8, 7.0]),
-        },
-        "sleep_metrics": {
-            "duration_hours": rng.choice([6.6, 6.8, 7.0]),
-            "breathing_score": rng.choice([0.74, 0.76, 0.78]),
-            "spo2": rng.choice([95.6, 95.7, 95.8]),
-            "snore_pct": rng.choice([0.6, 0.8, 1.0]),
-            "airway_response_signal": rng.choice([0.04, 0.05, 0.06]),
-        },
-        "n_simulations": 1000,
-    }
+    for _ in range(64):
+        payload = {
+            "profile": {
+                "age": rng.choice([37, 39, 42]),
+                "sex": rng.choice(["male", "female"]),
+                "weight_kg": rng.choice([70, 74.8, 82]),
+                "height_cm": rng.choice([168, 175, 178]),
+                "smoker": False,
+                "has_diabetes": False,
+                "has_hypertension": False,
+                "activity_level": rng.choice(["light", "active"]),
+                "sleep_hours_per_night": rng.choice([6.6, 6.8, 7.0]),
+            },
+            "sleep_metrics": {
+                "duration_hours": rng.choice([6.6, 6.8, 7.0]),
+                "breathing_score": rng.choice([0.74, 0.76, 0.78]),
+                "spo2": rng.choice([95.6, 95.7]),
+                "snore_pct": rng.choice([0.8, 1.0]),
+                "airway_response_signal": rng.choice([0.05, 0.06]),
+            },
+            "n_simulations": 1000,
+        }
+        estimate = estimate_sleep_burden(SleepMetrics(**payload["sleep_metrics"]))
+        if (
+            has_meaningful_public_airway_signal(estimate)
+            and not has_meaningful_public_osa_therapy_signal(estimate)
+            and not has_meaningful_public_nasal_dryness_signal(estimate)
+        ):
+            return payload
+
+    raise RuntimeError("Could not generate a support-only sleep benchmark payload that matches policy semantics.")
 
 
 def generate_stratified_public_frontier_scenarios(

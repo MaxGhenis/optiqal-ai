@@ -4,7 +4,14 @@ from __future__ import annotations
 
 import json
 
-from optiqal import load_public_policy_override
+from optiqal import (
+    SleepMetrics,
+    estimate_sleep_burden,
+    has_meaningful_public_airway_signal,
+    has_meaningful_public_nasal_dryness_signal,
+    has_meaningful_public_osa_therapy_signal,
+    load_public_policy_override,
+)
 from optiqal.public_frontier_benchmark import (
     CANONICAL_PUBLIC_FRONTIER_SCENARIOS,
     benchmark_report_from_dict,
@@ -66,6 +73,18 @@ def test_generated_metabolic_strata_respect_intended_bmi_bands():
             assert 25 <= bmi < 30
         if "lean_diabetes_younger_public" in scenario.tags or "lean_diabetes_older_public" in scenario.tags:
             assert bmi < 25
+
+
+def test_generated_support_only_sleep_strata_match_policy_semantics():
+    generated = generate_stratified_public_frontier_scenarios(seed=43, cases_per_stratum=8)
+
+    for scenario in generated:
+        if "nasal_support_only_sleep" not in scenario.tags:
+            continue
+        estimate = estimate_sleep_burden(SleepMetrics(**scenario.payload["sleep_metrics"]))
+        assert has_meaningful_public_airway_signal(estimate)
+        assert not has_meaningful_public_osa_therapy_signal(estimate)
+        assert not has_meaningful_public_nasal_dryness_signal(estimate)
 
 
 def test_multi_seed_benchmark_builder_prefixes_generated_ids_uniquely():
