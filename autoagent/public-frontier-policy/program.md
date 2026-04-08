@@ -10,7 +10,7 @@ Optimize the candidate policy in [`agent.py`](./agent.py) so that:
 
 1. hard benchmark score moves toward `1.0` and improves over the incumbent baseline
 2. generated stratified scenarios stay plausible
-3. pairwise judge packets would likely prefer the candidate over the incumbent
+3. if a verdict bundle is present, hybrid score improves too
 
 ## Edit boundary
 
@@ -63,3 +63,6 @@ python agent.py --summary-json --emit-judge-packets /tmp/public-frontier-packets
 3. make one small policy change
 4. rerun the benchmark
 5. keep changes only if the result improves or stays clean while becoming more plausible
+
+If `PUBLIC_FRONTIER_JUDGE_VERDICTS` is set in the environment, the harness will
+optimize on `hybrid_score`; otherwise it uses hard score only.

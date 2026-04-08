@@ -30,3 +30,6 @@ Do not edit:
 - the benchmark harness internals in the fixed section of `/app/agent.py`
 
 Focus on small, explicit policy changes.
+
+If `PUBLIC_FRONTIER_JUDGE_VERDICTS` is present in the environment, the score
+will use the hybrid judge-backed objective. Otherwise it uses hard rules only.

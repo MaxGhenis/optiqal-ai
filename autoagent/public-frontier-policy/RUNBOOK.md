@@ -60,6 +60,13 @@ python agent.py --summary-json
 python agent.py --summary-json --cases-per-stratum 8 --seed-count 4
 ```
 
+Optional judge-backed mode:
+
+```bash
+export PUBLIC_FRONTIER_JUDGE_VERDICTS=/path/to/judge-verdicts.json
+python agent.py --summary-json
+```
+
 ## 6. Smoke test the Harbor task directly
 
 ```bash
@@ -111,5 +118,7 @@ Read program.md and let's kick off a new experiment!
 ## Interpretation
 
 - `reward.txt` or `reward.json` near `1.0` means the candidate policy is preserving the public canaries well
+- if `PUBLIC_FRONTIER_JUDGE_VERDICTS` is set, the reward uses `hybrid_score`
+  when available; otherwise it uses the hard benchmark score
 - a lower score means the policy edits broke hard public-safety or plausibility checks
 - emitted judge packets are for secondary review only; the hard score remains primary

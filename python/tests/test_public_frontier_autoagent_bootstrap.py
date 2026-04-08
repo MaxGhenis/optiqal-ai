@@ -157,3 +157,46 @@ def test_preflight_fails_when_docker_helper_missing_from_path(tmp_path: Path) ->
 
     assert result.returncode == 1
     assert "Missing Docker credential helper(s): docker-credential-osxkeychain" in result.stdout
+
+
+def test_preflight_fails_when_judge_verdict_bundle_is_missing(tmp_path: Path) -> None:
+    workspace = tmp_path / "autoagent-workspace"
+    workspace.mkdir()
+    (workspace / "agent.py").write_text("class AutoAgent:\n    pass\n")
+    task_dir = workspace / "tasks" / "public-frontier-policy"
+    task_dir.mkdir(parents=True)
+    (task_dir / "task.toml").write_text("name = 'public-frontier-policy'\n")
+
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    (fake_bin / "docker").write_text("#!/bin/sh\nexit 0\n")
+    (fake_bin / "uv").write_text("#!/bin/sh\nexit 0\n")
+    (fake_bin / "docker-credential-osxkeychain").write_text("#!/bin/sh\nexit 0\n")
+    for path in fake_bin.iterdir():
+        path.chmod(0o755)
+
+    docker_config = tmp_path / "docker-config"
+    docker_config.mkdir()
+    (docker_config / "config.json").write_text('{"credsStore": "osxkeychain"}\n')
+
+    env = dict(os.environ)
+    env["DOCKER_CONFIG"] = str(docker_config)
+    env["PATH"] = str(fake_bin)
+    env["PUBLIC_FRONTIER_JUDGE_VERDICTS"] = str(tmp_path / "missing-verdicts.json")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(PREFLIGHT),
+            "--workspace",
+            str(workspace),
+        ],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert "PUBLIC_FRONTIER_JUDGE_VERDICTS exists" in result.stdout

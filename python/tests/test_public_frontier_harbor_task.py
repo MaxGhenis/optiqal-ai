@@ -29,6 +29,15 @@ TASK_TEST_SH = (
     / "tests"
     / "test.sh"
 )
+SCORE_TASK = (
+    ROOT
+    / "autoagent"
+    / "public-frontier-policy"
+    / "tasks"
+    / "public-frontier-policy"
+    / "tests"
+    / "score_task.py"
+)
 
 
 def test_harbor_task_dockerfile_does_not_copy_task_files_from_wrong_context() -> None:
@@ -90,3 +99,32 @@ def test_public_policy_root_agent_exports_autoagent_class() -> None:
     )
 
     assert result.stdout.strip() == "True"
+
+
+def test_harbor_score_task_prefers_hybrid_score_when_present(tmp_path: Path) -> None:
+    summary_path = tmp_path / "summary.json"
+    logs_dir = tmp_path / "logs"
+    summary_path.write_text(json.dumps({
+        "comparison": {
+            "candidate_score": 1.0,
+            "incumbent_score": 0.95,
+            "score_delta": 0.05,
+            "changed_case_count": 3,
+        },
+        "judge_score": 0.4,
+        "hybrid_score": 0.88,
+    }))
+
+    env = dict(os.environ)
+    env["HARBOR_VERIFIER_LOG_DIR"] = str(logs_dir)
+    subprocess.run(
+        [sys.executable, str(SCORE_TASK), str(summary_path)],
+        cwd=ROOT,
+        env=env,
+        check=True,
+    )
+
+    reward_payload = json.loads((logs_dir / "reward.json").read_text())
+    assert reward_payload["candidate_score"] == 0.88
+    assert reward_payload["hard_candidate_score"] == 1.0
+    assert reward_payload["score_mode"] == "hybrid"

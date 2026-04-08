@@ -45,6 +45,14 @@ To generate pairwise judge packets:
 python agent.py --summary-json --emit-judge-packets /tmp/public-frontier-packets.json
 ```
 
+To make the harness optimize on `hybrid_score` instead of hard score alone,
+set a verdict bundle path before running it:
+
+```bash
+export PUBLIC_FRONTIER_JUDGE_VERDICTS=/path/to/judge-verdicts.json
+python agent.py --summary-json
+```
+
 ## Relationship to AutoAgent
 
 This is not a full Harbor task repo. It is a single-file harness seed that mirrors the AutoAgent pattern:

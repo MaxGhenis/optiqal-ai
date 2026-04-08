@@ -126,6 +126,8 @@ The current runner supports:
 - pairwise judge packet generation against a saved incumbent report
 - offline verdict parsing
 - hybrid score computation
+- optional sidecar/Harbor reward based on `hybrid_score` when
+  `PUBLIC_FRONTIER_JUDGE_VERDICTS` points to a verdict bundle
 
 Hybrid scoring rule:
 

@@ -16,3 +16,6 @@ python agent.py --summary-json
 python agent.py --summary-json --cases-per-stratum 8 --seed-count 4
 python agent.py --summary-json --emit-judge-packets /tmp/public-frontier-packets.json
 ```
+
+If `PUBLIC_FRONTIER_JUDGE_VERDICTS` is set, the harness uses the hybrid
+judge-backed score instead of hard score alone.

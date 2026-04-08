@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,9 @@ from optiqal.public_frontier_benchmark import (
     parse_public_frontier_judge_verdicts,
     run_public_frontier_benchmark,
 )
+
+
+DEFAULT_JUDGE_VERDICTS_ENV = "PUBLIC_FRONTIER_JUDGE_VERDICTS"
 
 
 # ---------------------------------------------------------------------------
@@ -63,6 +67,15 @@ def candidate_policy_payload() -> dict[str, Any]:
 
 def _candidate_policy_json() -> str:
     return json.dumps(candidate_policy_payload(), indent=2, sort_keys=True)
+
+
+def resolve_default_judge_verdicts(explicit_path: Path | None = None) -> Path | None:
+    if explicit_path is not None:
+        return explicit_path
+    env_path = os.environ.get(DEFAULT_JUDGE_VERDICTS_ENV)
+    if not env_path:
+        return None
+    return Path(env_path).expanduser().resolve()
 
 
 def _case_summary(candidate_case: dict[str, Any], incumbent_case: dict[str, Any]) -> dict[str, Any]:
@@ -197,7 +210,7 @@ def main() -> None:
         cases_per_stratum=args.cases_per_stratum,
         seed=args.seed,
         seed_count=args.seed_count,
-        judge_verdicts=args.judge_verdicts,
+        judge_verdicts=resolve_default_judge_verdicts(args.judge_verdicts),
         emit_judge_packets=args.emit_judge_packets,
     )
     if args.summary_json:

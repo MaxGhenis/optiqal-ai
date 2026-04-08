@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -26,6 +27,7 @@ except ModuleNotFoundError:  # pragma: no cover - local CLI path may not have ha
 ROOT = Path(__file__).resolve().parents[2]
 RUNNER = ROOT / "python" / "scripts" / "run_public_frontier_candidate.py"
 PYTHON = ROOT / "python" / ".venv" / "bin" / "python"
+DEFAULT_JUDGE_VERDICTS_ENV = "PUBLIC_FRONTIER_JUDGE_VERDICTS"
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +78,16 @@ def _candidate_policy_json() -> str:
 
 def write_candidate_policy(path: Path) -> None:
     path.write_text(_candidate_policy_json())
+
+
+def resolve_default_judge_verdicts(explicit_path: Path | None = None) -> Path | None:
+    """Resolve judge verdict path from explicit CLI input or environment."""
+    if explicit_path is not None:
+        return explicit_path
+    env_path = os.environ.get(DEFAULT_JUDGE_VERDICTS_ENV)
+    if not env_path:
+        return None
+    return Path(env_path).expanduser().resolve()
 
 
 def _case_summary(candidate_case: dict[str, Any], incumbent_case: dict[str, Any]) -> dict[str, Any]:
@@ -264,14 +276,17 @@ def run_candidate_benchmark(
 
 def compute_reward(summary: dict[str, Any]) -> tuple[float, dict[str, Any]]:
     comparison = summary["comparison"]
-    candidate_score = float(comparison["candidate_score"])
+    candidate_score = float(summary.get("hybrid_score", comparison["candidate_score"]))
     incumbent_score = float(comparison["incumbent_score"])
     reward = max(0.0, min(1.0, candidate_score + max(0.0, candidate_score - incumbent_score)))
     diagnostics = {
         "candidate_score": candidate_score,
+        "hard_candidate_score": float(comparison["candidate_score"]),
         "incumbent_score": incumbent_score,
         "score_delta": float(comparison["score_delta"]),
         "changed_case_count": int(comparison["changed_case_count"]),
+        "judge_score": summary.get("judge_score"),
+        "score_mode": "hybrid" if "hybrid_score" in summary else "hard",
         "reward": reward,
     }
     return reward, diagnostics
@@ -337,7 +352,9 @@ class AutoAgent(BaseAgent):
 
     async def run(self, instruction: str, environment: BaseEnvironment, context: AgentContext) -> None:
         t0 = time.time()
-        summary = run_candidate_benchmark()
+        summary = run_candidate_benchmark(
+            judge_verdicts=resolve_default_judge_verdicts(),
+        )
         duration_ms = int((time.time() - t0) * 1000)
         reward, diagnostics = compute_reward(summary)
 
@@ -433,7 +450,7 @@ def main() -> None:
             cases_per_stratum=args.cases_per_stratum,
             seed=args.seed,
             seed_count=args.seed_count,
-            judge_verdicts=args.judge_verdicts,
+            judge_verdicts=resolve_default_judge_verdicts(args.judge_verdicts),
             emit_judge_packets=args.emit_judge_packets,
             output=args.output,
         )

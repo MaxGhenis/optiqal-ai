@@ -11,6 +11,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+DEFAULT_JUDGE_VERDICTS_ENV = "PUBLIC_FRONTIER_JUDGE_VERDICTS"
+
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -100,6 +102,16 @@ def main() -> None:
         )
     else:
         _check(True, "root harness does not require provider credentials")
+
+    judge_verdicts = os.environ.get(DEFAULT_JUDGE_VERDICTS_ENV)
+    if judge_verdicts:
+        verdicts_path = Path(judge_verdicts).expanduser()
+        _check(
+            verdicts_path.exists(),
+            f"{DEFAULT_JUDGE_VERDICTS_ENV} exists: {verdicts_path}",
+        )
+    else:
+        _check(True, f"{DEFAULT_JUDGE_VERDICTS_ENV} not set (hard-score mode)")
 
     missing_helpers = _missing_docker_credential_helpers()
     helper_guidance = (
