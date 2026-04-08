@@ -162,3 +162,18 @@ def test_public_sleep_helpers_can_build_support_only_specs():
             state_id="conservative_airway_support",
         )
     ]
+
+
+def test_public_sleep_helpers_can_include_humidifier_in_support_only_specs():
+    specs = build_public_sleep_decision_specs(include_therapy=False, include_humidifier=True)
+
+    support_state = specs[0]
+    option_ids = [option.id for option in support_state.options]
+    assert "humidifier_nightly" in option_ids
+    combined_option = next(option for option in support_state.options if option.id == "combined_airway_support")
+    assert combined_option.added_item_ids == [
+        "head_elevation_nightly",
+        "nasal_strips_nightly",
+        "nasacort_nightly",
+        "humidifier_nightly",
+    ]

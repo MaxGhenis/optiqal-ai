@@ -17,6 +17,7 @@ from optiqal import (
     evaluate_decision_states,
     get_catalog,
     has_meaningful_public_airway_signal,
+    has_meaningful_public_nasal_dryness_signal,
     has_meaningful_public_osa_therapy_signal,
     is_publicly_rankable,
     public_display_category,
@@ -610,6 +611,10 @@ def build_frontier_response_with_policy(
     decision_states = []
     decision_sequence = []
     support_signal = has_meaningful_public_airway_signal(config.sleep_estimate, policy=public_policy)
+    humidifier_signal = has_meaningful_public_nasal_dryness_signal(
+        config.sleep_estimate,
+        policy=public_policy,
+    )
     therapy_signal = has_meaningful_public_osa_therapy_signal(
         config.sleep_estimate,
         policy=public_policy,
@@ -618,7 +623,10 @@ def build_frontier_response_with_policy(
         support_signal = True
 
     if support_signal:
-        decision_specs = build_public_sleep_decision_specs(include_therapy=therapy_signal)
+        decision_specs = build_public_sleep_decision_specs(
+            include_therapy=therapy_signal,
+            include_humidifier=humidifier_signal,
+        )
         decision_item_ids: list[str] = []
         seen_decision_ids: set[str] = set()
         for spec in decision_specs:

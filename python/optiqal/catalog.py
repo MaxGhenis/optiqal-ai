@@ -2226,6 +2226,19 @@ def has_meaningful_public_osa_therapy_signal(
     )
 
 
+def has_meaningful_public_nasal_dryness_signal(
+    sleep_estimate: Optional[SleepBurdenEstimate],
+    *,
+    policy: Optional[PublicPolicy] = None,
+) -> bool:
+    """Whether humidification support should surface for this phenotype."""
+    return evaluate_public_condition(
+        _active_public_policy(policy).condition_specs["nasal_dryness_signal"],
+        profile=None,
+        sleep_estimate=sleep_estimate,
+    )
+
+
 def has_meaningful_public_statin_signal(
     profile: Optional[Profile],
     *,

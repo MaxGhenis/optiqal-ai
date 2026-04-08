@@ -121,3 +121,35 @@ def test_web_frontier_can_emit_support_only_sleep_pathway():
     assert "oral_appliance_custom" not in frontier_ids
     assert "humidifier_nightly" not in frontier_ids
     assert "mouth_tape_nightly" not in frontier_ids
+
+
+def test_web_frontier_can_offer_humidifier_when_nasal_dryness_signal_is_strong():
+    payload = {
+        "profile": {
+            "age": 39,
+            "sex": "male",
+            "weight_kg": 74.8,
+            "height_cm": 178.0,
+            "smoker": False,
+            "has_diabetes": False,
+            "has_hypertension": False,
+            "activity_level": "active",
+            "sleep_hours_per_night": 6.8,
+        },
+        "sleep_metrics": {
+            "duration_hours": 6.8,
+            "breathing_score": 0.78,
+            "spo2": 95.1,
+            "snore_pct": 3.2,
+            "airway_response_signal": 0.4,
+        },
+        "n_simulations": 500,
+    }
+
+    response = run_web_frontier(payload)
+
+    support_state = next(
+        state for state in response["decision_states"] if state["id"] == "conservative_airway_support"
+    )
+    option_ids = {option["id"] for option in support_state["options"]}
+    assert "humidifier_nightly" in option_ids

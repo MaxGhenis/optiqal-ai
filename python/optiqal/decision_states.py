@@ -71,7 +71,11 @@ def ordered_unique(item_ids: Iterable[str]) -> List[str]:
     return ordered
 
 
-def build_public_sleep_decision_specs(*, include_therapy: bool = True) -> List[DecisionStateSpec]:
+def build_public_sleep_decision_specs(
+    *,
+    include_therapy: bool = True,
+    include_humidifier: bool = False,
+) -> List[DecisionStateSpec]:
     """Return the public app's generic sleep-pathway decision specs."""
     insomnia_rx_options = [
         ChoiceOptionSpec(id="no_insomnia_rx", label="No insomnia Rx", added_item_ids=[]),
@@ -94,6 +98,51 @@ def build_public_sleep_decision_specs(*, include_therapy: bool = True) -> List[D
         ),
     ]
 
+    conservative_options = [
+        ChoiceOptionSpec(id="status_quo", label="No airway support yet", added_item_ids=[]),
+        ChoiceOptionSpec(
+            id="head_elevation_nightly",
+            label="Use head elevation",
+            added_item_ids=["head_elevation_nightly"],
+        ),
+        ChoiceOptionSpec(
+            id="nasal_strips_nightly",
+            label="Use nasal strips",
+            added_item_ids=["nasal_strips_nightly"],
+        ),
+        ChoiceOptionSpec(
+            id="nasacort_nightly",
+            label="Use Nasacort",
+            added_item_ids=["nasacort_nightly"],
+        ),
+    ]
+    if include_humidifier:
+        conservative_options.append(
+            ChoiceOptionSpec(
+                id="humidifier_nightly",
+                label="Use humidifier",
+                added_item_ids=["humidifier_nightly"],
+            )
+        )
+
+    combined_ids = [
+        "head_elevation_nightly",
+        "nasal_strips_nightly",
+        "nasacort_nightly",
+    ]
+    combined_label = "Combine elevation, strips, and Nasacort"
+    if include_humidifier:
+        combined_ids.append("humidifier_nightly")
+        combined_label = "Combine elevation, strips, Nasacort, and humidifier"
+
+    conservative_options.append(
+        ChoiceOptionSpec(
+            id="combined_airway_support",
+            label=combined_label,
+            added_item_ids=combined_ids,
+        )
+    )
+
     specs: List[DecisionStateSpec] = [
         ChoiceStateSpec(
             id="conservative_airway_support",
@@ -103,33 +152,7 @@ def build_public_sleep_decision_specs(*, include_therapy: bool = True) -> List[D
                 "or waiting on formal treatment."
             ),
             base_item_ids=[],
-            options=[
-                ChoiceOptionSpec(id="status_quo", label="No airway support yet", added_item_ids=[]),
-                ChoiceOptionSpec(
-                    id="head_elevation_nightly",
-                    label="Use head elevation",
-                    added_item_ids=["head_elevation_nightly"],
-                ),
-                ChoiceOptionSpec(
-                    id="nasal_strips_nightly",
-                    label="Use nasal strips",
-                    added_item_ids=["nasal_strips_nightly"],
-                ),
-                ChoiceOptionSpec(
-                    id="nasacort_nightly",
-                    label="Use Nasacort",
-                    added_item_ids=["nasacort_nightly"],
-                ),
-                ChoiceOptionSpec(
-                    id="combined_airway_support",
-                    label="Combine elevation, strips, and Nasacort",
-                    added_item_ids=[
-                        "head_elevation_nightly",
-                        "nasal_strips_nightly",
-                        "nasacort_nightly",
-                    ],
-                ),
-            ],
+            options=conservative_options,
         ),
     ]
 
