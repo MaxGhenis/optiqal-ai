@@ -482,6 +482,10 @@ def generate_stratified_public_frontier_scenarios(
             PublicFrontierBenchmarkRules(
                 top_n=12,
                 required_visible_ids=("head_elevation_nightly", "nasacort_nightly"),
+                required_visible_order=(
+                    ("head_elevation_nightly", "nasal_strips_nightly"),
+                    ("nasacort_nightly", "nasal_strips_nightly"),
+                ),
                 banned_visible_ids=(
                     "apap_nightly",
                     "oral_appliance_custom",

@@ -355,6 +355,12 @@ def test_default_policy_supports_nasal_sleep_cases_without_full_osa_escalation()
         "strength_maintenance",
         "nasacort_nightly",
     )
+    assert nasal_case.frontier_ids.index("head_elevation_nightly") < nasal_case.frontier_ids.index(
+        "nasal_strips_nightly"
+    )
+    assert nasal_case.frontier_ids.index("nasacort_nightly") < nasal_case.frontier_ids.index(
+        "nasal_strips_nightly"
+    )
     assert "humidifier_nightly" not in nasal_case.frontier_ids
     assert "mouth_tape_nightly" not in nasal_case.frontier_ids
     assert nasal_case.airway_decision_states_present

@@ -333,6 +333,16 @@
         "head_elevation_nightly",
         "nasacort_nightly"
       ],
+      "required_visible_order": [
+        [
+          "head_elevation_nightly",
+          "nasal_strips_nightly"
+        ],
+        [
+          "nasacort_nightly",
+          "nasal_strips_nightly"
+        ]
+      ],
       "banned_visible_ids": [
         "apap_nightly",
         "oral_appliance_custom",
