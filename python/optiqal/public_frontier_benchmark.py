@@ -25,6 +25,7 @@ class PublicFrontierBenchmarkRules:
     banned_visible_ids: tuple[str, ...] = ()
     required_top_any_of: tuple[str, ...] = ()
     required_visible_ids: tuple[str, ...] = ()
+    required_visible_order: tuple[tuple[str, str], ...] = ()
     forbidden_visible_pairs: tuple[tuple[str, str], ...] = ()
     expected_airway_decision_states: Optional[bool] = None
 
@@ -122,6 +123,9 @@ def _load_benchmark_scenarios() -> tuple[PublicFrontierBenchmarkScenario, ...]:
                     banned_visible_ids=tuple(rules.get("banned_visible_ids", [])),
                     required_top_any_of=tuple(rules.get("required_top_any_of", [])),
                     required_visible_ids=tuple(rules.get("required_visible_ids", [])),
+                    required_visible_order=tuple(
+                        tuple(pair) for pair in rules.get("required_visible_order", [])
+                    ),
                     forbidden_visible_pairs=tuple(
                         tuple(pair) for pair in rules.get("forbidden_visible_pairs", [])
                     ),
@@ -368,6 +372,7 @@ def generate_stratified_public_frontier_scenarios(
             PublicFrontierBenchmarkRules(
                 top_n=12,
                 required_visible_ids=("statin_5mg", "semaglutide"),
+                required_visible_order=(("statin_5mg", "metformin_500mg"),),
                 banned_visible_ids=("metformin_500mg", "finasteride_1.25mg", "tadalafil_2.5mg"),
                 expected_airway_decision_states=False,
             ),
@@ -378,6 +383,10 @@ def generate_stratified_public_frontier_scenarios(
             PublicFrontierBenchmarkRules(
                 top_n=12,
                 required_visible_ids=("semaglutide", "metformin_500mg"),
+                required_visible_order=(
+                    ("metformin_500mg", "semaglutide"),
+                    ("statin_5mg", "semaglutide"),
+                ),
                 banned_visible_ids=("finasteride_1.25mg", "tadalafil_2.5mg"),
                 expected_airway_decision_states=False,
             ),
@@ -388,6 +397,7 @@ def generate_stratified_public_frontier_scenarios(
             PublicFrontierBenchmarkRules(
                 top_n=12,
                 required_visible_ids=("statin_5mg",),
+                required_visible_order=(("statin_5mg", "metformin_500mg"),),
                 banned_visible_ids=("metformin_500mg", "semaglutide", "finasteride_1.25mg", "tadalafil_2.5mg"),
                 expected_airway_decision_states=False,
             ),
@@ -398,6 +408,10 @@ def generate_stratified_public_frontier_scenarios(
             PublicFrontierBenchmarkRules(
                 top_n=12,
                 required_visible_ids=("statin_5mg", "semaglutide"),
+                required_visible_order=(
+                    ("statin_5mg", "metformin_500mg"),
+                    ("semaglutide", "metformin_500mg"),
+                ),
                 banned_visible_ids=("metformin_500mg", "finasteride_1.25mg", "tadalafil_2.5mg"),
                 expected_airway_decision_states=False,
             ),
@@ -407,7 +421,8 @@ def generate_stratified_public_frontier_scenarios(
             lambda: _lean_diabetes_younger_payload(rng),
             PublicFrontierBenchmarkRules(
                 top_n=12,
-                required_visible_ids=("statin_5mg",),
+                required_visible_ids=("statin_5mg", "metformin_500mg"),
+                required_visible_order=(("metformin_500mg", "statin_5mg"),),
                 banned_visible_ids=("semaglutide", "finasteride_1.25mg", "tadalafil_2.5mg"),
                 expected_airway_decision_states=False,
             ),
@@ -418,6 +433,7 @@ def generate_stratified_public_frontier_scenarios(
             PublicFrontierBenchmarkRules(
                 top_n=12,
                 required_visible_ids=("statin_5mg", "metformin_500mg"),
+                required_visible_order=(("metformin_500mg", "statin_5mg"),),
                 banned_visible_ids=("semaglutide", "finasteride_1.25mg", "tadalafil_2.5mg"),
                 expected_airway_decision_states=False,
             ),
@@ -555,6 +571,19 @@ def evaluate_public_frontier_case(
                     message=f"{item_id} did not appear in the visible frontier.",
                 )
             )
+
+    for left_id, right_id in scenario.rules.required_visible_order:
+        checks_run += 1
+        if left_id in frontier_ids and right_id in frontier_ids:
+            if frontier_ids.index(left_id) > frontier_ids.index(right_id):
+                failures.append(
+                    PublicFrontierBenchmarkFailure(
+                        rule="required_visible_order",
+                        message=(
+                            f"{left_id} must rank ahead of {right_id} in the visible frontier."
+                        ),
+                    )
+                )
 
     for left_id, right_id in scenario.rules.forbidden_visible_pairs:
         checks_run += 1
@@ -711,6 +740,7 @@ def _scenario_rules_signature(scenario: PublicFrontierBenchmarkScenario) -> tupl
         scenario.rules.banned_visible_ids,
         scenario.rules.required_top_any_of,
         scenario.rules.required_visible_ids,
+        scenario.rules.required_visible_order,
         scenario.rules.forbidden_visible_pairs,
         scenario.rules.expected_airway_decision_states,
     )
@@ -764,6 +794,7 @@ def render_public_frontier_judge_prompt(
                 "banned_visible_ids": list(scenario.rules.banned_visible_ids),
                 "required_top_any_of": list(scenario.rules.required_top_any_of),
                 "required_visible_ids": list(scenario.rules.required_visible_ids),
+                "required_visible_order": [list(pair) for pair in scenario.rules.required_visible_order],
                 "forbidden_visible_pairs": [list(pair) for pair in scenario.rules.forbidden_visible_pairs],
                 "expected_airway_decision_states": scenario.rules.expected_airway_decision_states,
             },

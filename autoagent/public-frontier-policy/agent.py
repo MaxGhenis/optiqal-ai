@@ -323,7 +323,8 @@ def compute_reward(summary: dict[str, Any]) -> tuple[float, dict[str, Any]]:
     comparison = summary["comparison"]
     candidate_score = float(summary.get("hybrid_score", comparison["candidate_score"]))
     incumbent_score = float(comparison["incumbent_score"])
-    reward = max(0.0, min(1.0, candidate_score + max(0.0, candidate_score - incumbent_score)))
+    # Use the candidate score directly so near-1.0 policies still retain gradient.
+    reward = max(0.0, min(1.0, candidate_score))
     diagnostics = {
         "candidate_score": candidate_score,
         "hard_candidate_score": float(comparison["candidate_score"]),

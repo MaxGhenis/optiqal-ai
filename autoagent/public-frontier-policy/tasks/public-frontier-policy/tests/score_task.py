@@ -16,7 +16,7 @@ def main() -> None:
     candidate_score = float(summary.get("hybrid_score", comparison["candidate_score"]))
     incumbent_score = float(comparison["incumbent_score"])
 
-    reward = max(0.0, min(1.0, candidate_score + max(0.0, candidate_score - incumbent_score)))
+    reward = max(0.0, min(1.0, candidate_score))
 
     diagnostics = {
         "candidate_score": candidate_score,

@@ -159,3 +159,30 @@ def test_harbor_score_task_prefers_hybrid_score_when_present(tmp_path: Path) -> 
     assert reward_payload["candidate_score"] == 0.88
     assert reward_payload["hard_candidate_score"] == 1.0
     assert reward_payload["score_mode"] == "hybrid"
+    assert reward_payload["reward"] == 0.88
+
+
+def test_harbor_score_task_keeps_gradient_for_near_perfect_candidates(tmp_path: Path) -> None:
+    summary_path = tmp_path / "summary.json"
+    logs_dir = tmp_path / "logs"
+    summary_path.write_text(json.dumps({
+        "comparison": {
+            "candidate_score": 0.9844,
+            "incumbent_score": 0.9093,
+            "score_delta": 0.0751,
+            "changed_case_count": 9,
+        },
+    }))
+
+    env = dict(os.environ)
+    env["HARBOR_VERIFIER_LOG_DIR"] = str(logs_dir)
+    subprocess.run(
+        [sys.executable, str(SCORE_TASK), str(summary_path)],
+        cwd=ROOT,
+        env=env,
+        check=True,
+    )
+
+    reward_payload = json.loads((logs_dir / "reward.json").read_text())
+    assert reward_payload["candidate_score"] == 0.9844
+    assert reward_payload["reward"] == 0.9844
