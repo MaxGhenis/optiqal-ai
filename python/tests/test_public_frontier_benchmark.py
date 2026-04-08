@@ -30,18 +30,22 @@ def test_canonical_public_frontier_benchmark_exposes_current_policy_gaps():
     by_id = {case.scenario_id: case for case in report.case_results}
     assert any(failure.rule == "banned_visible_ids" for failure in by_id["mild_metabolic_50m_public"].failures)
     assert any(failure.rule == "banned_visible_ids" for failure in by_id["obesity_glp1_52f_public"].failures)
+    assert any(failure.rule == "banned_visible_ids" for failure in by_id["lean_diabetes_45m_public"].failures)
+    assert any(failure.rule == "banned_visible_ids" for failure in by_id["lean_diabetes_52m_public"].failures)
 
 
 def test_generated_stratified_cases_cover_expected_strata():
     generated = generate_stratified_public_frontier_scenarios(seed=7, cases_per_stratum=2)
 
-    assert len(generated) == 14
+    assert len(generated) == 18
     tags = {tag for scenario in generated for tag in scenario.tags}
     assert "healthy_public" in tags
     assert "cardiometabolic_public" in tags
     assert "glp1_public" in tags
     assert "borderline_metabolic_public" in tags
     assert "obesity_glp1_no_diabetes_public" in tags
+    assert "lean_diabetes_younger_public" in tags
+    assert "lean_diabetes_older_public" in tags
     assert "airway_sleep" in tags
     assert "duration_only_sleep" in tags
 
@@ -56,6 +60,8 @@ def test_generated_metabolic_strata_respect_intended_bmi_bands():
             assert bmi >= 30
         if "borderline_metabolic_public" in scenario.tags:
             assert 25 <= bmi < 30
+        if "lean_diabetes_younger_public" in scenario.tags or "lean_diabetes_older_public" in scenario.tags:
+            assert bmi < 25
 
 
 def test_multi_seed_benchmark_builder_prefixes_generated_ids_uniquely():
@@ -232,3 +238,44 @@ def test_candidate_policy_can_fix_non_diabetic_metformin_leakage(tmp_path):
     assert improved.score > incumbent.score
     assert by_id["mild_metabolic_50m_public"].passed
     assert by_id["obesity_glp1_52f_public"].passed
+
+
+def test_candidate_policy_can_fix_lean_diabetes_glp1_overexposure(tmp_path):
+    candidate_path = tmp_path / "candidate-policy.json"
+    candidate_path.write_text(json.dumps({
+        "conditions": {
+            "cardiometabolic_signal": {
+                "profile_score_threshold": 4,
+                "profile_rules": [
+                    {"field": "age", "operator": "gte", "value": 60, "points": 2, "label": "Age 60+"},
+                    {"field": "age", "operator": "gte", "value": 50, "points": 1, "label": "Age 50+"},
+                    {"field": "bmi_category", "operator": "eq", "value": "overweight", "points": 1, "label": "BMI in overweight range"},
+                    {"field": "bmi_category", "operator": "in", "value": ["obese", "severely_obese"], "points": 2, "label": "BMI in obese range"},
+                    {"field": "smoking_status", "operator": "eq", "value": "current", "points": 2, "label": "Current smoker"},
+                    {"field": "has_hypertension", "operator": "eq", "value": True, "points": 2, "label": "Has hypertension"},
+                    {"field": "has_diabetes", "operator": "eq", "value": True, "points": 4, "label": "Has diabetes"},
+                ],
+            },
+            "glp1_signal": {
+                "profile_score_threshold": 5,
+                "profile_rules": [
+                    {"field": "has_diabetes", "operator": "eq", "value": True, "points": 3, "label": "Has diabetes"},
+                    {"field": "bmi_category", "operator": "eq", "value": "overweight", "points": 1, "label": "BMI in overweight range"},
+                    {"field": "bmi_category", "operator": "in", "value": ["obese", "severely_obese"], "points": 3, "label": "BMI in obese range"},
+                    {"field": "has_hypertension", "operator": "eq", "value": True, "points": 1, "label": "Has hypertension"},
+                    {"field": "age", "operator": "gte", "value": 50, "points": 1, "label": "Age 50+"},
+                ],
+            },
+            "metabolic_signal": {"profile_score_threshold": 5},
+        },
+    }, indent=2))
+
+    incumbent = run_public_frontier_benchmark()
+    improved = run_public_frontier_benchmark(
+        public_policy=load_public_policy_override(candidate_path)
+    )
+    by_id = {case.scenario_id: case for case in improved.case_results}
+
+    assert improved.score > incumbent.score
+    assert by_id["lean_diabetes_45m_public"].passed
+    assert by_id["lean_diabetes_52m_public"].passed

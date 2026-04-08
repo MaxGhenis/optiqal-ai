@@ -238,6 +238,54 @@ def _obesity_glp1_no_diabetes_payload(rng: random.Random) -> dict[str, Any]:
     }
 
 
+def _lean_diabetes_younger_payload(rng: random.Random) -> dict[str, Any]:
+    height_cm, weight_kg = rng.choice(
+        [
+            (172, 68),
+            (178, 72),
+            (182, 76),
+        ]
+    )
+    return {
+        "profile": {
+            "age": rng.choice([40, 45, 48]),
+            "sex": rng.choice(["male", "female"]),
+            "weight_kg": weight_kg,
+            "height_cm": height_cm,
+            "smoker": False,
+            "has_diabetes": True,
+            "has_hypertension": False,
+            "activity_level": "light",
+            "sleep_hours_per_night": 7,
+        },
+        "n_simulations": 1000,
+    }
+
+
+def _lean_diabetes_older_payload(rng: random.Random) -> dict[str, Any]:
+    height_cm, weight_kg = rng.choice(
+        [
+            (172, 68),
+            (178, 72),
+            (182, 76),
+        ]
+    )
+    return {
+        "profile": {
+            "age": rng.choice([50, 52, 55]),
+            "sex": rng.choice(["male", "female"]),
+            "weight_kg": weight_kg,
+            "height_cm": height_cm,
+            "smoker": False,
+            "has_diabetes": True,
+            "has_hypertension": False,
+            "activity_level": "light",
+            "sleep_hours_per_night": 7,
+        },
+        "n_simulations": 1000,
+    }
+
+
 def _airway_payload(rng: random.Random) -> dict[str, Any]:
     return {
         "profile": {
@@ -351,6 +399,26 @@ def generate_stratified_public_frontier_scenarios(
                 top_n=12,
                 required_visible_ids=("statin_5mg", "semaglutide"),
                 banned_visible_ids=("metformin_500mg", "finasteride_1.25mg", "tadalafil_2.5mg"),
+                expected_airway_decision_states=False,
+            ),
+        ),
+        (
+            "lean_diabetes_younger_public",
+            lambda: _lean_diabetes_younger_payload(rng),
+            PublicFrontierBenchmarkRules(
+                top_n=12,
+                required_visible_ids=("statin_5mg",),
+                banned_visible_ids=("semaglutide", "finasteride_1.25mg", "tadalafil_2.5mg"),
+                expected_airway_decision_states=False,
+            ),
+        ),
+        (
+            "lean_diabetes_older_public",
+            lambda: _lean_diabetes_older_payload(rng),
+            PublicFrontierBenchmarkRules(
+                top_n=12,
+                required_visible_ids=("statin_5mg", "metformin_500mg"),
+                banned_visible_ids=("semaglutide", "finasteride_1.25mg", "tadalafil_2.5mg"),
                 expected_airway_decision_states=False,
             ),
         ),

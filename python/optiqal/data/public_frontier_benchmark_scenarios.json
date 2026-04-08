@@ -176,6 +176,71 @@
     }
   },
   {
+    "id": "lean_diabetes_45m_public",
+    "label": "Lean diabetes 45M canary",
+    "description": "Lean midlife diabetes should surface statin discussion but stay conservative about GLP-1 therapy in the generic public frontier.",
+    "tags": ["diabetes", "lean", "public_canary", "male"],
+    "payload": {
+      "profile": {
+        "age": 45,
+        "sex": "male",
+        "weight_kg": 72,
+        "height_cm": 178,
+        "smoker": false,
+        "has_diabetes": true,
+        "has_hypertension": false,
+        "activity_level": "light",
+        "sleep_hours_per_night": 7
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 12,
+      "required_visible_ids": [
+        "statin_5mg"
+      ],
+      "banned_visible_ids": [
+        "semaglutide",
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg"
+      ],
+      "expected_airway_decision_states": false
+    }
+  },
+  {
+    "id": "lean_diabetes_52m_public",
+    "label": "Lean diabetes 52M canary",
+    "description": "Older lean diabetes should surface statin and metformin discussion but not generic GLP-1 therapy in the public frontier.",
+    "tags": ["diabetes", "lean", "public_canary", "male"],
+    "payload": {
+      "profile": {
+        "age": 52,
+        "sex": "male",
+        "weight_kg": 72,
+        "height_cm": 178,
+        "smoker": false,
+        "has_diabetes": true,
+        "has_hypertension": false,
+        "activity_level": "light",
+        "sleep_hours_per_night": 7
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 12,
+      "required_visible_ids": [
+        "statin_5mg",
+        "metformin_500mg"
+      ],
+      "banned_visible_ids": [
+        "semaglutide",
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg"
+      ],
+      "expected_airway_decision_states": false
+    }
+  },
+  {
     "id": "airway_sleep_39m",
     "label": "Airway-weighted sleep canary",
     "description": "Airway-heavy sleep inputs should unlock sleep pathway decisions and airway interventions.",
