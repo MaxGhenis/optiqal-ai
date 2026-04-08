@@ -362,6 +362,8 @@ def test_public_sleep_pathway_requires_meaningful_airway_signal():
     assert "nasacort_nightly" in support_frontier_ids
     assert "apap_nightly" not in support_frontier_ids
     assert "oral_appliance_custom" not in support_frontier_ids
+    assert "humidifier_nightly" not in support_frontier_ids
+    assert "mouth_tape_nightly" not in support_frontier_ids
 
 
 def test_healthy_young_female_public_frontier_excludes_condition_specific_generic_misses():

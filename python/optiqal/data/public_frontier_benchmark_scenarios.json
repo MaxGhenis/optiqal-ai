@@ -295,7 +295,8 @@
       ],
       "banned_visible_ids": [
         "finasteride_1.25mg",
-        "tadalafil_2.5mg"
+        "tadalafil_2.5mg",
+        "mouth_tape_nightly"
       ],
       "expected_airway_decision_states": true
     }
@@ -335,6 +336,8 @@
       "banned_visible_ids": [
         "apap_nightly",
         "oral_appliance_custom",
+        "humidifier_nightly",
+        "mouth_tape_nightly",
         "finasteride_1.25mg",
         "tadalafil_2.5mg"
       ],

@@ -472,7 +472,7 @@ def generate_stratified_public_frontier_scenarios(
             PublicFrontierBenchmarkRules(
                 top_n=15,
                 required_visible_ids=("apap_nightly", "head_elevation_nightly"),
-                banned_visible_ids=("finasteride_1.25mg", "tadalafil_2.5mg"),
+                banned_visible_ids=("finasteride_1.25mg", "tadalafil_2.5mg", "mouth_tape_nightly"),
                 expected_airway_decision_states=True,
             ),
         ),
@@ -482,7 +482,12 @@ def generate_stratified_public_frontier_scenarios(
             PublicFrontierBenchmarkRules(
                 top_n=12,
                 required_visible_ids=("head_elevation_nightly", "nasacort_nightly"),
-                banned_visible_ids=("apap_nightly", "oral_appliance_custom"),
+                banned_visible_ids=(
+                    "apap_nightly",
+                    "oral_appliance_custom",
+                    "humidifier_nightly",
+                    "mouth_tape_nightly",
+                ),
                 required_decision_state_ids=("conservative_airway_support",),
                 banned_decision_state_ids=(
                     "primary_osa_therapy_choice",

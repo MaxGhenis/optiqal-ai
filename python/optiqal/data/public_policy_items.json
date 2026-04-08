@@ -11,12 +11,11 @@
   },
   "humidifier_nightly": {
     "public_lane": "conditional_public",
-    "public_condition": "airway_signal",
+    "public_condition": "nasal_dryness_signal",
     "public_display_category_override": "sleep"
   },
   "mouth_tape_nightly": {
-    "public_lane": "conditional_public",
-    "public_condition": "airway_signal",
+    "public_lane": "personal_only",
     "public_display_category_override": "sleep"
   },
   "head_elevation_nightly": {

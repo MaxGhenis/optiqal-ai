@@ -52,6 +52,7 @@ def test_web_frontier_emits_branching_sleep_sequence_and_states():
     assert any(lane["id"] == "consumer_public" for lane in response["public_policy"]["lanes"])
     assert any(condition["id"] == "airway_signal" for condition in response["public_policy"]["conditions"])
     assert any(condition["id"] == "osa_therapy_signal" for condition in response["public_policy"]["conditions"])
+    assert any(condition["id"] == "nasal_dryness_signal" for condition in response["public_policy"]["conditions"])
     airway_condition = next(
         condition for condition in response["public_policy"]["conditions"] if condition["id"] == "airway_signal"
     )
@@ -61,6 +62,8 @@ def test_web_frontier_emits_branching_sleep_sequence_and_states():
     policy_items = {item["id"]: item for item in response["public_policy"]["items"]}
     assert policy_items["apap_nightly"]["lane"] == "conditional_public"
     assert policy_items["apap_nightly"]["condition"] == "osa_therapy_signal"
+    assert policy_items["humidifier_nightly"]["condition"] == "nasal_dryness_signal"
+    assert policy_items["mouth_tape_nightly"]["lane"] == "personal_only"
     assert policy_items["hiit_2x_week"]["lane"] == "consumer_public"
 
     assert response["decision_sequence"][-1] == {
@@ -116,3 +119,5 @@ def test_web_frontier_can_emit_support_only_sleep_pathway():
     assert "nasacort_nightly" in frontier_ids
     assert "apap_nightly" not in frontier_ids
     assert "oral_appliance_custom" not in frontier_ids
+    assert "humidifier_nightly" not in frontier_ids
+    assert "mouth_tape_nightly" not in frontier_ids

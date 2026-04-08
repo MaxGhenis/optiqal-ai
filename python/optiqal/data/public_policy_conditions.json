@@ -55,6 +55,24 @@
       }
     ]
   },
+  "nasal_dryness_signal": {
+    "label": "Nasal dryness or congestion support signal",
+    "description": "Triggered by a stronger nasal-inflammation or mucus-heavy phenotype where humidification becomes a plausible public support option.",
+    "evaluation_kind": "sleep_any_threshold",
+    "hidden_reason": "Hidden from the generic public frontier unless the sleep inputs show a stronger nasal-inflammation or mucus-heavy phenotype.",
+    "threshold_rules": [
+      {
+        "signal": "sleep_nasal_inflammation_probability",
+        "threshold": 0.18,
+        "label": "Nasal-inflammation probability at least 0.18"
+      },
+      {
+        "signal": "sleep_mucus_probability",
+        "threshold": 0.08,
+        "label": "Mucus probability at least 0.08"
+      }
+    ]
+  },
   "cardiometabolic_signal": {
     "label": "Cardiometabolic risk signal",
     "description": "Triggered by age plus smoking, hypertension, diabetes, or elevated BMI.",

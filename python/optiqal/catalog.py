@@ -104,6 +104,7 @@ PublicRecommendationLane = Literal["consumer_public", "conditional_public", "per
 PublicCondition = Literal[
     "airway_signal",
     "osa_therapy_signal",
+    "nasal_dryness_signal",
     "cardiometabolic_signal",
     "metabolic_signal",
     "glp1_signal",
@@ -142,6 +143,7 @@ PUBLIC_DISPLAY_CATEGORY_VALUES: tuple[PublicDisplayCategory, ...] = (
 PUBLIC_CONDITION_VALUES: tuple[PublicCondition, ...] = (
     "airway_signal",
     "osa_therapy_signal",
+    "nasal_dryness_signal",
     "cardiometabolic_signal",
     "metabolic_signal",
     "glp1_signal",

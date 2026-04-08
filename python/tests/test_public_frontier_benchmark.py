@@ -355,6 +355,8 @@ def test_default_policy_supports_nasal_sleep_cases_without_full_osa_escalation()
         "strength_maintenance",
         "nasacort_nightly",
     )
+    assert "humidifier_nightly" not in nasal_case.frontier_ids
+    assert "mouth_tape_nightly" not in nasal_case.frontier_ids
     assert nasal_case.airway_decision_states_present
     assert nasal_case.response["decision_sequence"] == [
         {
@@ -364,3 +366,7 @@ def test_default_policy_supports_nasal_sleep_cases_without_full_osa_escalation()
             "state_id": "conservative_airway_support",
         }
     ]
+
+    airway_case = by_id["airway_sleep_39m"]
+    assert airway_case.passed
+    assert "mouth_tape_nightly" not in airway_case.frontier_ids
