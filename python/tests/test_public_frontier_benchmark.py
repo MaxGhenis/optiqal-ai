@@ -40,7 +40,7 @@ def test_canonical_public_frontier_benchmark_exposes_current_policy_gaps():
 def test_generated_stratified_cases_cover_expected_strata():
     generated = generate_stratified_public_frontier_scenarios(seed=7, cases_per_stratum=2)
 
-    assert len(generated) == 18
+    assert len(generated) == 20
     tags = {tag for scenario in generated for tag in scenario.tags}
     assert "healthy_public" in tags
     assert "cardiometabolic_public" in tags
@@ -50,6 +50,7 @@ def test_generated_stratified_cases_cover_expected_strata():
     assert "lean_diabetes_younger_public" in tags
     assert "lean_diabetes_older_public" in tags
     assert "airway_sleep" in tags
+    assert "nasal_support_only_sleep" in tags
     assert "duration_only_sleep" in tags
 
 
@@ -338,3 +339,28 @@ def test_candidate_policy_can_restore_metformin_for_younger_lean_diabetes_withou
     )
     assert by_id["lean_diabetes_52m_public"].passed
     assert by_id["glp1_52f_diabetes_obesity"].passed
+
+
+def test_default_policy_supports_nasal_sleep_cases_without_full_osa_escalation():
+    by_id = {
+        case.scenario_id: case
+        for case in run_public_frontier_benchmark().case_results
+    }
+
+    nasal_case = by_id["nasal_support_only_sleep_39m"]
+    assert nasal_case.passed
+    assert nasal_case.top_ids[:4] == (
+        "hiit_2x_week",
+        "head_elevation_nightly",
+        "strength_maintenance",
+        "nasacort_nightly",
+    )
+    assert nasal_case.airway_decision_states_present
+    assert nasal_case.response["decision_sequence"] == [
+        {
+            "step": 1,
+            "id": "conservative_airway_support",
+            "label": "Start with low-friction airway support if the phenotype looks airway-heavy.",
+            "state_id": "conservative_airway_support",
+        }
+    ]

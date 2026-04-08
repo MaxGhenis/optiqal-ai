@@ -301,6 +301,55 @@
     }
   },
   {
+    "id": "nasal_support_only_sleep_39m",
+    "label": "Nasal-weighted support-only sleep canary",
+    "description": "Mild nasal-heavy sleep inputs should surface conservative airway support without jumping straight to PAP or oral-appliance escalation.",
+    "tags": ["sleep_airway", "sleep_support_only", "public_canary", "male"],
+    "payload": {
+      "profile": {
+        "age": 39,
+        "sex": "male",
+        "weight_kg": 74.8,
+        "height_cm": 178,
+        "smoker": false,
+        "has_diabetes": false,
+        "has_hypertension": false,
+        "activity_level": "active",
+        "sleep_hours_per_night": 6.8
+      },
+      "sleep_metrics": {
+        "duration_hours": 6.8,
+        "breathing_score": 0.76,
+        "spo2": 95.7,
+        "snore_pct": 0.8,
+        "airway_response_signal": 0.06
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 12,
+      "required_visible_ids": [
+        "head_elevation_nightly",
+        "nasacort_nightly"
+      ],
+      "banned_visible_ids": [
+        "apap_nightly",
+        "oral_appliance_custom",
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg"
+      ],
+      "required_decision_state_ids": [
+        "conservative_airway_support"
+      ],
+      "banned_decision_state_ids": [
+        "primary_osa_therapy_choice",
+        "rx_after_apap_if_needed",
+        "rx_after_oral_appliance_if_needed"
+      ],
+      "expected_airway_decision_states": true
+    }
+  },
+  {
     "id": "duration_only_sleep_39m",
     "label": "Duration-only sleep canary",
     "description": "Short sleep without airway-heavy metrics should not unlock airway treatment pathways.",

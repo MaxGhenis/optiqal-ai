@@ -26,12 +26,12 @@
   },
   "apap_nightly": {
     "public_lane": "conditional_public",
-    "public_condition": "airway_signal",
+    "public_condition": "osa_therapy_signal",
     "public_display_category_override": "sleep"
   },
   "oral_appliance_custom": {
     "public_lane": "conditional_public",
-    "public_condition": "airway_signal",
+    "public_condition": "osa_therapy_signal",
     "public_display_category_override": "sleep"
   },
   "hiit_1x_week": {

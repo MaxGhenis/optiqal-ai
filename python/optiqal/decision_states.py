@@ -71,7 +71,7 @@ def ordered_unique(item_ids: Iterable[str]) -> List[str]:
     return ordered
 
 
-def build_public_sleep_decision_specs() -> List[DecisionStateSpec]:
+def build_public_sleep_decision_specs(*, include_therapy: bool = True) -> List[DecisionStateSpec]:
     """Return the public app's generic sleep-pathway decision specs."""
     insomnia_rx_options = [
         ChoiceOptionSpec(id="no_insomnia_rx", label="No insomnia Rx", added_item_ids=[]),
@@ -94,7 +94,7 @@ def build_public_sleep_decision_specs() -> List[DecisionStateSpec]:
         ),
     ]
 
-    return [
+    specs: List[DecisionStateSpec] = [
         ChoiceStateSpec(
             id="conservative_airway_support",
             label="Conservative airway support now",
@@ -131,6 +131,12 @@ def build_public_sleep_decision_specs() -> List[DecisionStateSpec]:
                 ),
             ],
         ),
+    ]
+
+    if not include_therapy:
+        return specs
+
+    specs.extend([
         ChoiceStateSpec(
             id="primary_osa_therapy_choice",
             label="If a sleep study confirms mild OSA",
@@ -169,18 +175,25 @@ def build_public_sleep_decision_specs() -> List[DecisionStateSpec]:
             base_item_ids=["oral_appliance_custom"],
             options=insomnia_rx_options,
         ),
-    ]
+    ])
+    return specs
 
 
-def build_public_sleep_decision_sequence() -> List[DecisionSequenceStepSpec]:
+def build_public_sleep_decision_sequence(*, include_therapy: bool = True) -> List[DecisionSequenceStepSpec]:
     """Return the public app's generic sleep-pathway sequence."""
-    return [
+    steps = [
         DecisionSequenceStepSpec(
             step=1,
             id="conservative_airway_support",
             label="Start with low-friction airway support if the phenotype looks airway-heavy.",
             state_id="conservative_airway_support",
         ),
+    ]
+
+    if not include_therapy:
+        return steps
+
+    steps.extend([
         DecisionSequenceStepSpec(
             step=2,
             id="primary_osa_therapy_choice",
@@ -194,7 +207,8 @@ def build_public_sleep_decision_sequence() -> List[DecisionSequenceStepSpec]:
             preferred_state_id="rx_after_apap_if_needed",
             alternative_state_id="rx_after_oral_appliance_if_needed",
         ),
-    ]
+    ])
+    return steps
 
 
 def summarize_stack_from_qalys(

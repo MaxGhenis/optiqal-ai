@@ -17,6 +17,7 @@ from optiqal import (
     evaluate_decision_states,
     get_catalog,
     has_meaningful_public_airway_signal,
+    has_meaningful_public_osa_therapy_signal,
     is_publicly_rankable,
     public_display_category,
     public_recommendation_lane,
@@ -608,8 +609,16 @@ def build_frontier_response_with_policy(
 
     decision_states = []
     decision_sequence = []
-    if has_meaningful_public_airway_signal(config.sleep_estimate, policy=public_policy):
-        decision_specs = build_public_sleep_decision_specs()
+    support_signal = has_meaningful_public_airway_signal(config.sleep_estimate, policy=public_policy)
+    therapy_signal = has_meaningful_public_osa_therapy_signal(
+        config.sleep_estimate,
+        policy=public_policy,
+    )
+    if therapy_signal:
+        support_signal = True
+
+    if support_signal:
+        decision_specs = build_public_sleep_decision_specs(include_therapy=therapy_signal)
         decision_item_ids: list[str] = []
         seen_decision_ids: set[str] = set()
         for spec in decision_specs:
@@ -702,7 +711,7 @@ def build_frontier_response_with_policy(
             })
 
         decision_sequence = serialize_decision_sequence(
-            build_public_sleep_decision_sequence()
+            build_public_sleep_decision_sequence(include_therapy=therapy_signal)
         )
 
     positive_items = sum(1 for item in items if item["total_qaly"] > 0)

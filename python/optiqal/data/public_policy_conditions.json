@@ -32,6 +32,29 @@
       }
     ]
   },
+  "osa_therapy_signal": {
+    "label": "OSA-therapy sleep signal",
+    "description": "Triggered by a stronger airway phenotype where PAP or oral-appliance escalation becomes plausible in the public sleep pathway.",
+    "evaluation_kind": "sleep_any_threshold",
+    "hidden_reason": "Hidden from the generic public frontier unless the sleep inputs show a stronger airway phenotype that plausibly warrants PAP or oral-appliance discussion.",
+    "threshold_rules": [
+      {
+        "signal": "sleep_airway_response_signal",
+        "threshold": 0.2,
+        "label": "Airway response signal at least 0.20"
+      },
+      {
+        "signal": "sleep_upper_airway_probability",
+        "threshold": 0.25,
+        "label": "Upper-airway probability at least 0.25"
+      },
+      {
+        "signal": "sleep_breathing_burden",
+        "threshold": 0.3,
+        "label": "Breathing burden at least 0.30 QALY/yr"
+      }
+    ]
+  },
   "cardiometabolic_signal": {
     "label": "Cardiometabolic risk signal",
     "description": "Triggered by age plus smoking, hypertension, diabetes, or elevated BMI.",

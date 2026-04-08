@@ -323,6 +323,7 @@ def test_public_sleep_pathway_requires_meaningful_airway_signal():
                 "spo2": 94.8,
                 "snore_pct": 4.0,
                 "sleep_quality_score": 78,
+                "airway_response_signal": 0.4,
             },
             "n_simulations": 500,
         }
@@ -334,6 +335,33 @@ def test_public_sleep_pathway_requires_meaningful_airway_signal():
         "rx_after_apap_if_needed",
         "rx_after_oral_appliance_if_needed",
     ]
+
+    support_only_sleep = build_frontier_response(
+        {
+            "profile": {
+                **healthy_profile,
+                "sleep_hours_per_night": 6.8,
+            },
+            "sleep_metrics": {
+                "duration_hours": 6.8,
+                "breathing_score": 0.76,
+                "spo2": 95.7,
+                "snore_pct": 0.8,
+                "airway_response_signal": 0.06,
+            },
+            "n_simulations": 500,
+        }
+    )
+    assert [state["id"] for state in support_only_sleep["decision_states"]] == [
+        "conservative_airway_support",
+    ]
+    support_frontier_ids = {
+        step["added_intervention"] for step in support_only_sleep["frontier"]
+    }
+    assert "head_elevation_nightly" in support_frontier_ids
+    assert "nasacort_nightly" in support_frontier_ids
+    assert "apap_nightly" not in support_frontier_ids
+    assert "oral_appliance_custom" not in support_frontier_ids
 
 
 def test_healthy_young_female_public_frontier_excludes_condition_specific_generic_misses():
@@ -415,6 +443,7 @@ def test_airway_triggered_public_sleep_pathway_keeps_contextual_rx_options():
                 "spo2": 94.8,
                 "snore_pct": 4.0,
                 "sleep_quality_score": 78,
+                "airway_response_signal": 0.4,
             },
             "n_simulations": 500,
         }

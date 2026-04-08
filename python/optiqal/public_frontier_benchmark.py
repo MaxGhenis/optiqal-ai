@@ -26,6 +26,8 @@ class PublicFrontierBenchmarkRules:
     required_top_any_of: tuple[str, ...] = ()
     required_visible_ids: tuple[str, ...] = ()
     required_visible_order: tuple[tuple[str, str], ...] = ()
+    required_decision_state_ids: tuple[str, ...] = ()
+    banned_decision_state_ids: tuple[str, ...] = ()
     forbidden_visible_pairs: tuple[tuple[str, str], ...] = ()
     expected_airway_decision_states: Optional[bool] = None
 
@@ -126,6 +128,8 @@ def _load_benchmark_scenarios() -> tuple[PublicFrontierBenchmarkScenario, ...]:
                     required_visible_order=tuple(
                         tuple(pair) for pair in rules.get("required_visible_order", [])
                     ),
+                    required_decision_state_ids=tuple(rules.get("required_decision_state_ids", [])),
+                    banned_decision_state_ids=tuple(rules.get("banned_decision_state_ids", [])),
                     forbidden_visible_pairs=tuple(
                         tuple(pair) for pair in rules.get("forbidden_visible_pairs", [])
                     ),
@@ -336,6 +340,30 @@ def _duration_only_payload(rng: random.Random) -> dict[str, Any]:
     }
 
 
+def _nasal_support_only_payload(rng: random.Random) -> dict[str, Any]:
+    return {
+        "profile": {
+            "age": rng.choice([37, 39, 42]),
+            "sex": rng.choice(["male", "female"]),
+            "weight_kg": rng.choice([70, 74.8, 82]),
+            "height_cm": rng.choice([168, 175, 178]),
+            "smoker": False,
+            "has_diabetes": False,
+            "has_hypertension": False,
+            "activity_level": rng.choice(["light", "active"]),
+            "sleep_hours_per_night": rng.choice([6.6, 6.8, 7.0]),
+        },
+        "sleep_metrics": {
+            "duration_hours": rng.choice([6.6, 6.8, 7.0]),
+            "breathing_score": rng.choice([0.74, 0.76, 0.78]),
+            "spo2": rng.choice([95.6, 95.7, 95.8]),
+            "snore_pct": rng.choice([0.6, 0.8, 1.0]),
+            "airway_response_signal": rng.choice([0.04, 0.05, 0.06]),
+        },
+        "n_simulations": 1000,
+    }
+
+
 def generate_stratified_public_frontier_scenarios(
     *,
     seed: int = 42,
@@ -449,6 +477,22 @@ def generate_stratified_public_frontier_scenarios(
             ),
         ),
         (
+            "nasal_support_only_sleep",
+            lambda: _nasal_support_only_payload(rng),
+            PublicFrontierBenchmarkRules(
+                top_n=12,
+                required_visible_ids=("head_elevation_nightly", "nasacort_nightly"),
+                banned_visible_ids=("apap_nightly", "oral_appliance_custom"),
+                required_decision_state_ids=("conservative_airway_support",),
+                banned_decision_state_ids=(
+                    "primary_osa_therapy_choice",
+                    "rx_after_apap_if_needed",
+                    "rx_after_oral_appliance_if_needed",
+                ),
+                expected_airway_decision_states=True,
+            ),
+        ),
+        (
             "duration_only_sleep",
             lambda: _duration_only_payload(rng),
             PublicFrontierBenchmarkRules(
@@ -526,6 +570,7 @@ def evaluate_public_frontier_case(
     )
     frontier_ids = tuple(row["added_intervention"] for row in response["frontier"])
     top_ids = frontier_ids[: scenario.rules.top_n]
+    decision_state_ids = tuple(state["id"] for state in response["decision_states"])
     failures: list[PublicFrontierBenchmarkFailure] = []
     checks_run = 0
 
@@ -584,6 +629,26 @@ def evaluate_public_frontier_case(
                         ),
                     )
                 )
+
+    for state_id in scenario.rules.required_decision_state_ids:
+        checks_run += 1
+        if state_id not in decision_state_ids:
+            failures.append(
+                PublicFrontierBenchmarkFailure(
+                    rule="required_decision_state_ids",
+                    message=f"{state_id} did not appear in the decision states.",
+                )
+            )
+
+    for state_id in scenario.rules.banned_decision_state_ids:
+        checks_run += 1
+        if state_id in decision_state_ids:
+            failures.append(
+                PublicFrontierBenchmarkFailure(
+                    rule="banned_decision_state_ids",
+                    message=f"{state_id} appeared in the decision states.",
+                )
+            )
 
     for left_id, right_id in scenario.rules.forbidden_visible_pairs:
         checks_run += 1
@@ -741,6 +806,8 @@ def _scenario_rules_signature(scenario: PublicFrontierBenchmarkScenario) -> tupl
         scenario.rules.required_top_any_of,
         scenario.rules.required_visible_ids,
         scenario.rules.required_visible_order,
+        scenario.rules.required_decision_state_ids,
+        scenario.rules.banned_decision_state_ids,
         scenario.rules.forbidden_visible_pairs,
         scenario.rules.expected_airway_decision_states,
     )
@@ -795,6 +862,8 @@ def render_public_frontier_judge_prompt(
                 "required_top_any_of": list(scenario.rules.required_top_any_of),
                 "required_visible_ids": list(scenario.rules.required_visible_ids),
                 "required_visible_order": [list(pair) for pair in scenario.rules.required_visible_order],
+                "required_decision_state_ids": list(scenario.rules.required_decision_state_ids),
+                "banned_decision_state_ids": list(scenario.rules.banned_decision_state_ids),
                 "forbidden_visible_pairs": [list(pair) for pair in scenario.rules.forbidden_visible_pairs],
                 "expected_airway_decision_states": scenario.rules.expected_airway_decision_states,
             },

@@ -147,3 +147,18 @@ def test_public_sleep_helpers_return_expected_branching_specs():
     ]
     assert sequence[-1].preferred_state_id == "rx_after_apap_if_needed"
     assert sequence[-1].alternative_state_id == "rx_after_oral_appliance_if_needed"
+
+
+def test_public_sleep_helpers_can_build_support_only_specs():
+    specs = build_public_sleep_decision_specs(include_therapy=False)
+    sequence = build_public_sleep_decision_sequence(include_therapy=False)
+
+    assert [spec.id for spec in specs] == ["conservative_airway_support"]
+    assert sequence == [
+        DecisionSequenceStepSpec(
+            step=1,
+            id="conservative_airway_support",
+            label="Start with low-friction airway support if the phenotype looks airway-heavy.",
+            state_id="conservative_airway_support",
+        )
+    ]

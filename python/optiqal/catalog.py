@@ -103,6 +103,7 @@ EVIDENCE_CONFIDENCE_LABELS: Dict[Literal["high", "moderate", "low", "very-low"],
 PublicRecommendationLane = Literal["consumer_public", "conditional_public", "personal_only"]
 PublicCondition = Literal[
     "airway_signal",
+    "osa_therapy_signal",
     "cardiometabolic_signal",
     "metabolic_signal",
     "glp1_signal",
@@ -140,6 +141,7 @@ PUBLIC_DISPLAY_CATEGORY_VALUES: tuple[PublicDisplayCategory, ...] = (
 
 PUBLIC_CONDITION_VALUES: tuple[PublicCondition, ...] = (
     "airway_signal",
+    "osa_therapy_signal",
     "cardiometabolic_signal",
     "metabolic_signal",
     "glp1_signal",
@@ -2204,6 +2206,19 @@ def has_meaningful_public_airway_signal(
     """Whether public sleep interventions should surface for this phenotype."""
     return evaluate_public_condition(
         _active_public_policy(policy).condition_specs["airway_signal"],
+        profile=None,
+        sleep_estimate=sleep_estimate,
+    )
+
+
+def has_meaningful_public_osa_therapy_signal(
+    sleep_estimate: Optional[SleepBurdenEstimate],
+    *,
+    policy: Optional[PublicPolicy] = None,
+) -> bool:
+    """Whether public PAP/oral-appliance escalation should surface for this phenotype."""
+    return evaluate_public_condition(
+        _active_public_policy(policy).condition_specs["osa_therapy_signal"],
         profile=None,
         sleep_estimate=sleep_estimate,
     )
