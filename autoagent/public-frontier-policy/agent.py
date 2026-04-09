@@ -66,6 +66,7 @@ CANDIDATE_POLICY: dict[str, Any] = {
             "profile_rules": [
                 {"field": "has_diabetes", "operator": "eq", "value": True, "points": 3, "label": "Has diabetes"},
                 {"field": "bmi_category", "operator": "eq", "value": "overweight", "points": 1, "label": "BMI in overweight range"},
+                {"field": "bmi_category", "operator": "eq", "value": "severely_obese", "points": 5, "label": "BMI in severely obese range"},
                 {"field": "bmi_category", "operator": "in", "value": ["obese", "severely_obese"], "points": 3, "label": "BMI in obese range"},
                 {"field": "has_hypertension", "operator": "eq", "value": True, "points": 1, "label": "Has hypertension"},
                 {"field": "age", "operator": "gte", "value": 50, "points": 1, "label": "Age 50+"},

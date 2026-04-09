@@ -120,6 +120,13 @@
         },
         {
           "field": "bmi_category",
+          "operator": "eq",
+          "value": "severely_obese",
+          "points": 5,
+          "label": "BMI in severely obese range"
+        },
+        {
+          "field": "bmi_category",
           "operator": "in",
           "value": [
             "obese",

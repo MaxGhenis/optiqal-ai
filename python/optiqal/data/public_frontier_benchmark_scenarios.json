@@ -190,6 +190,39 @@
     }
   },
   {
+    "id": "severe_obesity_52f_public",
+    "label": "Severe-obesity-only 52F canary",
+    "description": "Severe obesity without diabetes or hypertension should still surface GLP-1 discussion, but not generic statin or metformin.",
+    "tags": ["glp1", "severe_obesity", "public_canary", "female"],
+    "payload": {
+      "profile": {
+        "age": 52,
+        "sex": "female",
+        "weight_kg": 116,
+        "height_cm": 165,
+        "smoker": false,
+        "has_diabetes": false,
+        "has_hypertension": false,
+        "activity_level": "light",
+        "sleep_hours_per_night": 7
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 12,
+      "required_visible_ids": [
+        "semaglutide"
+      ],
+      "banned_visible_ids": [
+        "metformin_500mg",
+        "statin_5mg",
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg"
+      ],
+      "expected_airway_decision_states": false
+    }
+  },
+  {
     "id": "lean_diabetes_45m_public",
     "label": "Lean diabetes 45M canary",
     "description": "Lean midlife diabetes should surface metformin and statin discussion but stay conservative about GLP-1 therapy in the generic public frontier.",

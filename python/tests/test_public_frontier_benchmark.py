@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from optiqal import (
     SleepMetrics,
@@ -27,6 +28,7 @@ from optiqal.public_frontier_benchmark import (
     render_public_frontier_judge_prompt,
     run_public_frontier_benchmark,
 )
+from optiqal.web_api import build_frontier_response_with_policy
 
 
 def test_canonical_public_frontier_benchmark_exposes_current_policy_gaps():
@@ -40,6 +42,7 @@ def test_canonical_public_frontier_benchmark_exposes_current_policy_gaps():
     assert any(failure.rule == "required_visible_order" for failure in by_id["mild_metabolic_50m_public"].failures)
     assert any(failure.rule == "banned_visible_ids" for failure in by_id["obesity_glp1_52f_public"].failures)
     assert any(failure.rule == "required_visible_order" for failure in by_id["obesity_glp1_52f_public"].failures)
+    assert any(failure.rule == "banned_visible_ids" for failure in by_id["severe_obesity_52f_public"].failures)
     assert any(failure.rule == "banned_visible_ids" for failure in by_id["lean_diabetes_45m_public"].failures)
     assert any(failure.rule == "banned_visible_ids" for failure in by_id["lean_diabetes_52m_public"].failures)
 
@@ -47,13 +50,14 @@ def test_canonical_public_frontier_benchmark_exposes_current_policy_gaps():
 def test_generated_stratified_cases_cover_expected_strata():
     generated = generate_stratified_public_frontier_scenarios(seed=7, cases_per_stratum=2)
 
-    assert len(generated) == 20
+    assert len(generated) == 22
     tags = {tag for scenario in generated for tag in scenario.tags}
     assert "healthy_public" in tags
     assert "cardiometabolic_public" in tags
     assert "glp1_public" in tags
     assert "borderline_metabolic_public" in tags
     assert "obesity_glp1_no_diabetes_public" in tags
+    assert "severe_obesity_public" in tags
     assert "lean_diabetes_younger_public" in tags
     assert "lean_diabetes_older_public" in tags
     assert "airway_sleep" in tags
@@ -71,6 +75,8 @@ def test_generated_metabolic_strata_respect_intended_bmi_bands():
             assert bmi >= 30
         if "borderline_metabolic_public" in scenario.tags:
             assert 25 <= bmi < 30
+        if "severe_obesity_public" in scenario.tags:
+            assert bmi >= 35
         if "lean_diabetes_younger_public" in scenario.tags or "lean_diabetes_older_public" in scenario.tags:
             assert bmi < 25
 
@@ -242,6 +248,26 @@ def test_candidate_policy_override_changes_benchmark_outcome(tmp_path):
     assert report.score < 1.0
     assert not healthy_case.passed
     assert any(failure.rule == "required_top_any_of" for failure in healthy_case.failures)
+
+
+def test_repo_candidate_template_surfaces_glp1_for_severe_obesity_without_metformin_or_statin():
+    candidate_policy = load_public_policy_override(
+        Path("/Users/maxghenis/optiqal-ai/python/optiqal/data/public_policy_candidate_template.json")
+    )
+    scenario = next(
+        case for case in CANONICAL_PUBLIC_FRONTIER_SCENARIOS
+        if case.id == "severe_obesity_52f_public"
+    )
+
+    response = build_frontier_response_with_policy(
+        scenario.payload,
+        public_policy=candidate_policy,
+    )
+    frontier_ids = [item["added_intervention"] for item in response["frontier"]]
+
+    assert "semaglutide" in frontier_ids
+    assert "metformin_500mg" not in frontier_ids
+    assert "statin_5mg" not in frontier_ids
 
 
 def test_candidate_policy_can_fix_non_diabetic_metformin_leakage(tmp_path):
