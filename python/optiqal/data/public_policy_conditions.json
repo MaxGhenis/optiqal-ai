@@ -186,7 +186,7 @@
         "field": "has_diabetes",
         "operator": "eq",
         "value": true,
-        "points": 3,
+        "points": 2,
         "label": "Has diabetes"
       },
       {
@@ -223,6 +223,13 @@
         "value": 50,
         "points": 1,
         "label": "Age 50+"
+      },
+      {
+        "field": "age",
+        "operator": "gte",
+        "value": 60,
+        "points": 2,
+        "label": "Age 60+"
       }
     ]
   }

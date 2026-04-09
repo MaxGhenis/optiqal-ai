@@ -269,6 +269,23 @@ def _severe_obesity_no_comorbidity_payload(rng: random.Random) -> dict[str, Any]
     }
 
 
+def _older_obesity_no_comorbidity_payload(rng: random.Random) -> dict[str, Any]:
+    return {
+        "profile": {
+            "age": rng.choice([62, 66, 70]),
+            "sex": rng.choice(["male", "female"]),
+            "weight_kg": rng.choice([96, 100, 102]),
+            "height_cm": rng.choice([172, 175, 178]),
+            "smoker": False,
+            "has_diabetes": False,
+            "has_hypertension": False,
+            "activity_level": "light",
+            "sleep_hours_per_night": 7,
+        },
+        "n_simulations": 1000,
+    }
+
+
 def _lean_diabetes_younger_payload(rng: random.Random) -> dict[str, Any]:
     height_cm, weight_kg = rng.choice(
         [
@@ -484,6 +501,16 @@ def generate_stratified_public_frontier_scenarios(
                 top_n=12,
                 required_visible_ids=("semaglutide",),
                 banned_visible_ids=("metformin_500mg", "statin_5mg", "finasteride_1.25mg", "tadalafil_2.5mg"),
+                expected_airway_decision_states=False,
+            ),
+        ),
+        (
+            "older_obesity_public",
+            lambda: _older_obesity_no_comorbidity_payload(rng),
+            PublicFrontierBenchmarkRules(
+                top_n=12,
+                required_visible_ids=("semaglutide",),
+                banned_visible_ids=("metformin_500mg", "finasteride_1.25mg", "tadalafil_2.5mg"),
                 expected_airway_decision_states=False,
             ),
         ),
