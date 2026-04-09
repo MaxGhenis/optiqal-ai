@@ -255,7 +255,7 @@ def _obesity_glp1_no_diabetes_payload(rng: random.Random) -> dict[str, Any]:
 def _severe_obesity_no_comorbidity_payload(rng: random.Random) -> dict[str, Any]:
     return {
         "profile": {
-            "age": rng.choice([46, 52, 58]),
+            "age": rng.choice([42, 46, 52, 58]),
             "sex": rng.choice(["male", "female"]),
             "weight_kg": rng.choice([110, 116, 124]),
             "height_cm": rng.choice([160, 165, 170]),

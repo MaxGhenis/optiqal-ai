@@ -43,6 +43,7 @@ def test_canonical_public_frontier_benchmark_exposes_current_policy_gaps():
     assert any(failure.rule == "banned_visible_ids" for failure in by_id["obesity_glp1_52f_public"].failures)
     assert any(failure.rule == "required_visible_order" for failure in by_id["obesity_glp1_52f_public"].failures)
     assert any(failure.rule == "banned_visible_ids" for failure in by_id["severe_obesity_52f_public"].failures)
+    assert any(failure.rule == "required_visible_ids" for failure in by_id["severe_obesity_42f_public"].failures)
     assert any(failure.rule == "banned_visible_ids" for failure in by_id["lean_diabetes_45m_public"].failures)
     assert any(failure.rule == "banned_visible_ids" for failure in by_id["lean_diabetes_52m_public"].failures)
 
