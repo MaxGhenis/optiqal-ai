@@ -78,7 +78,7 @@
     "description": "Triggered by age plus smoking, hypertension, diabetes, or elevated BMI.",
     "evaluation_kind": "profile_score",
     "hidden_reason": "Hidden from the generic public frontier unless the profile shows a meaningful cardiometabolic risk signal.",
-    "profile_score_threshold": 3,
+    "profile_score_threshold": 4,
     "profile_rules": [
       {
         "field": "age",
@@ -126,7 +126,7 @@
         "field": "has_diabetes",
         "operator": "eq",
         "value": true,
-        "points": 3,
+        "points": 4,
         "label": "Has diabetes"
       }
     ]
@@ -136,13 +136,13 @@
     "description": "Triggered mainly by diabetes or obesity-weighted metabolic risk.",
     "evaluation_kind": "profile_score",
     "hidden_reason": "Hidden from the generic public frontier unless the profile shows a meaningful metabolic-risk signal.",
-    "profile_score_threshold": 3,
+    "profile_score_threshold": 5,
     "profile_rules": [
       {
         "field": "has_diabetes",
         "operator": "eq",
         "value": true,
-        "points": 4,
+        "points": 5,
         "label": "Has diabetes"
       },
       {
@@ -180,13 +180,13 @@
     "description": "Triggered by obesity- or diabetes-weighted profiles where GLP-1 therapy becomes a plausible public discussion item.",
     "evaluation_kind": "profile_score",
     "hidden_reason": "Hidden from the generic public frontier unless the profile shows a meaningful obesity- or diabetes-weighted GLP-1 signal.",
-    "profile_score_threshold": 4,
+    "profile_score_threshold": 5,
     "profile_rules": [
       {
         "field": "has_diabetes",
         "operator": "eq",
         "value": true,
-        "points": 4,
+        "points": 3,
         "label": "Has diabetes"
       },
       {
@@ -195,6 +195,13 @@
         "value": "overweight",
         "points": 1,
         "label": "BMI in overweight range"
+      },
+      {
+        "field": "bmi_category",
+        "operator": "eq",
+        "value": "severely_obese",
+        "points": 5,
+        "label": "BMI in severely obese range"
       },
       {
         "field": "bmi_category",

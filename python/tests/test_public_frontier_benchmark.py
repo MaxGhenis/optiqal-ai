@@ -31,21 +31,12 @@ from optiqal.public_frontier_benchmark import (
 from optiqal.web_api import build_frontier_response_with_policy
 
 
-def test_canonical_public_frontier_benchmark_exposes_current_policy_gaps():
+def test_default_public_frontier_benchmark_passes_canonical_canaries():
     report = run_public_frontier_benchmark()
 
-    assert report.total_failures > 0
-    assert report.score < 1.0
-    by_id = {case.scenario_id: case for case in report.case_results}
-    assert any(failure.rule == "required_visible_order" for failure in by_id["high_risk_58m_public"].failures)
-    assert any(failure.rule == "banned_visible_ids" for failure in by_id["mild_metabolic_50m_public"].failures)
-    assert any(failure.rule == "required_visible_order" for failure in by_id["mild_metabolic_50m_public"].failures)
-    assert any(failure.rule == "banned_visible_ids" for failure in by_id["obesity_glp1_52f_public"].failures)
-    assert any(failure.rule == "required_visible_order" for failure in by_id["obesity_glp1_52f_public"].failures)
-    assert any(failure.rule == "banned_visible_ids" for failure in by_id["severe_obesity_52f_public"].failures)
-    assert any(failure.rule == "required_visible_ids" for failure in by_id["severe_obesity_42f_public"].failures)
-    assert any(failure.rule == "banned_visible_ids" for failure in by_id["lean_diabetes_45m_public"].failures)
-    assert any(failure.rule == "banned_visible_ids" for failure in by_id["lean_diabetes_52m_public"].failures)
+    assert report.total_failures == 0
+    assert report.score == 1.0
+    assert all(case.passed for case in report.case_results)
 
 
 def test_generated_stratified_cases_cover_expected_strata():
@@ -187,7 +178,8 @@ def test_pairwise_packet_modes_focus_on_changed_representative_cases(tmp_path):
     candidate_path = tmp_path / "candidate-policy.json"
     candidate_path.write_text(json.dumps({
         "conditions": {
-            "metabolic_signal": {"profile_score_threshold": 5},
+            "metabolic_signal": {"profile_score_threshold": 4},
+            "glp1_signal": {"profile_score_threshold": 4},
         },
     }, indent=2))
 
@@ -215,7 +207,7 @@ def test_pairwise_packet_modes_focus_on_changed_representative_cases(tmp_path):
     assert len(changed_packets) < len(all_packets)
     assert len(unique_packets) < len(changed_packets)
     assert any(packet.scenario_id == "high_risk_58m_public" for packet in unique_packets)
-    assert any(packet.scenario_id == "obesity_glp1_52f_public" for packet in unique_packets)
+    assert any(packet.scenario_id == "lean_diabetes_52m_public" for packet in unique_packets)
 
 
 def test_blank_judge_verdict_template_matches_packets():
@@ -285,51 +277,38 @@ def test_candidate_policy_can_fix_non_diabetic_metformin_leakage(tmp_path):
     )
     by_id = {case.scenario_id: case for case in improved.case_results}
 
-    assert improved.score > incumbent.score
+    assert improved.score >= incumbent.score
     assert by_id["mild_metabolic_50m_public"].passed
     assert by_id["obesity_glp1_52f_public"].passed
 
 
-def test_threshold_only_glp1_fix_is_no_longer_enough_for_younger_lean_diabetes(tmp_path):
+def test_lowering_glp1_threshold_reintroduces_lean_diabetes_leakage(tmp_path):
     candidate_path = tmp_path / "candidate-policy.json"
     candidate_path.write_text(json.dumps({
         "conditions": {
-            "cardiometabolic_signal": {
+            "glp1_signal": {
                 "profile_score_threshold": 4,
                 "profile_rules": [
-                    {"field": "age", "operator": "gte", "value": 60, "points": 2, "label": "Age 60+"},
-                    {"field": "age", "operator": "gte", "value": 50, "points": 1, "label": "Age 50+"},
-                    {"field": "bmi_category", "operator": "eq", "value": "overweight", "points": 1, "label": "BMI in overweight range"},
-                    {"field": "bmi_category", "operator": "in", "value": ["obese", "severely_obese"], "points": 2, "label": "BMI in obese range"},
-                    {"field": "smoking_status", "operator": "eq", "value": "current", "points": 2, "label": "Current smoker"},
-                    {"field": "has_hypertension", "operator": "eq", "value": True, "points": 2, "label": "Has hypertension"},
                     {"field": "has_diabetes", "operator": "eq", "value": True, "points": 4, "label": "Has diabetes"},
-                ],
-            },
-            "glp1_signal": {
-                "profile_score_threshold": 5,
-                "profile_rules": [
-                    {"field": "has_diabetes", "operator": "eq", "value": True, "points": 3, "label": "Has diabetes"},
                     {"field": "bmi_category", "operator": "eq", "value": "overweight", "points": 1, "label": "BMI in overweight range"},
                     {"field": "bmi_category", "operator": "in", "value": ["obese", "severely_obese"], "points": 3, "label": "BMI in obese range"},
                     {"field": "has_hypertension", "operator": "eq", "value": True, "points": 1, "label": "Has hypertension"},
                     {"field": "age", "operator": "gte", "value": 50, "points": 1, "label": "Age 50+"},
                 ],
             },
-            "metabolic_signal": {"profile_score_threshold": 5},
         },
     }, indent=2))
 
     incumbent = run_public_frontier_benchmark()
-    improved = run_public_frontier_benchmark(
+    worsened = run_public_frontier_benchmark(
         public_policy=load_public_policy_override(candidate_path)
     )
-    by_id = {case.scenario_id: case for case in improved.case_results}
+    by_id = {case.scenario_id: case for case in worsened.case_results}
 
-    assert improved.score > incumbent.score
+    assert worsened.score < incumbent.score
     assert not by_id["lean_diabetes_45m_public"].passed
-    assert any(failure.rule == "required_visible_ids" for failure in by_id["lean_diabetes_45m_public"].failures)
-    assert by_id["lean_diabetes_52m_public"].passed
+    assert any(failure.rule == "banned_visible_ids" for failure in by_id["lean_diabetes_45m_public"].failures)
+    assert not by_id["lean_diabetes_52m_public"].passed
 
 
 def test_candidate_policy_can_restore_metformin_for_younger_lean_diabetes_without_glp1(tmp_path):
