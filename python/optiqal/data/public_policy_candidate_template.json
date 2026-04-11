@@ -19,6 +19,13 @@
           "label": "Age 50+"
         },
         {
+          "field": "age",
+          "operator": "gte",
+          "value": 55,
+          "points": 2,
+          "label": "Age 55+"
+        },
+        {
           "field": "bmi_category",
           "operator": "eq",
           "value": "overweight",

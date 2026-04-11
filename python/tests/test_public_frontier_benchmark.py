@@ -42,7 +42,7 @@ def test_default_public_frontier_benchmark_passes_canonical_canaries():
 def test_generated_stratified_cases_cover_expected_strata():
     generated = generate_stratified_public_frontier_scenarios(seed=7, cases_per_stratum=2)
 
-    assert len(generated) == 24
+    assert len(generated) == 28
     tags = {tag for scenario in generated for tag in scenario.tags}
     assert "healthy_public" in tags
     assert "cardiometabolic_public" in tags
@@ -51,6 +51,8 @@ def test_generated_stratified_cases_cover_expected_strata():
     assert "obesity_glp1_no_diabetes_public" in tags
     assert "severe_obesity_public" in tags
     assert "older_obesity_public" in tags
+    assert "older_smoker_public" in tags
+    assert "older_hypertension_public" in tags
     assert "lean_diabetes_younger_public" in tags
     assert "lean_diabetes_older_public" in tags
     assert "airway_sleep" in tags
@@ -72,6 +74,8 @@ def test_generated_metabolic_strata_respect_intended_bmi_bands():
             assert bmi >= 35
         if "older_obesity_public" in scenario.tags:
             assert 30 <= bmi < 35
+        if "older_smoker_public" in scenario.tags or "older_hypertension_public" in scenario.tags:
+            assert bmi < 25
         if "lean_diabetes_younger_public" in scenario.tags or "lean_diabetes_older_public" in scenario.tags:
             assert bmi < 25
 
@@ -277,6 +281,33 @@ def test_default_policy_surfaces_glp1_for_older_obesity_without_metformin():
 
     assert "semaglutide" in frontier_ids
     assert "metformin_500mg" not in frontier_ids
+
+
+def test_default_policy_surfaces_statin_for_older_smoking_and_hypertension_canaries():
+    older_smoker = next(
+        case for case in CANONICAL_PUBLIC_FRONTIER_SCENARIOS
+        if case.id == "older_smoker_58f_public"
+    )
+    older_hypertension = next(
+        case for case in CANONICAL_PUBLIC_FRONTIER_SCENARIOS
+        if case.id == "older_hypertension_58f_public"
+    )
+
+    smoker_frontier = [
+        item["added_intervention"]
+        for item in build_frontier_response_with_policy(older_smoker.payload)["frontier"]
+    ]
+    hypertension_frontier = [
+        item["added_intervention"]
+        for item in build_frontier_response_with_policy(older_hypertension.payload)["frontier"]
+    ]
+
+    assert "statin_5mg" in smoker_frontier
+    assert "metformin_500mg" not in smoker_frontier
+    assert "semaglutide" not in smoker_frontier
+    assert "statin_5mg" in hypertension_frontier
+    assert "metformin_500mg" not in hypertension_frontier
+    assert "semaglutide" not in hypertension_frontier
 
 
 def test_candidate_policy_can_fix_non_diabetic_metformin_leakage(tmp_path):
