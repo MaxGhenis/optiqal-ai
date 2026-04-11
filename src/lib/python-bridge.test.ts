@@ -143,6 +143,34 @@ describe("python bridge", () => {
     expect(spawnMock).not.toHaveBeenCalled();
   });
 
+  it("preserves MODEL_URL query params for shareable preview backends", async () => {
+    process.env.MODEL_URL = "https://model.example/svc/model?_vercel_share=preview-token";
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: vi.fn().mockResolvedValue('{"ok":true}'),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await runPythonJson({
+      payload: { profile: { age: 39 } },
+      scriptPath: "scripts/web_frontier.py",
+      remotePath: "/frontier",
+      label: "frontier",
+      parseResponse: (value: unknown) =>
+        typeof value === "object" && value !== null ? (value as { ok: boolean }) : null,
+      timeoutMs: 1_000,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://model.example/svc/model/frontier?_vercel_share=preview-token",
+      expect.objectContaining({
+        headers: expect.any(Headers),
+        method: "POST",
+      })
+    );
+  });
+
   it("fails fast on Vercel runtimes without a configured Python service", async () => {
     process.env.VERCEL = "1";
 

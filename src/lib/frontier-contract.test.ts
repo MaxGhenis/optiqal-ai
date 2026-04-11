@@ -298,4 +298,107 @@ describe("frontier contract", () => {
       })
     ).toBeNull();
   });
+
+  it("accepts extended public policy condition ids from the python model", () => {
+    const parsed = parseFrontierResponse({
+      meta: {
+        selection_mode: "ordered_by_marginal_cost_per_qaly",
+        analyzed_count: 0,
+        positive_count: 0,
+        qaly_discount_rate: 0.03,
+        cost_discount_rate: 0.03,
+        n_simulations: 5000,
+        rankable_count: 0,
+        profile: {
+          age: 39,
+          sex: "male",
+          bmi_category: "normal",
+          smoking_status: "never",
+          has_diabetes: false,
+          has_hypertension: false,
+          activity_level: "active",
+        },
+      },
+      sleep_estimate: null,
+      public_policy: {
+        lanes: [
+          {
+            id: "conditional_public",
+            label: "Conditional public recommendations",
+            description: "Shown only when a matching condition fires.",
+            item_ids: ["humidifier_nightly", "apap_nightly"],
+            item_count: 2,
+            condition_ids: ["nasal_dryness_signal", "osa_therapy_signal"],
+          },
+        ],
+        conditions: [
+          {
+            id: "nasal_dryness_signal",
+            label: "Nasal dryness signal",
+            description: "Triggered by dryness-heavy sleep inputs.",
+            item_ids: ["humidifier_nightly"],
+            item_count: 1,
+            evaluation_kind: "sleep_any_threshold",
+            score_threshold: null,
+            thresholds: [
+              {
+                signal: "sleep_nasal_dryness_burden",
+                label: "Nasal dryness burden",
+                threshold: 0.05,
+              },
+            ],
+            score_rules: [],
+          },
+          {
+            id: "osa_therapy_signal",
+            label: "OSA therapy signal",
+            description: "Triggered by stronger airway-weighted sleep inputs.",
+            item_ids: ["apap_nightly"],
+            item_count: 1,
+            evaluation_kind: "sleep_any_threshold",
+            score_threshold: null,
+            thresholds: [
+              {
+                signal: "sleep_breathing_burden",
+                label: "Breathing burden",
+                threshold: 0.12,
+              },
+            ],
+            score_rules: [],
+          },
+        ],
+        items: [
+          {
+            id: "humidifier_nightly",
+            name: "Humidifier nightly",
+            lane: "conditional_public",
+            condition: "nasal_dryness_signal",
+            display_category: "sleep",
+            explicitly_excluded: false,
+          },
+          {
+            id: "apap_nightly",
+            name: "APAP nightly",
+            lane: "conditional_public",
+            condition: "osa_therapy_signal",
+            display_category: "sleep",
+            explicitly_excluded: false,
+          },
+        ],
+      },
+      frontier: [],
+      items: [],
+      decision_states: [],
+      decision_sequence: [],
+    });
+
+    expect(parsed?.public_policy.conditions.map((condition) => condition.id)).toEqual([
+      "nasal_dryness_signal",
+      "osa_therapy_signal",
+    ]);
+    expect(parsed?.public_policy.items.map((item) => item.condition)).toEqual([
+      "nasal_dryness_signal",
+      "osa_therapy_signal",
+    ]);
+  });
 });

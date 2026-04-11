@@ -204,7 +204,9 @@ export type FrontierPublicPolicyConditionId =
   | "airway_signal"
   | "cardiometabolic_signal"
   | "metabolic_signal"
-  | "glp1_signal";
+  | "glp1_signal"
+  | "nasal_dryness_signal"
+  | "osa_therapy_signal";
 
 export type FrontierPublicPolicyConditionEvaluationKind =
   | "sleep_any_threshold"

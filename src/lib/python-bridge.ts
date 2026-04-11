@@ -76,7 +76,14 @@ function getPythonServiceBaseUrl(explicitBaseUrl?: string): string | null {
 
 function joinServiceUrl(baseUrl: string, remotePath: string): string {
   const normalizedPath = remotePath.replace(/^\/+/, "");
-  return new URL(normalizedPath, `${baseUrl.replace(/\/+$/, "")}/`).toString();
+  const base = new URL(baseUrl);
+  const baseWithSlash = new URL(base.toString());
+  if (!baseWithSlash.pathname.endsWith("/")) {
+    baseWithSlash.pathname = `${baseWithSlash.pathname}/`;
+  }
+  const resolved = new URL(normalizedPath, baseWithSlash);
+  resolved.search = base.search;
+  return resolved.toString();
 }
 
 function isVercelProtectionPage(rawText: string): boolean {

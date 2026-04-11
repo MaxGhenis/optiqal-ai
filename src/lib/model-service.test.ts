@@ -11,6 +11,8 @@ describe("model service helpers", () => {
     delete process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
     delete process.env.MODEL_PROTECTION_BYPASS_SECRET;
     delete process.env.OPTIQAL_MODEL_BYPASS_SECRET;
+    delete process.env.MODEL_SERVICE_COOKIE;
+    delete process.env.OPTIQAL_MODEL_COOKIE;
   });
 
   afterEach(() => {
@@ -21,6 +23,8 @@ describe("model service helpers", () => {
     delete process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
     delete process.env.MODEL_PROTECTION_BYPASS_SECRET;
     delete process.env.OPTIQAL_MODEL_BYPASS_SECRET;
+    delete process.env.MODEL_SERVICE_COOKIE;
+    delete process.env.OPTIQAL_MODEL_COOKIE;
   });
 
   it("prefers configured model service urls", () => {
@@ -92,6 +96,26 @@ describe("model service helpers", () => {
     ).toEqual({
       cookie: "foo=bar",
       "x-vercel-protection-bypass": "model-secret",
+      "x-vercel-set-bypass-cookie": undefined,
+    });
+  });
+
+  it("uses a configured model cookie for cross-project vercel preview services", () => {
+    process.env.MODEL_SERVICE_COOKIE = "_vercel_jwt=preview-cookie";
+
+    expect(
+      getRemoteModelHeaders(
+        new Headers({
+          cookie: "frontend=cookie",
+        }),
+        {
+          remoteBaseUrl: "https://optiqal-model-preview.vercel.app",
+          requestOrigin: "https://optiqal-preview.vercel.app",
+        }
+      )
+    ).toEqual({
+      cookie: "_vercel_jwt=preview-cookie",
+      "x-vercel-protection-bypass": undefined,
       "x-vercel-set-bypass-cookie": undefined,
     });
   });

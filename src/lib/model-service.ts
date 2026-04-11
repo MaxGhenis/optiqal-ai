@@ -12,6 +12,14 @@ function getConfiguredModelBypassSecret(): string | undefined {
   );
 }
 
+function getConfiguredModelCookie(): string | undefined {
+  return (
+    process.env.OPTIQAL_MODEL_COOKIE ??
+    process.env.MODEL_SERVICE_COOKIE ??
+    undefined
+  );
+}
+
 function isCrossOriginVercelService(remoteBaseUrl: string, requestOrigin: string): boolean {
   try {
     const remoteUrl = new URL(remoteBaseUrl);
@@ -46,13 +54,17 @@ export function getRemoteModelHeaders(
   }
 ): Record<string, string | undefined> {
   const bypassSecret = getConfiguredModelBypassSecret();
+  const configuredCookie = getConfiguredModelCookie();
   const needsDedicatedBypass =
     options?.remoteBaseUrl &&
     options?.requestOrigin &&
     isCrossOriginVercelService(options.remoteBaseUrl, options.requestOrigin);
 
   return {
-    cookie: headers.get("cookie") ?? undefined,
+    cookie:
+      needsDedicatedBypass
+        ? configuredCookie ?? headers.get("cookie") ?? undefined
+        : headers.get("cookie") ?? undefined,
     "x-vercel-protection-bypass":
       needsDedicatedBypass
         ? bypassSecret ?? undefined

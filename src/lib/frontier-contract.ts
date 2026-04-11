@@ -658,7 +658,9 @@ function parsePublicPolicyCondition(value: unknown): FrontierPublicPolicyConditi
       id !== "airway_signal" &&
       id !== "cardiometabolic_signal" &&
       id !== "metabolic_signal" &&
-      id !== "glp1_signal"
+      id !== "glp1_signal" &&
+      id !== "nasal_dryness_signal" &&
+      id !== "osa_therapy_signal"
     ) ||
     label === null ||
     description === null ||
@@ -704,7 +706,9 @@ function parsePublicPolicyItem(value: unknown): FrontierPublicPolicyItem | null 
       conditionRaw !== "airway_signal" &&
       conditionRaw !== "cardiometabolic_signal" &&
       conditionRaw !== "metabolic_signal" &&
-      conditionRaw !== "glp1_signal"
+      conditionRaw !== "glp1_signal" &&
+      conditionRaw !== "nasal_dryness_signal" &&
+      conditionRaw !== "osa_therapy_signal"
     ) {
       return null;
     }
