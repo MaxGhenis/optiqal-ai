@@ -90,7 +90,9 @@ Or use GWAS Catalog for curated versions.
 3. Download summary statistics for:
    - 10 lifestyle/biomarker phenotypes
    - 10 disease outcome phenotypes
-4. Store in `data/pan-ukb/`
+4. Store raw files in the packaged validation data dir
+   (default: `~/.cache/optiqal/validation/pan-ukb/`)
+   and keep only small tracked outputs in `data/pan-ukb/` when needed
 
 ### Phase 2: MR Analysis Setup (2-3 days)
 
@@ -147,7 +149,7 @@ Or use GWAS Catalog for curated versions.
 
 | Phase | Duration | Deliverable |
 |-------|----------|-------------|
-| Data collection | 2 days | Raw summary stats in `data/pan-ukb/` |
+| Data collection | 2 days | Raw summary stats in packaged validation data dir |
 | MR setup | 3 days | Working MR pipeline |
 | Comparison | 3 days | Calibration metrics |
 | Integration | 2 days | Validation notebook + CI |

@@ -2,6 +2,35 @@
 
 This directory contains data and results from Mendelian Randomization (MR) analysis validating Optiqal's QALY estimates against Pan-UK Biobank genetic associations.
 
+## Current status
+
+Pan-UKB retrieval and analysis are now part of the packaged optional validation
+tooling:
+
+```bash
+cd python
+uv run optiqal-pan-ukb describe
+uv run optiqal-pan-ukb download
+uv run optiqal-pan-ukb analyze
+```
+
+Raw sumstats live outside the repo by default at:
+
+```text
+~/.cache/optiqal/validation/pan-ukb
+```
+
+This repo directory is still useful for:
+- documentation
+- tracked small outputs like `results/mr_results.csv`
+- repo-local compatibility wrappers used by the paper / notebook workflow
+
+If you want the packaged workflow to use this repo directory instead, set:
+
+```bash
+export OPTIQAL_PAN_UKB_DATA_DIR=/path/to/optiqal-ai/data/pan-ukb
+```
+
 ## Data Source
 
 **Pan-UK Biobank (Pan-UKB)**
@@ -89,7 +118,20 @@ This data is used solely for:
 
 ## Downloading Data
 
-Use the provided download script:
+Use the packaged CLI:
+
+```bash
+# Show instructions
+optiqal-pan-ukb describe
+
+# Download to the default external cache
+optiqal-pan-ukb download
+
+# Run the packaged MR analysis
+optiqal-pan-ukb analyze
+```
+
+Or use the repo-local compatibility wrappers:
 
 ```bash
 # See download instructions
@@ -142,7 +184,12 @@ Rscript scripts/install_mr_packages.R
 
 ### Running Analysis
 
-**Python (primary method):**
+**Python (primary packaged method):**
+```bash
+optiqal-pan-ukb analyze
+```
+
+**Python (repo-local wrapper):**
 ```bash
 python scripts/mr_analysis.py
 ```

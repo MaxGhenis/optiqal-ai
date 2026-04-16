@@ -91,6 +91,40 @@ Tests cover:
 - Single intervention precomputation
 - Batch precomputation of all interventions
 
+## Validation workflows
+
+Pan-UKB validation is now a packaged, optional workflow instead of an ad hoc
+one-off script pair.
+
+Packaged CLI:
+
+```bash
+cd python
+uv run optiqal-pan-ukb describe
+uv run optiqal-pan-ukb download
+uv run optiqal-pan-ukb analyze
+```
+
+By default, raw Pan-UKB files live outside the repo at:
+
+```text
+~/.cache/optiqal/validation/pan-ukb
+```
+
+Override that with:
+
+```bash
+export OPTIQAL_PAN_UKB_DATA_DIR=/path/to/pan-ukb
+```
+
+Repo-local compatibility wrappers still exist for the paper / notebook flow and
+pin the data dir back to `data/pan-ukb/`:
+
+```bash
+python3 scripts/download-pan-ukb.py --download
+python3 scripts/mr_analysis.py
+```
+
 ## Vercel deployment
 
 The app now deploys as two Vercel projects:

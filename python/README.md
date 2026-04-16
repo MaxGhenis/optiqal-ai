@@ -11,6 +11,9 @@ pip install optiqal
 # With Bayesian (MCMC) support
 pip install optiqal[bayesian]
 
+# With optional validation tooling
+pip install optiqal[validation]
+
 # Full development install
 pip install optiqal[all]
 ```
@@ -65,6 +68,24 @@ precompute_all_interventions(
     use_mcmc=True,
 )
 ```
+
+## Validation CLI
+
+Pan-UKB validation is available as an optional packaged workflow:
+
+```bash
+optiqal-pan-ukb describe
+optiqal-pan-ukb download
+optiqal-pan-ukb analyze
+```
+
+Raw Pan-UKB files live outside the repo by default at:
+
+```text
+~/.cache/optiqal/validation/pan-ukb
+```
+
+Override that with `OPTIQAL_PAN_UKB_DATA_DIR=/path/to/pan-ukb` when needed.
 
 ## Key Features
 
