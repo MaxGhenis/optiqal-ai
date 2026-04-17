@@ -10,6 +10,7 @@ import pandas as pd
 import pytest
 
 from optiqal.validation.pan_ukb import (
+    _weighted_median_bootstrap_se,
     build_pan_ukb_paths,
     generate_wget_script,
     get_default_pan_ukb_data_dir,
@@ -148,6 +149,90 @@ def test_run_mr_inflates_uncertainty_when_exposure_se_increases() -> None:
 
     assert high_results.loc["IVW", "se"] > low_results.loc["IVW", "se"]
     assert high_results.loc["MR-Egger", "se"] > low_results.loc["MR-Egger", "se"]
+    assert (
+        high_results.loc["Weighted Median", "se"]
+        > low_results.loc["Weighted Median", "se"]
+    )
+
+
+def test_harmonize_data_drops_palindromic_by_default() -> None:
+    instruments = pd.DataFrame(
+        [
+            {
+                "chr": 1,
+                "pos": 100,
+                "ref": "A",
+                "alt": "G",
+                "SNP": "1:100:A:G",
+                "beta_EUR": 0.2,
+                "se_EUR": 0.04,
+            },
+            {
+                "chr": 2,
+                "pos": 300,
+                "ref": "A",
+                "alt": "T",
+                "SNP": "2:300:A:T",
+                "beta_EUR": 0.15,
+                "se_EUR": 0.03,
+            },
+            {
+                "chr": 3,
+                "pos": 500,
+                "ref": "C",
+                "alt": "G",
+                "SNP": "3:500:C:G",
+                "beta_EUR": 0.1,
+                "se_EUR": 0.02,
+            },
+        ]
+    )
+    outcome = pd.DataFrame(
+        [
+            {
+                "chr": 1, "pos": 100, "ref": "A", "alt": "G",
+                "beta_EUR": 0.05, "se_EUR": 0.01,
+                "neglog10_pval_EUR": 5.0, "af_EUR": 0.2,
+            },
+            {
+                "chr": 2, "pos": 300, "ref": "A", "alt": "T",
+                "beta_EUR": 0.04, "se_EUR": 0.01,
+                "neglog10_pval_EUR": 4.0, "af_EUR": 0.3,
+            },
+            {
+                "chr": 3, "pos": 500, "ref": "C", "alt": "G",
+                "beta_EUR": 0.03, "se_EUR": 0.01,
+                "neglog10_pval_EUR": 3.0, "af_EUR": 0.4,
+            },
+        ]
+    )
+
+    dropped = harmonize_data(instruments, outcome)
+    assert list(dropped["SNP"]) == ["1:100:A:G"]
+
+    kept = harmonize_data(instruments, outcome, drop_palindromic=False)
+    assert set(kept["SNP"]) == {"1:100:A:G", "2:300:A:T", "3:500:C:G"}
+
+
+def test_weighted_median_bootstrap_se_is_deterministic_with_seed() -> None:
+    import numpy as np
+
+    rng_kwargs = dict(
+        beta_exp=np.array([0.20, 0.24, 0.28, 0.32, 0.30]),
+        se_exp=np.array([0.01, 0.012, 0.009, 0.011, 0.010]),
+        beta_out=np.array([0.10, 0.13, 0.135, 0.175, 0.15]),
+        se_out=np.array([0.02, 0.018, 0.021, 0.019, 0.020]),
+        weights=np.array([2500.0, 3086.0, 2268.0, 2770.0, 2500.0]),
+        n_boot=200,
+    )
+
+    first = _weighted_median_bootstrap_se(**rng_kwargs, seed=42)
+    second = _weighted_median_bootstrap_se(**rng_kwargs, seed=42)
+    third = _weighted_median_bootstrap_se(**rng_kwargs, seed=17)
+
+    assert first == second
+    assert first != third
+    assert first > 0
 
 
 def test_download_wrapper_help_runs_without_scientific_stack_imports() -> None:

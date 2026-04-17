@@ -333,9 +333,32 @@ def clump_local(instruments: pd.DataFrame, kb: int = CLUMP_KB) -> pd.DataFrame:
     return result
 
 
+_PALINDROMIC_PAIRS = (frozenset(("A", "T")), frozenset(("C", "G")))
+
+
+def _is_palindromic(ref: str, alt: str) -> bool:
+    return frozenset((ref.upper(), alt.upper())) in _PALINDROMIC_PAIRS
+
+
 def harmonize_data(
-    instruments: pd.DataFrame, outcome: pd.DataFrame
+    instruments: pd.DataFrame,
+    outcome: pd.DataFrame,
+    *,
+    drop_palindromic: bool = True,
 ) -> pd.DataFrame:
+    """Align exposure instruments against outcome summary statistics.
+
+    Matches on chromosome/position, recovers allele-flipped variants,
+    and by default drops palindromic SNPs (A/T, C/G) whose strand cannot
+    be resolved unambiguously from allele codes alone.
+
+    Parameters
+    ----------
+    drop_palindromic:
+        When True (default), palindromic SNPs are removed after allele
+        alignment. Set False only when the caller has already resolved
+        strand orientation via another channel.
+    """
     print("Looking up instruments in outcome GWAS...")
     instruments = instruments.copy()
     outcome = outcome.copy()
@@ -411,10 +434,73 @@ def harmonize_data(
         matched.loc[flip, "af_out"] = 1 - matched.loc[flip, "af_out"]
         print(f"Flipped {int(flip.sum()):,} SNPs for allele alignment")
 
+    if drop_palindromic and len(matched):
+        palindromic_mask = [
+            _is_palindromic(ref, alt)
+            for ref, alt in zip(matched["ref_exp"], matched["alt_exp"])
+        ]
+        dropped = int(sum(palindromic_mask))
+        if dropped:
+            print(f"Dropping {dropped:,} palindromic SNPs (A/T, C/G)")
+            matched = matched.loc[[not p for p in palindromic_mask]].copy()
+
     return matched
 
 
-def run_mr(harmonized: pd.DataFrame) -> pd.DataFrame:
+def _weighted_median(values, weights) -> float:
+    import numpy as np
+
+    values = np.asarray(values, dtype=float)
+    weights = np.asarray(weights, dtype=float)
+    order = np.argsort(values)
+    cumsum = np.cumsum(weights[order]) / np.sum(weights)
+    idx = int(np.searchsorted(cumsum, 0.5, side="left"))
+    idx = min(idx, len(values) - 1)
+    return float(values[order[idx]])
+
+
+def _weighted_median_bootstrap_se(
+    beta_exp,
+    se_exp,
+    beta_out,
+    se_out,
+    weights,
+    *,
+    n_boot: int,
+    seed: int,
+) -> float:
+    """Parametric bootstrap SE for the weighted-median MR estimator.
+
+    Follows Bowden et al. (2016): resample SNP-wise exposure and outcome
+    effects from their reported normal distributions, recompute the
+    weighted median on each replicate with the original weights held
+    fixed, and return the standard deviation of the replicate estimates.
+    """
+    import numpy as np
+
+    beta_exp = np.asarray(beta_exp, dtype=float)
+    se_exp = np.asarray(se_exp, dtype=float)
+    beta_out = np.asarray(beta_out, dtype=float)
+    se_out = np.asarray(se_out, dtype=float)
+    weights = np.asarray(weights, dtype=float)
+
+    rng = np.random.default_rng(seed)
+    sampled_exp = rng.normal(beta_exp, se_exp, size=(n_boot, len(beta_exp)))
+    sampled_out = rng.normal(beta_out, se_out, size=(n_boot, len(beta_out)))
+    sampled_ratios = sampled_out / sampled_exp
+
+    medians = np.empty(n_boot)
+    for replicate in range(n_boot):
+        medians[replicate] = _weighted_median(sampled_ratios[replicate], weights)
+    return float(np.std(medians, ddof=1))
+
+
+def run_mr(
+    harmonized: pd.DataFrame,
+    *,
+    weighted_median_n_boot: int = 1000,
+    weighted_median_seed: int = 42,
+) -> pd.DataFrame:
     import numpy as np
     import pandas as pd
     from scipy import stats
@@ -454,11 +540,16 @@ def run_mr(harmonized: pd.DataFrame) -> pd.DataFrame:
     print(f"IVW: beta = {ivw_beta:.4f}, SE = {ivw_se:.4f}")
 
     if len(harmonized) >= 3:
-        sorted_idx = np.argsort(wald_ratio)
-        cumsum_weights = np.cumsum(weights[sorted_idx]) / np.sum(weights)
-        median_idx = np.where(cumsum_weights >= 0.5)[0][0]
-        wm_beta = wald_ratio[sorted_idx[median_idx]]
-        wm_se = ivw_se * np.sqrt(0.5)
+        wm_beta = _weighted_median(wald_ratio, weights)
+        wm_se = _weighted_median_bootstrap_se(
+            beta_exp,
+            se_exp,
+            beta_out,
+            se_out,
+            weights,
+            n_boot=weighted_median_n_boot,
+            seed=weighted_median_seed,
+        )
         wm_pval = 2 * stats.norm.sf(np.abs(wm_beta / wm_se))
 
         results.append(
