@@ -12,11 +12,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
 
-import numpy as np
-import pandas as pd
-from scipy import stats
-
-
 @dataclass(frozen=True)
 class PanUkbPhenotype:
     key: str
@@ -270,6 +265,8 @@ def download_pan_ukb_files(
 def read_panukb(
     paths: PanUkbPaths, filename: str, chunksize: int = 1_000_000
 ) -> pd.DataFrame:
+    import pandas as pd
+
     filepath = paths.sumstats_dir / filename
     print(f"Reading: {filepath}")
 
@@ -312,6 +309,8 @@ def extract_instruments(
 
 
 def clump_local(instruments: pd.DataFrame, kb: int = CLUMP_KB) -> pd.DataFrame:
+    import numpy as np
+
     print(f"Clumping with {kb}kb window...")
 
     instruments = instruments.sort_values("pval_EUR").copy()
@@ -338,16 +337,14 @@ def harmonize_data(
     instruments: pd.DataFrame, outcome: pd.DataFrame
 ) -> pd.DataFrame:
     print("Looking up instruments in outcome GWAS...")
+    instruments = instruments.copy()
     outcome = outcome.copy()
-    outcome["SNP"] = (
-        outcome["chr"].astype(str)
-        + ":"
-        + outcome["pos"].astype(str)
-        + ":"
-        + outcome["ref"]
-        + ":"
-        + outcome["alt"]
-    )
+    for dataframe in (instruments, outcome):
+        dataframe["chr"] = dataframe["chr"].astype(str)
+        dataframe["pos"] = dataframe["pos"].astype(str)
+        dataframe["ref"] = dataframe["ref"].astype(str).str.upper()
+        dataframe["alt"] = dataframe["alt"].astype(str).str.upper()
+        dataframe["variant_position"] = dataframe["chr"] + ":" + dataframe["pos"]
 
     if "beta_meta_hq" in outcome.columns:
         outcome["beta_out"] = outcome["beta_meta_hq"]
@@ -373,25 +370,55 @@ def harmonize_data(
         raise ValueError(f"Cannot find beta columns. Available: {available_columns}")
 
     merged = instruments.merge(
-        outcome[["SNP", "beta_out", "se_out", "pval_out", "af_out", "alt", "ref"]],
-        on="SNP",
+        outcome[
+            [
+                "variant_position",
+                "beta_out",
+                "se_out",
+                "pval_out",
+                "af_out",
+                "alt",
+                "ref",
+            ]
+        ],
+        on="variant_position",
         how="left",
         suffixes=("_exp", "_out"),
     )
 
-    matched = merged.dropna(subset=["beta_out"])
+    allele_match = (
+        (merged["ref_exp"] == merged["ref_out"])
+        & (merged["alt_exp"] == merged["alt_out"])
+    ) | (
+        (merged["ref_exp"] == merged["alt_out"])
+        & (merged["alt_exp"] == merged["ref_out"])
+    )
+    matched = merged.loc[merged["beta_out"].notna() & allele_match].copy()
+    matched["needs_flip"] = (
+        (matched["ref_exp"] == matched["alt_out"])
+        & (matched["alt_exp"] == matched["ref_out"])
+    )
+    matched["allele_match_rank"] = matched["needs_flip"].astype(int)
+    matched = matched.sort_values(["SNP", "allele_match_rank"]).drop_duplicates(
+        subset=["SNP"], keep="first"
+    )
+
     print(f"Matched {len(matched):,} of {len(instruments):,} instruments")
 
-    flip = matched["alt_exp"] != matched["alt_out"]
+    flip = matched["needs_flip"]
     if flip.any():
         matched.loc[flip, "beta_out"] = -matched.loc[flip, "beta_out"]
         matched.loc[flip, "af_out"] = 1 - matched.loc[flip, "af_out"]
-        print(f"Flipped {flip.sum():,} SNPs for allele alignment")
+        print(f"Flipped {int(flip.sum()):,} SNPs for allele alignment")
 
     return matched
 
 
 def run_mr(harmonized: pd.DataFrame) -> pd.DataFrame:
+    import numpy as np
+    import pandas as pd
+    from scipy import stats
+
     print("\n=== Running MR Analysis ===")
     print(f"Using {len(harmonized):,} SNPs")
 
@@ -400,8 +427,14 @@ def run_mr(harmonized: pd.DataFrame) -> pd.DataFrame:
     beta_out = harmonized["beta_out"].values
     se_out = harmonized["se_out"].values
 
+    if np.any(np.isclose(beta_exp, 0.0)):
+        raise ValueError("Cannot run MR with zero-valued exposure effects")
+
     wald_ratio = beta_out / beta_exp
-    wald_se = np.abs(se_out / beta_exp)
+    wald_se = np.sqrt(
+        (se_out**2 / beta_exp**2)
+        + ((beta_out**2 * se_exp**2) / beta_exp**4)
+    )
 
     results: list[dict[str, float | int | str]] = []
 
@@ -439,7 +472,8 @@ def run_mr(harmonized: pd.DataFrame) -> pd.DataFrame:
         )
         print(f"Weighted Median: beta = {wm_beta:.4f}")
 
-        weights_matrix = np.diag(1 / se_out**2)
+        combined_outcome_variance = se_out**2 + (ivw_beta**2 * se_exp**2)
+        weights_matrix = np.diag(1 / combined_outcome_variance)
         design = np.column_stack([np.ones(len(beta_exp)), beta_exp])
         xtwx = design.T @ weights_matrix @ design
         xtwy = design.T @ weights_matrix @ beta_out

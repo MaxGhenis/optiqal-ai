@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import sys
 from pathlib import Path
 
@@ -13,7 +14,18 @@ PYTHON_ROOT = REPO_ROOT / "python"
 if str(PYTHON_ROOT) not in sys.path:
     sys.path.insert(0, str(PYTHON_ROOT))
 
-from optiqal.validation.pan_ukb import main as pan_ukb_main
+
+def _run_pan_ukb(argv: list[str]) -> int:
+    module_path = PYTHON_ROOT / "optiqal" / "validation" / "pan_ukb.py"
+    module_name = "pan_ukb_wrapper_module"
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Could not load Pan-UKB module from {module_path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+
+    return module.main(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -21,11 +33,11 @@ def main(argv: list[str] | None = None) -> int:
     repo_data_dir = REPO_ROOT / "data" / "pan-ukb"
 
     if not args or args == ["--help"]:
-        return pan_ukb_main(["describe", "--data-dir", str(repo_data_dir)])
+        return _run_pan_ukb(["describe", "--data-dir", str(repo_data_dir)])
     if args == ["--download"]:
-        return pan_ukb_main(["download", "--data-dir", str(repo_data_dir)])
+        return _run_pan_ukb(["download", "--data-dir", str(repo_data_dir)])
     if args == ["--generate-wget-script"]:
-        return pan_ukb_main(
+        return _run_pan_ukb(
             ["generate-wget-script", "--data-dir", str(repo_data_dir)]
         )
 

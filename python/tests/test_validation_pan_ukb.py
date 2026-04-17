@@ -1,12 +1,21 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
+import subprocess
+import sys
+import textwrap
+
+import pandas as pd
+import pytest
 
 from optiqal.validation.pan_ukb import (
     build_pan_ukb_paths,
     generate_wget_script,
     get_default_pan_ukb_data_dir,
+    harmonize_data,
     main,
+    run_mr,
 )
 
 
@@ -64,3 +73,117 @@ def test_cli_describe_mentions_default_data_dir(
     assert exit_code == 0
     assert "optiqal-pan-ukb download" in output
     assert str(tmp_path / "cache" / "optiqal" / "validation" / "pan-ukb") in output
+
+
+def test_harmonize_data_recovers_flipped_outcome_alleles() -> None:
+    instruments = pd.DataFrame(
+        [
+            {
+                "chr": 1,
+                "pos": 100,
+                "ref": "A",
+                "alt": "G",
+                "SNP": "1:100:A:G",
+                "beta_EUR": 0.2,
+                "se_EUR": 0.04,
+            },
+            {
+                "chr": 1,
+                "pos": 200,
+                "ref": "C",
+                "alt": "T",
+                "SNP": "1:200:C:T",
+                "beta_EUR": 0.3,
+                "se_EUR": 0.05,
+            },
+        ]
+    )
+    outcome = pd.DataFrame(
+        [
+            {
+                "chr": 1,
+                "pos": 100,
+                "ref": "A",
+                "alt": "G",
+                "beta_EUR": 0.1,
+                "se_EUR": 0.02,
+                "neglog10_pval_EUR": 6.0,
+                "af_EUR": 0.2,
+            },
+            {
+                "chr": 1,
+                "pos": 200,
+                "ref": "T",
+                "alt": "C",
+                "beta_EUR": 0.15,
+                "se_EUR": 0.03,
+                "neglog10_pval_EUR": 5.0,
+                "af_EUR": 0.7,
+            },
+        ]
+    )
+
+    harmonized = harmonize_data(instruments, outcome)
+
+    assert list(harmonized["SNP"]) == ["1:100:A:G", "1:200:C:T"]
+    flipped = harmonized.loc[harmonized["SNP"] == "1:200:C:T"].iloc[0]
+    assert flipped["beta_out"] == -0.15
+    assert flipped["af_out"] == pytest.approx(0.3)
+
+
+def test_run_mr_inflates_uncertainty_when_exposure_se_increases() -> None:
+    low_uncertainty = pd.DataFrame(
+        {
+            "beta_EUR": [0.20, 0.24, 0.28, 0.32],
+            "se_EUR": [0.005, 0.005, 0.005, 0.005],
+            "beta_out": [0.10, 0.13, 0.135, 0.175],
+            "se_out": [0.02, 0.018, 0.021, 0.019],
+        }
+    )
+    high_uncertainty = low_uncertainty.copy()
+    high_uncertainty["se_EUR"] = [0.05, 0.05, 0.05, 0.05]
+
+    low_results = run_mr(low_uncertainty).set_index("method")
+    high_results = run_mr(high_uncertainty).set_index("method")
+
+    assert high_results.loc["IVW", "se"] > low_results.loc["IVW", "se"]
+    assert high_results.loc["MR-Egger", "se"] > low_results.loc["MR-Egger", "se"]
+
+
+def test_download_wrapper_help_runs_without_scientific_stack_imports() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    script_path = repo_root / "scripts" / "download-pan-ukb.py"
+
+    assert os.access(script_path, os.X_OK)
+
+    driver = textwrap.dedent(
+        f"""
+        import builtins
+        import runpy
+        import sys
+
+        script_path = {str(script_path)!r}
+        blocked = {{"numpy", "pandas", "scipy"}}
+        real_import = builtins.__import__
+
+        def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+            if name.split(".")[0] in blocked:
+                raise ModuleNotFoundError(name)
+            return real_import(name, globals, locals, fromlist, level)
+
+        builtins.__import__ = fake_import
+        sys.argv = [script_path, "--help"]
+        runpy.run_path(script_path, run_name="__main__")
+        """
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-c", driver],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "DOWNLOAD METHODS" in result.stdout
