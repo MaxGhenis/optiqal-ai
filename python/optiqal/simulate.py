@@ -51,6 +51,14 @@ class SimulationResult:
     causal_fraction_mean: Optional[float] = None
     causal_fraction_ci: Optional[tuple] = None
 
+    # Posterior HR — what the simulator actually applies at the life-table level
+    # after publication-bias correction and Bayesian confounding draws. This is
+    # the HR a reader should compare items on, not the publication-bias-only
+    # display HR. None when the intervention has no direct mortality effect.
+    posterior_hr_mean: Optional[float] = None
+    posterior_hr_median: Optional[float] = None
+    posterior_hr_ci95: Optional[tuple] = None
+
     # Cost (survival-weighted discounted)
     expected_discounted_cost_factor: float = 1.0  # Multiply by annual_cost for total
     expected_qol_factor: float = 0.0  # Multiply annual utility effect for total
@@ -100,6 +108,9 @@ def _build_simulation_result(
     *,
     causal_fraction_mean: Optional[float] = None,
     causal_fraction_ci: Optional[tuple] = None,
+    posterior_hr_mean: Optional[float] = None,
+    posterior_hr_median: Optional[float] = None,
+    posterior_hr_ci95: Optional[tuple] = None,
     expected_discounted_cost_factor: float = 1.0,
     expected_qol_factor: float = 0.0,
     expected_qol_weights: tuple[float, ...] = (),
@@ -140,6 +151,9 @@ def _build_simulation_result(
         life_years_gained=life_years_gained,
         causal_fraction_mean=causal_fraction_mean,
         causal_fraction_ci=causal_fraction_ci,
+        posterior_hr_mean=posterior_hr_mean,
+        posterior_hr_median=posterior_hr_median,
+        posterior_hr_ci95=posterior_hr_ci95,
         expected_discounted_cost_factor=expected_discounted_cost_factor,
         expected_qol_factor=expected_qol_factor,
         expected_qol_weights=expected_qol_weights,
@@ -600,6 +614,19 @@ def simulate_qaly_profile_vectorized(
         cancer_contrib /= total_contrib
         other_contrib /= total_contrib
 
+    # Posterior HR summaries (None when the intervention has no mortality arm).
+    if intervention.mortality is not None:
+        posterior_hr_mean = float(np.mean(adjusted_hrs))
+        posterior_hr_median = float(median_hr)
+        posterior_hr_ci95 = (
+            float(np.percentile(adjusted_hrs, 2.5)),
+            float(np.percentile(adjusted_hrs, 97.5)),
+        )
+    else:
+        posterior_hr_mean = None
+        posterior_hr_median = None
+        posterior_hr_ci95 = None
+
     result = _build_simulation_result(
         qaly_gains,
         cvd_contribution=float(cvd_contrib),
@@ -624,6 +651,9 @@ def simulate_qaly_profile_vectorized(
         one_year_qol_factor=one_year_qol_factor,
         causal_fraction_mean=causal_fraction_mean,
         causal_fraction_ci=causal_fraction_ci,
+        posterior_hr_mean=posterior_hr_mean,
+        posterior_hr_median=posterior_hr_median,
+        posterior_hr_ci95=posterior_hr_ci95,
         n_simulations=n_simulations,
         discount_rate=discount_rate,
         cost_discount_rate=cost_discount_rate,

@@ -16,7 +16,24 @@ from .confounding import ConfoundingPrior, get_confounding_prior
 
 @dataclass
 class Distribution:
-    """Statistical distribution for uncertain parameters."""
+    """Statistical distribution for uncertain parameters.
+
+    For ``lognormal``, two parameterizations are supported:
+
+    1. Raw: ``params={"log_mean": ..., "log_sd": ...}`` — stores parameters
+       literally; ``sample()`` returns ``exp(Normal(log_mean, log_sd))``.
+       In this mode the *median* of the sampled HR equals ``exp(log_mean)``
+       and the *mean* is ``exp(log_mean + log_sd**2 / 2)``.
+    2. HR-centered: ``params={"hr": h, "log_sd": s}`` — the safer option
+       for catalog construction. Guarantees ``E[HR] == h`` by internally
+       setting ``log_mean = log(h) - s**2 / 2``. This matches the CEA
+       literature convention where reported point estimates are mean HRs.
+
+    When both ``hr`` and ``log_mean`` are provided, ``hr`` takes precedence
+    (the mean-centered form is always unambiguous). The raw form is kept so
+    existing YAML files and direct ``log_mean`` callers aren't silently
+    re-interpreted.
+    """
 
     type: Literal["point", "normal", "lognormal", "beta", "uniform"]
     params: Dict[str, float]
@@ -36,7 +53,11 @@ class Distribution:
             params["mean"] = data["mean"]
             params["sd"] = data["sd"]
         elif dist_type == "lognormal":
-            params["log_mean"] = data.get("log_mean", data.get("logMean"))
+            # hr-centered takes precedence when both are provided.
+            if "hr" in data:
+                params["hr"] = data["hr"]
+            elif "log_mean" in data or "logMean" in data:
+                params["log_mean"] = data.get("log_mean", data.get("logMean"))
             params["log_sd"] = data.get("log_sd", data.get("logSd"))
         elif dist_type == "beta":
             params["alpha"] = data["alpha"]
@@ -72,6 +93,21 @@ class Distribution:
         else:
             raise ValueError(f"Unknown distribution type: {dist_type}")
 
+    def _lognormal_params(self) -> tuple[float, float]:
+        """Resolve (log_mean, log_sd) for a lognormal Distribution.
+
+        Handles both parameterizations: raw ``log_mean`` or hr-centered.
+        """
+        log_sd = float(self.params["log_sd"])
+        if "hr" in self.params:
+            hr = float(self.params["hr"])
+            if hr <= 0:
+                raise ValueError(f"hr must be positive, got {hr}")
+            log_mean = float(np.log(hr) - (log_sd ** 2) / 2.0)
+        else:
+            log_mean = float(self.params["log_mean"])
+        return log_mean, log_sd
+
     def sample(self, n: int = 1, random_state: Optional[int] = None) -> np.ndarray:
         """Sample from the distribution."""
         rng = np.random.default_rng(random_state)
@@ -81,9 +117,8 @@ class Distribution:
         elif self.type == "normal":
             return rng.normal(self.params["mean"], self.params["sd"], size=n)
         elif self.type == "lognormal":
-            return np.exp(
-                rng.normal(self.params["log_mean"], self.params["log_sd"], size=n)
-            )
+            log_mean, log_sd = self._lognormal_params()
+            return np.exp(rng.normal(log_mean, log_sd, size=n))
         elif self.type == "beta":
             return rng.beta(self.params["alpha"], self.params["beta"], size=n)
         elif self.type == "uniform":
@@ -91,14 +126,23 @@ class Distribution:
 
     @property
     def mean(self) -> float:
-        """Expected value of the distribution."""
+        """Expected value of the distribution.
+
+        For hr-centered lognormals this returns ``hr`` exactly (not the
+        distributional mean derived from ``log_mean + log_sd**2 / 2``). That
+        is the same value either way because mean-centering constructs
+        ``log_mean = log(hr) - log_sd**2 / 2``, but the short-circuit avoids
+        floating-point drift.
+        """
         if self.type == "point":
             return self.params["value"]
         elif self.type == "normal":
             return self.params["mean"]
         elif self.type == "lognormal":
-            mu, sigma = self.params["log_mean"], self.params["log_sd"]
-            return np.exp(mu + sigma**2 / 2)
+            if "hr" in self.params:
+                return float(self.params["hr"])
+            mu, sigma = float(self.params["log_mean"]), float(self.params["log_sd"])
+            return float(np.exp(mu + sigma ** 2 / 2))
         elif self.type == "beta":
             a, b = self.params["alpha"], self.params["beta"]
             return a / (a + b)

@@ -13,7 +13,7 @@ import numpy as np
 from .catalog import CATALOG, CatalogEntry, get_catalog, simulate_catalog
 from .combination import find_optimal_portfolio_with_costs
 from .bundles import recommend_bundles
-from .confounding import ConfoundingPrior, publication_bias_correct
+from .confounding import ConfoundingPrior, hr_to_lognormal_params, publication_bias_correct
 from .defaults import (
     DEFAULT_COST_DISCOUNT_RATE,
     DEFAULT_QALY_DISCOUNT_RATE,
@@ -42,6 +42,12 @@ class AnalysisConfig:
     qaly_discount_rate: float = DEFAULT_QALY_DISCOUNT_RATE
     cost_discount_rate: float = DEFAULT_COST_DISCOUNT_RATE
     pub_bias_shrinkage: float = 0.30
+    # Soft cap on total portfolio QALY gain. Absent a ceiling, greedy
+    # additive models can claim multi-QALY gains from supplement stacks that
+    # exceed what primary-prevention CEA literature supports. A concave
+    # saturation caps the total at ~``portfolio_qaly_ceiling`` while
+    # preserving ranking. Default ~3 QALY over 40 yrs for healthy adults.
+    portfolio_qaly_ceiling: Optional[float] = 3.0
     n_simulations: int = 50_000
     random_state: int = 42
     categories: Optional[List[str]] = None  # Filter catalog; None = all
@@ -133,7 +139,7 @@ def _simulate_one(
         mortality=MortalityEffect(
             hazard_ratio=Distribution(
                 type="lognormal",
-                params={"log_mean": np.log(hr), "log_sd": log_sd},
+                params={"hr": hr, "log_sd": log_sd},
             ),
         ),
         confounding_prior=ConfoundingPrior(alpha=conf_a, beta=conf_b),
@@ -352,6 +358,7 @@ def analyze(
         stack_interaction_penalty_fn=penalty_fn,
         marginal_cost_value_fn=marginal_cost_value_fn,
         total_annual_cost_fn=total_annual_cost_fn,
+        portfolio_qaly_ceiling=config.portfolio_qaly_ceiling,
     )
 
     # 3. Bundle recommendations

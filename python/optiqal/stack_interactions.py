@@ -15,20 +15,49 @@ from .sleep import SLEEP_COMPONENT_BENEFIT_TAGS
 
 
 SLEEP_COMPONENT_RETENTION = (1.0, 0.55, 0.30, 0.15)
+# Steeper within-cluster retention schedules reflect that supplements hitting the
+# same biological pathway largely compete for the same upstream substrate or the
+# same downstream signal. See docs/methodology.md for the calibration rationale.
 BENEFIT_OVERLAP_RETENTION: Dict[str, tuple[float, ...]] = {
     **{tag: SLEEP_COMPONENT_RETENTION for tag in SLEEP_COMPONENT_BENEFIT_TAGS.values()},
-    "cardiometabolic_support": (1.0, 0.75, 0.55, 0.40),
-    "antioxidant_support": (1.0, 0.45, 0.25, 0.15),
-    "mitochondrial_support": (1.0, 0.55, 0.35, 0.20),
-    "gut_support": (1.0, 0.65, 0.40, 0.25),
-    "performance_recovery": (1.0, 0.70, 0.45, 0.30),
+    "cardiometabolic_support": (1.0, 0.70, 0.50, 0.35, 0.25),
+    # Broad redox / antioxidant cluster — saturates fast past the first item
+    # because endogenous antioxidant capacity (Nrf2, glutathione) has a ceiling.
+    "antioxidant_support": (1.0, 0.40, 0.20, 0.10, 0.05),
+    # Mitochondrial biogenesis / NAD+ pathway — strong shared mechanism.
+    "mitochondrial_support": (1.0, 0.45, 0.25, 0.15, 0.10),
+    # NAD+ precursor competition is even tighter (NR and NMN share the same
+    # salvage pathway; stacking provides almost no additional NAD+ lift).
+    "nad_precursor": (1.0, 0.25, 0.12, 0.08, 0.05),
+    # Anti-inflammatory polyphenol cluster (curcumin, quercetin, apigenin, EGCG,
+    # luteolin, cocoa flavanols, astaxanthin, black seed oil). Shared NF-kB /
+    # COX / iNOS targets; CRP reductions are not additive beyond the first item.
+    "anti_inflammatory": (1.0, 0.40, 0.22, 0.12, 0.08),
+    # Senolytic / autophagy cluster (fisetin, spermidine, rapamycin, quercetin
+    # via senolytic pathway). Shared cellular clearance mechanism.
+    "senolytic_support": (1.0, 0.45, 0.25, 0.15, 0.10),
+    # Methylation / one-carbon metabolism (TMG, B12, folate, SAMe).
+    "methylation_support": (1.0, 0.55, 0.35, 0.20, 0.12),
+    # Neurotrophic / cognitive (Lion's Mane, cistanche, creatine cognitive
+    # component, citicoline). Mechanisms partly overlap (NGF/BDNF).
+    "neurotrophic_support": (1.0, 0.60, 0.40, 0.25, 0.15),
+    "gut_support": (1.0, 0.60, 0.35, 0.22, 0.15),
+    "performance_recovery": (1.0, 0.65, 0.42, 0.28, 0.18),
 }
+
+# Default retention schedule applied when an item has any benefit_tag at all
+# but falls outside the named clusters. Previously this was 0.70 — that
+# effectively let 40 loosely-tagged items stack to ~full additivity.
+DEFAULT_UNNAMED_CLUSTER_RETENTION: tuple[float, ...] = (1.0, 0.70, 0.50, 0.35, 0.25)
 
 
 def _retained_fraction(tag: str, rank: int) -> float:
     schedule = BENEFIT_OVERLAP_RETENTION.get(tag)
     if schedule is None:
-        return 1.0 if rank == 0 else 0.70
+        if rank == 0:
+            return 1.0
+        idx = min(rank, len(DEFAULT_UNNAMED_CLUSTER_RETENTION) - 1)
+        return DEFAULT_UNNAMED_CLUSTER_RETENTION[idx]
     return schedule[min(rank, len(schedule) - 1)]
 
 

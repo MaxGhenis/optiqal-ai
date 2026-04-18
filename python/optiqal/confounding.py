@@ -216,9 +216,59 @@ def get_confounding_prior(
     )
 
 
+StudyQuality = Literal[
+    "rct_preregistered_hard_endpoint",
+    "rct_standard",
+    "meta_analysis_rcts",
+    "cohort_large",
+    "cohort_small",
+    "case_control",
+    "supplement_industry_rct",
+    "observational_speculative",
+    "animal_or_mechanistic",
+]
+
+# Tiered publication-bias shrinkage by study quality.
+#
+# Empirical anchors:
+# - RCT + preregistered + hard endpoint: residual inflation small (winner's curse, ~10%).
+#   Examples: PCPT finasteride, CTT statin meta, SELECT semaglutide, ASPREE aspirin, EMPA-REG.
+# - RCT standard: some publication/selective-reporting bias (~20%).
+#   Examples: BP RCTs, sleep-RCT onset latency, PREDIMED.
+# - Meta-analysis of RCTs: ~20% (publication bias partly corrected via trim-and-fill).
+# - Cohort: ~30% (Ioannidis 2008 baseline).
+# - Case-control: ~40% (recall/selection bias).
+# - Supplement-industry RCT: ~50% (unregistered, short duration, surrogate endpoints,
+#   sponsor bias). Examples: NR, NMN, ashwagandha commercial RCTs.
+# - Observational speculative / ecological: ~55%.
+# - Animal-only or mechanistic: ~70% (translation penalty + publication bias).
+STUDY_QUALITY_SHRINKAGE: dict[StudyQuality, float] = {
+    "rct_preregistered_hard_endpoint": 0.10,
+    "rct_standard": 0.20,
+    "meta_analysis_rcts": 0.20,
+    "cohort_large": 0.30,
+    "cohort_small": 0.35,
+    "case_control": 0.40,
+    "supplement_industry_rct": 0.50,
+    "observational_speculative": 0.55,
+    "animal_or_mechanistic": 0.70,
+}
+
+
+def shrinkage_for_study_quality(
+    study_quality: Optional[str],
+    fallback: float = 0.30,
+) -> float:
+    """Look up publication-bias shrinkage for a study-quality tier."""
+    if study_quality is None:
+        return fallback
+    return STUDY_QUALITY_SHRINKAGE.get(study_quality, fallback)
+
+
 def publication_bias_correct(
     observed_hr: float,
     shrinkage: float = 0.30,
+    study_quality: Optional[str] = None,
 ) -> float:
     """
     Correct hazard ratio for publication bias by shrinking toward null.
@@ -231,22 +281,57 @@ def publication_bias_correct(
     Shrinks log(HR) toward 0 (null) by the specified fraction.
 
     Args:
-        observed_hr: Published/observed hazard ratio
-        shrinkage: Fraction to shrink toward null (0.30 = 30% shrinkage).
-            Empirically calibrated: Ioannidis 2008 finds ~30% average
-            inflation in observational studies, with supplements often
-            worse due to lower pre-registration rates.
+        observed_hr: Published/observed hazard ratio.
+        shrinkage: Fraction to shrink toward null. Used as a fallback when
+            ``study_quality`` is not supplied. 0.30 matches Ioannidis 2008
+            average inflation in cohort studies.
+        study_quality: Optional study-quality tier. When provided, overrides
+            ``shrinkage`` with the tier-specific value from
+            :data:`STUDY_QUALITY_SHRINKAGE`.
 
     Returns:
-        Bias-corrected hazard ratio (closer to 1.0 than observed)
+        Bias-corrected hazard ratio (closer to 1.0 than observed).
 
     Example:
         >>> publication_bias_correct(0.80, shrinkage=0.30)
         0.854  # log(0.80) * 0.70 → less protective after correction
+        >>> publication_bias_correct(0.80, study_quality="supplement_industry_rct")
+        0.894  # 50% shrinkage → much weaker effect after correction
     """
+    effective_shrinkage = shrinkage_for_study_quality(study_quality, fallback=shrinkage)
     log_hr = np.log(observed_hr)
-    corrected = log_hr * (1 - shrinkage)
+    corrected = log_hr * (1 - effective_shrinkage)
     return float(np.exp(corrected))
+
+
+def hr_to_lognormal_params(hr: float, log_sd: float) -> dict:
+    """Return mean-centered lognormal parameters for a hazard ratio.
+
+    The naive parameterization ``log_mean = log(hr)`` makes ``hr`` the
+    *median* of the sampled distribution, not the mean. Because the
+    lognormal's mean is ``exp(log_mean + log_sd**2 / 2)``, any ``log_sd > 0``
+    produces Monte Carlo draws whose mean is ``hr * exp(log_sd**2 / 2) > hr``
+    for protective effects (or < hr when hr > 1). For a genuinely null
+    intervention (hr = 1.0), this yields an average draw of
+    ``exp(log_sd**2 / 2)`` ≈ 1.007 at log_sd = 0.12 — a spurious harm signal
+    in the life-table integration.
+
+    This helper returns parameters such that ``E[HR] == hr`` exactly:
+    ``log_mean = log(hr) - log_sd**2 / 2``. Under this convention the
+    *median* is ``hr * exp(-log_sd**2 / 2)`` (slightly more protective), and
+    the mean is what the user typed.
+
+    This matches the cost-effectiveness literature convention where the
+    reported point estimate is the expected value, not the median draw.
+    """
+    if hr <= 0:
+        raise ValueError(f"hr must be positive, got {hr}")
+    if log_sd < 0:
+        raise ValueError(f"log_sd must be non-negative, got {log_sd}")
+    return {
+        "log_mean": float(np.log(hr) - (log_sd ** 2) / 2.0),
+        "log_sd": float(log_sd),
+    }
 
 
 def adjust_hr(observed_hr: float, causal_fraction: float) -> float:

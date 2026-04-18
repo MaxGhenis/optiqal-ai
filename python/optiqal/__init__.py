@@ -27,7 +27,12 @@ __version__ = "0.1.0"
 
 from .intervention import HarmEffect, InteractionRule, Intervention
 from .lifecycle import LifecycleModel, CDC_LIFE_TABLE, CAUSE_FRACTIONS
-from .confounding import ConfoundingPrior, CATEGORY_PRIORS, publication_bias_correct
+from .confounding import (
+    ConfoundingPrior,
+    CATEGORY_PRIORS,
+    hr_to_lognormal_params,
+    publication_bias_correct,
+)
 from .simulate import simulate_qaly, simulate_qaly_profile, SimulationResult
 from .profile import Profile, generate_all_profiles, get_baseline_mortality_multiplier
 from .precompute import (

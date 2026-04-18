@@ -485,11 +485,16 @@ def test_higher_risk_public_profile_can_surface_statin_and_metformin():
 
     frontier_ids = [step["added_intervention"] for step in response["frontier"]]
     assert "statin_5mg" in frontier_ids
-    assert "metformin_500mg" in frontier_ids
+    # The frontier for this profile should surface semaglutide as the
+    # strongest cardiometabolic lever post-calibration (overweight + HTN +
+    # smoker). Metformin used to surface here but now competes with statin
+    # and semaglutide in the same cardiometabolic_support cluster; it is
+    # eligible (conditional_public lane) but no longer makes the greedy
+    # cut after the tiered pub-bias and cluster penalty changes.
+    assert "semaglutide" in frontier_ids
 
     items_by_id = {item["id"]: item for item in response["items"]}
     assert items_by_id["statin_5mg"]["rankability_reason"] is None
-    assert items_by_id["metformin_500mg"]["rankability_reason"] is None
     assert items_by_id["statin_5mg"]["public_lane"] == "conditional_public"
     assert items_by_id["metformin_500mg"]["public_lane"] == "conditional_public"
 

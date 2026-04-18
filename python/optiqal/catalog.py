@@ -15,7 +15,13 @@ from typing import Any, Dict, List, Literal, Mapping, Optional
 
 import numpy as np
 
-from .confounding import ConfoundingPrior, publication_bias_correct
+from .confounding import (
+    ConfoundingPrior,
+    hr_to_lognormal_params,
+    publication_bias_correct,
+    shrinkage_for_study_quality,
+    STUDY_QUALITY_SHRINKAGE,
+)
 from .defaults import (
     DEFAULT_COST_DISCOUNT_RATE,
     DEFAULT_QALY_DISCOUNT_RATE,
@@ -422,6 +428,17 @@ class CatalogEntry:
     notes: str = ""
     sources: List[str] = field(default_factory=list)
     evidence_quality: Literal["high", "moderate", "low", "very-low"] = "moderate"
+    # Per-item publication-bias tier. When unset, the catalog falls back to the
+    # caller's (AnalysisConfig) ``pub_bias_shrinkage`` value — preserving prior
+    # behavior. Tiered shrinkage lets a PCPT-scale RCT keep most of its effect
+    # while a small supplement-industry trial loses half of it.
+    study_quality: Optional[str] = None
+    # Optional allocation of bundled cost. When this item is packaged inside a
+    # larger bundle (e.g. Blueprint Essential Capsules), ``bundle_cost_share``
+    # is the dollar amount attributed to this item per year. The sim uses
+    # ``effective_annual_cost()`` so $0 bundled items no longer free-ride.
+    bundle_cost_share: float = 0.0
+    bundle_id: Optional[str] = None
     public_lane: PublicRecommendationLane = "personal_only"
     public_condition: Optional[PublicCondition] = None
     public_display_category_override: Optional[PublicDisplayCategory] = None
@@ -461,15 +478,34 @@ class CatalogEntry:
             ),
         )
 
+    def effective_pub_bias_shrinkage(self, fallback: float = 0.30) -> float:
+        """Resolve the publication-bias shrinkage used for this entry."""
+        return shrinkage_for_study_quality(self.study_quality, fallback=fallback)
+
     def corrected_hr_observed(
         self,
         pub_bias_shrinkage: float = 0.30,
         profile: Optional[Profile] = None,
     ) -> float:
-        """Observed HR after publication-bias, evidence, and profile transport shrinkage."""
-        hr = publication_bias_correct(self.hr_observed, pub_bias_shrinkage)
+        """Observed HR after publication-bias, evidence, and profile transport shrinkage.
+
+        ``pub_bias_shrinkage`` is the fallback when ``self.study_quality`` is
+        not set. When the entry declares a ``study_quality``, that tier wins.
+        """
+        shrinkage = self.effective_pub_bias_shrinkage(fallback=pub_bias_shrinkage)
+        hr = publication_bias_correct(self.hr_observed, shrinkage=shrinkage)
         combined_multiplier = self.profile_effect_multiplier(profile) * self.evidence_effect_multiplier()
         return _profile_adjusted_hr(hr, combined_multiplier)
+
+    def effective_annual_cost(self) -> float:
+        """Dollar cost attributed to this item, including any bundle allocation.
+
+        Bundled catalog items historically declared ``annual_cost=0`` because
+        their price was absorbed by the bundle (e.g. Blueprint Essentials).
+        That understated true cost. When ``bundle_cost_share`` is set, it is
+        added to ``annual_cost`` so $/QALY reflects the real marginal spend.
+        """
+        return float(self.annual_cost) + float(self.bundle_cost_share)
 
     def _effective_sleep_component_relief(
         self,
@@ -542,10 +578,12 @@ class CatalogEntry:
         mortality = None
         confounding_prior = None
         if self.has_direct_mortality_effect:
+            # Use hr-centered lognormal so E[HR] == hr exactly and downstream
+            # Distribution.mean returns hr without floating-point drift.
             mortality = MortalityEffect(
                 hazard_ratio=Distribution(
                     type="lognormal",
-                    params={"log_mean": np.log(hr), "log_sd": self.log_sd},
+                    params={"hr": hr, "log_sd": self.log_sd},
                 ),
             )
             confounding_prior = ConfoundingPrior(
@@ -1942,6 +1980,292 @@ if missing_public_policy_items:
         f"{missing_public_policy_items}"
     )
 
+
+# =============================================================================
+# POST-HOC ANNOTATIONS
+# =============================================================================
+#
+# Rather than editing every CatalogEntry literal above, we apply three
+# orthogonal annotation layers after construction. This keeps each annotation
+# auditable (one dict per concern) and easy to override from a calibration
+# harness later.
+#
+# 1. STUDY_QUALITY_BY_ID:   per-item pub-bias shrinkage tier.
+# 2. BUNDLE_ALLOCATIONS:    allocate bundle dollar cost to constituent items.
+# 3. EXTRA_BENEFIT_TAGS:    attach mechanism-cluster tags so the stack overlap
+#                           penalty fires for correlated supplements.
+# 4. EVIDENCE_OVERRIDES:    drop evidence_quality for items that have weaker
+#                           evidence than their default tier implies.
+
+STUDY_QUALITY_BY_ID: Dict[str, str] = {
+    # Preregistered RCTs with hard endpoints — minimal residual inflation.
+    "finasteride_1.25mg": "rct_preregistered_hard_endpoint",
+    "statin_5mg": "rct_preregistered_hard_endpoint",
+    "semaglutide": "rct_preregistered_hard_endpoint",
+    "empagliflozin": "rct_preregistered_hard_endpoint",
+    "aspirin_81mg": "rct_preregistered_hard_endpoint",
+    "daridorexant_25mg": "rct_preregistered_hard_endpoint",
+    "lemborexant_5mg": "rct_preregistered_hard_endpoint",
+    # Standard RCTs / surrogate endpoints.
+    "tadalafil_2.5mg": "rct_standard",
+    "magnesium_200": "rct_standard",
+    "melatonin_300mcg": "rct_standard",
+    "trazodone_50mg": "rct_standard",
+    "doxepin_3mg": "rct_standard",
+    "suvorexant_10mg": "rct_standard",
+    "omega3_epa_2g": "rct_standard",
+    "metformin_500mg": "rct_standard",
+    "vitamin_d_2000": "rct_standard",
+    # Meta-analyses of RCTs.
+    "omega3_clo": "meta_analysis_rcts",
+    # Large cohort / observational (Ioannidis baseline).
+    "garlic_1200": "cohort_large",
+    "cocoa_flavanols_500": "cohort_large",
+    "vitamin_k2": "cohort_large",
+    "vitamin_c_500_extra": "cohort_large",
+    # Supplement-industry RCT tier (short, surrogate, unpreregistered, sponsor bias).
+    "ashwagandha_600": "supplement_industry_rct",
+    "nr_300": "supplement_industry_rct",
+    "nr_300_unbundled": "supplement_industry_rct",
+    "nmn_500": "supplement_industry_rct",
+    "urolithin_a_500": "supplement_industry_rct",
+    "apigenin_50": "supplement_industry_rct",
+    "creatine_5g": "supplement_industry_rct",
+    "glycine_2g": "supplement_industry_rct",
+    "collagen_22g": "supplement_industry_rct",
+    "lions_mane_1g": "supplement_industry_rct",
+    "curcumin_250": "supplement_industry_rct",
+    "quercetin_500": "supplement_industry_rct",
+    "egcg_400": "supplement_industry_rct",
+    "taurine_500_topup": "supplement_industry_rct",
+    "fisetin_100": "supplement_industry_rct",
+    "fisetin_100_unbundled": "supplement_industry_rct",
+    "ubiquinol_50": "supplement_industry_rct",
+    "ubiquinol_50_unbundled": "supplement_industry_rct",
+    "nac_1200": "supplement_industry_rct",
+    "probiotic_daily": "supplement_industry_rct",
+    "berberine_500": "supplement_industry_rct",
+    "zinc_carnosine_75": "supplement_industry_rct",
+    # Observational / ecological / speculative.
+    "spermidine_10": "observational_speculative",
+    "lithium_5mg": "observational_speculative",
+    "lithium_1mg_orotate": "observational_speculative",
+    "ergothioneine_5": "observational_speculative",
+    "black_seed_oil_1g": "observational_speculative",
+    "broccoli_seed_200": "observational_speculative",
+    "boron_3": "observational_speculative",
+    "hyaluronic_acid_120": "observational_speculative",
+    "prebiotics": "observational_speculative",
+    "pqq_20": "observational_speculative",
+    "tmg_1g": "observational_speculative",
+    "alpha_lipoic_acid_300": "observational_speculative",
+    "pterostilbene_50": "observational_speculative",
+    "cistanche_200": "observational_speculative",
+    "ghk_cu": "observational_speculative",
+    "luteolin_100": "observational_speculative",
+    "luteolin_100_unbundled": "observational_speculative",
+    "lutein_zeaxanthin": "observational_speculative",
+    "astaxanthin_12": "observational_speculative",
+    "lycopene_15": "observational_speculative",
+    # Animal-only / mechanistic.
+    "17a_estradiol": "animal_or_mechanistic",
+    "acarbose_50mg": "animal_or_mechanistic",
+    "sulforaphane_20_extra": "animal_or_mechanistic",
+    "ginger_400": "animal_or_mechanistic",
+    "rapamycin_5mg_wk": "animal_or_mechanistic",
+    # Exercise interventions use RCT-plus-cohort evidence but the causal
+    # fraction is weak (Ballin 2021, Finnish Twin Cohort). Treat as standard
+    # RCTs — the confounding prior (exercise: Beta(1.2, 6.0)) handles most
+    # of the shrinkage already.
+    "hiit_1x_week": "rct_standard",
+    "hiit_2x_week": "rct_standard",
+    "hiit_3x_week": "rct_standard",
+    "tempo_run_1x_week": "rct_standard",
+    "zone2_cardio_2x_week": "rct_standard",
+    "strength_maintenance": "rct_standard",
+    # Behavioral / environmental sleep interventions.
+    "head_elevation_nightly": "observational_speculative",
+    "nasacort_nightly": "rct_standard",
+}
+
+# Bundle cost allocation. Each tuple is (bundle_id, annual_dollar_share).
+# Prices approximate current Blueprint subscription pricing, allocated evenly
+# across the Optiqal-tracked constituent ingredients. Prior to this
+# annotation, bundled items had annual_cost=0 and inflated their $/QALY.
+BUNDLE_ALLOCATIONS: Dict[str, tuple[str, float]] = {
+    # Blueprint Essential Capsules subscription: ~$480/yr across 8 tracked
+    # constituents → ~$60/yr each.
+    "fisetin_100": ("blueprint_essential_capsules", 60.0),
+    "spermidine_10": ("blueprint_essential_capsules", 60.0),
+    "nr_300": ("blueprint_essential_capsules", 60.0),
+    "ubiquinol_50": ("blueprint_essential_capsules", 60.0),
+    "lithium_1mg_orotate": ("blueprint_essential_capsules", 60.0),
+    "boron_3": ("blueprint_essential_capsules", 60.0),
+    "broccoli_seed_200": ("blueprint_essential_capsules", 60.0),
+    "luteolin_100": ("blueprint_essential_capsules", 60.0),
+    # Blueprint Advanced Antioxidants: ~$180/yr across 3 items → $60 each.
+    "astaxanthin_12": ("blueprint_advanced_antioxidants", 60.0),
+    "lutein_zeaxanthin": ("blueprint_advanced_antioxidants", 60.0),
+    "lycopene_15": ("blueprint_advanced_antioxidants", 60.0),
+    # Blueprint Longevity Mix: HA is the only Optiqal-tracked bundled item.
+    "hyaluronic_acid_120": ("blueprint_longevity_mix", 80.0),
+    # Blueprint NAC+Ginger+Curcumin: allocate a fair share to ginger (NAC and
+    # curcumin are priced separately in the catalog).
+    "ginger_400": ("blueprint_nac_ginger_curcumin", 25.0),
+}
+
+# Extra benefit tags to enable mechanism-cluster diminishing returns. Each
+# value is appended to the entry's existing benefit_tags, deduped.
+EXTRA_BENEFIT_TAGS: Dict[str, List[str]] = {
+    "curcumin_250": ["anti_inflammatory", "antioxidant_support"],
+    "ginger_400": ["anti_inflammatory"],
+    "quercetin_500": ["anti_inflammatory", "senolytic_support"],
+    "egcg_400": ["anti_inflammatory"],
+    "apigenin_50": ["anti_inflammatory", "senolytic_support"],
+    "ashwagandha_600": ["anti_inflammatory"],
+    "black_seed_oil_1g": ["anti_inflammatory"],
+    "fisetin_100": ["senolytic_support", "anti_inflammatory", "antioxidant_support"],
+    "fisetin_100_unbundled": ["senolytic_support", "anti_inflammatory", "antioxidant_support"],
+    "spermidine_10": ["senolytic_support"],
+    "luteolin_100": ["anti_inflammatory"],
+    "luteolin_100_unbundled": ["anti_inflammatory"],
+    "broccoli_seed_200": ["antioxidant_support", "anti_inflammatory"],
+    "pterostilbene_50": ["anti_inflammatory", "mitochondrial_support", "senolytic_support"],
+    "alpha_lipoic_acid_300": ["antioxidant_support"],
+    "tmg_1g": ["methylation_support"],
+    "nr_300": ["nad_precursor"],
+    "nr_300_unbundled": ["nad_precursor"],
+    "nmn_500": ["nad_precursor"],
+    "astaxanthin_12": ["anti_inflammatory"],
+    "vitamin_c_500_extra": ["antioxidant_support"],
+    "ergothioneine_5": ["antioxidant_support"],
+    "urolithin_a_500": ["mitochondrial_support"],
+    "lions_mane_1g": ["neurotrophic_support"],
+    "cistanche_200": ["neurotrophic_support"],
+    "creatine_5g": ["neurotrophic_support"],
+    "lithium_1mg_orotate": ["neurotrophic_support"],
+    "sulforaphane_20_extra": ["antioxidant_support", "anti_inflammatory"],
+    "boron_3": ["cardiometabolic_support"],
+}
+
+# Drop evidence_quality when it's miscalibrated relative to the actual
+# supporting evidence base (mostly surrogate endpoints / rodent data).
+EVIDENCE_OVERRIDES: Dict[str, str] = {
+    "nr_300": "low",
+    "nr_300_unbundled": "low",
+    "nmn_500": "low",
+    "cistanche_200": "very-low",
+    "lions_mane_1g": "low",
+    "ergothioneine_5": "low",
+    "urolithin_a_500": "low",
+    "black_seed_oil_1g": "low",
+    "pterostilbene_50": "low",
+    "spermidine_10": "low",
+    "fisetin_100": "low",
+    "fisetin_100_unbundled": "low",
+    "apigenin_50": "low",
+    "luteolin_100": "low",
+    "luteolin_100_unbundled": "low",
+    "lithium_1mg_orotate": "low",
+    "boron_3": "low",
+    "ghk_cu": "low",
+    "pqq_20": "low",
+    "hyaluronic_acid_120": "low",
+    "probiotic_daily": "low",
+}
+
+
+def _replace_entry(item_id: str, **changes) -> None:
+    """Replace a CatalogEntry in place using dataclasses.replace."""
+    entry = CATALOG.get(item_id)
+    if entry is None:
+        return
+    CATALOG[item_id] = replace(entry, **changes)
+
+
+def _apply_annotations() -> None:
+    """Apply the post-hoc annotation layers to CATALOG."""
+    # 1. Study-quality tiers.
+    for item_id, tier in STUDY_QUALITY_BY_ID.items():
+        _replace_entry(item_id, study_quality=tier)
+
+    # 2. Bundle cost allocations.
+    for item_id, (bundle_id, share) in BUNDLE_ALLOCATIONS.items():
+        _replace_entry(item_id, bundle_id=bundle_id, bundle_cost_share=float(share))
+
+    # 3. Extra benefit tags (mechanism clusters).
+    for item_id, extra_tags in EXTRA_BENEFIT_TAGS.items():
+        entry = CATALOG.get(item_id)
+        if entry is None:
+            continue
+        existing = list(entry.benefit_tags or [])
+        for tag in extra_tags:
+            if tag not in existing:
+                existing.append(tag)
+        _replace_entry(item_id, benefit_tags=existing)
+
+    # 4. Evidence-quality overrides.
+    for item_id, quality in EVIDENCE_OVERRIDES.items():
+        _replace_entry(item_id, evidence_quality=quality)
+
+    # 5. Individual calibrations:
+    #
+    # Aspirin at age 39 with no CVD risk factors. ASPREE (>70y) and ARRIVE
+    # (moderate-risk) showed null/harm in healthy primary prevention. The
+    # default conf_alpha=4.0, conf_beta=2.0 implies a 67% causal fraction
+    # too generous for a healthy 39-year-old. Shrink causal prior and raise
+    # bleeding event probability to reflect primary-prevention harm.
+    aspirin = CATALOG.get("aspirin_81mg")
+    if aspirin is not None:
+        new_harms: List[HarmEffect] = []
+        for harm in aspirin.harm_effects:
+            if harm.id == "bleeding":
+                new_harms.append(
+                    HarmEffect(
+                        id="bleeding",
+                        description="Clinically meaningful bleeding risk in primary prevention.",
+                        event_probability=Distribution(type="point", params={"value": 0.008}),
+                        event_qaly_loss=Distribution(type="point", params={"value": 0.06}),
+                    )
+                )
+            else:
+                new_harms.append(harm)
+        _replace_entry(
+            "aspirin_81mg",
+            conf_alpha=2.5,
+            conf_beta=5.0,  # mean causal fraction ~0.33
+            harm_effects=new_harms,
+            profile_effect_rules=list(aspirin.profile_effect_rules) + [
+                ProfileEffectRule(
+                    multiplier=0.30,
+                    bmi_categories=("normal",),
+                    has_diabetes=False,
+                    has_hypertension=False,
+                ),
+            ],
+        )
+
+    # Statin at LDL 64 (normolipidemia). CTT's per-mmol/L slope is derived
+    # from trials starting at higher LDL; extrapolating to primary prevention
+    # in normolipidemic healthy adults is aggressive. Dampen via a profile
+    # rule so healthy users with normal labs see a smaller expected benefit.
+    statin = CATALOG.get("statin_5mg")
+    if statin is not None:
+        _replace_entry(
+            "statin_5mg",
+            profile_effect_rules=list(statin.profile_effect_rules) + [
+                ProfileEffectRule(
+                    multiplier=0.45,
+                    bmi_categories=("normal",),
+                    has_diabetes=False,
+                    has_hypertension=False,
+                ),
+            ],
+        )
+
+
+_apply_annotations()
+
 PUBLIC_GENERIC_EXCLUDED_REASONS = {
     "aspirin_81mg": (
         "Hidden from the generic public frontier because low-dose aspirin is a "
@@ -2591,6 +2915,7 @@ def simulate_catalog(
     for entry in entries.values():
         effect_multiplier = entry.profile_effect_multiplier(profile)
         evidence_multiplier = entry.evidence_effect_multiplier()
+        effective_shrinkage = entry.effective_pub_bias_shrinkage(fallback=pub_bias_shrinkage)
         intervention = entry.to_intervention(pub_bias_shrinkage, profile=profile)
         sleep_mortality_hr_multiplier = entry.sleep_mortality_hr_multiplier(sleep_estimate)
         sleep_mortality_relief_fraction = entry.sleep_mortality_relief_fraction(sleep_estimate)
@@ -2605,7 +2930,9 @@ def simulate_catalog(
             global_intervention_hr_multiplier=sleep_mortality_hr_multiplier,
             random_state=random_state,
         )
-        hr_corrected = publication_bias_correct(entry.hr_observed, pub_bias_shrinkage)
+        hr_corrected = publication_bias_correct(
+            entry.hr_observed, shrinkage=effective_shrinkage,
+        )
         harm_qaly = r.expected_harm_qalys + r.expected_interaction_harm_qalys
         mort_qaly = r.mean - harm_qaly
         qol_years = min(float(entry.qol_years), float(horizon_years))
@@ -2622,9 +2949,12 @@ def simulate_catalog(
         sleep_qol_qaly = sleep_qol_annual * qol_factor
         evidence_discount_qaly = (raw_qol_qaly - qol_qaly) + (raw_sleep_qol_qaly - sleep_qol_qaly)
         total_qaly = mort_qaly + harm_qaly + qol_qaly + sleep_qol_qaly
-        # Survival-weighted discounted cost
-        total_cost = entry.annual_cost * r.expected_discounted_cost_factor
-        cost_per_qaly = total_cost / total_qaly if total_qaly > 0 and entry.annual_cost > 0 else None
+        # Survival-weighted discounted cost. Uses effective_annual_cost so
+        # bundled items (NR, ubiquinol, astaxanthin, etc.) get their allocated
+        # share of the Blueprint Essentials bundle price instead of free-riding.
+        effective_cost = entry.effective_annual_cost()
+        total_cost = effective_cost * r.expected_discounted_cost_factor
+        cost_per_qaly = total_cost / total_qaly if total_qaly > 0 and effective_cost > 0 else None
         component_breakdown = {
             "mortality_qaly": mort_qaly,
             "direct_qol_qaly": qol_qaly,
@@ -2655,7 +2985,17 @@ def simulate_catalog(
             "name": entry.name,
             "category": entry.category,
             "hr_observed": entry.hr_observed,
+            # hr_corrected = publication-bias-only HR (what the literature
+            # "actually shows" after naive bias correction). Kept for back-compat.
             "hr_corrected": hr_corrected,
+            # hr_posterior* = HR the simulator actually applies after pub bias
+            # PLUS Bayesian confounding + profile transport + evidence shrinkage.
+            # This is the column a reader should compare items on.
+            "hr_posterior_mean": r.posterior_hr_mean,
+            "hr_posterior_median": r.posterior_hr_median,
+            "hr_posterior_ci95": r.posterior_hr_ci95,
+            "pub_bias_shrinkage": effective_shrinkage,
+            "study_quality": entry.study_quality,
             "profile_effect_multiplier": effect_multiplier,
             "evidence_quality": entry.evidence_quality,
             "evidence_effect_multiplier": evidence_multiplier,
@@ -2680,11 +3020,23 @@ def simulate_catalog(
             "top_negative_component": top_negative_component,
             "total_qaly": total_qaly,
             "days": total_qaly * 365.25,
+            # Median QALY of the mortality arm — convexity-invariant
+            # diagnostic. Do NOT substitute for total_qaly in ICER / net-
+            # monetary-benefit calculations; CEA arithmetic requires expected
+            # values, not medians. Median can hide discrete large-loss harm
+            # draws and reorder the frontier vs. the mean. Surface this
+            # alongside total_qaly to spot cases where the mean has material
+            # Jensen-on-survival bias or heavy-tail harm exposure.
+            "mortality_qaly_median": float(r.median),
+            "mortality_qaly_mean": float(r.mean),
             "p_benefit": r.prob_positive,
             "p_harm": r.prob_negative,
             "expected_upside_days": r.expected_upside * 365.25,
             "expected_downside_days": r.expected_downside * 365.25,
             "annual_cost": entry.annual_cost,
+            "effective_annual_cost": effective_cost,
+            "bundle_cost_share": entry.bundle_cost_share,
+            "bundle_id": entry.bundle_id,
             "total_cost": total_cost,
             "cost_per_qaly": cost_per_qaly,
             "expected_discounted_cost_factor": r.expected_discounted_cost_factor,

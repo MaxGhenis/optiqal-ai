@@ -374,6 +374,24 @@ def find_optimal_portfolio(
     return portfolio_path
 
 
+def _saturate_total_qaly(raw_total: float, ceiling: Optional[float]) -> float:
+    """Soft-cap a portfolio QALY total at ``ceiling`` with a concave saturation.
+
+    Uses ``saturated = ceiling * (1 - exp(-raw/ceiling))``. At small raw totals
+    the saturation is near-linear (slope 1), and as raw → ∞ the saturation
+    approaches ``ceiling``. This encodes the biological reality that no stack
+    of supplements can add unbounded QALYs — the human lifespan imposes a
+    ceiling that greedy additive models don't respect.
+
+    When ``ceiling`` is None (or non-positive), returns ``raw_total`` unchanged.
+    """
+    if ceiling is None or ceiling <= 0:
+        return float(raw_total)
+    if raw_total <= 0:
+        return float(raw_total)
+    return float(ceiling * (1.0 - np.exp(-raw_total / ceiling)))
+
+
 def find_optimal_portfolio_with_costs(
     single_qalys: Dict[str, float],
     annual_costs: Dict[str, float],
@@ -386,6 +404,7 @@ def find_optimal_portfolio_with_costs(
     stack_interaction_penalty_fn: Optional[Callable[[List[str]], float]] = None,
     marginal_cost_value_fn: Optional[Callable[[List[str], str], float]] = None,
     total_annual_cost_fn: Optional[Callable[[List[str]], float]] = None,
+    portfolio_qaly_ceiling: Optional[float] = None,
 ) -> List[Dict]:
     """
     Find optimal portfolio using cost-aware greedy selection.
@@ -462,11 +481,13 @@ def find_optimal_portfolio_with_costs(
         best_marginal_net = -float('inf')
         best_marginal_qaly = 0.0
         best_total_qaly = 0.0
+        best_total_raw_qaly = 0.0
         best_interaction_penalty = 0.0
         best_marginal_interaction = 0.0
         best_total_cost_value = 0.0
         best_marginal_cost_value = 0.0
-        current_total_qaly = _base_total_qaly(selected) + _interaction_penalty(selected)
+        current_raw_total_qaly = _base_total_qaly(selected) + _interaction_penalty(selected)
+        current_total_qaly = _saturate_total_qaly(current_raw_total_qaly, portfolio_qaly_ceiling)
         current_interaction_penalty = _interaction_penalty(selected)
         current_total_cost_value = _total_cost_value(selected)
 
@@ -474,7 +495,10 @@ def find_optimal_portfolio_with_costs(
             candidate_selected = selected + [int_id]
             candidate_base_total_qaly = _base_total_qaly(candidate_selected)
             candidate_interaction_penalty = _interaction_penalty(candidate_selected)
-            candidate_total_qaly = candidate_base_total_qaly + candidate_interaction_penalty
+            candidate_raw_total_qaly = candidate_base_total_qaly + candidate_interaction_penalty
+            candidate_total_qaly = _saturate_total_qaly(
+                candidate_raw_total_qaly, portfolio_qaly_ceiling,
+            )
             marginal_qaly = candidate_total_qaly - current_total_qaly
 
             candidate_total_cost_value = _total_cost_value(candidate_selected)
@@ -486,6 +510,7 @@ def find_optimal_portfolio_with_costs(
                 best_id = int_id
                 best_marginal_qaly = marginal_qaly
                 best_total_qaly = candidate_total_qaly
+                best_total_raw_qaly = candidate_raw_total_qaly
                 best_interaction_penalty = candidate_interaction_penalty
                 best_marginal_interaction = candidate_interaction_penalty - current_interaction_penalty
                 best_total_cost_value = candidate_total_cost_value
@@ -505,6 +530,8 @@ def find_optimal_portfolio_with_costs(
             "marginal_interaction_qaly": best_marginal_interaction,
             "interaction_penalty_qaly": best_interaction_penalty,
             "total_qaly": best_total_qaly,
+            "total_raw_qaly": best_total_raw_qaly,
+            "portfolio_qaly_ceiling": portfolio_qaly_ceiling,
             "total_base_qaly": _base_total_qaly(selected),
             "marginal_cost_value": best_marginal_cost_value,
             "total_cost_value": best_total_cost_value,

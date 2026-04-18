@@ -91,7 +91,12 @@ class TestCatalog:
         assert intervention.confounding_prior is not None
 
     def test_to_intervention_applies_pub_bias(self):
+        # Pick an entry without an explicit study_quality tier so the
+        # pub_bias_shrinkage parameter is used as the fallback. When a tier
+        # is set it takes precedence over the caller-supplied fallback.
         entry = CATALOG["omega3_clo"]
+        from dataclasses import replace as _replace
+        entry = _replace(entry, study_quality=None)
         # With 0% shrinkage, should use raw HR
         int_no_bias = entry.to_intervention(pub_bias_shrinkage=0.0)
         # With 30% shrinkage, HR should be closer to 1
@@ -100,6 +105,81 @@ class TestCatalog:
         hr_raw = int_no_bias.mortality.hazard_ratio.mean
         hr_corrected = int_biased.mortality.hazard_ratio.mean
         assert hr_corrected > hr_raw  # Closer to 1.0 (less protective)
+
+    def test_study_quality_tier_overrides_fallback(self):
+        """When an entry sets study_quality, tier shrinkage wins over caller fallback."""
+        entry = CATALOG["finasteride_1.25mg"]  # preregistered RCT tier (10% shrinkage)
+        # Caller demands huge (90%) fallback shrinkage. Tier should still win.
+        corrected = entry.corrected_hr_observed(pub_bias_shrinkage=0.90)
+        # With only 10% shrinkage and a 0.95 evidence multiplier:
+        # exp(log(0.93) * 0.9 * 0.95) ≈ 0.940
+        assert 0.935 < corrected < 0.945
+        # Without the tier override the result would be dramatically weaker.
+        from dataclasses import replace as _replace
+        untiered = _replace(entry, study_quality=None)
+        corrected_untiered = untiered.corrected_hr_observed(pub_bias_shrinkage=0.90)
+        assert corrected_untiered > 0.99  # 90% shrinkage → near null
+
+
+class TestBundleCostAllocation:
+    """Bundled items should share the parent bundle's price, not cost $0."""
+
+    def test_nr_300_has_nonzero_effective_cost(self):
+        """NR 300 is bundled into Blueprint Essentials — should carry allocation."""
+        entry = CATALOG["nr_300"]
+        assert entry.annual_cost == 0  # raw $ still 0 — it's inside the bundle
+        assert entry.bundle_id == "blueprint_essential_capsules"
+        assert entry.bundle_cost_share > 0
+        # The reported effective cost is what $/QALY should use.
+        assert entry.effective_annual_cost() > 0
+        assert entry.effective_annual_cost() == entry.bundle_cost_share
+
+    def test_standalone_items_unaffected(self):
+        """Items with annual_cost already set should not gain a bundle share."""
+        entry = CATALOG["tadalafil_2.5mg"]
+        assert entry.bundle_cost_share == 0.0
+        assert entry.effective_annual_cost() == entry.annual_cost
+
+    def test_every_bundled_item_has_allocation(self):
+        """Every ingredient tagged as bundle member should declare a share."""
+        bundled_ids = (
+            "fisetin_100", "spermidine_10", "nr_300", "ubiquinol_50",
+            "lithium_1mg_orotate", "boron_3", "broccoli_seed_200", "luteolin_100",
+            "astaxanthin_12", "lutein_zeaxanthin", "lycopene_15",
+            "hyaluronic_acid_120", "ginger_400",
+        )
+        for item_id in bundled_ids:
+            entry = CATALOG[item_id]
+            assert entry.bundle_id is not None, item_id
+            assert entry.bundle_cost_share > 0, item_id
+
+
+class TestPosteriorHrExposure:
+    """simulate_catalog should surface posterior HR for mortality-bearing items."""
+
+    def test_posterior_hr_in_item_results(self):
+        profile = Profile(
+            age=39, sex="male", bmi_category="normal", smoking_status="never",
+            has_diabetes=False, has_hypertension=False, activity_level="light",
+        )
+        results = simulate_catalog(
+            profile=profile,
+            n_simulations=2_000,
+            random_state=1,
+            pub_bias_shrinkage=0.30,
+            categories=["rx_current"],
+        )
+        finasteride = next(r for r in results if r["id"] == "finasteride_1.25mg")
+        # Posterior HR should exist, be between observed and 1.0, and lie
+        # weaker than the publication-bias-only HR (which doesn't apply the
+        # Bayesian causal-fraction shrinkage).
+        assert finasteride["hr_posterior_mean"] is not None
+        assert finasteride["hr_posterior_median"] is not None
+        ci_low, ci_high = finasteride["hr_posterior_ci95"]
+        assert ci_low < finasteride["hr_posterior_median"] < ci_high
+        assert finasteride["hr_observed"] < finasteride["hr_posterior_median"] <= 1.01
+        # Posterior HR is weaker (closer to 1) than pub-bias-only HR.
+        assert finasteride["hr_posterior_median"] >= finasteride["hr_corrected"] - 1e-3
 
     def test_to_intervention_applies_evidence_shrinkage(self):
         high = CatalogEntry(

@@ -28,6 +28,65 @@ class TestDistribution:
         expected_mean = np.exp(-0.2 + 0.1**2 / 2)
         assert abs(dist.mean - expected_mean) < 0.01
 
+    def test_lognormal_hr_parameterization_mean_equals_hr(self):
+        """hr-centered lognormal should produce E[HR] == hr exactly."""
+        dist = Distribution(type="lognormal", params={"hr": 0.80, "log_sd": 0.15})
+        # .mean returns the hr exactly (short-circuited, no FP drift).
+        assert dist.mean == 0.80
+        # Large-sample Monte Carlo mean matches.
+        samples = dist.sample(200_000, random_state=7)
+        assert abs(float(np.mean(samples)) - 0.80) < 0.005
+
+    def test_lognormal_hr_null_samples_mean_to_one(self):
+        """hr=1.0 with nonzero log_sd gives MC mean exactly 1.0, no harm bias."""
+        dist = Distribution(type="lognormal", params={"hr": 1.0, "log_sd": 0.12})
+        samples = dist.sample(200_000, random_state=7)
+        assert abs(float(np.mean(samples)) - 1.0) < 0.003
+        # Median < 1 because mean-centering shifts the log_mean to -sigma^2/2.
+        assert float(np.median(samples)) < 1.0
+
+    def test_lognormal_hr_takes_precedence_over_log_mean(self):
+        """When both hr and log_mean are supplied to from_dict, hr wins."""
+        dist = Distribution.from_dict({
+            "type": "lognormal",
+            "hr": 0.85,
+            "log_mean": 999.0,  # should be ignored
+            "log_sd": 0.10,
+        })
+        assert dist.mean == 0.85
+        assert "log_mean" not in dist.params  # raw key not stored
+
+    def test_lognormal_params_helper_resolves_both_parameterizations(self):
+        """_lognormal_params() must return usable (log_mean, log_sd) for both forms.
+
+        This is the path used by bayesian.py and any other caller that needs
+        the raw (log_mean, log_sd) tuple. Hr-keyed lognormals must not
+        KeyError here — the helper must mean-center internally.
+        """
+        hr_keyed = Distribution(type="lognormal", params={"hr": 0.80, "log_sd": 0.15})
+        log_mean, log_sd = hr_keyed._lognormal_params()
+        # log_mean = log(0.80) - 0.15**2/2 = -0.2231 - 0.01125 = -0.2344
+        assert abs(log_mean - (np.log(0.80) - 0.15 ** 2 / 2)) < 1e-9
+        assert log_sd == 0.15
+
+        raw_keyed = Distribution(type="lognormal", params={"log_mean": -0.18, "log_sd": 0.10})
+        log_mean_raw, log_sd_raw = raw_keyed._lognormal_params()
+        assert log_mean_raw == -0.18
+        assert log_sd_raw == 0.10
+
+    def test_lognormal_raw_log_mean_still_works(self):
+        """Existing YAML using log_mean continues to work unchanged."""
+        dist = Distribution.from_dict({
+            "type": "lognormal",
+            "log_mean": -0.223,
+            "log_sd": 0.12,
+        })
+        assert "log_mean" in dist.params
+        assert dist.params["log_mean"] == pytest.approx(-0.223)
+        # Under raw semantics, mean = exp(log_mean + sigma^2/2).
+        expected_mean = np.exp(-0.223 + 0.12 ** 2 / 2)
+        assert dist.mean == pytest.approx(expected_mean, abs=1e-6)
+
     def test_beta_distribution(self):
         dist = Distribution(type="beta", params={"alpha": 2, "beta": 5})
         samples = dist.sample(10000, random_state=42)

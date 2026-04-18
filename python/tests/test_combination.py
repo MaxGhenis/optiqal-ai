@@ -272,5 +272,58 @@ class TestCostAwarePortfolioWithPreselectedState:
         assert portfolio[-1]["selected_interventions"] == ["base1", "base2", "base3", "a", "b"]
 
 
+class TestPortfolioQalyCeiling:
+    """Soft-cap total portfolio QALY via concave saturation."""
+
+    def test_no_ceiling_is_additive(self):
+        """Without a ceiling, total_qaly equals the raw additive sum."""
+        portfolio = find_optimal_portfolio_with_costs(
+            single_qalys={"a": 1.0, "b": 1.0, "c": 1.0},
+            annual_costs={"a": 10, "b": 10, "c": 10},
+            cost_values={"a": 10, "b": 10, "c": 10},
+            wtp=100_000,
+            portfolio_qaly_ceiling=None,
+        )
+        assert portfolio[-1]["total_qaly"] == pytest.approx(3.0, abs=1e-9)
+        assert portfolio[-1]["total_raw_qaly"] == pytest.approx(3.0, abs=1e-9)
+
+    def test_ceiling_saturates_total(self):
+        """With a ceiling of 2.0, three 1-QALY items saturate below additive total."""
+        portfolio = find_optimal_portfolio_with_costs(
+            single_qalys={"a": 1.0, "b": 1.0, "c": 1.0},
+            annual_costs={"a": 10, "b": 10, "c": 10},
+            cost_values={"a": 10, "b": 10, "c": 10},
+            wtp=100_000,
+            portfolio_qaly_ceiling=2.0,
+        )
+        last = portfolio[-1]
+        # Saturation: 2 * (1 - exp(-3/2)) ≈ 2 * 0.777 ≈ 1.55
+        assert 1.5 < last["total_qaly"] < 1.6
+        assert last["total_raw_qaly"] == pytest.approx(3.0, abs=1e-9)
+
+    def test_ceiling_preserves_ordering(self):
+        """Ceiling should not change which item is picked first."""
+        portfolio = find_optimal_portfolio_with_costs(
+            single_qalys={"low": 0.1, "high": 1.0, "mid": 0.5},
+            annual_costs={"low": 5, "high": 50, "mid": 25},
+            cost_values={"low": 5, "high": 50, "mid": 25},
+            wtp=100_000,
+            portfolio_qaly_ceiling=1.0,
+        )
+        assert portfolio[0]["added_intervention"] == "high"
+
+    def test_ceiling_marginal_value_declines(self):
+        """Each added item contributes less QALY under saturation."""
+        from optiqal.combination import _saturate_total_qaly
+        # Starting from 0, adding 1.0 raw adds ~0.63 saturated at ceiling 1.
+        delta_first = _saturate_total_qaly(1.0, 1.0) - _saturate_total_qaly(0.0, 1.0)
+        # Adding a second raw QALY on top adds much less.
+        delta_second = _saturate_total_qaly(2.0, 1.0) - _saturate_total_qaly(1.0, 1.0)
+        assert delta_first > delta_second
+        # At saturation, marginal contribution is near zero.
+        delta_tenth = _saturate_total_qaly(10.0, 1.0) - _saturate_total_qaly(9.0, 1.0)
+        assert delta_tenth < 1e-3
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

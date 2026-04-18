@@ -154,3 +154,66 @@ def test_benefit_overlap_multiplier_can_reduce_penalty():
     )
 
     assert penalty == pytest.approx(-0.00675)
+
+
+class TestMechanismClusters:
+    """Exercise the mechanism-cluster diminishing-returns schedules."""
+
+    def test_nad_precursor_cluster_has_steep_retention(self):
+        """NR and NMN should not stack — shared NAD+ salvage pathway."""
+        from optiqal.stack_interactions import BENEFIT_OVERLAP_RETENTION
+        schedule = BENEFIT_OVERLAP_RETENTION["nad_precursor"]
+        # First item full benefit, second item retains <= 30% (shared pathway).
+        assert schedule[0] == 1.0
+        assert schedule[1] <= 0.30
+
+    def test_anti_inflammatory_cluster_exists(self):
+        from optiqal.stack_interactions import BENEFIT_OVERLAP_RETENTION
+        # Must have an anti-inflammatory cluster so polyphenols don't stack.
+        assert "anti_inflammatory" in BENEFIT_OVERLAP_RETENTION
+        schedule = BENEFIT_OVERLAP_RETENTION["anti_inflammatory"]
+        assert schedule[1] <= 0.50
+
+    def test_polyphenol_stacking_penalized(self):
+        """Three polyphenols should produce a nonzero overlap penalty."""
+        catalog = {
+            "a": CatalogEntry(
+                id="a", name="Curcumin-like", category="supplement_current",
+                hr_observed=0.95, log_sd=0.1, conf_alpha=1.0, conf_beta=1.0,
+                annual_cost=40, benefit_tags=["anti_inflammatory"],
+            ),
+            "b": CatalogEntry(
+                id="b", name="Quercetin-like", category="supplement_current",
+                hr_observed=0.95, log_sd=0.1, conf_alpha=1.0, conf_beta=1.0,
+                annual_cost=60, benefit_tags=["anti_inflammatory"],
+            ),
+            "c": CatalogEntry(
+                id="c", name="Apigenin-like", category="supplement_current",
+                hr_observed=0.95, log_sd=0.1, conf_alpha=1.0, conf_beta=1.0,
+                annual_cost=76, benefit_tags=["anti_inflammatory"],
+            ),
+        }
+        penalty, details = expected_stack_interaction_qaly(
+            item_ids=list(catalog),
+            catalog_entries=catalog,
+            profile=_profile(),
+            item_qalys={"a": 0.05, "b": 0.04, "c": 0.03},
+        )
+        assert penalty < 0
+        # Expected tagged cluster is the dominant overlap source.
+        cluster_details = [d for d in details if d["id"] == "benefit_overlap:anti_inflammatory"]
+        assert len(cluster_details) == 1
+        assert cluster_details[0]["matched_tag_count"] == 3
+
+    def test_catalog_polyphenols_carry_anti_inflammatory_tag(self):
+        """After annotation, curcumin/quercetin/apigenin should share the cluster."""
+        for item_id in ("curcumin_250", "quercetin_500", "apigenin_50"):
+            entry = CATALOG.get(item_id)
+            assert entry is not None, item_id
+            assert "anti_inflammatory" in entry.benefit_tags, item_id
+
+    def test_catalog_nad_precursors_tagged(self):
+        for item_id in ("nr_300", "nmn_500"):
+            entry = CATALOG.get(item_id)
+            assert entry is not None, item_id
+            assert "nad_precursor" in entry.benefit_tags, item_id
