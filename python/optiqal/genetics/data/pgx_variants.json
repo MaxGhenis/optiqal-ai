@@ -1,0 +1,88 @@
+{
+  "CYP2D6": {
+    "gene_description": "Cytochrome P450 2D6 — metabolizes ~25% of clinically used drugs including tricyclics, SSRIs, opioids (codeine, tramadol), beta-blockers, and antipsychotics. Chip-based genotyping misses whole-gene deletion (*5) and duplications (*xN), so phenotype calls from 23andMe should be labeled as tentative.",
+    "star_alleles": {
+      "*1": {
+        "description": "Reference / normal function",
+        "function": "normal",
+        "activity_score": 1.0,
+        "defining_variants": []
+      },
+      "*4": {
+        "description": "Splice defect; most common no-function allele in Europeans (~21% allele frequency)",
+        "function": "none",
+        "activity_score": 0.0,
+        "defining_variants": [
+          {"rsid": "rs3892097", "variant_allele": "A", "ref_allele": "G"}
+        ]
+      },
+      "*10": {
+        "description": "Decreased function; most common reduced-function allele in East Asians (~40%)",
+        "function": "decreased",
+        "activity_score": 0.25,
+        "defining_variants": [
+          {"rsid": "rs1065852", "variant_allele": "T", "ref_allele": "C"}
+        ]
+      },
+      "*17": {
+        "description": "Decreased function; most common in African-descent populations",
+        "function": "decreased",
+        "activity_score": 0.5,
+        "defining_variants": [
+          {"rsid": "rs28371706", "variant_allele": "T", "ref_allele": "C"}
+        ]
+      },
+      "*41": {
+        "description": "Decreased function; ~9% European allele frequency",
+        "function": "decreased",
+        "activity_score": 0.5,
+        "defining_variants": [
+          {"rsid": "rs28371725", "variant_allele": "A", "ref_allele": "G"}
+        ]
+      }
+    },
+    "chip_limitations": [
+      "CYP2D6*5 (whole-gene deletion) requires copy number detection — cannot be called from array data",
+      "CYP2D6 duplications (*1xN, *2xN, etc. — ultrarapid-metabolizer-causing) require copy number detection",
+      "Hybrid alleles (CYP2D6/CYP2D7 conversions) are undetectable"
+    ]
+  },
+  "CYP2C19": {
+    "gene_description": "Cytochrome P450 2C19 — metabolizes clopidogrel, PPIs, SSRIs, tricyclics, and voriconazole. Unlike CYP2D6, star alleles here are cleanly callable from common SNPs.",
+    "star_alleles": {
+      "*1": {
+        "description": "Reference / normal function",
+        "function": "normal",
+        "activity_score": 1.0,
+        "defining_variants": []
+      },
+      "*2": {
+        "description": "Splice defect, no function; most common no-function allele (~15% Europeans, ~30% East Asians)",
+        "function": "none",
+        "activity_score": 0.0,
+        "defining_variants": [
+          {"rsid": "rs4244285", "variant_allele": "A", "ref_allele": "G"}
+        ]
+      },
+      "*3": {
+        "description": "Stop codon; no function; common in East Asians (~5%)",
+        "function": "none",
+        "activity_score": 0.0,
+        "defining_variants": [
+          {"rsid": "rs4986893", "variant_allele": "A", "ref_allele": "G"}
+        ]
+      },
+      "*17": {
+        "description": "Increased function; promoter variant, ~21% Europeans",
+        "function": "increased",
+        "activity_score": 1.5,
+        "defining_variants": [
+          {"rsid": "rs12248560", "variant_allele": "T", "ref_allele": "C"}
+        ]
+      }
+    },
+    "chip_limitations": [
+      "Rare star alleles (*4, *5, *6, *8) are not consistently genotyped on 23andMe chips"
+    ]
+  }
+}

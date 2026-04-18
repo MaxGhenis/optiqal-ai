@@ -4,8 +4,8 @@ Profile Module
 Defines demographic profiles for precomputation with relative mortality adjustments.
 """
 
-from dataclasses import dataclass
-from typing import Iterator, Literal, Optional
+from dataclasses import dataclass, field
+from typing import Any, Iterator, Literal, Optional
 import numpy as np
 
 
@@ -25,6 +25,14 @@ class Profile:
     has_diabetes: bool
     has_hypertension: bool = False
     activity_level: Literal["sedentary", "light", "moderate", "active"] = "light"
+    # Optional genotype-derived decision inputs. Attached privately — never
+    # serialized into public protocol-data.json. When present, catalog
+    # entries' GeneticEffectRules can reweight per-item HRs.
+    # Typed as ``Any`` to avoid a hard import of ``optiqal.genetics`` here,
+    # preserving the ability to ship public builds that omit the genetics
+    # module entirely. Use ``from optiqal.genetics import GeneticProfile``
+    # at call sites.
+    genetic_profile: Optional[Any] = None
 
     @property
     def bmi_midpoint(self) -> float:

@@ -1,0 +1,38 @@
+{
+  "CYP2D6": {
+    "description": "Activity-score-based phenotype assignment per CPIC (clinicalpharmacology.wustl.edu) 2020 guidelines.",
+    "mode": "activity_score",
+    "ranges": [
+      {"min": 0.0, "max": 0.0, "phenotype": "poor_metabolizer", "label": "Poor metabolizer"},
+      {"min": 0.25, "max": 1.0, "phenotype": "intermediate_metabolizer", "label": "Intermediate metabolizer"},
+      {"min": 1.25, "max": 2.25, "phenotype": "normal_metabolizer", "label": "Normal metabolizer"},
+      {"min": 2.5, "max": 6.0, "phenotype": "ultrarapid_metabolizer", "label": "Ultrarapid metabolizer"}
+    ]
+  },
+  "CYP2C19": {
+    "description": "Function-pair phenotype assignment per CPIC CYP2C19 guideline.",
+    "mode": "function_pair",
+    "function_map": {
+      "*1": "normal",
+      "*2": "none",
+      "*3": "none",
+      "*17": "increased"
+    },
+    "pair_phenotypes": {
+      "none/none": "poor_metabolizer",
+      "none/normal": "intermediate_metabolizer",
+      "none/increased": "intermediate_metabolizer_likely",
+      "normal/normal": "normal_metabolizer",
+      "normal/increased": "rapid_metabolizer",
+      "increased/increased": "ultrarapid_metabolizer"
+    },
+    "pair_labels": {
+      "poor_metabolizer": "Poor metabolizer",
+      "intermediate_metabolizer": "Intermediate metabolizer",
+      "intermediate_metabolizer_likely": "Likely intermediate metabolizer",
+      "normal_metabolizer": "Normal metabolizer",
+      "rapid_metabolizer": "Rapid metabolizer",
+      "ultrarapid_metabolizer": "Ultrarapid metabolizer"
+    }
+  }
+}
