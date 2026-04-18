@@ -424,6 +424,12 @@ class CatalogEntry:
     sleep_component_relief: Dict[str, float] = field(default_factory=dict)
     airway_target_weights: Dict[str, float] = field(default_factory=dict)
     profile_effect_rules: List[ProfileEffectRule] = field(default_factory=list)
+    # Optional genotype-conditioned HR multipliers. Typed as ``List`` of a
+    # late-imported ``GeneticEffectRule`` so the core catalog doesn't
+    # force the optional genetics module into public builds. Rules fire
+    # only when ``profile.genetic_profile`` is set and a matching
+    # phenotype is present.
+    genetic_effect_rules: List["Any"] = field(default_factory=list)
     access_profile: AccessProfile = field(default_factory=AccessProfile)
     notes: str = ""
     sources: List[str] = field(default_factory=list)
@@ -444,13 +450,26 @@ class CatalogEntry:
     public_display_category_override: Optional[PublicDisplayCategory] = None
 
     def profile_effect_multiplier(self, profile: Optional[Profile]) -> float:
-        """Transport-study effects into the user profile with explicit shrinkage rules."""
+        """Transport-study effects into the user profile with explicit shrinkage rules.
+
+        Includes genotype-derived multipliers when ``profile.genetic_profile``
+        is populated (optional genetics module; private builds only). Each
+        matching rule's multiplier is composed multiplicatively, same as
+        demographic rules.
+        """
         if profile is None:
             return 1.0
         multiplier = 1.0
         for rule in self.profile_effect_rules:
             if rule.matches(profile):
                 multiplier *= rule.multiplier
+        genetic_profile = getattr(profile, "genetic_profile", None)
+        if genetic_profile is not None:
+            for rule in self.genetic_effect_rules:
+                # Late-bound call via duck typing keeps the core catalog
+                # decoupled from optiqal.genetics.
+                if getattr(rule, "matches", lambda _: False)(genetic_profile):
+                    multiplier *= float(getattr(rule, "multiplier", 1.0))
         return multiplier
 
     def evidence_effect_multiplier(self) -> float:
@@ -2265,6 +2284,74 @@ def _apply_annotations() -> None:
 
 
 _apply_annotations()
+
+
+# =============================================================================
+# GENETIC EFFECT RULES
+# =============================================================================
+#
+# Declarative CPIC-style phenotype → HR-multiplier rules applied to catalog
+# items. Guarded so public builds without the genetics submodule still load.
+# Multiplier semantics match ProfileEffectRule:
+#     hr_adjusted = exp(log(hr) * multiplier)
+
+
+def _apply_genetic_rules() -> None:
+    """Attach PGx rules to the relevant catalog items."""
+    try:
+        from .genetics.rules import GeneticEffectRule
+    except ImportError:
+        return
+
+    trazodone_rules = [
+        GeneticEffectRule(
+            gene="CYP2D6",
+            phenotype="ultrarapid_metabolizer",
+            multiplier=0.3,
+            rationale="CYP2D6 UM clears trazodone too quickly; reduced benefit at standard dose.",
+        ),
+        GeneticEffectRule(
+            gene="CYP2D6",
+            phenotype="poor_metabolizer",
+            multiplier=0.7,
+            rationale="CYP2D6 PM retains trazodone longer; higher next-day sedation partially offsets benefit.",
+        ),
+    ]
+
+    doxepin_rules = [
+        GeneticEffectRule(
+            gene="CYP2D6",
+            phenotype="poor_metabolizer",
+            multiplier=0.8,
+            rationale="CYP2D6 PM: standard dose may over-sedate; lower dose retains effect.",
+        ),
+        GeneticEffectRule(
+            gene="CYP2D6",
+            phenotype="ultrarapid_metabolizer",
+            multiplier=0.6,
+            rationale="CYP2D6 UM: under-exposure at standard dose.",
+        ),
+        GeneticEffectRule(
+            gene="CYP2C19",
+            phenotype="poor_metabolizer",
+            multiplier=0.8,
+            rationale="CYP2C19 PM: slower clearance, higher exposure at standard dose.",
+        ),
+    ]
+
+    attachments = {
+        "trazodone_50mg": trazodone_rules,
+        "doxepin_3mg": doxepin_rules,
+    }
+    for item_id, rules in attachments.items():
+        entry = CATALOG.get(item_id)
+        if entry is None:
+            continue
+        CATALOG[item_id] = replace(entry, genetic_effect_rules=rules)
+
+
+_apply_genetic_rules()
+
 
 PUBLIC_GENERIC_EXCLUDED_REASONS = {
     "aspirin_81mg": (
