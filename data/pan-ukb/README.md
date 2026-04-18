@@ -1,6 +1,35 @@
 # Pan-UKB MR Validation Data
 
-This directory contains data and results from Mendelian Randomization (MR) analysis validating OptiqAL's QALY estimates against Pan-UK Biobank genetic associations.
+This directory contains data and results from Mendelian Randomization (MR) analysis validating Optiqal's QALY estimates against Pan-UK Biobank genetic associations.
+
+## Current status
+
+Pan-UKB retrieval and analysis are now part of the packaged optional validation
+tooling:
+
+```bash
+cd python
+uv run optiqal-pan-ukb describe
+uv run optiqal-pan-ukb download
+uv run optiqal-pan-ukb analyze
+```
+
+Raw sumstats live outside the repo by default at:
+
+```text
+~/.cache/optiqal/validation/pan-ukb
+```
+
+This repo directory is still useful for:
+- documentation
+- tracked small outputs like `results/mr_results.csv`
+- repo-local compatibility wrappers used by the paper / notebook workflow
+
+If you want the packaged workflow to use this repo directory instead, set:
+
+```bash
+export OPTIQAL_PAN_UKB_DATA_DIR=/path/to/optiqal-ai/data/pan-ukb
+```
 
 ## Data Source
 
@@ -35,13 +64,13 @@ This directory contains data and results from Mendelian Randomization (MR) analy
   - Phenotype ID: `E11` (ICD-10)
   - File: `sumstats/t2dm.tsv.bgz`
   - Cases: ~30,000 | Controls: ~380,000
-  - Use: Validate OptiqAL's BMI → T2DM hazard ratio (HR 1.75)
+  - Use: Validate Optiqal's BMI → T2DM hazard ratio (HR 1.75)
 
 - **Myocardial Infarction (MI)**
   - Phenotype ID: `I21` (ICD-10)
   - File: `sumstats/mi.tsv.bgz`
   - Cases: ~20,000 | Controls: ~400,000
-  - Use: Validate OptiqAL's BMI → CVD hazard ratio (HR 1.40)
+  - Use: Validate Optiqal's BMI → CVD hazard ratio (HR 1.40)
 
 ### Negative Control
 - **Melanoma**
@@ -83,13 +112,26 @@ Users should comply with UK Biobank policies:
 
 ### OptiqAI Usage
 This data is used solely for:
-1. Validating OptiqAL QALY model estimates via MR
+1. Validating Optiqal QALY model estimates via MR
 2. Academic research and publication
 3. Non-commercial open-source software development
 
 ## Downloading Data
 
-Use the provided download script:
+Use the packaged CLI:
+
+```bash
+# Show instructions
+optiqal-pan-ukb describe
+
+# Download to the default external cache
+optiqal-pan-ukb download
+
+# Run the packaged MR analysis
+optiqal-pan-ukb analyze
+```
+
+Or use the repo-local compatibility wrappers:
 
 ```bash
 # See download instructions
@@ -142,7 +184,12 @@ Rscript scripts/install_mr_packages.R
 
 ### Running Analysis
 
-**Python (primary method):**
+**Python (primary packaged method):**
+```bash
+optiqal-pan-ukb analyze
+```
+
+**Python (repo-local wrapper):**
 ```bash
 python scripts/mr_analysis.py
 ```
@@ -167,7 +214,7 @@ jupyter notebook notebooks/pan-ukb-validation.ipynb
 
 ### Expected Results
 
-| Outcome | MR Estimate (OR) | OptiqAL Model (HR) | Calibration |
+| Outcome | MR Estimate (OR) | Optiqal Model (HR) | Calibration |
 |---------|------------------|---------------------|-------------|
 | T2DM | 2.52 (2.38-2.67) | 1.75 (1.50-2.00) | Model may underestimate |
 | MI/CVD | 1.30 (1.22-1.39) | 1.40 (1.30-1.50) | Well calibrated |
@@ -216,7 +263,7 @@ jupyter notebook notebooks/pan-ukb-validation.ipynb
 ## Contact
 
 For questions about this analysis:
-- OptiqAI GitHub: https://github.com/maxghenis/optiqal-ai
+- Optiqal GitHub: https://github.com/maxghenis/optiqal-ai
 - Issues: https://github.com/maxghenis/optiqal-ai/issues
 
 For questions about Pan-UKB data:

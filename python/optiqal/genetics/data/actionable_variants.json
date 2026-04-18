@@ -1,0 +1,83 @@
+{
+  "HFE": {
+    "condition": "Hereditary hemochromatosis (iron overload)",
+    "variants": [
+      {
+        "rsid": "rs1800562",
+        "amino_acid": "C282Y",
+        "variant_allele": "A",
+        "ref_allele": "G",
+        "pathogenicity": "pathogenic",
+        "inheritance": "autosomal_recessive",
+        "notes": "Most penetrant HFE variant. C282Y homozygotes have ~10-25% lifetime iron overload risk; heterozygotes typically unaffected."
+      },
+      {
+        "rsid": "rs1799945",
+        "amino_acid": "H63D",
+        "variant_allele": "G",
+        "ref_allele": "C",
+        "pathogenicity": "mild",
+        "inheritance": "autosomal_recessive",
+        "notes": "Mildly reduced function; compound heterozygous C282Y/H63D raises iron overload risk somewhat."
+      }
+    ]
+  },
+  "APOE": {
+    "condition": "Late-onset Alzheimer's disease risk (modifier)",
+    "variants": [
+      {
+        "rsid": "rs429358",
+        "variant_allele": "C",
+        "ref_allele": "T",
+        "role": "epsilon_4_defining"
+      },
+      {
+        "rsid": "rs7412",
+        "variant_allele": "T",
+        "ref_allele": "C",
+        "role": "epsilon_2_defining"
+      }
+    ],
+    "haplotypes": {
+      "TT/CC": "e3/e3",
+      "CT/CC": "e3/e4",
+      "CC/CC": "e4/e4",
+      "TT/TT": "e2/e2",
+      "TT/CT": "e2/e3",
+      "CT/CT": "e2/e4"
+    }
+  },
+  "BRCA_ASHKENAZI": {
+    "condition": "Ashkenazi Jewish founder mutations — hereditary breast/ovarian/prostate/pancreatic cancer risk",
+    "population_carrier_rate": "~1 in 40 Ashkenazi Jews",
+    "variants": [
+      {
+        "rsid": "rs80357914",
+        "gene": "BRCA1",
+        "mutation": "185delAG",
+        "variant_allele": "-",
+        "ref_allele": "AG",
+        "pathogenicity": "pathogenic",
+        "notes": "BRCA1 frameshift; ~1% Ashkenazi allele frequency. Lifetime breast cancer risk ~70%, ovarian ~40%."
+      },
+      {
+        "rsid": "rs80357906",
+        "gene": "BRCA1",
+        "mutation": "5382insC",
+        "variant_allele": "C",
+        "ref_allele": "-",
+        "pathogenicity": "pathogenic",
+        "notes": "BRCA1 frameshift; ~0.1% Ashkenazi allele frequency."
+      },
+      {
+        "rsid": "rs80359550",
+        "gene": "BRCA2",
+        "mutation": "6174delT",
+        "variant_allele": "-",
+        "ref_allele": "T",
+        "pathogenicity": "pathogenic",
+        "notes": "BRCA2 frameshift; ~1.5% Ashkenazi allele frequency. Elevated breast and prostate cancer risk; men carry meaningful prostate + male breast cancer risk."
+      }
+    ]
+  }
+}

@@ -1,5 +1,5 @@
 # Mendelian Randomization Analysis: BMI → T2DM and BMI → CVD
-# Uses Pan-UKB GWAS summary statistics to validate OptiqAL QALY estimates
+# Uses Pan-UKB GWAS summary statistics to validate Optiqal QALY estimates
 #
 # References:
 # @article{panukb2022,
@@ -229,7 +229,7 @@ run_mr <- function(harmonized) {
 # Main Analysis ----
 
 cat("\n", paste(rep("=", 60), collapse = ""), "\n")
-cat("Pan-UKB MR Validation for OptiqAL\n")
+cat("Pan-UKB MR Validation for Optiqal\n")
 cat(paste(rep("=", 60), collapse = ""), "\n\n")
 
 # 1. Read exposure data (BMI)
@@ -267,7 +267,7 @@ results_summary <- bind_rows(
 fwrite(results_summary, file.path(output_dir, "mr_results.csv"))
 cat("Results saved to:", file.path(output_dir, "mr_results.csv"), "\n")
 
-# 5. Compare to OptiqAL model
+# 5. Compare to Optiqal model
 cat("\n", paste(rep("=", 60), collapse = ""), "\n")
 cat("Validation Comparison\n")
 cat(paste(rep("=", 60), collapse = ""), "\n\n")
@@ -276,7 +276,7 @@ cat(paste(rep("=", 60), collapse = ""), "\n\n")
 # BMI +5 units -> T2DM: relative risk ratios
 # Based on GBD/literature: approximately HR 1.4-2.0 per 5 BMI units
 
-cat("OptiqAL Model Estimates (per 5 BMI unit increase):\n")
+cat("Optiqal Model Estimates (per 5 BMI unit increase):\n")
 cat("  T2DM: HR ~1.5-2.0 (from meta-analyses)\n")
 cat("  CVD: HR ~1.3-1.5 (from meta-analyses)\n\n")
 

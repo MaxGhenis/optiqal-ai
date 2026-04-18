@@ -74,8 +74,10 @@ def run_mcmc(
     # Get HR distribution parameters
     hr_dist = intervention.mortality.hazard_ratio
     if hr_dist.type == "lognormal":
-        hr_log_mean = hr_dist.params["log_mean"]
-        hr_log_sd = hr_dist.params["log_sd"]
+        # Handles both raw {log_mean, log_sd} and hr-centered {hr, log_sd}
+        # parameterizations transparently; hr-keyed dists return the
+        # mean-corrected log_mean = log(hr) - log_sd**2 / 2.
+        hr_log_mean, hr_log_sd = hr_dist._lognormal_params()
     else:
         # Convert to lognormal approximation
         hr_mean = hr_dist.mean

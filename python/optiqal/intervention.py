@@ -16,7 +16,24 @@ from .confounding import ConfoundingPrior, get_confounding_prior
 
 @dataclass
 class Distribution:
-    """Statistical distribution for uncertain parameters."""
+    """Statistical distribution for uncertain parameters.
+
+    For ``lognormal``, two parameterizations are supported:
+
+    1. Raw: ``params={"log_mean": ..., "log_sd": ...}`` — stores parameters
+       literally; ``sample()`` returns ``exp(Normal(log_mean, log_sd))``.
+       In this mode the *median* of the sampled HR equals ``exp(log_mean)``
+       and the *mean* is ``exp(log_mean + log_sd**2 / 2)``.
+    2. HR-centered: ``params={"hr": h, "log_sd": s}`` — the safer option
+       for catalog construction. Guarantees ``E[HR] == h`` by internally
+       setting ``log_mean = log(h) - s**2 / 2``. This matches the CEA
+       literature convention where reported point estimates are mean HRs.
+
+    When both ``hr`` and ``log_mean`` are provided, ``hr`` takes precedence
+    (the mean-centered form is always unambiguous). The raw form is kept so
+    existing YAML files and direct ``log_mean`` callers aren't silently
+    re-interpreted.
+    """
 
     type: Literal["point", "normal", "lognormal", "beta", "uniform"]
     params: Dict[str, float]
@@ -36,7 +53,11 @@ class Distribution:
             params["mean"] = data["mean"]
             params["sd"] = data["sd"]
         elif dist_type == "lognormal":
-            params["log_mean"] = data.get("log_mean", data.get("logMean"))
+            # hr-centered takes precedence when both are provided.
+            if "hr" in data:
+                params["hr"] = data["hr"]
+            elif "log_mean" in data or "logMean" in data:
+                params["log_mean"] = data.get("log_mean", data.get("logMean"))
             params["log_sd"] = data.get("log_sd", data.get("logSd"))
         elif dist_type == "beta":
             params["alpha"] = data["alpha"]
@@ -72,6 +93,21 @@ class Distribution:
         else:
             raise ValueError(f"Unknown distribution type: {dist_type}")
 
+    def _lognormal_params(self) -> tuple[float, float]:
+        """Resolve (log_mean, log_sd) for a lognormal Distribution.
+
+        Handles both parameterizations: raw ``log_mean`` or hr-centered.
+        """
+        log_sd = float(self.params["log_sd"])
+        if "hr" in self.params:
+            hr = float(self.params["hr"])
+            if hr <= 0:
+                raise ValueError(f"hr must be positive, got {hr}")
+            log_mean = float(np.log(hr) - (log_sd ** 2) / 2.0)
+        else:
+            log_mean = float(self.params["log_mean"])
+        return log_mean, log_sd
+
     def sample(self, n: int = 1, random_state: Optional[int] = None) -> np.ndarray:
         """Sample from the distribution."""
         rng = np.random.default_rng(random_state)
@@ -81,9 +117,8 @@ class Distribution:
         elif self.type == "normal":
             return rng.normal(self.params["mean"], self.params["sd"], size=n)
         elif self.type == "lognormal":
-            return np.exp(
-                rng.normal(self.params["log_mean"], self.params["log_sd"], size=n)
-            )
+            log_mean, log_sd = self._lognormal_params()
+            return np.exp(rng.normal(log_mean, log_sd, size=n))
         elif self.type == "beta":
             return rng.beta(self.params["alpha"], self.params["beta"], size=n)
         elif self.type == "uniform":
@@ -91,14 +126,23 @@ class Distribution:
 
     @property
     def mean(self) -> float:
-        """Expected value of the distribution."""
+        """Expected value of the distribution.
+
+        For hr-centered lognormals this returns ``hr`` exactly (not the
+        distributional mean derived from ``log_mean + log_sd**2 / 2``). That
+        is the same value either way because mean-centering constructs
+        ``log_mean = log(hr) - log_sd**2 / 2``, but the short-circuit avoids
+        floating-point drift.
+        """
         if self.type == "point":
             return self.params["value"]
         elif self.type == "normal":
             return self.params["mean"]
         elif self.type == "lognormal":
-            mu, sigma = self.params["log_mean"], self.params["log_sd"]
-            return np.exp(mu + sigma**2 / 2)
+            if "hr" in self.params:
+                return float(self.params["hr"])
+            mu, sigma = float(self.params["log_mean"]), float(self.params["log_sd"])
+            return float(np.exp(mu + sigma ** 2 / 2))
         elif self.type == "beta":
             a, b = self.params["alpha"], self.params["beta"]
             return a / (a + b)
@@ -129,6 +173,46 @@ class MortalityEffect:
 
 
 @dataclass
+class HarmEffect:
+    """Direct harm from an intervention while active."""
+
+    id: str
+    description: Optional[str] = None
+    annual_qaly_loss: Optional[Distribution] = None
+    event_probability: Optional[Distribution] = None
+    event_qaly_loss: Optional[Distribution] = None
+    max_events: int = 1
+    source: Optional[str] = None
+
+
+@dataclass
+class InteractionRule:
+    """Stack-aware harm penalty triggered by overlapping intervention tags."""
+
+    id: str
+    requires_tags: List[str]
+    minimum_matches: Optional[int] = None
+    description: Optional[str] = None
+    annual_qaly_loss: Optional[Distribution] = None
+    event_probability: Optional[Distribution] = None
+    event_qaly_loss: Optional[Distribution] = None
+    max_events: int = 1
+    source: Optional[str] = None
+
+
+@dataclass
+class InterventionLineage:
+    """Study- and prior-level provenance for an intervention estimate."""
+
+    estimand: str
+    model_version: Optional[str] = None
+    studies: List[Dict[str, Any]] = field(default_factory=list)
+    parameter_lineage: List[Dict[str, Any]] = field(default_factory=list)
+    prior_lineage: List[Dict[str, Any]] = field(default_factory=list)
+    notes: List[str] = field(default_factory=list)
+
+
+@dataclass
 class Intervention:
     """
     Complete intervention specification.
@@ -147,6 +231,9 @@ class Intervention:
     # Effects
     mechanisms: List[MechanismEffect] = field(default_factory=list)
     mortality: Optional[MortalityEffect] = None
+    harm_model: List[HarmEffect] = field(default_factory=list)
+    interaction_tags: List[str] = field(default_factory=list)
+    interaction_rules: List[InteractionRule] = field(default_factory=list)
 
     # Evidence
     evidence_quality: Literal["high", "moderate", "low", "very-low"] = "moderate"
@@ -158,6 +245,9 @@ class Intervention:
 
     # Caveats
     caveats: List[str] = field(default_factory=list)
+
+    # Provenance
+    lineage: Optional[InterventionLineage] = None
 
     @classmethod
     def from_yaml(cls, path: Union[str, Path]) -> "Intervention":
@@ -203,6 +293,62 @@ class Intervention:
                 decay_rate=mort.get("decay_rate", 0),
             )
 
+        harm_model = []
+        if "harm_model" in data:
+            for harm_data in data["harm_model"]:
+                harm_model.append(
+                    HarmEffect(
+                        id=harm_data["id"],
+                        description=harm_data.get("description"),
+                        annual_qaly_loss=(
+                            Distribution.from_dict(harm_data["annual_qaly_loss"])
+                            if harm_data.get("annual_qaly_loss") is not None
+                            else None
+                        ),
+                        event_probability=(
+                            Distribution.from_dict(harm_data["event_probability"])
+                            if harm_data.get("event_probability") is not None
+                            else None
+                        ),
+                        event_qaly_loss=(
+                            Distribution.from_dict(harm_data["event_qaly_loss"])
+                            if harm_data.get("event_qaly_loss") is not None
+                            else None
+                        ),
+                        max_events=harm_data.get("max_events", 1),
+                        source=harm_data.get("source"),
+                    )
+                )
+
+        interaction_rules = []
+        if "interaction_rules" in data:
+            for rule_data in data["interaction_rules"]:
+                interaction_rules.append(
+                    InteractionRule(
+                        id=rule_data["id"],
+                        requires_tags=rule_data["requires_tags"],
+                        minimum_matches=rule_data.get("minimum_matches"),
+                        description=rule_data.get("description"),
+                        annual_qaly_loss=(
+                            Distribution.from_dict(rule_data["annual_qaly_loss"])
+                            if rule_data.get("annual_qaly_loss") is not None
+                            else None
+                        ),
+                        event_probability=(
+                            Distribution.from_dict(rule_data["event_probability"])
+                            if rule_data.get("event_probability") is not None
+                            else None
+                        ),
+                        event_qaly_loss=(
+                            Distribution.from_dict(rule_data["event_qaly_loss"])
+                            if rule_data.get("event_qaly_loss") is not None
+                            else None
+                        ),
+                        max_events=rule_data.get("max_events", 1),
+                        source=rule_data.get("source"),
+                    )
+                )
+
         # Parse confounding prior
         confounding_prior = None
         if "confounding" in data and "prior" in data["confounding"]:
@@ -223,6 +369,18 @@ class Intervention:
                 data.get("evidence", {}).get("primary_study_type"),
             )
 
+        lineage = None
+        if "lineage" in data:
+            lineage_data = data["lineage"]
+            lineage = InterventionLineage(
+                estimand=lineage_data["estimand"],
+                model_version=lineage_data.get("model_version"),
+                studies=lineage_data.get("studies", []),
+                parameter_lineage=lineage_data.get("parameter_lineage", []),
+                prior_lineage=lineage_data.get("prior_lineage", []),
+                notes=lineage_data.get("notes", []),
+            )
+
         return cls(
             id=data["id"],
             name=data["name"],
@@ -231,11 +389,15 @@ class Intervention:
             keywords=data.get("keywords", []),
             mechanisms=mechanisms,
             mortality=mortality,
+            harm_model=harm_model,
+            interaction_tags=data.get("interaction_tags", []),
+            interaction_rules=interaction_rules,
             evidence_quality=data.get("evidence", {}).get("quality", "moderate"),
             primary_study_type=data.get("evidence", {}).get("primary_study_type"),
             sources=data.get("evidence", {}).get("sources", []),
             confounding_prior=confounding_prior,
             caveats=data.get("caveats", []),
+            lineage=lineage,
         )
 
     def to_pathway_hrs(

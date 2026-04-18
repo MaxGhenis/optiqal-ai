@@ -1,6 +1,6 @@
-# OptiqAL Scripts
+# Optiqal Scripts
 
-This directory contains utility scripts for the OptiqAL project.
+This directory contains utility scripts for the Optiqal project.
 
 ## Precomputation Scripts
 
@@ -90,3 +90,80 @@ Tests cover:
 - PrecomputedIntervention JSON save/load
 - Single intervention precomputation
 - Batch precomputation of all interventions
+
+## Validation workflows
+
+Pan-UKB validation is now a packaged, optional workflow instead of an ad hoc
+one-off script pair.
+
+Packaged CLI:
+
+```bash
+cd python
+uv run optiqal-pan-ukb describe
+uv run optiqal-pan-ukb download
+uv run optiqal-pan-ukb analyze
+```
+
+By default, raw Pan-UKB files live outside the repo at:
+
+```text
+~/.cache/optiqal/validation/pan-ukb
+```
+
+Override that with:
+
+```bash
+export OPTIQAL_PAN_UKB_DATA_DIR=/path/to/pan-ukb
+```
+
+Repo-local compatibility wrappers still exist for the paper / notebook flow and
+pin the data dir back to `data/pan-ukb/`:
+
+```bash
+python3 scripts/download-pan-ukb.py --download
+python3 scripts/mr_analysis.py
+```
+
+## Vercel deployment
+
+The app now deploys as two Vercel projects:
+
+- `optiqal-ai` for the Next.js frontend
+- `optiqal-model` for the Python model API
+
+Because previews are protected by Vercel Authentication, cross-project preview
+requests from the frontend to the model require an explicit protection bypass
+secret. Set one shared secret for the `optiqal-model` project in Vercel’s
+deployment protection settings, then export it locally before deploying previews:
+
+```bash
+export MODEL_PROTECTION_BYPASS_SECRET=...
+```
+
+Preview deploys will fail fast if this variable is missing. Production deploys
+can use the public `https://optiqal-model.vercel.app` alias without a local
+bypass secret.
+
+Preview deploy and smoke test:
+
+```bash
+bun run deploy:preview
+```
+
+Production deploy and smoke test:
+
+```bash
+bun run deploy:prod
+```
+
+The smoke test checks:
+
+- frontend `/predict` shell content
+- model `/health`
+- model `/baseline`
+- frontend `/api/baseline`
+- frontend `/api/frontier`
+
+This is intentional: deployment is not considered good unless the frontend can
+actually reach the protected model service and return valid JSON contracts.

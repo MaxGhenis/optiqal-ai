@@ -1,0 +1,571 @@
+[
+  {
+    "id": "healthy_35f_public",
+    "label": "Healthy 35F public canary",
+    "description": "Healthy young public profile should stay conservative and avoid Rx leakage.",
+    "tags": ["healthy_public", "female", "public_canary"],
+    "payload": {
+      "profile": {
+        "age": 35,
+        "sex": "female",
+        "weight_kg": 65,
+        "height_cm": 170,
+        "smoker": false,
+        "has_diabetes": false,
+        "has_hypertension": false,
+        "activity_level": "light",
+        "sleep_hours_per_night": 7
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 10,
+      "banned_top_ids": [
+        "aspirin_81mg",
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg",
+        "head_elevation_nightly",
+        "statin_5mg",
+        "metformin_500mg",
+        "semaglutide"
+      ],
+      "banned_visible_ids": [
+        "apap_nightly",
+        "oral_appliance_custom"
+      ],
+      "required_top_any_of": [
+        "hiit_2x_week",
+        "strength_maintenance"
+      ],
+      "forbidden_visible_pairs": [
+        ["finasteride_1.25mg", "tadalafil_2.5mg"]
+      ],
+      "expected_airway_decision_states": false
+    }
+  },
+  {
+    "id": "high_risk_58m_public",
+    "label": "High-risk 58M public canary",
+    "description": "Older obese smoker with hypertension should surface statin and obesity-weighted GLP-1 discussion, but not generic metformin.",
+    "tags": ["cardiometabolic", "public_canary", "male"],
+    "payload": {
+      "profile": {
+        "age": 58,
+        "sex": "male",
+        "weight_kg": 102,
+        "height_cm": 175,
+        "smoker": true,
+        "has_diabetes": false,
+        "has_hypertension": true,
+        "activity_level": "light",
+        "sleep_hours_per_night": 7
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 12,
+      "required_visible_ids": [
+        "statin_5mg",
+        "semaglutide"
+      ],
+      "required_visible_order": [
+        ["statin_5mg", "metformin_500mg"]
+      ],
+      "banned_visible_ids": [
+        "metformin_500mg",
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg"
+      ],
+      "expected_airway_decision_states": false
+    }
+  },
+  {
+    "id": "glp1_52f_diabetes_obesity",
+    "label": "GLP-1 weighted 52F canary",
+    "description": "Obesity plus diabetes profile should allow GLP-1 discussion alongside metabolic items.",
+    "tags": ["glp1", "metabolic", "public_canary", "female"],
+    "payload": {
+      "profile": {
+        "age": 52,
+        "sex": "female",
+        "weight_kg": 106,
+        "height_cm": 165,
+        "smoker": false,
+        "has_diabetes": true,
+        "has_hypertension": true,
+        "activity_level": "light",
+        "sleep_hours_per_night": 7
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 12,
+      "required_visible_ids": [
+        "semaglutide",
+        "metformin_500mg",
+        "statin_5mg"
+      ],
+      "required_visible_order": [
+        ["metformin_500mg", "semaglutide"],
+        ["statin_5mg", "semaglutide"]
+      ],
+      "banned_visible_ids": [
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg"
+      ],
+      "expected_airway_decision_states": false
+    }
+  },
+  {
+    "id": "mild_metabolic_50m_public",
+    "label": "Mild metabolic 50M canary",
+    "description": "Borderline non-diabetic metabolic risk should surface statin discussion but not metformin or GLP-1 therapy.",
+    "tags": ["metabolic_borderline", "public_canary", "male"],
+    "payload": {
+      "profile": {
+        "age": 50,
+        "sex": "male",
+        "weight_kg": 88,
+        "height_cm": 178,
+        "smoker": false,
+        "has_diabetes": false,
+        "has_hypertension": true,
+        "activity_level": "light",
+        "sleep_hours_per_night": 7
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 12,
+      "required_visible_ids": [
+        "statin_5mg"
+      ],
+      "required_visible_order": [
+        ["statin_5mg", "metformin_500mg"]
+      ],
+      "banned_visible_ids": [
+        "metformin_500mg",
+        "semaglutide",
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg"
+      ],
+      "expected_airway_decision_states": false
+    }
+  },
+  {
+    "id": "obesity_glp1_52f_public",
+    "label": "Obesity GLP-1 52F canary",
+    "description": "Obesity plus hypertension without diabetes can justify GLP-1 discussion, but should not leak generic metformin.",
+    "tags": ["glp1", "obesity", "public_canary", "female"],
+    "payload": {
+      "profile": {
+        "age": 52,
+        "sex": "female",
+        "weight_kg": 106,
+        "height_cm": 165,
+        "smoker": false,
+        "has_diabetes": false,
+        "has_hypertension": true,
+        "activity_level": "light",
+        "sleep_hours_per_night": 7
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 12,
+      "required_visible_ids": [
+        "statin_5mg",
+        "semaglutide"
+      ],
+      "required_visible_order": [
+        ["statin_5mg", "metformin_500mg"],
+        ["semaglutide", "metformin_500mg"]
+      ],
+      "banned_visible_ids": [
+        "metformin_500mg",
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg"
+      ],
+      "expected_airway_decision_states": false
+    }
+  },
+  {
+    "id": "severe_obesity_52f_public",
+    "label": "Severe-obesity-only 52F canary",
+    "description": "Severe obesity without diabetes or hypertension should still surface GLP-1 discussion, but not generic statin or metformin.",
+    "tags": ["glp1", "severe_obesity", "public_canary", "female"],
+    "payload": {
+      "profile": {
+        "age": 52,
+        "sex": "female",
+        "weight_kg": 116,
+        "height_cm": 165,
+        "smoker": false,
+        "has_diabetes": false,
+        "has_hypertension": false,
+        "activity_level": "light",
+        "sleep_hours_per_night": 7
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 12,
+      "required_visible_ids": [
+        "semaglutide"
+      ],
+      "banned_visible_ids": [
+        "metformin_500mg",
+        "statin_5mg",
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg"
+      ],
+      "expected_airway_decision_states": false
+    }
+  },
+  {
+    "id": "severe_obesity_42f_public",
+    "label": "Severe-obesity-only 42F canary",
+    "description": "Severe obesity alone in a younger adult should still surface GLP-1 discussion, without dragging in generic statin or metformin.",
+    "tags": ["glp1", "severe_obesity", "public_canary", "female"],
+    "payload": {
+      "profile": {
+        "age": 42,
+        "sex": "female",
+        "weight_kg": 116,
+        "height_cm": 165,
+        "smoker": false,
+        "has_diabetes": false,
+        "has_hypertension": false,
+        "activity_level": "light",
+        "sleep_hours_per_night": 7
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 12,
+      "required_visible_ids": [
+        "semaglutide"
+      ],
+      "banned_visible_ids": [
+        "metformin_500mg",
+        "statin_5mg",
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg"
+      ],
+      "expected_airway_decision_states": false
+    }
+  },
+  {
+    "id": "older_obesity_66m_public",
+    "label": "Older-obesity-only 66M canary",
+    "description": "Older obesity without diabetes or hypertension should still surface GLP-1 discussion, while keeping metformin out of the generic public frontier.",
+    "tags": ["glp1", "obesity", "public_canary", "male"],
+    "payload": {
+      "profile": {
+        "age": 66,
+        "sex": "male",
+        "weight_kg": 106,
+        "height_cm": 175,
+        "smoker": false,
+        "has_diabetes": false,
+        "has_hypertension": false,
+        "activity_level": "light",
+        "sleep_hours_per_night": 7
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 12,
+      "required_visible_ids": [
+        "semaglutide"
+      ],
+      "banned_visible_ids": [
+        "metformin_500mg",
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg"
+      ],
+      "expected_airway_decision_states": false
+    }
+  },
+  {
+    "id": "older_smoker_58f_public",
+    "label": "Older smoker 58F canary",
+    "description": "Older current smoking without diabetes or obesity should surface statin discussion, but should not leak metformin or GLP-1 therapy.",
+    "tags": ["cardiometabolic", "smoker", "public_canary", "female"],
+    "payload": {
+      "profile": {
+        "age": 58,
+        "sex": "female",
+        "weight_kg": 62,
+        "height_cm": 165,
+        "smoker": true,
+        "has_diabetes": false,
+        "has_hypertension": false,
+        "activity_level": "light",
+        "sleep_hours_per_night": 7
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 12,
+      "required_visible_ids": [
+        "statin_5mg"
+      ],
+      "required_visible_order": [
+        ["statin_5mg", "metformin_500mg"],
+        ["statin_5mg", "semaglutide"]
+      ],
+      "banned_visible_ids": [
+        "metformin_500mg",
+        "semaglutide",
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg"
+      ],
+      "expected_airway_decision_states": false
+    }
+  },
+  {
+    "id": "older_hypertension_58f_public",
+    "label": "Older hypertension 58F canary",
+    "description": "Older hypertension without diabetes or obesity should surface statin discussion, but should not leak metformin or GLP-1 therapy.",
+    "tags": ["cardiometabolic", "hypertension", "public_canary", "female"],
+    "payload": {
+      "profile": {
+        "age": 58,
+        "sex": "female",
+        "weight_kg": 62,
+        "height_cm": 165,
+        "smoker": false,
+        "has_diabetes": false,
+        "has_hypertension": true,
+        "activity_level": "light",
+        "sleep_hours_per_night": 7
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 12,
+      "required_visible_ids": [
+        "statin_5mg"
+      ],
+      "required_visible_order": [
+        ["statin_5mg", "metformin_500mg"],
+        ["statin_5mg", "semaglutide"]
+      ],
+      "banned_visible_ids": [
+        "metformin_500mg",
+        "semaglutide",
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg"
+      ],
+      "expected_airway_decision_states": false
+    }
+  },
+  {
+    "id": "lean_diabetes_45m_public",
+    "label": "Lean diabetes 45M canary",
+    "description": "Lean midlife diabetes should surface metformin and statin discussion but stay conservative about GLP-1 therapy in the generic public frontier.",
+    "tags": ["diabetes", "lean", "public_canary", "male"],
+    "payload": {
+      "profile": {
+        "age": 45,
+        "sex": "male",
+        "weight_kg": 72,
+        "height_cm": 178,
+        "smoker": false,
+        "has_diabetes": true,
+        "has_hypertension": false,
+        "activity_level": "light",
+        "sleep_hours_per_night": 7
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 12,
+      "required_visible_ids": [
+        "statin_5mg",
+        "metformin_500mg"
+      ],
+      "required_visible_order": [
+        ["metformin_500mg", "statin_5mg"]
+      ],
+      "banned_visible_ids": [
+        "semaglutide",
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg"
+      ],
+      "expected_airway_decision_states": false
+    }
+  },
+  {
+    "id": "lean_diabetes_52m_public",
+    "label": "Lean diabetes 52M canary",
+    "description": "Older lean diabetes should surface statin and metformin discussion but not generic GLP-1 therapy in the public frontier.",
+    "tags": ["diabetes", "lean", "public_canary", "male"],
+    "payload": {
+      "profile": {
+        "age": 52,
+        "sex": "male",
+        "weight_kg": 72,
+        "height_cm": 178,
+        "smoker": false,
+        "has_diabetes": true,
+        "has_hypertension": false,
+        "activity_level": "light",
+        "sleep_hours_per_night": 7
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 12,
+      "required_visible_ids": [
+        "statin_5mg",
+        "metformin_500mg"
+      ],
+      "required_visible_order": [
+        ["metformin_500mg", "statin_5mg"]
+      ],
+      "banned_visible_ids": [
+        "semaglutide",
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg"
+      ],
+      "expected_airway_decision_states": false
+    }
+  },
+  {
+    "id": "airway_sleep_39m",
+    "label": "Airway-weighted sleep canary",
+    "description": "Airway-heavy sleep inputs should unlock sleep pathway decisions and airway interventions.",
+    "tags": ["sleep_airway", "public_canary", "male"],
+    "payload": {
+      "profile": {
+        "age": 39,
+        "sex": "male",
+        "weight_kg": 74.8,
+        "height_cm": 178,
+        "smoker": false,
+        "has_diabetes": false,
+        "has_hypertension": false,
+        "activity_level": "active",
+        "sleep_hours_per_night": 6.8
+      },
+      "sleep_metrics": {
+        "duration_hours": 6.8,
+        "breathing_score": 0.78,
+        "spo2": 95.1,
+        "snore_pct": 3.2,
+        "airway_response_signal": 0.4
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 15,
+      "required_visible_ids": [
+        "apap_nightly",
+        "head_elevation_nightly"
+      ],
+      "banned_visible_ids": [
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg",
+        "mouth_tape_nightly"
+      ],
+      "expected_airway_decision_states": true
+    }
+  },
+  {
+    "id": "nasal_support_only_sleep_39m",
+    "label": "Nasal-weighted support-only sleep canary",
+    "description": "Mild nasal-heavy sleep inputs should surface conservative airway support without jumping straight to PAP or oral-appliance escalation.",
+    "tags": ["sleep_airway", "sleep_support_only", "public_canary", "male"],
+    "payload": {
+      "profile": {
+        "age": 39,
+        "sex": "male",
+        "weight_kg": 74.8,
+        "height_cm": 178,
+        "smoker": false,
+        "has_diabetes": false,
+        "has_hypertension": false,
+        "activity_level": "active",
+        "sleep_hours_per_night": 6.8
+      },
+      "sleep_metrics": {
+        "duration_hours": 6.8,
+        "breathing_score": 0.76,
+        "spo2": 95.7,
+        "snore_pct": 0.8,
+        "airway_response_signal": 0.06
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 12,
+      "required_visible_ids": [
+        "head_elevation_nightly",
+        "nasacort_nightly"
+      ],
+      "required_visible_order": [
+        [
+          "head_elevation_nightly",
+          "nasal_strips_nightly"
+        ],
+        [
+          "nasacort_nightly",
+          "nasal_strips_nightly"
+        ]
+      ],
+      "banned_visible_ids": [
+        "apap_nightly",
+        "oral_appliance_custom",
+        "humidifier_nightly",
+        "mouth_tape_nightly",
+        "finasteride_1.25mg",
+        "tadalafil_2.5mg"
+      ],
+      "required_decision_state_ids": [
+        "conservative_airway_support"
+      ],
+      "banned_decision_state_ids": [
+        "primary_osa_therapy_choice",
+        "rx_after_apap_if_needed",
+        "rx_after_oral_appliance_if_needed"
+      ],
+      "expected_airway_decision_states": true
+    }
+  },
+  {
+    "id": "duration_only_sleep_39m",
+    "label": "Duration-only sleep canary",
+    "description": "Short sleep without airway-heavy metrics should not unlock airway treatment pathways.",
+    "tags": ["sleep_duration_only", "public_canary", "male"],
+    "payload": {
+      "profile": {
+        "age": 39,
+        "sex": "male",
+        "weight_kg": 74.8,
+        "height_cm": 178,
+        "smoker": false,
+        "has_diabetes": false,
+        "has_hypertension": false,
+        "activity_level": "active",
+        "sleep_hours_per_night": 6
+      },
+      "sleep_metrics": {
+        "duration_hours": 6,
+        "sleep_quality_score": 78,
+        "routine_score": 72
+      },
+      "n_simulations": 1000
+    },
+    "rules": {
+      "top_n": 12,
+      "banned_visible_ids": [
+        "apap_nightly",
+        "oral_appliance_custom",
+        "head_elevation_nightly"
+      ],
+      "expected_airway_decision_states": false
+    }
+  }
+]

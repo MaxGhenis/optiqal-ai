@@ -93,6 +93,20 @@ cd notebooks
 jupyter notebook pan-ukb-validation.ipynb
 ```
 
+To refresh the packaged Pan-UKB validation data or results first:
+
+```bash
+cd ../python
+uv run optiqal-pan-ukb describe
+uv run optiqal-pan-ukb download
+uv run optiqal-pan-ukb analyze
+```
+
+The packaged CLI stores raw sumstats outside the repo by default. If you want
+the notebook flow to keep using `data/pan-ukb/` inside the checkout, either use
+the repo-local wrappers in `scripts/` or set `OPTIQAL_PAN_UKB_DATA_DIR`
+explicitly.
+
 ## Reproducing Figures
 
 All figures in the paper are generated from executable code blocks. When you run `myst build --execute --html`, MyST automatically:

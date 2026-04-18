@@ -6,17 +6,30 @@ and decision evaluation into a single `analyze()` call.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, Optional
+from typing import Callable, Dict, List, Literal, Optional
 
 import numpy as np
 
 from .catalog import CATALOG, CatalogEntry, get_catalog, simulate_catalog
 from .combination import find_optimal_portfolio_with_costs
 from .bundles import recommend_bundles
-from .confounding import ConfoundingPrior, publication_bias_correct
+from .confounding import ConfoundingPrior, hr_to_lognormal_params, publication_bias_correct
+from .defaults import (
+    DEFAULT_COST_DISCOUNT_RATE,
+    DEFAULT_QALY_DISCOUNT_RATE,
+    validate_qaly_discount_rate,
+)
 from .intervention import Distribution, Intervention, MortalityEffect
 from .profile import Profile
-from .simulate import simulate_qaly_profile_vectorized
+from .simulate import effective_qol_factor_for_years, simulate_qaly_profile_vectorized
+from .sleep import (
+    SleepBurdenEstimate,
+    SleepMetrics,
+    estimate_sleep_burden,
+    sleep_baseline_mortality_multiplier,
+    sleep_component_overlap_multipliers,
+)
+from .stack_interactions import build_stack_interaction_penalty_fn
 
 
 @dataclass
@@ -26,14 +39,36 @@ class AnalysisConfig:
     profile: Profile
     wtp: float = 200_000  # Willingness-to-pay per QALY
     horizon_years: float = 40  # Used for QoL QALY calc; mortality uses survival curves
-    qaly_discount_rate: float = 0.0  # 0% — a year of life at 80 is as valuable as at 40
-    cost_discount_rate: float = 0.05  # 5% — opportunity cost of investing in equities
+    qaly_discount_rate: float = DEFAULT_QALY_DISCOUNT_RATE
+    cost_discount_rate: float = DEFAULT_COST_DISCOUNT_RATE
     pub_bias_shrinkage: float = 0.30
+    # Soft cap on total portfolio QALY gain. Absent a ceiling, greedy
+    # additive models can claim multi-QALY gains from supplement stacks that
+    # exceed what primary-prevention CEA literature supports. A concave
+    # saturation caps the total at ~``portfolio_qaly_ceiling`` while
+    # preserving ranking. Default ~3 QALY over 40 yrs for healthy adults.
+    portfolio_qaly_ceiling: Optional[float] = 3.0
     n_simulations: int = 50_000
     random_state: int = 42
-    complexity_free_slots: int = 3
-    complexity_cost_per_item: float = 0.0005  # QALYs/yr per extra item
     categories: Optional[List[str]] = None  # Filter catalog; None = all
+    active_interaction_tags: Optional[List[str]] = None
+    sleep_metrics: Optional[SleepMetrics] = None
+    sleep_estimate: Optional[SleepBurdenEstimate] = None
+
+    def __post_init__(self) -> None:
+        self.qaly_discount_rate = validate_qaly_discount_rate(self.qaly_discount_rate)
+        if self.sleep_estimate is None and self.sleep_metrics is not None:
+            self.sleep_estimate = estimate_sleep_burden(self.sleep_metrics)
+
+    @property
+    def sleep_overlap_multipliers(self) -> Optional[Dict[str, float]]:
+        if self.sleep_estimate is None:
+            return None
+        return sleep_component_overlap_multipliers(self.sleep_estimate)
+
+    @property
+    def sleep_baseline_hazard_multiplier(self) -> float:
+        return sleep_baseline_mortality_multiplier(self.sleep_estimate)
 
 
 @dataclass
@@ -93,6 +128,9 @@ def _simulate_one(
     conf_b: float,
     annual_cost: float,
     qol_annual: float,
+    qol_years: float,
+    sleep_qol_annual: float,
+    sleep_mortality_hr_multiplier: float,
     config: AnalysisConfig,
 ) -> dict:
     """Simulate a single intervention (used for decisions with overrides)."""
@@ -101,7 +139,7 @@ def _simulate_one(
         mortality=MortalityEffect(
             hazard_ratio=Distribution(
                 type="lognormal",
-                params={"log_mean": np.log(hr), "log_sd": log_sd},
+                params={"hr": hr, "log_sd": log_sd},
             ),
         ),
         confounding_prior=ConfoundingPrior(alpha=conf_a, beta=conf_b),
@@ -111,11 +149,22 @@ def _simulate_one(
         n_simulations=config.n_simulations,
         discount_rate=config.qaly_discount_rate,
         cost_discount_rate=config.cost_discount_rate,
+        active_interaction_tags=config.active_interaction_tags,
+        baseline_hazard_multiplier=config.sleep_baseline_hazard_multiplier,
+        global_intervention_hr_multiplier=sleep_mortality_hr_multiplier,
         random_state=config.random_state,
     )
-    mort_qaly = r.mean
-    qol_qaly = qol_annual * config.horizon_years
-    total_qaly = mort_qaly + qol_qaly
+    harm_qaly = r.expected_harm_qalys + r.expected_interaction_harm_qalys
+    mort_qaly = r.mean - harm_qaly
+    effective_years = min(float(qol_years), float(config.horizon_years))
+    qol_factor = effective_qol_factor_for_years(
+        r.expected_qol_weights,
+        effective_years,
+        r.expected_qol_factor,
+    )
+    qol_qaly = qol_annual * qol_factor
+    sleep_qol_qaly = sleep_qol_annual * qol_factor
+    total_qaly = mort_qaly + harm_qaly + qol_qaly + sleep_qol_qaly
     # Survival-weighted discounted cost
     total_cost = annual_cost * r.expected_discounted_cost_factor
     net_value = total_qaly * config.wtp - total_cost
@@ -124,7 +173,13 @@ def _simulate_one(
     return {
         "name": name,
         "mort_qaly": mort_qaly,
+        "harm_qaly": harm_qaly,
+        "direct_harm_qaly": r.expected_harm_qalys,
+        "interaction_harm_qaly": r.expected_interaction_harm_qalys,
         "qol_qaly": qol_qaly,
+        "qol_years": effective_years,
+        "sleep_qol_annual": sleep_qol_annual,
+        "sleep_qol_qaly": sleep_qol_qaly,
         "total_qaly": total_qaly,
         "days": total_qaly * 365.25,
         "annual_cost": annual_cost,
@@ -132,6 +187,9 @@ def _simulate_one(
         "cost_per_qaly": cost_per_qaly,
         "net_value": net_value,
         "p_benefit": r.prob_positive,
+        "p_harm": r.prob_negative,
+        "expected_upside_days": r.expected_upside * 365.25,
+        "expected_downside_days": r.expected_downside * 365.25,
         "ci_low": r.ci95[0] * 365.25 if r.ci95 else 0,
         "ci_high": r.ci95[1] * 365.25 if r.ci95 else 0,
     }
@@ -158,30 +216,35 @@ def evaluate_decisions(
         if d.type == "add":
             if entry is None:
                 raise ValueError(f"Unknown catalog item: {d.item_id}")
-            hr = publication_bias_correct(
-                d.override_hr or entry.hr_observed,
-                config.pub_bias_shrinkage,
-            )
+            if d.override_hr is None:
+                hr = entry.corrected_hr_observed(config.pub_bias_shrinkage, config.profile)
+            else:
+                hr = publication_bias_correct(d.override_hr, config.pub_bias_shrinkage)
             cost = d.override_cost if d.override_cost is not None else entry.annual_cost
-            qol = d.override_qol if d.override_qol is not None else entry.qol_annual
+            qol = d.override_qol if d.override_qol is not None else entry.effective_qol_annual()
+            sleep_qol = entry.sleep_qol_annual(config.sleep_estimate)
+            sleep_mortality_hr_multiplier = entry.sleep_mortality_hr_multiplier(config.sleep_estimate)
             r = _simulate_one(
                 d.label, hr, entry.log_sd,
                 entry.conf_alpha, entry.conf_beta,
-                cost, qol, config,
+                cost, qol, entry.qol_years, sleep_qol, sleep_mortality_hr_multiplier, config,
             )
 
         elif d.type == "drop":
             if entry is None:
                 raise ValueError(f"Unknown catalog item: {d.item_id}")
             # Dropping = you LOSE the item's benefit and GAIN cost savings
-            hr = publication_bias_correct(
-                entry.hr_observed, config.pub_bias_shrinkage,
-            )
+            hr = entry.corrected_hr_observed(config.pub_bias_shrinkage, config.profile)
+            sleep_qol = entry.sleep_qol_annual(config.sleep_estimate)
+            sleep_mortality_hr_multiplier = entry.sleep_mortality_hr_multiplier(config.sleep_estimate)
             r = _simulate_one(
                 d.label, hr, entry.log_sd,
                 entry.conf_alpha, entry.conf_beta,
                 -entry.annual_cost,  # Savings
-                -entry.qol_annual,   # Lose QoL benefit
+                -entry.effective_qol_annual(),   # Lose QoL benefit
+                entry.qol_years,
+                -sleep_qol,          # Lose sleep-related QoL benefit
+                sleep_mortality_hr_multiplier,
                 config,
             )
 
@@ -190,13 +253,18 @@ def evaluate_decisions(
             if entry is None:
                 raise ValueError(f"Unknown catalog item: {d.item_id}")
             hr_raw = d.override_hr if d.override_hr is not None else entry.hr_observed
-            hr = publication_bias_correct(hr_raw, config.pub_bias_shrinkage)
+            if d.override_hr is None:
+                hr = entry.corrected_hr_observed(config.pub_bias_shrinkage, config.profile)
+            else:
+                hr = publication_bias_correct(hr_raw, config.pub_bias_shrinkage)
             cost = d.override_cost if d.override_cost is not None else 0
             qol = d.override_qol if d.override_qol is not None else 0
+            sleep_qol = entry.sleep_qol_annual(config.sleep_estimate)
+            sleep_mortality_hr_multiplier = entry.sleep_mortality_hr_multiplier(config.sleep_estimate)
             r = _simulate_one(
                 d.label, hr, entry.log_sd,
                 entry.conf_alpha, entry.conf_beta,
-                cost, qol, config,
+                cost, qol, entry.qol_years, sleep_qol, sleep_mortality_hr_multiplier, config,
             )
 
         r["decision_type"] = d.type
@@ -221,6 +289,9 @@ def analyze(
     current_stack: Optional[List[str]] = None,
     decisions: Optional[List[Decision]] = None,
     catalog_entries: Optional[Dict[str, CatalogEntry]] = None,
+    stack_interaction_penalty_fn: Optional[Callable[[List[str]], float]] = None,
+    marginal_cost_value_fn: Optional[Callable[[List[str], str], float]] = None,
+    total_annual_cost_fn: Optional[Callable[[List[str]], float]] = None,
 ) -> AnalysisResult:
     """
     Run complete supplement analysis pipeline.
@@ -240,6 +311,13 @@ def analyze(
     Returns:
         AnalysisResult with all outputs.
     """
+    if catalog_entries is not None:
+        entries = catalog_entries
+        if config.categories is not None:
+            entries = {k: v for k, v in entries.items() if v.category in config.categories}
+    else:
+        entries = get_catalog(config.categories)
+
     # 1. Simulate all catalog items
     item_results = simulate_catalog(
         profile=config.profile,
@@ -250,7 +328,10 @@ def analyze(
         qaly_discount_rate=config.qaly_discount_rate,
         cost_discount_rate=config.cost_discount_rate,
         wtp=config.wtp,
-        categories=config.categories,
+        categories=None,
+        catalog_entries=entries,
+        active_interaction_tags=config.active_interaction_tags,
+        sleep_estimate=config.sleep_estimate,
     )
 
     # Key by ID for lookups
@@ -259,14 +340,25 @@ def analyze(
     # 2. Build greedy portfolio
     single_qalys = {r["id"]: r["total_qaly"] for r in item_results}
     annual_costs = {r["id"]: r["annual_cost"] for r in item_results}
+    cost_values = {r["id"]: r["total_cost"] for r in item_results}
+    penalty_fn = stack_interaction_penalty_fn or build_stack_interaction_penalty_fn(
+        catalog_entries=entries,
+        profile=config.profile,
+        qaly_discount_rate=config.qaly_discount_rate,
+        item_qalys=single_qalys,
+        benefit_tag_multipliers=config.sleep_overlap_multipliers,
+    )
 
     portfolio = find_optimal_portfolio_with_costs(
         single_qalys=single_qalys,
         annual_costs=annual_costs,
+        cost_values=cost_values,
         wtp=config.wtp,
         horizon_years=config.horizon_years,
-        complexity_free_slots=config.complexity_free_slots,
-        complexity_cost_per_item=config.complexity_cost_per_item,
+        stack_interaction_penalty_fn=penalty_fn,
+        marginal_cost_value_fn=marginal_cost_value_fn,
+        total_annual_cost_fn=total_annual_cost_fn,
+        portfolio_qaly_ceiling=config.portfolio_qaly_ceiling,
     )
 
     # 3. Bundle recommendations

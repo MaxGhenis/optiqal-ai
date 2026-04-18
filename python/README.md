@@ -1,4 +1,4 @@
-# OptiqAL Python
+# Optiqal Python
 
 Bayesian QALY estimation for lifestyle interventions.
 
@@ -10,6 +10,9 @@ pip install optiqal
 
 # With Bayesian (MCMC) support
 pip install optiqal[bayesian]
+
+# With optional validation tooling
+pip install optiqal[validation]
 
 # Full development install
 pip install optiqal[all]
@@ -66,13 +69,31 @@ precompute_all_interventions(
 )
 ```
 
+## Validation CLI
+
+Pan-UKB validation is available as an optional packaged workflow:
+
+```bash
+optiqal-pan-ukb describe
+optiqal-pan-ukb download
+optiqal-pan-ukb analyze
+```
+
+Raw Pan-UKB files live outside the repo by default at:
+
+```text
+~/.cache/optiqal/validation/pan-ukb
+```
+
+Override that with `OPTIQAL_PAN_UKB_DATA_DIR=/path/to/pan-ukb` when needed.
+
 ## Key Features
 
 - **CDC Life Tables**: Uses official CDC National Vital Statistics mortality rates
 - **Pathway Decomposition**: Separates effects into CVD, cancer, and other mortality
 - **Confounding Adjustment**: Beta priors based on intervention category and evidence type
 - **E-Value Calculation**: Robustness assessment per VanderWeele & Ding (2017)
-- **Discounting**: Standard 3% annual rate per ICER/NICE guidelines
+- **Discounting**: Undiscounted QALYs by default; costs discounted at 5% real
 - **YAML DSL**: Shared intervention format with TypeScript package
 
 ## License

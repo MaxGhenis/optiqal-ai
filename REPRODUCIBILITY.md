@@ -1,10 +1,10 @@
-# Reproducibility in OptiqAL
+# Reproducibility in Optiqal
 
-OptiqAL now supports deterministic random number generation for reproducible results.
+Optiqal now supports deterministic random number generation for reproducible results.
 
 ## Overview
 
-All Monte Carlo simulations in OptiqAL use a seedable pseudo-random number generator (PRNG) based on the `seedrandom` package. This ensures that simulation results are reproducible across runs when using the same seed.
+All Monte Carlo simulations in Optiqal use a seedable pseudo-random number generator (PRNG) based on the `seedrandom` package. This ensures that simulation results are reproducible across runs when using the same seed.
 
 ## Default Behavior
 
@@ -73,7 +73,7 @@ console.assert(result1.median === result2.median, "Results should be identical")
 The default seed of 42 is:
 1. A well-known number in computer science (from "The Hitchhiker's Guide to the Galaxy")
 2. Easy to remember and recognize in code
-3. Used consistently across all OptiqAL simulations for reproducibility
+3. Used consistently across all Optiqal simulations for reproducibility
 
 ## Non-Reproducible Mode
 

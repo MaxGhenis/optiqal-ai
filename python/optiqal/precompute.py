@@ -12,6 +12,7 @@ from typing import Dict, List, Literal, Optional
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import numpy as np
 
+from .defaults import DEFAULT_QALY_DISCOUNT_RATE
 from .intervention import Intervention
 from .simulate import simulate_qaly, simulate_qaly_profile, simulate_qaly_profile_vectorized, SimulationResult
 from .profile import Profile, generate_all_profiles, count_profiles
@@ -113,7 +114,7 @@ def precompute_intervention(
     use_mcmc: bool = True,
     n_samples: int = 2000,
     chains: int = 4,
-    discount_rate: float = 0.03,
+    discount_rate: float = DEFAULT_QALY_DISCOUNT_RATE,
     random_seed: Optional[int] = 42,
 ) -> PrecomputedIntervention:
     """
@@ -126,7 +127,7 @@ def precompute_intervention(
         use_mcmc: Use full MCMC (slower, more accurate) vs Monte Carlo
         n_samples: Number of samples
         chains: Number of MCMC chains (if use_mcmc)
-        discount_rate: Annual discount rate
+        discount_rate: Annual QALY discount rate
         random_seed: Random seed for reproducibility
 
     Returns:

@@ -1,0 +1,179 @@
+{
+  "lanes": {},
+  "conditions": {
+    "cardiometabolic_signal": {
+      "profile_score_threshold": 4,
+      "profile_rules": [
+        {
+          "field": "age",
+          "operator": "gte",
+          "value": 60,
+          "points": 2,
+          "label": "Age 60+"
+        },
+        {
+          "field": "age",
+          "operator": "gte",
+          "value": 50,
+          "points": 1,
+          "label": "Age 50+"
+        },
+        {
+          "field": "age",
+          "operator": "gte",
+          "value": 55,
+          "points": 2,
+          "label": "Age 55+"
+        },
+        {
+          "field": "bmi_category",
+          "operator": "eq",
+          "value": "overweight",
+          "points": 1,
+          "label": "BMI in overweight range"
+        },
+        {
+          "field": "bmi_category",
+          "operator": "in",
+          "value": [
+            "obese",
+            "severely_obese"
+          ],
+          "points": 2,
+          "label": "BMI in obese range"
+        },
+        {
+          "field": "smoking_status",
+          "operator": "eq",
+          "value": "current",
+          "points": 2,
+          "label": "Current smoker"
+        },
+        {
+          "field": "has_hypertension",
+          "operator": "eq",
+          "value": true,
+          "points": 2,
+          "label": "Has hypertension"
+        },
+        {
+          "field": "has_diabetes",
+          "operator": "eq",
+          "value": true,
+          "points": 4,
+          "label": "Has diabetes"
+        }
+      ]
+    },
+    "metabolic_signal": {
+      "profile_score_threshold": 5,
+      "profile_rules": [
+        {
+          "field": "has_diabetes",
+          "operator": "eq",
+          "value": true,
+          "points": 5,
+          "label": "Has diabetes"
+        },
+        {
+          "field": "bmi_category",
+          "operator": "eq",
+          "value": "overweight",
+          "points": 1,
+          "label": "BMI in overweight range"
+        },
+        {
+          "field": "bmi_category",
+          "operator": "in",
+          "value": [
+            "obese",
+            "severely_obese"
+          ],
+          "points": 2,
+          "label": "BMI in obese range"
+        },
+        {
+          "field": "has_hypertension",
+          "operator": "eq",
+          "value": true,
+          "points": 1,
+          "label": "Has hypertension"
+        },
+        {
+          "field": "age",
+          "operator": "gte",
+          "value": 50,
+          "points": 1,
+          "label": "Age 50+"
+        }
+      ]
+    },
+    "glp1_signal": {
+      "profile_score_threshold": 5,
+      "profile_rules": [
+        {
+          "field": "has_diabetes",
+          "operator": "eq",
+          "value": true,
+          "points": 2,
+          "label": "Has diabetes"
+        },
+        {
+          "field": "bmi_category",
+          "operator": "eq",
+          "value": "overweight",
+          "points": 1,
+          "label": "BMI in overweight range"
+        },
+        {
+          "field": "bmi_category",
+          "operator": "eq",
+          "value": "severely_obese",
+          "points": 5,
+          "label": "BMI in severely obese range"
+        },
+        {
+          "field": "bmi_category",
+          "operator": "in",
+          "value": [
+            "obese",
+            "severely_obese"
+          ],
+          "points": 3,
+          "label": "BMI in obese range"
+        },
+        {
+          "field": "has_hypertension",
+          "operator": "eq",
+          "value": true,
+          "points": 1,
+          "label": "Has hypertension"
+        },
+        {
+          "field": "age",
+          "operator": "gte",
+          "value": 50,
+          "points": 1,
+          "label": "Age 50+"
+        },
+        {
+          "field": "age",
+          "operator": "gte",
+          "value": 60,
+          "points": 2,
+          "label": "Age 60+"
+        }
+      ]
+    }
+  },
+  "items": {
+    "statin_5mg": {
+      "public_lane": "conditional_public",
+      "public_condition": "cardiometabolic_signal",
+      "public_display_category_override": "rx"
+    }
+  },
+  "excluded_reasons": {
+    "vitamin_d_2000": null
+  }
+}

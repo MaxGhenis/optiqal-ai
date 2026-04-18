@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Activity, TrendingUp, Zap } from "lucide-react";
+import { ArrowLeft, TrendingUp } from "lucide-react";
+import { LogoLockup } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -15,8 +16,11 @@ export default function ImprovePage() {
       <header className="sticky top-0 z-50 glass border-b border-border/30">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 group">
-            <Activity className="h-6 w-6 text-primary transition-transform group-hover:scale-110" />
-            <span className="text-lg font-semibold tracking-tight">optiqal</span>
+            <LogoLockup
+              size="sm"
+              showDescriptor={false}
+              markClassName="transition-transform group-hover:scale-[1.04]"
+            />
           </Link>
           <Button variant="ghost" size="sm" asChild>
             <Link href="/predict">
@@ -47,8 +51,9 @@ export default function ImprovePage() {
               </div>
               <h2 className="text-xl font-medium">Coming soon</h2>
               <p className="text-muted-foreground max-w-md mx-auto">
-                We're integrating personalized intervention recommendations based on your profile.
-                Check back soon to see which lifestyle changes would have the biggest impact on your healthspan.
+                We&apos;re integrating personalized intervention recommendations based on your
+                profile. Check back soon to see which lifestyle changes would have the biggest
+                impact on your healthspan.
               </p>
               <Button asChild className="mt-4">
                 <Link href="/predict">
