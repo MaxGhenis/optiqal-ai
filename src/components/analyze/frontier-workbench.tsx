@@ -253,17 +253,21 @@ export function FrontierWorkbench() {
     localStorage.setItem(SLEEP_STORAGE_KEY, JSON.stringify(sleepInputs));
   }, [sleepInputs]);
 
-  const visibleItems = useMemo(() => {
+  const publicLibraryItems = useMemo(() => {
     if (!results) return [];
+    return results.items.filter((item) => item.pricing_status !== "unpriced");
+  }, [results]);
+
+  const visibleItems = useMemo(() => {
     return showNegatives
-      ? results.items
-      : results.items.filter((item) => item.total_qaly > 0);
-  }, [results, showNegatives]);
+      ? publicLibraryItems
+      : publicLibraryItems.filter((item) => item.total_qaly > 0);
+  }, [publicLibraryItems, showNegatives]);
 
   const selectedItem = useMemo<FrontierItem | null>(() => {
     if (!results || !selectedItemId) return null;
-    return results.items.find((item) => item.id === selectedItemId) ?? null;
-  }, [results, selectedItemId]);
+    return publicLibraryItems.find((item) => item.id === selectedItemId) ?? null;
+  }, [publicLibraryItems, results, selectedItemId]);
 
   const decisionStateLabels = useMemo(() => {
     const labels = new Map<string, string>();
@@ -1145,6 +1149,9 @@ export function FrontierWorkbench() {
                   <div>
                     <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Catalog results</p>
                     <h2 className="text-xl font-semibold">Standalone intervention library</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Public-rankable items only; held-out personal or condition-specific items are not shown.
+                    </p>
                   </div>
                   <label className="flex items-center gap-2 text-sm text-muted-foreground">
                     <input
@@ -1153,7 +1160,7 @@ export function FrontierWorkbench() {
                       onChange={(event) => setShowNegatives(event.target.checked)}
                       className="w-4 h-4 rounded border-border bg-card text-primary focus:ring-primary"
                     />
-                    Show negative items
+                    Show non-beneficial public items
                   </label>
                 </div>
 

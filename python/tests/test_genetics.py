@@ -223,6 +223,32 @@ class TestActionable:
         assert len(findings) == 1
         assert findings[0].zygosity == "absent"
 
+    def test_brca_ashkenazi_detects_23andme_deletion_indel(self, tmp_path):
+        p = _write_23andme(tmp_path, {
+            "rs80357914": ("17", 41276046, "DI"),  # BRCA1 185delAG carrier
+            "rs80357906": ("17", 41244936, "--"),
+            "rs80359550": ("13", 32914438, "TT"),
+        })
+
+        findings = call_ashkenazi_brca(parse_23andme(p))
+
+        assert [(finding.locus, finding.zygosity) for finding in findings] == [
+            ("BRCA1 185delAG", "heterozygous")
+        ]
+
+    def test_brca_ashkenazi_detects_23andme_insertion_indel(self, tmp_path):
+        p = _write_23andme(tmp_path, {
+            "rs80357914": ("17", 41276046, "AG"),
+            "rs80357906": ("17", 41244936, "DI"),  # BRCA1 5382insC carrier
+            "rs80359550": ("13", 32914438, "TT"),
+        })
+
+        findings = call_ashkenazi_brca(parse_23andme(p))
+
+        assert [(finding.locus, finding.zygosity) for finding in findings] == [
+            ("BRCA1 5382insC", "heterozygous")
+        ]
+
 
 class TestGeneticProfile:
     def test_build_from_file(self, tmp_path):

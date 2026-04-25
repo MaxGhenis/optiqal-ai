@@ -389,6 +389,26 @@ def _option_access_payload(item_ids: list[str], entries: Dict[str, Any]) -> Dict
     }
 
 
+def _decision_spec_item_ids(spec: Any) -> list[str]:
+    item_ids = list(getattr(spec, "base_item_ids", []))
+    for option in getattr(spec, "options", []) or []:
+        item_ids.extend(option.added_item_ids)
+    return item_ids
+
+
+def _decision_sequence_step_is_public(step: Any, public_state_ids: set[str]) -> bool:
+    referenced_state_ids = [
+        getattr(step, "state_id", None),
+        getattr(step, "preferred_state_id", None),
+        getattr(step, "alternative_state_id", None),
+    ]
+    return all(
+        state_id in public_state_ids
+        for state_id in referenced_state_ids
+        if state_id is not None
+    )
+
+
 def _best_biology_option_id(options: list[Dict[str, Any]]) -> Optional[str]:
     candidates = [
         option for option in options
@@ -572,6 +592,7 @@ def build_frontier_response_with_policy(
 
     items.sort(key=_sort_items)
     items_by_id = {item["id"]: item for item in items}
+    public_items = [item for item in items if item["pricing_status"] != "unpriced"]
 
     frontier_rows = []
     for step in frontier:
@@ -627,6 +648,13 @@ def build_frontier_response_with_policy(
             include_therapy=therapy_signal,
             include_humidifier=humidifier_signal,
         )
+        rankable_id_set = set(rankable_ids)
+        decision_specs = [
+            spec
+            for spec in decision_specs
+            if all(item_id in rankable_id_set for item_id in _decision_spec_item_ids(spec))
+        ]
+        public_decision_state_ids = {spec.id for spec in decision_specs}
         decision_item_ids: list[str] = []
         seen_decision_ids: set[str] = set()
         for spec in decision_specs:
@@ -718,11 +746,13 @@ def build_frontier_response_with_policy(
                 "steps": serialized_state["steps"],
             })
 
-        decision_sequence = serialize_decision_sequence(
-            build_public_sleep_decision_sequence(include_therapy=therapy_signal)
-        )
+        decision_sequence = serialize_decision_sequence([
+            step
+            for step in build_public_sleep_decision_sequence(include_therapy=therapy_signal)
+            if _decision_sequence_step_is_public(step, public_decision_state_ids)
+        ])
 
-    positive_items = sum(1 for item in items if item["total_qaly"] > 0)
+    positive_items = sum(1 for item in public_items if item["total_qaly"] > 0)
     payload_out = {
         "meta": {
             "selection_mode": "ordered_by_marginal_cost_per_qaly",
@@ -745,7 +775,7 @@ def build_frontier_response_with_policy(
         "sleep_estimate": None,
         "public_policy": build_public_policy_spec(entries, policy=public_policy),
         "frontier": frontier_rows,
-        "items": items,
+        "items": public_items,
         "decision_states": decision_states,
         "decision_sequence": decision_sequence,
     }

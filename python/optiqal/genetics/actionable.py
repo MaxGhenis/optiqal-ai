@@ -51,13 +51,19 @@ def _zygosity_at(
     calls: Dict[str, RawGenotype],
     rsid: str,
     variant_allele: str,
+    ref_allele: Optional[str] = None,
 ) -> Optional[str]:
     g = genotype_at(calls, rsid)
     if g is None:
         return None
+    variant_symbols = {variant_allele.upper()}
+    if variant_allele == "-":
+        variant_symbols.add("D")
+    if ref_allele == "-":
+        variant_symbols.add("I")
     if len(g) == 1:
-        return "homozygous" if g == variant_allele else "absent"
-    count = sum(1 for ch in g if ch == variant_allele)
+        return "homozygous" if g in variant_symbols else "absent"
+    count = sum(1 for ch in g if ch in variant_symbols)
     return ("absent", "heterozygous", "homozygous")[count]
 
 
@@ -74,7 +80,7 @@ def call_hfe(calls: Dict[str, RawGenotype]) -> List[ActionableFinding]:
     c282y_zyg: Optional[str] = None
     h63d_zyg: Optional[str] = None
     for v in spec["variants"]:
-        zyg = _zygosity_at(calls, v["rsid"], v["variant_allele"])
+        zyg = _zygosity_at(calls, v["rsid"], v["variant_allele"], v.get("ref_allele"))
         if zyg is None:
             continue
         if v["amino_acid"] == "C282Y":
@@ -159,7 +165,7 @@ def call_ashkenazi_brca(calls: Dict[str, RawGenotype]) -> List[ActionableFinding
     results: List[ActionableFinding] = []
     any_called = False
     for v in spec["variants"]:
-        zyg = _zygosity_at(calls, v["rsid"], v["variant_allele"])
+        zyg = _zygosity_at(calls, v["rsid"], v["variant_allele"], v.get("ref_allele"))
         if zyg is None:
             continue
         any_called = True

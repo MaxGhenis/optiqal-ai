@@ -408,20 +408,31 @@ class TestPosteriorHrExposure:
             has_hypertension=True,
             activity_level="light",
         )
+        diabetes = Profile(
+            age=52,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=True,
+            has_hypertension=False,
+            activity_level="light",
+        )
 
         assert has_meaningful_public_statin_signal(healthy) is False
         assert has_meaningful_public_metformin_signal(healthy) is False
         assert has_meaningful_public_glp1_signal(healthy) is False
         assert has_meaningful_public_statin_signal(higher_risk) is True
-        assert has_meaningful_public_metformin_signal(higher_risk) is True
+        assert has_meaningful_public_metformin_signal(higher_risk) is False
         assert has_meaningful_public_glp1_signal(higher_risk) is True
+        assert has_meaningful_public_metformin_signal(diabetes) is True
 
         assert is_publicly_rankable(CATALOG["statin_5mg"], profile=healthy) is False
         assert is_publicly_rankable(CATALOG["metformin_500mg"], profile=healthy) is False
         assert is_publicly_rankable(CATALOG["semaglutide"], profile=healthy) is False
         assert is_publicly_rankable(CATALOG["statin_5mg"], profile=higher_risk) is True
-        assert is_publicly_rankable(CATALOG["metformin_500mg"], profile=higher_risk) is True
+        assert is_publicly_rankable(CATALOG["metformin_500mg"], profile=higher_risk) is False
         assert is_publicly_rankable(CATALOG["semaglutide"], profile=higher_risk) is True
+        assert is_publicly_rankable(CATALOG["metformin_500mg"], profile=diabetes) is True
 
     def test_public_rankability_excludes_bundle_dependent_zero_cost_items(self):
         assert is_publicly_rankable(CATALOG["astaxanthin_12"]) is False
@@ -447,7 +458,7 @@ class TestPosteriorHrExposure:
         assert lanes["consumer_public"]["label"] == "Broad public recommendations"
         assert lanes["personal_only"]["description"].startswith("Current-stack")
         assert items["hiit_2x_week"]["lane"] == "consumer_public"
-        assert items["apap_nightly"]["condition"] == "airway_signal"
+        assert items["apap_nightly"]["condition"] == "osa_therapy_signal"
         assert items["traditional_sauna_4x_week"]["display_category"] == "service"
 
         airway = conditions["airway_signal"]
@@ -457,8 +468,8 @@ class TestPosteriorHrExposure:
 
         cardiometabolic = conditions["cardiometabolic_signal"]
         assert cardiometabolic["evaluation_kind"] == "profile_score"
-        assert cardiometabolic["score_threshold"] == 3
-        assert any(rule["field"] == "has_diabetes" and rule["points"] == 3 for rule in cardiometabolic["score_rules"])
+        assert cardiometabolic["score_threshold"] == 4
+        assert any(rule["field"] == "has_diabetes" and rule["points"] == 4 for rule in cardiometabolic["score_rules"])
         assert public_display_category(CATALOG["traditional_sauna_4x_week"]) == "service"
 
     def test_sleep_access_profiles_capture_coverage_and_friction(self):

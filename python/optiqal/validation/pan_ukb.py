@@ -310,6 +310,7 @@ def extract_instruments(
 
 def clump_local(instruments: pd.DataFrame, kb: int = CLUMP_KB) -> pd.DataFrame:
     import numpy as np
+    import pandas as pd
 
     print(f"Clumping with {kb}kb window...")
 
@@ -666,6 +667,8 @@ def run_pan_ukb_mr_analysis(
     *,
     chunksize: int = 1_000_000,
 ) -> pd.DataFrame:
+    import pandas as pd
+
     paths.results_dir.mkdir(parents=True, exist_ok=True)
 
     print("=" * 60)

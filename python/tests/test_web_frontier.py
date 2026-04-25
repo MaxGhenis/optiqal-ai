@@ -66,25 +66,36 @@ def test_web_frontier_emits_branching_sleep_sequence_and_states():
     assert policy_items["mouth_tape_nightly"]["lane"] == "personal_only"
     assert policy_items["hiit_2x_week"]["lane"] == "consumer_public"
 
-    assert response["decision_sequence"][-1] == {
-        "step": 3,
-        "id": "rx_after_apap_if_needed",
-        "label": "Only compare insomnia Rx options after primary airway treatment if sleep maintenance is still a problem.",
-        "preferred_state_id": "rx_after_apap_if_needed",
-        "alternative_state_id": "rx_after_oral_appliance_if_needed",
-    }
+    assert [step["id"] for step in response["decision_sequence"]] == [
+        "conservative_airway_support",
+        "primary_osa_therapy_choice",
+    ]
 
     state_ids = [state["id"] for state in response["decision_states"]]
     assert state_ids == [
         "conservative_airway_support",
         "primary_osa_therapy_choice",
-        "rx_after_apap_if_needed",
-        "rx_after_oral_appliance_if_needed",
     ]
+    assert "rx_after_apap_if_needed" not in state_ids
+    assert "rx_after_oral_appliance_if_needed" not in state_ids
 
     branching_state = response["decision_states"][-1]
     assert branching_state["kind"] == "choice"
     assert branching_state["best_biology_option_id"] is not None
+    exposed_option_item_ids = {
+        item_id
+        for state in response["decision_states"]
+        if state["kind"] == "choice"
+        for option in state["options"]
+        for item_id in option["added_item_ids"]
+    }
+    assert exposed_option_item_ids.isdisjoint({
+        "trazodone_50mg",
+        "doxepin_3mg",
+        "daridorexant_25mg",
+        "lemborexant_5mg",
+        "suvorexant_10mg",
+    })
 
 
 def test_web_frontier_can_emit_support_only_sleep_pathway():
