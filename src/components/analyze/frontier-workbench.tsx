@@ -493,7 +493,7 @@ export function FrontierWorkbench() {
                   type="checkbox"
                   checked={profile.smoker}
                   onChange={(event) => updateProfile("smoker", event.target.checked)}
-                  className="w-4 h-4 rounded border-border bg-card text-primary focus:ring-primary"
+                  className="w-4 h-4 rounded border-input bg-card text-primary focus:ring-primary"
                 />
                 <span className="text-sm">Current smoker</span>
               </label>
@@ -502,7 +502,7 @@ export function FrontierWorkbench() {
                   type="checkbox"
                   checked={profile.hasDiabetes}
                   onChange={(event) => updateProfile("hasDiabetes", event.target.checked)}
-                  className="w-4 h-4 rounded border-border bg-card text-primary focus:ring-primary"
+                  className="w-4 h-4 rounded border-input bg-card text-primary focus:ring-primary"
                 />
                 <span className="text-sm">Has diabetes</span>
               </label>
@@ -514,7 +514,7 @@ export function FrontierWorkbench() {
                   type="checkbox"
                   checked={profile.hasHypertension}
                   onChange={(event) => updateProfile("hasHypertension", event.target.checked)}
-                  className="w-4 h-4 rounded border-border bg-card text-primary focus:ring-primary"
+                  className="w-4 h-4 rounded border-input bg-card text-primary focus:ring-primary"
                 />
                 <span className="text-sm">Has hypertension</span>
               </label>
@@ -1151,7 +1151,7 @@ export function FrontierWorkbench() {
                       type="checkbox"
                       checked={showNegatives}
                       onChange={(event) => setShowNegatives(event.target.checked)}
-                      className="w-4 h-4 rounded border-border bg-card text-primary focus:ring-primary"
+                      className="w-4 h-4 rounded border-input bg-card text-primary focus:ring-primary"
                     />
                     Show negative items
                   </label>
