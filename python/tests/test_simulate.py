@@ -104,6 +104,79 @@ def test_centenarian_profile_returns_zero_without_crashing(protective_interventi
     assert np.all(gains == 0)
 
 
+def _flat_hr_life_years_gained(base_qx, hr):
+    """Life-years gained when an all-cause HR is applied flat to ``base_qx``.
+
+    Uses the simulator's start-of-year survival convention (S(0)=1, cumprod of
+    1-qx shifted one year) and the same 0.99 per-year cap.
+    """
+
+    def life_years(mult):
+        pqx = np.minimum(base_qx * mult, 0.99)
+        surv = np.cumprod(1 - pqx)
+        surv = np.concatenate([[1.0], surv[:-1]])
+        return float(surv.sum())
+
+    return life_years(hr) - life_years(1.0)
+
+
+def test_all_cause_hr_applied_without_pathway_attenuation():
+    """The integrated effect must equal the HR the simulator reports.
+
+    Regression: the fixed 1.3/0.8/0.6 pathway split made the integrated
+    all-cause survival effect ~8-12% weaker (age-dependent) than the
+    ``posterior_hr`` the result advertises as "the HR actually applied at the
+    life-table level". The pathway exponents should drive only the reported
+    cvd/cancer/other decomposition, so life-years gained must match a flat
+    application of the reported posterior HR to the profile's baseline
+    mortality (which already folds in the baseline multiplier and any
+    age-dependent intervention modifier).
+    """
+    from optiqal.lifecycle import get_mortality_rate
+    from optiqal.profile import get_baseline_mortality_multiplier
+
+    hr = 0.80
+    intervention = Intervention(
+        id="fixed_hr",
+        name="Fixed HR",
+        category="exercise",
+        mortality=MortalityEffect(
+            hazard_ratio=Distribution(
+                type="lognormal",
+                params={"log_mean": float(np.log(hr)), "log_sd": 1e-6},
+            )
+        ),
+    )
+    MAX_AGE = 100  # must match simulate.py's modeled horizon
+    for age in (40, 60, 75):
+        profile = Profile(
+            age=age,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=False,
+        )
+        result = simulate_qaly_profile_vectorized(
+            intervention,
+            profile,
+            n_simulations=4000,
+            apply_confounding=False,
+            random_state=7,
+        )
+        mult = get_baseline_mortality_multiplier(profile)
+        base_qx = np.minimum(
+            np.array([get_mortality_rate(int(a), "male") for a in range(age, MAX_AGE)])
+            * mult,
+            0.99,
+        )
+        expected = _flat_hr_life_years_gained(base_qx, result.posterior_hr_mean)
+        assert result.life_years_gained == pytest.approx(expected, rel=0.01), (
+            f"age {age}: life_years_gained {result.life_years_gained:.4f} != flat "
+            f"application of reported posterior_hr={result.posterior_hr_mean:.4f} "
+            f"({expected:.4f}); pathway split is attenuating the integrated effect"
+        )
+
+
 class TestSimulateQALY:
     def test_effective_qol_factor_for_years_truncates_weights(self):
         factor = effective_qol_factor_for_years((1.0, 0.9, 0.8), 2.5)

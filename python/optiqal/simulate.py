@@ -248,19 +248,26 @@ def effective_qol_factor_for_years(
     return factor
 
 
-def _simulate_policy_from_pathways(
+def _simulate_reversible_policy(
     base_qx: np.ndarray,
-    cause_fracs: np.ndarray,
-    pathway_hrs: np.ndarray,
+    policy_hr: np.ndarray,
     continuation_curve: np.ndarray,
     quality: np.ndarray,
     qaly_discount: np.ndarray,
     cost_discount: np.ndarray,
     baseline_qalys_total: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray, float, float, np.ndarray, np.ndarray]:
-    """Simulate a reversible intervention under an adherence policy."""
-    pathway_excess = np.einsum("yk,sk->sy", cause_fracs, pathway_hrs - 1.0)
-    policy_multiplier = 1.0 + continuation_curve[None, :] * pathway_excess
+    """Simulate a reversible intervention under an adherence policy.
+
+    The all-cause hazard ratio ``policy_hr`` (one per simulation) is applied
+    flat to baseline mortality, modulated by ``continuation_curve`` so the
+    integrated survival effect exactly matches the sampled HR. The cause-
+    specific pathway exponents are used only for the *reported* cvd/cancer/other
+    decomposition (see below), never for this survival integration — applying
+    them here attenuated every effect toward the null in an age-dependent way.
+    """
+    excess = (policy_hr - 1.0)[:, None]  # (n_simulations, 1)
+    policy_multiplier = 1.0 + continuation_curve[None, :] * excess
     policy_qx = np.minimum(base_qx[None, :] * policy_multiplier, 0.99)
 
     policy_survival = np.cumprod(1 - policy_qx, axis=1)
@@ -491,21 +498,16 @@ def simulate_qaly_profile_vectorized(
             causal_fraction_ci = None
 
         # Adjust HRs for confounding: log(adjusted_hr) = causal_fraction * log(observed_hr)
+        # Adjust HRs for confounding: log(adjusted_hr) = causal_fraction * log(observed_hr).
+        # This all-cause HR is applied flat to mortality (see _simulate_reversible_policy);
+        # the 1.3/0.8/0.6 pathway exponents below feed only the reported decomposition.
         adjusted_hrs = np.exp(causal_samples * np.log(hr_samples))  # (n_simulations,)
-        log_hr = np.log(adjusted_hrs)  # (n_simulations,)
         if global_intervention_hr_multiplier != 1.0:
             adjusted_hrs = np.clip(adjusted_hrs * global_intervention_hr_multiplier, 1e-6, None)
-            log_hr = np.log(adjusted_hrs)
-        pathway_hrs = np.stack([
-            np.exp(log_hr * 1.3),  # CVD
-            np.exp(log_hr * 0.8),  # Cancer
-            np.exp(log_hr * 0.6),  # Other
-        ], axis=1)  # (n_simulations, 3)
     else:
         adjusted_hrs = np.full(n_simulations, max(global_intervention_hr_multiplier, 1e-6))
         causal_fraction_mean = None
         causal_fraction_ci = None
-        pathway_hrs = np.repeat(adjusted_hrs[:, None], 3, axis=1)
 
     # Baseline survival (deterministic, same for all simulations)
     baseline_survival = np.cumprod(1 - base_qx)
@@ -531,10 +533,9 @@ def simulate_qaly_profile_vectorized(
         full_survival,
         full_qol_weights,
     ) = (
-        _simulate_policy_from_pathways(
+        _simulate_reversible_policy(
             base_qx,
-            cause_fracs,
-            pathway_hrs,
+            adjusted_hrs,
             full_curve,
             quality,
             discount,
@@ -552,10 +553,9 @@ def simulate_qaly_profile_vectorized(
         continuation_survival,
         _continuation_qol_weights,
     ) = (
-        _simulate_policy_from_pathways(
+        _simulate_reversible_policy(
             base_qx,
-            cause_fracs,
-            pathway_hrs,
+            adjusted_hrs,
             continuation_curve,
             quality,
             discount,
@@ -573,10 +573,9 @@ def simulate_qaly_profile_vectorized(
         one_year_survival,
         _one_year_qol_weights,
     ) = (
-        _simulate_policy_from_pathways(
+        _simulate_reversible_policy(
             base_qx,
-            cause_fracs,
-            pathway_hrs,
+            adjusted_hrs,
             one_year_curve,
             quality,
             discount,
