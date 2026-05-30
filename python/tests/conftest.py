@@ -121,21 +121,22 @@ def _build_synthetic_health_db(path: str) -> None:
     conn.close()
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _synthetic_health_db(tmp_path_factory):
+def pytest_configure(config):
     """Point protocol-context loaders at a synthetic DB unless one is set.
 
-    Respects an existing OPTIQAL_HEALTH_DB (e.g. a developer pointing at real
-    data); only fills it in when unset so CI gets a hermetic fixture.
+    Done in ``pytest_configure`` (not a session fixture) so it runs once per
+    process *before* any test — including in each pytest-xdist worker, which a
+    session-scoped autouse fixture races with. Respects an existing
+    OPTIQAL_HEALTH_DB (e.g. a developer pointing at real data).
     """
     if os.environ.get("OPTIQAL_HEALTH_DB"):
-        yield
         return
 
-    db_path = tmp_path_factory.mktemp("health") / "synthetic_health.db"
-    _build_synthetic_health_db(str(db_path))
-    os.environ["OPTIQAL_HEALTH_DB"] = str(db_path)
-    try:
-        yield
-    finally:
-        os.environ.pop("OPTIQAL_HEALTH_DB", None)
+    # Per-process file under pytest's basetemp so xdist workers don't collide
+    # and the path is stable for the life of the process.
+    import tempfile
+
+    db_dir = tempfile.mkdtemp(prefix="optiqal-health-")
+    db_path = os.path.join(db_dir, "synthetic_health.db")
+    _build_synthetic_health_db(db_path)
+    os.environ["OPTIQAL_HEALTH_DB"] = db_path
