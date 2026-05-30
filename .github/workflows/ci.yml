@@ -12,7 +12,7 @@ jobs:
   python:
     name: Python tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: python
@@ -27,7 +27,8 @@ jobs:
         # --all-extras ensures pytest/pandas/pyarrow (declared as optional
         # extras) are present in the run environment; uv re-syncs on each
         # `uv run`, so the extras must be requested here, not only on a prior sync.
-        run: uv run --all-extras pytest -q
+        # -n auto parallelizes across cores (the suite has slow subprocess tests).
+        run: uv run --all-extras pytest -q -n auto
       - name: Lint (non-blocking)
         run: uv run --all-extras ruff check
         continue-on-error: true
