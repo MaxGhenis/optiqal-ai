@@ -166,6 +166,48 @@ def test_web_frontier_can_offer_humidifier_when_nasal_dryness_signal_is_strong()
     assert "humidifier_nightly" in option_ids
 
 
+def test_frontier_ranker_receives_hazard_aware_combination(monkeypatch):
+    """The deployed /frontier path must pass the multiplicative-hazard combiner
+    to the ranker (not silently fall back to additive QALY summing).
+    """
+    import optiqal.web_api as web_api
+
+    captured: dict = {}
+    original = web_api.rank_interventions_by_marginal_cost_per_qaly
+
+    def spy(*args, **kwargs):
+        captured.update(kwargs)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(
+        web_api, "rank_interventions_by_marginal_cost_per_qaly", spy
+    )
+
+    web_api.build_frontier_response(
+        {
+            "profile": {
+                "age": 58,
+                "sex": "male",
+                "weight_kg": 104.0,
+                "height_cm": 172.0,
+                "smoker": False,
+                "has_diabetes": False,
+                "has_hypertension": True,
+                "activity_level": "sedentary",
+                "sleep_hours_per_night": 6.5,
+            },
+            "n_simulations": 400,
+        }
+    )
+
+    assert captured.get("item_mortality_hrs"), "ranker did not receive item HRs"
+    fn = captured.get("mortality_qaly_fn")
+    assert fn is not None, "ranker did not receive a mortality_qaly_fn"
+    # The combiner integrates a joint hazard once, so two HR-0.7 effects yield
+    # strictly less than twice one HR-0.7 effect (no shared-survival double-count).
+    assert fn(0.7 * 0.7) < 2 * fn(0.7)
+
+
 def test_web_frontier_items_carry_confidence_intervals():
     """Every ranked item must expose an 80% interval, not just a point estimate.
 

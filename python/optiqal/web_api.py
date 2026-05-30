@@ -567,6 +567,29 @@ def build_frontier_response_with_policy(
         for item_id, entry in entries.items()
         if entry.exclusive_group and item_id in rankable_ids
     }
+    # Hazard-aware stacking: mortality combines multiplicatively (one joint
+    # survival integration); non-mortality (QoL/harm) QALYs add across items.
+    from .simulate import mortality_qaly_for_combined_hr
+
+    item_mortality_hrs = {
+        item_id: result.get("posterior_hr", 1.0)
+        for item_id, result in analysis.item_results_by_id.items()
+        if item_id in rankable_ids
+    }
+    item_qol_qalys = {
+        item_id: result["total_qaly"] - result["mort_qaly"]
+        for item_id, result in analysis.item_results_by_id.items()
+        if item_id in rankable_ids
+    }
+
+    def _stack_mortality_qaly(combined_hr: float) -> float:
+        return mortality_qaly_for_combined_hr(
+            config.profile,
+            combined_hr,
+            discount_rate=config.qaly_discount_rate,
+            baseline_hazard_multiplier=config.sleep_baseline_hazard_multiplier,
+        )
+
     stack_penalty_fn = build_stack_interaction_penalty_fn(
         catalog_entries=entries,
         profile=config.profile,
@@ -581,6 +604,9 @@ def build_frontier_response_with_policy(
         horizon_years=config.horizon_years,
         stack_interaction_penalty_fn=stack_penalty_fn,
         exclusive_groups=exclusive_groups,
+        item_mortality_hrs=item_mortality_hrs,
+        item_qol_qalys=item_qol_qalys,
+        mortality_qaly_fn=_stack_mortality_qaly,
     )
 
     selected_ids = set(frontier[-1]["selected_interventions"]) if frontier else set()
