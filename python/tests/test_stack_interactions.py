@@ -3,6 +3,7 @@
 import pytest
 
 from optiqal.catalog import CatalogEntry
+from optiqal.intervention import Distribution, InteractionRule
 
 from optiqal import CATALOG, Profile
 from optiqal.stack_interactions import expected_stack_interaction_qaly
@@ -41,6 +42,51 @@ def test_duplicate_vitamin_d_penalty_uses_extra_tags():
 
     assert penalty < 0
     assert [detail["id"] for detail in details] == ["duplicate_vitamin_d"]
+
+
+def test_stack_penalty_uses_rule_active_year_window():
+    sedation_rule = InteractionRule(
+        id="sedation_stack",
+        requires_tags=["sedating"],
+        minimum_matches=2,
+        annual_qaly_loss=Distribution(type="point", params={"value": 0.01}),
+    )
+    catalog = {
+        "a": CatalogEntry(
+            id="a",
+            name="A",
+            category="supplement_current",
+            hr_observed=1.0,
+            log_sd=0.05,
+            conf_alpha=1.0,
+            conf_beta=1.0,
+            annual_cost=0,
+            interaction_tags=["sedating"],
+            interaction_rules=[sedation_rule],
+        ),
+        "b": CatalogEntry(
+            id="b",
+            name="B",
+            category="supplement_current",
+            hr_observed=1.0,
+            log_sd=0.05,
+            conf_alpha=1.0,
+            conf_beta=1.0,
+            annual_cost=0,
+            interaction_tags=["sedating"],
+            interaction_rules=[sedation_rule],
+        ),
+    }
+
+    penalty, details = expected_stack_interaction_qaly(
+        item_ids=["a", "b"],
+        catalog_entries=catalog,
+        profile=_profile(),
+        item_active_years={"a": 1.0, "b": 4.0},
+    )
+
+    assert details[0]["active_years"] == 1.0
+    assert penalty == pytest.approx(-0.01, rel=0.05)
 
 
 def test_benefit_overlap_penalty_shrinks_same_domain_items():
@@ -154,6 +200,51 @@ def test_benefit_overlap_multiplier_can_reduce_penalty():
     )
 
     assert penalty == pytest.approx(-0.00675)
+
+
+def test_benefit_overlap_respects_shared_active_window():
+    catalog = {
+        "short": CatalogEntry(
+            id="short",
+            name="Short high-intensity benefit",
+            category="supplement_current",
+            hr_observed=1.0,
+            log_sd=0.05,
+            conf_alpha=1.0,
+            conf_beta=1.0,
+            annual_cost=0,
+            benefit_tags=["sleep_quality_support"],
+        ),
+        "long": CatalogEntry(
+            id="long",
+            name="Long lower-intensity benefit",
+            category="supplement_current",
+            hr_observed=1.0,
+            log_sd=0.05,
+            conf_alpha=1.0,
+            conf_beta=1.0,
+            annual_cost=0,
+            benefit_tags=["sleep_quality_support"],
+        ),
+    }
+
+    old_penalty, _ = expected_stack_interaction_qaly(
+        item_ids=["short", "long"],
+        catalog_entries=catalog,
+        profile=_profile(),
+        item_qalys={"short": 0.05, "long": 0.04},
+    )
+    new_penalty, details = expected_stack_interaction_qaly(
+        item_ids=["short", "long"],
+        catalog_entries=catalog,
+        profile=_profile(),
+        item_qalys={"short": 0.05, "long": 0.04},
+        item_active_years={"short": 1.0, "long": 10.0},
+    )
+
+    assert old_penalty == pytest.approx(-0.018)
+    assert abs(new_penalty) < abs(old_penalty) * 0.25
+    assert details[0]["time_aware"] is True
 
 
 class TestMechanismClusters:

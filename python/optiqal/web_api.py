@@ -28,6 +28,7 @@ from optiqal import (
     serialize_decision_state_evaluations,
 )
 from optiqal.lifecycle import CONDITION_DECREMENTS, get_mortality_rate, get_quality_weight
+from optiqal.defaults import DEFAULT_QALY_DISCOUNT_RATE
 from optiqal.profile import (
     ACTIVITY_MORTALITY_RR,
     BMI_MORTALITY_RR,
@@ -251,7 +252,7 @@ def build_baseline_response(payload: Dict[str, Any]) -> dict[str, Any]:
             sex=sex,
             mortality_multiplier=calibrated_multiplier,
             quality_decrement=_condition_quality_decrement(has_diabetes, has_hypertension),
-            discount_rate=0.0,
+            discount_rate=DEFAULT_QALY_DISCOUNT_RATE,
         )
         projections.append(projection)
         curves.append(projection["curve"])
@@ -261,7 +262,7 @@ def build_baseline_response(payload: Dict[str, Any]) -> dict[str, Any]:
     result = {
         "meta": {
             "model": "canonical_python_baseline",
-            "qaly_discount_rate": 0.0,
+            "qaly_discount_rate": DEFAULT_QALY_DISCOUNT_RATE,
             "explicit_inputs_only": True,
             "profile": {
                 "age": age,

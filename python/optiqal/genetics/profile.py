@@ -27,7 +27,7 @@ from .actionable import (
     call_hfe,
 )
 from .cpic import Phenotype, diplotype_to_phenotype
-from .parser import detect_and_parse
+from .parser import GenotypeFileSummary, detect_and_parse, summarize_genotype_file
 from .pgx import Diplotype, call_cyp2c19, call_cyp2d6
 
 
@@ -44,8 +44,10 @@ class GeneticProfile:
     diplotypes: Dict[str, Diplotype] = field(default_factory=dict)
     phenotypes: Dict[str, Phenotype] = field(default_factory=dict)
     actionable_findings: List[ActionableFinding] = field(default_factory=list)
-    ancestry_flags: Dict[str, bool] = field(default_factory=dict)  # e.g. {"ashkenazi_founder_screen": True}
+    # e.g. {"ashkenazi_founder_screen": True}
+    ancestry_flags: Dict[str, bool] = field(default_factory=dict)
     chip_version: Optional[str] = None
+    source_summary: Optional[GenotypeFileSummary] = None
 
     def has_phenotype(self, gene: str, phenotype: Phenotype) -> bool:
         return self.phenotypes.get(gene) == phenotype
@@ -73,6 +75,7 @@ def build_genetic_profile(
     disabled for report clarity.
     """
     calls = detect_and_parse(raw_path)
+    source_summary = summarize_genotype_file(raw_path, call_count=len(calls))
     diplotypes = {
         "CYP2D6": call_cyp2d6(calls),
         "CYP2C19": call_cyp2c19(calls),
@@ -90,4 +93,6 @@ def build_genetic_profile(
         diplotypes=diplotypes,
         phenotypes=phenotypes,
         actionable_findings=findings,
+        chip_version=source_summary.chip_version,
+        source_summary=source_summary,
     )

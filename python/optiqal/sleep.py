@@ -22,8 +22,10 @@ alone.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, Mapping, Optional
+
+from .reference_case import PUBLIC_HEALTH_UTILITY_WEIGHTS
 
 
 def _clamp(value: float, lo: float = 0.0, hi: float = 1.0) -> float:
@@ -78,15 +80,42 @@ class SleepBurdenEstimate:
     annual_qaly_loss: float
     mortality_signal: float
     airway: Optional[AirwayContributorEstimate] = None
+    component_utility_weight_ids: Dict[str, str] = field(default_factory=dict)
 
+
+INSOMNIA_UTILITY_WEIGHT_ID = "insomnia_disability_weight_europe_2015"
+SLEEP_APNOEA_UTILITY_WEIGHT_ID = "sleep_apnoea_disability_weight_europe_2015"
+
+NON_BREATHING_SLEEP_COMPONENT_SHARES = {
+    "duration": 0.2500,
+    "continuity": 0.1667,
+    "quality": 0.2083,
+    "regularity": 0.1250,
+    "daytime": 0.2500,
+}
+
+SLEEP_COMPONENT_UTILITY_WEIGHT_IDS = {
+    "duration": INSOMNIA_UTILITY_WEIGHT_ID,
+    "continuity": INSOMNIA_UTILITY_WEIGHT_ID,
+    "quality": INSOMNIA_UTILITY_WEIGHT_ID,
+    "regularity": INSOMNIA_UTILITY_WEIGHT_ID,
+    "daytime": INSOMNIA_UTILITY_WEIGHT_ID,
+    "breathing": SLEEP_APNOEA_UTILITY_WEIGHT_ID,
+}
+
+_INSOMNIA_DECREMENT = PUBLIC_HEALTH_UTILITY_WEIGHTS[
+    INSOMNIA_UTILITY_WEIGHT_ID
+].utility_decrement
+_SLEEP_APNOEA_DECREMENT = PUBLIC_HEALTH_UTILITY_WEIGHTS[
+    SLEEP_APNOEA_UTILITY_WEIGHT_ID
+].utility_decrement
 
 COMPONENT_MAX_ANNUAL_QALY_LOSS = {
-    "duration": 0.0060,
-    "continuity": 0.0040,
-    "quality": 0.0050,
-    "regularity": 0.0030,
-    "daytime": 0.0060,
-    "breathing": 0.0200,
+    **{
+        component: _INSOMNIA_DECREMENT * share
+        for component, share in NON_BREATHING_SLEEP_COMPONENT_SHARES.items()
+    },
+    "breathing": _SLEEP_APNOEA_DECREMENT,
 }
 
 # Mortality is only supported well enough to use a subset of sleep components.
@@ -252,6 +281,7 @@ def estimate_sleep_burden(metrics: SleepMetrics) -> SleepBurdenEstimate:
         annual_qaly_loss=sum(losses.values()),
         mortality_signal=mortality_signal,
         airway=airway,
+        component_utility_weight_ids=dict(SLEEP_COMPONENT_UTILITY_WEIGHT_IDS),
     )
 
 
@@ -347,7 +377,42 @@ def apply_sleep_study(
             mucus_probability=mucus_probability,
             response_signal=response_signal,
         ),
+        component_utility_weight_ids=(
+            dict(estimate.component_utility_weight_ids)
+            if estimate.component_utility_weight_ids
+            else dict(SLEEP_COMPONENT_UTILITY_WEIGHT_IDS)
+        ),
     )
+
+
+def sleep_utility_lineage(
+    estimate: SleepBurdenEstimate,
+    component_filter: Mapping[str, float] | None = None,
+) -> Dict[str, dict[str, object]]:
+    """Return source utility weights for sleep components used in a QALY estimate."""
+    lineage: Dict[str, dict[str, object]] = {}
+    component_ids = (
+        estimate.component_utility_weight_ids
+        if estimate.component_utility_weight_ids
+        else SLEEP_COMPONENT_UTILITY_WEIGHT_IDS
+    )
+    for component, weight_id in component_ids.items():
+        if component_filter is not None and float(component_filter.get(component, 0.0)) <= 0:
+            continue
+        weight = PUBLIC_HEALTH_UTILITY_WEIGHTS[weight_id]
+        annual_loss = float(estimate.component_losses.get(component, 0.0))
+        lineage[component] = {
+            "utility_weight_id": weight.id,
+            "label": weight.label,
+            "instrument": weight.instrument,
+            "reference_case_status": weight.reference_case_status,
+            "utility_decrement": weight.utility_decrement,
+            "source_url": weight.source_url,
+            "citation": weight.citation,
+            "component_annual_loss": round(annual_loss, 6),
+            "component_burden": round(float(estimate.component_burdens.get(component, 0.0)), 6),
+        }
+    return lineage
 
 
 def estimate_sleep_relief_annual_qaly(

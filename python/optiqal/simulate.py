@@ -14,7 +14,12 @@ from .defaults import (
     DEFAULT_QALY_DISCOUNT_RATE,
     validate_qaly_discount_rate,
 )
-from .intervention import HarmEffect, InteractionRule, Intervention
+from .intervention import (
+    HarmEffect,
+    InteractionRule,
+    Intervention,
+    allocate_interaction_rule,
+)
 from .lifecycle import LifecycleModel, PathwayHRs, get_mortality_rate, get_quality_weight, get_cause_fraction, QUALITY_WEIGHT_STD
 from .confounding import adjust_hr
 from .profile import Profile, get_baseline_mortality_multiplier, get_intervention_modifier
@@ -288,6 +293,22 @@ def _simulate_policy_from_pathways(
     )
 
 
+def _active_years_curve(n_years: int, active_years: Optional[float]) -> np.ndarray:
+    """Return an annual exposure curve with a possible fractional final year."""
+    if active_years is None:
+        return np.ones(n_years)
+    active_years = float(active_years)
+    if active_years <= 0:
+        return np.zeros(n_years)
+    curve = np.zeros(n_years)
+    full_years = min(int(np.floor(active_years)), n_years)
+    curve[:full_years] = 1.0
+    remainder = active_years - full_years
+    if remainder > 0 and full_years < n_years:
+        curve[full_years] = remainder
+    return curve
+
+
 def _sample_distribution(
     dist,
     n_simulations: int,
@@ -314,7 +335,7 @@ def _triggered_interaction_rules(
         threshold = rule.minimum_matches or len(rule.requires_tags)
         matches = sum(tag_counts[tag] for tag in rule.requires_tags)
         if matches >= threshold and all(tag_counts[tag] > 0 for tag in rule.requires_tags):
-            triggered.append(rule)
+            triggered.append(allocate_interaction_rule(rule, matches))
 
     return triggered
 
@@ -390,6 +411,7 @@ def simulate_qaly_profile_vectorized(
     active_interaction_tags: Optional[Iterable[str]] = None,
     baseline_hazard_multiplier: float = 1.0,
     global_intervention_hr_multiplier: float = 1.0,
+    active_years: Optional[float] = None,
     apply_confounding: bool = True,
     random_state: Optional[int] = None,
     return_qaly_gains: bool = False,
@@ -400,12 +422,14 @@ def simulate_qaly_profile_vectorized(
     Uses NumPy broadcasting to process all simulations at once.
 
     Args:
-        discount_rate: Discount rate for QALYs (default 0%).
-        cost_discount_rate: Discount rate for costs (default 5% — opportunity
-            cost of investing in equities instead).
+        discount_rate: Discount rate for QALYs (default 3% reference-case rate).
+        cost_discount_rate: Discount rate for costs (default 3% reference-case rate).
         annual_persistence: Probability of renewing the intervention each year
             after the current year. Used to compute continuation-adjusted and
             one-year-only policy views for reversible interventions.
+        active_years: Optional hard active-duration window for the primary policy.
+            When provided, benefits, harms, and costs are only applied over this
+            many years, with a prorated final year.
         return_qaly_gains: When true, also return the simulated net QALY draws.
     """
     discount_rate = validate_qaly_discount_rate(discount_rate)
@@ -418,6 +442,16 @@ def simulate_qaly_profile_vectorized(
     # Pre-compute year arrays (static for all simulations)
     max_age = 100
     n_years = max_age - profile.age
+    if n_years <= 0:
+        # Profile age is at or beyond the modeled horizon, so there are no
+        # remaining life-years to simulate. Return a null result instead of
+        # crashing on empty/negative-length arrays below.
+        zero = _zero_result(
+            n_simulations,
+            discount_rate=discount_rate,
+            cost_discount_rate=cost_discount_rate,
+        )
+        return (zero, np.zeros(n_simulations)) if return_qaly_gains else zero
     years = np.arange(n_years)
     ages = profile.age + years
 
@@ -483,9 +517,9 @@ def simulate_qaly_profile_vectorized(
     baseline_qalys_per_year = baseline_survival[None, :] * quality * discount[None, :]
     baseline_qalys_total = np.sum(baseline_qalys_per_year, axis=1)  # (n_simulations,)
 
-    full_curve = np.ones(n_years)
+    full_curve = _active_years_curve(n_years, active_years)
     persistence = float(np.clip(annual_persistence, 0.0, 1.0))
-    continuation_curve = persistence ** years
+    continuation_curve = full_curve * (persistence ** years)
     one_year_curve = np.zeros(n_years)
     one_year_curve[0] = 1.0
 
@@ -680,7 +714,7 @@ def simulate_qaly(
         age: Starting age
         sex: Biological sex for life table lookup
         n_simulations: Number of Monte Carlo iterations
-        discount_rate: Annual discount rate (default 0%)
+        discount_rate: Annual discount rate (default 3% reference-case rate)
         apply_confounding: Whether to apply confounding adjustment
         random_state: Random seed for reproducibility
 
@@ -777,7 +811,7 @@ def simulate_qaly_profile(
         intervention: Intervention to simulate
         profile: Demographic profile (age, sex, BMI, smoking, diabetes)
         n_simulations: Number of Monte Carlo iterations
-        discount_rate: Annual discount rate (default 0%)
+        discount_rate: Annual discount rate (default 3% reference-case rate)
         apply_confounding: Whether to apply confounding adjustment
         random_state: Random seed for reproducibility
 

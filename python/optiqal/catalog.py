@@ -17,10 +17,8 @@ import numpy as np
 
 from .confounding import (
     ConfoundingPrior,
-    hr_to_lognormal_params,
     publication_bias_correct,
     shrinkage_for_study_quality,
-    STUDY_QUALITY_SHRINKAGE,
 )
 from .defaults import (
     DEFAULT_COST_DISCOUNT_RATE,
@@ -37,10 +35,10 @@ from .intervention import (
 from .profile import Profile
 from .sleep import (
     SleepBurdenEstimate,
-    estimate_airway_target_multiplier,
     effective_sleep_component_relief,
-    estimate_sleep_relief_annual_qaly,
+    estimate_airway_target_multiplier,
     estimate_sleep_mortality_relief_fraction,
+    estimate_sleep_relief_annual_qaly,
     sleep_baseline_mortality_multiplier,
     sleep_intervention_mortality_hr_multiplier,
 )
@@ -90,6 +88,17 @@ class AccessProfile:
     coverage_outlook: Literal["na", "likely", "mixed", "unlikely"] = "na"
     friction: Literal["low", "medium", "high"] = "medium"
     notes: str = ""
+
+
+@dataclass(frozen=True)
+class QolEffect:
+    """Named non-mortality QALY effect with explicit uncertainty."""
+
+    id: str
+    label: str
+    annual_qaly: Distribution
+    description: str = ""
+    source: Optional[str] = None
 
 
 EVIDENCE_EFFECT_MULTIPLIERS: Dict[Literal["high", "moderate", "low", "very-low"], float] = {
@@ -414,6 +423,7 @@ class CatalogEntry:
     conf_beta: float  # Beta prior beta for causal fraction
     annual_cost: float  # Annual cost in USD
     qol_annual: float = 0.0  # Annual QoL effect in QALYs (non-mortality)
+    qol_effects: List[QolEffect] = field(default_factory=list)
     qol_years: float = 40.0
     has_direct_mortality_effect: bool = True
     harm_effects: List[HarmEffect] = field(default_factory=list)
@@ -479,8 +489,12 @@ class CatalogEntry:
     def evidence_confidence(self) -> Literal["high", "medium", "low"]:
         return EVIDENCE_CONFIDENCE_LABELS[self.evidence_quality]
 
+    def raw_qol_annual(self) -> float:
+        """Expected annual non-mortality QALY before evidence shrinkage."""
+        return self.qol_annual + sum(effect.annual_qaly.mean for effect in self.qol_effects)
+
     def effective_qol_annual(self) -> float:
-        return self.qol_annual * self.evidence_effect_multiplier()
+        return self.raw_qol_annual() * self.evidence_effect_multiplier()
 
     def raw_sleep_qol_annual(
         self,
@@ -631,6 +645,7 @@ SEDATION_STACK_RULE = InteractionRule(
     id="sedation_stack",
     requires_tags=["sedating"],
     minimum_matches=2,
+    allocation="split_across_matches",
     description="Extra grogginess and coordination cost from stacking sedating agents.",
     annual_qaly_loss=Distribution(type="point", params={"value": 0.0015}),
 )
@@ -639,6 +654,7 @@ BLEEDING_STACK_RULE = InteractionRule(
     id="bleeding_stack",
     requires_tags=["bleeding_stack"],
     minimum_matches=3,
+    allocation="split_across_matches",
     description="Small but non-zero additive bleeding risk from combining several blood-thinning agents.",
     event_probability=Distribution(type="point", params={"value": 0.0008}),
     event_qaly_loss=Distribution(type="point", params={"value": 0.05}),
@@ -648,6 +664,7 @@ DUPLICATE_VITAMIN_D_RULE = InteractionRule(
     id="duplicate_vitamin_d",
     requires_tags=["vitamin_d"],
     minimum_matches=2,
+    allocation="split_across_matches",
     description="Redundant vitamin D dosing in an already replete user adds nuisance and modest downside.",
     annual_qaly_loss=Distribution(type="point", params={"value": 0.0002}),
 )
@@ -1359,7 +1376,7 @@ _add(CatalogEntry(
     hr_observed=0.88, log_sd=0.08, conf_alpha=4.5, conf_beta=1.5,
     annual_cost=120, qol_annual=-0.002,
     benefit_tags=["cardiometabolic_support"],
-    notes="CTT meta: 21% CVD reduction per mmol/L LDL. LDL already 64.",
+    notes="CTT meta: 21% CVD reduction per mmol/L LDL.",
 ))
 
 # ---------------------------------------------------------------------------
@@ -1383,9 +1400,9 @@ _add(CatalogEntry(
     notes="VITAL NS. Bolland meta D3 HR 0.97.",
 ))
 _add(CatalogEntry(
-    "magnesium_200", "Magnesium 200mg", "supplement_current",
+    "magnesium_200", "Magnesium 400mg", "supplement_current",
     hr_observed=0.90, log_sd=0.12, conf_alpha=2.0, conf_beta=3.5,
-    annual_cost=120, qol_annual=0.0005,
+    annual_cost=146, qol_annual=0.0005,
     sleep_component_relief={
         "duration": 0.08,
         "quality": 0.20,
@@ -1397,7 +1414,10 @@ _add(CatalogEntry(
         "sleep_daytime_support",
         "cardiometabolic_support",
     ],
-    notes="Fang meta. BP RCTs.",
+    notes=(
+        "Current dose is 400mg supplemental magnesium. Benefit is capped for diminishing returns; "
+        "watch GI tolerance because the NIH supplemental UL is 350mg/day."
+    ),
 ))
 _add(CatalogEntry(
     "garlic_1200", "Garlic 1200mg", "supplement_current",
@@ -1411,9 +1431,53 @@ _add(CatalogEntry(
 _add(CatalogEntry(
     "creatine_5g", "Creatine 5g", "supplement_current",
     hr_observed=0.98, log_sd=0.08, conf_alpha=1.0, conf_beta=6.0,
-    annual_cost=120, qol_annual=0.005,
+    annual_cost=120,
+    qol_effects=[
+        QolEffect(
+            id="strength_power_lean_mass",
+            label="Strength / power / lean mass",
+            annual_qaly=Distribution(type="normal", params={"mean": 0.0030, "sd": 0.0011}),
+            description=(
+                "Resistance-training performance and lean-mass support; more valuable with "
+                "aging reserve value and low dietary creatine."
+            ),
+            source="https://jissn.biomedcentral.com/articles/10.1186/s12970-017-0173-z",
+        ),
+        QolEffect(
+            id="cognitive_resilience",
+            label="Cognitive resilience",
+            annual_qaly=Distribution(type="normal", params={"mean": 0.0015, "sd": 0.0010}),
+            description=(
+                "Small average cognitive benefit, likely concentrated in memory/attention "
+                "and under higher brain-energy stress."
+            ),
+            source="https://www.frontiersin.org/journals/nutrition/articles/10.3389/fnut.2024.1424972/full",
+        ),
+        QolEffect(
+            id="functional_reserve",
+            label="Functional reserve",
+            annual_qaly=Distribution(type="normal", params={"mean": 0.0008, "sd": 0.0006}),
+            description="Small long-run reserve value from maintaining training capacity and muscle function.",
+        ),
+    ],
+    harm_effects=[
+        HarmEffect(
+            id="gi_water_weight_lab_noise",
+            description="GI nuisance, water-weight friction, and serum-creatinine/eGFR interpretability cost.",
+            annual_qaly_loss=Distribution(type="normal", params={"mean": 0.0003, "sd": 0.0002}),
+            source="https://bmcnephrol.biomedcentral.com/articles/10.1186/s12882-025-04558-6",
+        ),
+    ],
     benefit_tags=["performance_recovery"],
-    notes="Muscle/cognitive RCTs. No mortality.",
+    notes=(
+        "No mortality RCTs. QoL decomposed into strength/lean-mass, cognitive-resilience, "
+        "and functional-reserve components; nuisance harm captures GI/water-weight and creatinine lab noise."
+    ),
+    sources=[
+        "https://jissn.biomedcentral.com/articles/10.1186/s12970-017-0173-z",
+        "https://www.frontiersin.org/journals/nutrition/articles/10.3389/fnut.2024.1424972/full",
+        "https://bmcnephrol.biomedcentral.com/articles/10.1186/s12882-025-04558-6",
+    ],
 ))
 _add(CatalogEntry(
     "nac_1200", "NAC 1200mg", "supplement_current",
@@ -1513,18 +1577,19 @@ _add(CatalogEntry(
     notes="Gut health markers.",
 ))
 _add(CatalogEntry(
-    "probiotic_daily", "Daily probiotics", "supplement_candidate",
+    "probiotic_daily", "Daily probiotics", "supplement_bought",
     hr_observed=1.0, log_sd=0.08, conf_alpha=1.2, conf_beta=5.6,
-    annual_cost=258, qol_annual=0.001,
+    annual_cost=273, qol_annual=0.001,
     has_direct_mortality_effect=False,
     evidence_quality="low",
     benefit_tags=["gut_support"],
     notes=(
         "Modeled as a low-evidence GI-support intervention, not a hard-endpoint longevity lever. "
-        "Annual cost uses Sports Research Probiotic 60 Billion at the current official subscribe-and-save price."
+        "Annual cost uses Sports Research Probiotic 60 Billion at the current official subscribe-and-save price; "
+        "the currently owned expiring bottle has near-zero marginal cost."
     ),
     sources=[
-        "https://preview.sportsresearch.com/products/daily-probiotics",
+        "https://www.sportsresearch.store/products/probiotic-60-billion",
         "https://pubmed.ncbi.nlm.nih.gov/24230488/",
         "https://pubmed.ncbi.nlm.nih.gov/41233756/",
     ],
@@ -1647,19 +1712,19 @@ _add(CatalogEntry(
 _add(CatalogEntry(
     "cocoa_flavanols_500", "Cocoa flavanols ~500mg", "supplement_current",
     hr_observed=0.90, log_sd=0.12, conf_alpha=2.5, conf_beta=3.0,
-    annual_cost=520, qol_annual=0.001,
+    annual_cost=260, qol_annual=0.001,
     benefit_tags=["cardiometabolic_support"],
     notes=(
         "COSMOS RCT HR 0.73 CVD. "
         "Blueprint Cocoa priced at $41/container with 60 scoops x 5.76g; "
-        "at ~12g/day this is ~29 days/container, or ~$520/yr."
+        "at ~6g/day this is ~58 days/container, or ~$260/yr."
     ),
 ))
 _add(CatalogEntry(
     "hyaluronic_acid_120", "Hyaluronic acid (oral)", "supplement_current",
     hr_observed=0.99, log_sd=0.08, conf_alpha=1.0, conf_beta=7.0,
     annual_cost=0, qol_annual=0.001,
-    notes="Already 120mg in Longevity Mix. Joint/skin. No mortality.",
+    notes="Joint/skin support. No mortality effect.",
     evidence_quality="low",
 ))
 
@@ -1815,15 +1880,36 @@ _add(CatalogEntry(
     notes="Methyl donor. Homocysteine reduction. Often paired with NR/NMN.",
 ))
 _add(CatalogEntry(
-    "ashwagandha_600", "Ashwagandha 600mg", "supplement_candidate",
+    "ashwagandha_600", "Ashwagandha 600mg", "supplement_bought",
     hr_observed=0.96, log_sd=0.15, conf_alpha=1.2, conf_beta=5.0,
     annual_cost=60, qol_annual=0.0010,
     harm_effects=[
         HarmEffect(
-            id="rare_liver_or_thyroid_issue",
-            description="Rare liver injury or thyroid overactivation.",
+            id="sedation_or_emotional_blunting",
+            description="Next-day dulling, sedation, or emotional blunting during use.",
+            annual_qaly_loss=Distribution(type="normal", params={"mean": 0.00015, "sd": 0.00015}),
+            source="https://www.nccih.nih.gov/health/ashwagandha",
+        ),
+        HarmEffect(
+            id="gi_intolerance",
+            description="GI upset, nausea, diarrhea, or vomiting.",
+            event_probability=Distribution(type="point", params={"value": 0.015}),
+            event_qaly_loss=Distribution(type="point", params={"value": 0.003}),
+            source="https://www.ncbi.nlm.nih.gov/books/NBK548536/",
+        ),
+        HarmEffect(
+            id="thyroid_overactivation",
+            description="Thyroid overactivation, thyroiditis, palpitations, or anxiety.",
+            event_probability=Distribution(type="point", params={"value": 0.0015}),
+            event_qaly_loss=Distribution(type="point", params={"value": 0.035}),
+            source="https://pubmed.ncbi.nlm.nih.gov/28829155/",
+        ),
+        HarmEffect(
+            id="rare_liver_injury",
+            description="Rare clinically apparent liver injury.",
             event_probability=Distribution(type="point", params={"value": 0.001}),
             event_qaly_loss=Distribution(type="point", params={"value": 0.08}),
+            source="https://www.ncbi.nlm.nih.gov/books/NBK548536/",
         ),
     ],
     interaction_tags=["sedating", "thyroid_active"],
@@ -2776,6 +2862,8 @@ def public_display_category(entry: CatalogEntry, policy: Optional[PublicPolicy] 
         return display_category_override
     if entry.category.startswith("rx_"):
         return "rx"
+    if entry.category.startswith("sleep_"):
+        return "sleep"
     return "supplement"
 
 
@@ -2959,6 +3047,82 @@ def get_catalog(
     return {k: v for k, v in CATALOG.items() if v.category in categories}
 
 
+def _sample_catalog_distribution(
+    dist: Distribution,
+    n_simulations: int,
+    rng: np.random.Generator,
+) -> np.ndarray:
+    """Sample a catalog Distribution using the entry-local RNG."""
+    return dist.sample(
+        n_simulations,
+        random_state=int(rng.integers(0, np.iinfo(np.uint32).max)),
+    )
+
+
+def _summarize_qaly_draws(draws: np.ndarray) -> Dict[str, float]:
+    """Return expected QALY and day summaries for one uncertain component."""
+    return {
+        "mean_qaly": float(np.mean(draws)),
+        "ci95_qaly_low": float(np.percentile(draws, 2.5)),
+        "ci95_qaly_high": float(np.percentile(draws, 97.5)),
+        "mean_days": float(np.mean(draws) * 365.25),
+        "ci95_days_low": float(np.percentile(draws, 2.5) * 365.25),
+        "ci95_days_high": float(np.percentile(draws, 97.5) * 365.25),
+        "p_positive": float(np.mean(draws > 0)),
+    }
+
+
+def _simulate_qol_effect_draws(
+    entry: CatalogEntry,
+    *,
+    qol_factor: float,
+    evidence_multiplier: float,
+    n_simulations: int,
+    rng: np.random.Generator,
+) -> tuple[np.ndarray, np.ndarray, List[Dict[str, Any]]]:
+    """Sample named QoL components and preserve the legacy scalar component."""
+    raw_qol_draws = np.zeros(n_simulations)
+    qol_draws = np.zeros(n_simulations)
+    component_summaries: List[Dict[str, Any]] = []
+
+    if entry.qol_annual != 0:
+        raw_component = np.full(n_simulations, entry.qol_annual * qol_factor)
+        component = raw_component * evidence_multiplier
+        raw_qol_draws += raw_component
+        qol_draws += component
+
+    for effect in entry.qol_effects:
+        annual_draws = _sample_catalog_distribution(
+            effect.annual_qaly,
+            n_simulations,
+            rng,
+        )
+        raw_component = annual_draws * qol_factor
+        component = raw_component * evidence_multiplier
+        raw_qol_draws += raw_component
+        qol_draws += component
+        annual_summary = _summarize_qaly_draws(annual_draws * evidence_multiplier)
+        lifetime_summary = _summarize_qaly_draws(component)
+        component_summaries.append({
+            "id": effect.id,
+            "label": effect.label,
+            "description": effect.description,
+            "source": effect.source,
+            "annual_mean_qaly": annual_summary["mean_qaly"],
+            "annual_ci95_qaly_low": annual_summary["ci95_qaly_low"],
+            "annual_ci95_qaly_high": annual_summary["ci95_qaly_high"],
+            "mean_qaly": lifetime_summary["mean_qaly"],
+            "ci95_qaly_low": lifetime_summary["ci95_qaly_low"],
+            "ci95_qaly_high": lifetime_summary["ci95_qaly_high"],
+            "mean_days": lifetime_summary["mean_days"],
+            "ci95_days_low": lifetime_summary["ci95_days_low"],
+            "ci95_days_high": lifetime_summary["ci95_days_high"],
+            "p_positive": lifetime_summary["p_positive"],
+        })
+
+    return raw_qol_draws, qol_draws, component_summaries
+
+
 def simulate_catalog(
     profile,
     n_simulations: int = 50_000,
@@ -2979,9 +3143,8 @@ def simulate_catalog(
     Returns list of dicts with: id, name, category, hr_observed, hr_corrected,
     total_qaly, days, p_benefit, annual_cost, gross_value, cost_per_qaly.
 
-    Costs are survival-weighted and discounted at cost_discount_rate (default 5%,
-    reflecting opportunity cost of investing in equities). QALYs are
-    undiscounted by default.
+    Costs and QALYs use the shared reference-case discount defaults unless
+    explicitly overridden for sensitivity analysis.
     """
     from .simulate import (
         effective_qol_factor_for_years,
@@ -2999,7 +3162,7 @@ def simulate_catalog(
     results = []
     baseline_sleep_hazard_multiplier = sleep_baseline_mortality_multiplier(sleep_estimate)
 
-    for entry in entries.values():
+    for entry_index, entry in enumerate(entries.values()):
         effect_multiplier = entry.profile_effect_multiplier(profile)
         evidence_multiplier = entry.evidence_effect_multiplier()
         effective_shrinkage = entry.effective_pub_bias_shrinkage(fallback=pub_bias_shrinkage)
@@ -3007,7 +3170,7 @@ def simulate_catalog(
         sleep_mortality_hr_multiplier = entry.sleep_mortality_hr_multiplier(sleep_estimate)
         sleep_mortality_relief_fraction = entry.sleep_mortality_relief_fraction(sleep_estimate)
         airway_effect_multiplier = entry.airway_effect_multiplier(sleep_estimate)
-        r = simulate_qaly_profile_vectorized(
+        r, base_qaly_draws = simulate_qaly_profile_vectorized(
             intervention, profile,
             n_simulations=n_simulations,
             discount_rate=qaly_discount_rate,
@@ -3016,6 +3179,7 @@ def simulate_catalog(
             baseline_hazard_multiplier=baseline_sleep_hazard_multiplier,
             global_intervention_hr_multiplier=sleep_mortality_hr_multiplier,
             random_state=random_state,
+            return_qaly_gains=True,
         )
         hr_corrected = publication_bias_correct(
             entry.hr_observed, shrinkage=effective_shrinkage,
@@ -3028,14 +3192,33 @@ def simulate_catalog(
             qol_years,
             r.expected_qol_factor,
         )
-        raw_qol_qaly = entry.qol_annual * qol_factor
-        qol_qaly = entry.effective_qol_annual() * qol_factor
+        qol_rng = np.random.default_rng(
+            np.random.SeedSequence([
+                int(random_state) if random_state is not None else 0,
+                entry_index,
+                9917,
+            ])
+        )
+        raw_qol_draws, qol_draws, qol_effect_summaries = _simulate_qol_effect_draws(
+            entry,
+            qol_factor=qol_factor,
+            evidence_multiplier=evidence_multiplier,
+            n_simulations=n_simulations,
+            rng=qol_rng,
+        )
+        raw_qol_qaly = float(np.mean(raw_qol_draws))
+        qol_qaly = float(np.mean(qol_draws))
         raw_sleep_qol_annual = entry.raw_sleep_qol_annual(sleep_estimate)
         sleep_qol_annual = entry.sleep_qol_annual(sleep_estimate)
         raw_sleep_qol_qaly = raw_sleep_qol_annual * qol_factor
         sleep_qol_qaly = sleep_qol_annual * qol_factor
         evidence_discount_qaly = (raw_qol_qaly - qol_qaly) + (raw_sleep_qol_qaly - sleep_qol_qaly)
-        total_qaly = mort_qaly + harm_qaly + qol_qaly + sleep_qol_qaly
+        total_qaly_draws = base_qaly_draws + qol_draws + sleep_qol_qaly
+        total_qaly = float(np.mean(total_qaly_draws))
+        total_qaly_ci95 = (
+            float(np.percentile(total_qaly_draws, 2.5)),
+            float(np.percentile(total_qaly_draws, 97.5)),
+        )
         # Survival-weighted discounted cost. Uses effective_annual_cost so
         # bundled items (NR, ubiquinol, astaxanthin, etc.) get their allocated
         # share of the Blueprint Essentials bundle price instead of free-riding.
@@ -3096,6 +3279,7 @@ def simulate_catalog(
             "interaction_harm_qaly": r.expected_interaction_harm_qalys,
             "raw_qol_qaly": raw_qol_qaly,
             "qol_qaly": qol_qaly,
+            "qol_effects": qol_effect_summaries,
             "qol_years": qol_years,
             "raw_sleep_qol_annual": raw_sleep_qol_annual,
             "sleep_qol_annual": sleep_qol_annual,
@@ -3107,6 +3291,9 @@ def simulate_catalog(
             "top_negative_component": top_negative_component,
             "total_qaly": total_qaly,
             "days": total_qaly * 365.25,
+            "total_qaly_ci95": total_qaly_ci95,
+            "ci_low": total_qaly_ci95[0] * 365.25,
+            "ci_high": total_qaly_ci95[1] * 365.25,
             # Median QALY of the mortality arm — convexity-invariant
             # diagnostic. Do NOT substitute for total_qaly in ICER / net-
             # monetary-benefit calculations; CEA arithmetic requires expected
@@ -3116,10 +3303,10 @@ def simulate_catalog(
             # Jensen-on-survival bias or heavy-tail harm exposure.
             "mortality_qaly_median": float(r.median),
             "mortality_qaly_mean": float(r.mean),
-            "p_benefit": r.prob_positive,
-            "p_harm": r.prob_negative,
-            "expected_upside_days": r.expected_upside * 365.25,
-            "expected_downside_days": r.expected_downside * 365.25,
+            "p_benefit": float(np.mean(total_qaly_draws > 0)),
+            "p_harm": float(np.mean(total_qaly_draws < 0)),
+            "expected_upside_days": float(np.mean(np.clip(total_qaly_draws, 0, None)) * 365.25),
+            "expected_downside_days": float(np.mean(np.clip(total_qaly_draws, None, 0)) * 365.25),
             "annual_cost": entry.annual_cost,
             "effective_annual_cost": effective_cost,
             "bundle_cost_share": entry.bundle_cost_share,

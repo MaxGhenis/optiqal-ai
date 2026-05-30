@@ -7,6 +7,7 @@ GeneticEffectRule → catalog multiplier wiring.
 """
 
 from pathlib import Path
+from zipfile import ZipFile
 
 import pytest
 
@@ -21,8 +22,9 @@ from optiqal.genetics import (
     call_hfe,
     diplotype_to_phenotype,
     parse_23andme,
+    summarize_genotype_file,
 )
-from optiqal.genetics.parser import parse_ancestry, detect_and_parse
+from optiqal.genetics.parser import detect_and_parse, parse_ancestry
 
 
 def _write_23andme(tmp_path: Path, genotypes: dict[str, tuple[str, int, str]]) -> Path:
@@ -94,6 +96,44 @@ class TestParser:
         calls = detect_and_parse(p)
         assert calls["rs4477212"].genotype == "AA"
 
+    def test_parse_23andme_phased_five_column_format(self, tmp_path):
+        p = tmp_path / "phased_genome.txt"
+        p.write_text(
+            "# This file contains calculated genotypes for each chromosome pair.\n"
+            "rs4477212\t1\t82154\tA\tA\n"
+            "rs3094315\t1\t752566\tA\tG\n"
+        )
+        calls = parse_23andme(p)
+        assert calls["rs4477212"].genotype == "AA"
+        assert calls["rs3094315"].genotype == "AG"
+
+    def test_detect_23andme_zip_prefers_non_statistical_genome(self, tmp_path):
+        p = tmp_path / "phased_genotype_data.zip"
+        with ZipFile(p, "w") as zf:
+            zf.writestr(
+                "phased_genome_statistical_sample.txt",
+                "rs4477212\t1\t82154\tC\tC\n",
+            )
+            zf.writestr(
+                "phased_genome_sample.txt",
+                "rs4477212\t1\t82154\tA\tA\n"
+                "rs3094315\t1\t752566\tA\tG\n",
+            )
+        calls = detect_and_parse(p)
+        assert calls["rs4477212"].genotype == "AA"
+        assert calls["rs3094315"].genotype == "AG"
+        summary = summarize_genotype_file(p, call_count=len(calls))
+        assert summary.compression == "zip"
+        assert summary.call_count == 2
+        assert summary.format_name == "23andMe"
+        assert summary.selected_member == "phased_genome_sample.txt"
+
+    def test_empty_genotype_file_fails_clearly(self, tmp_path):
+        p = tmp_path / "genome.zip"
+        p.write_bytes(b"")
+        with pytest.raises(ValueError, match="empty"):
+            detect_and_parse(p)
+
 
 class TestCyp2d6:
     def test_reference_diplotype(self, tmp_path):
@@ -133,6 +173,15 @@ class TestCyp2d6:
         assert dp.allele1 == "*4" and dp.allele2 == "*4"
         assert dp.activity_score == 0.0
         assert diplotype_to_phenotype(dp) == "poor_metabolizer"
+
+    def test_missing_defining_variants_is_unknown_not_reference(self, tmp_path):
+        p = _write_23andme(tmp_path, {
+            "rs1": ("22", 1, "GG"),
+        })
+        dp = call_cyp2d6(parse_23andme(p))
+        assert dp.diplotype == "unknown/unknown"
+        assert dp.activity_score is None
+        assert diplotype_to_phenotype(dp) == "unknown"
 
 
 class TestCyp2c19:
@@ -175,6 +224,14 @@ class TestCyp2c19:
         dp = call_cyp2c19(parse_23andme(p))
         assert dp.allele1 == "*2" and dp.allele2 == "*2"
         assert diplotype_to_phenotype(dp) == "poor_metabolizer"
+
+    def test_partial_missing_without_variant_is_unknown(self, tmp_path):
+        p = _write_23andme(tmp_path, {
+            "rs12248560": ("10", 96522463, "CC"),  # *17 absent
+        })
+        dp = call_cyp2c19(parse_23andme(p))
+        assert dp.diplotype == "unknown/unknown"
+        assert diplotype_to_phenotype(dp) == "unknown"
 
 
 class TestActionable:
@@ -352,7 +409,9 @@ class TestGeneticEffectRule:
                 phenotypes={"CYP2D6": "poor_metabolizer"},
             ),
         )
-        assert fin.profile_effect_multiplier(p_no) == fin.profile_effect_multiplier(p_with_pgx)
+        assert fin.profile_effect_multiplier(p_no) == fin.profile_effect_multiplier(
+            p_with_pgx,
+        )
 
 
 class TestReport:
@@ -373,6 +432,8 @@ class TestReport:
         })
         gp = build_genetic_profile(p, run_ashkenazi_brca=False)
         report = render_markdown_report(gp)
+        assert "Input summary" in report
+        assert "Marker coverage" in report
         assert "Pharmacogenomics" in report
         assert "CYP2D6" in report
         assert "Poor metabolizer" in report

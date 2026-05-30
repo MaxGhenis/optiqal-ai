@@ -93,7 +93,7 @@ Override that with `OPTIQAL_PAN_UKB_DATA_DIR=/path/to/pan-ukb` when needed.
 - **Pathway Decomposition**: Separates effects into CVD, cancer, and other mortality
 - **Confounding Adjustment**: Beta priors based on intervention category and evidence type
 - **E-Value Calculation**: Robustness assessment per VanderWeele & Ding (2017)
-- **Discounting**: Undiscounted QALYs by default; costs discounted at 5% real
+- **Discounting**: Health effects and costs discounted at 3% by default (US Second Panel reference case); 0–10% supported for sensitivity analysis
 - **YAML DSL**: Shared intervention format with TypeScript package
 
 ## License

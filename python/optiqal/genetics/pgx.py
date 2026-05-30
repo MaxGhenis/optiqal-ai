@@ -54,6 +54,8 @@ class Diplotype:
     allele2: str
     activity_score: Optional[float] = None
     notes: List[str] = field(default_factory=list)
+    callable_variants: int = 0
+    missing_variants: int = 0
 
     @property
     def diplotype(self) -> str:
@@ -105,6 +107,7 @@ def _call_gene(
 
     variant_copies: List[str] = []
     missing_variants: List[str] = []
+    callable_variants = 0
     for allele_name, allele_spec in alleles_sorted:
         if allele_name == "*1":
             continue
@@ -117,9 +120,41 @@ def _call_gene(
             if count is None:
                 missing_variants.append(f"{allele_name}:{rsid}")
                 continue
+            callable_variants += 1
             for _ in range(count):
                 if len(variant_copies) < 2:
                     variant_copies.append(allele_name)
+
+    notes: List[str] = []
+    if callable_variants == 0:
+        notes.append(
+            f"No {gene} star-allele-defining variants were genotyped; "
+            "phenotype is unknown rather than reference."
+        )
+    elif missing_variants and not variant_copies:
+        notes.append(
+            f"{gene} reference (*1/*1) cannot be assigned because some "
+            "star-allele-defining variants were not genotyped."
+        )
+    if missing_variants:
+        notes.append(
+            "Some star-allele-defining variants not genotyped on this chip: "
+            + ", ".join(missing_variants[:6])
+            + ("" if len(missing_variants) <= 6 else "...")
+        )
+    for limitation in gene_spec.get("chip_limitations", []):
+        notes.append(limitation)
+
+    if callable_variants == 0 or (missing_variants and not variant_copies):
+        return Diplotype(
+            gene=gene,
+            allele1="unknown",
+            allele2="unknown",
+            activity_score=None,
+            notes=notes,
+            callable_variants=callable_variants,
+            missing_variants=len(missing_variants),
+        )
 
     # Pad with reference alleles to reach diploid.
     while len(variant_copies) < 2:
@@ -136,22 +171,14 @@ def _call_gene(
             score_lookup.get(allele1, 1.0) + score_lookup.get(allele2, 1.0)
         )
 
-    notes: List[str] = []
-    if missing_variants:
-        notes.append(
-            "Some star-allele-defining variants not genotyped on this chip: "
-            + ", ".join(missing_variants[:6])
-            + ("" if len(missing_variants) <= 6 else "...")
-        )
-    for limitation in gene_spec.get("chip_limitations", []):
-        notes.append(limitation)
-
     return Diplotype(
         gene=gene,
         allele1=allele1,
         allele2=allele2,
         activity_score=activity_score,
         notes=notes,
+        callable_variants=callable_variants,
+        missing_variants=len(missing_variants),
     )
 
 

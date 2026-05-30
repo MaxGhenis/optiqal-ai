@@ -6,9 +6,11 @@ should call into this module rather than owning parallel model logic.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import sqlite3
+from collections import Counter
 from dataclasses import asdict, dataclass, field, replace
 from datetime import date
 from pathlib import Path
@@ -16,10 +18,20 @@ from typing import Any
 
 import numpy as np
 
-from .catalog import CATALOG, CatalogEntry
+from .catalog import CATALOG, CatalogEntry, public_display_category
 from .confounding import ConfoundingPrior
-from .intervention import Distribution, Intervention, MortalityEffect
+from .intervention import (
+    Distribution,
+    Intervention,
+    MortalityEffect,
+    allocate_interaction_rule,
+)
 from .profile import Profile
+from .reference_case import (
+    DEFAULT_REFERENCE_CASE,
+    get_public_health_utility_weight,
+    utility_reference_case_status,
+)
 from .simulate import simulate_qaly_profile_vectorized
 from .sleep import (
     AirwayContributorEstimate,
@@ -33,12 +45,95 @@ from .sleep import (
     estimate_sleep_relief_annual_qaly,
     sleep_baseline_mortality_multiplier,
     sleep_intervention_mortality_hr_multiplier,
+    sleep_utility_lineage,
 )
-
+from .stack_interactions import expected_stack_interaction_qaly
 
 N_SIMULATIONS = 40_000
 SEED = 42
-QALY_DISCOUNT_RATE = 0.0
+QALY_DISCOUNT_RATE = DEFAULT_REFERENCE_CASE.health_discount_rate
+COST_DISCOUNT_RATE = DEFAULT_REFERENCE_CASE.cost_discount_rate
+ACTIONABLE_STATUSES = {"considering", "testing", "watching"}
+CURRENT_STACK_STATUSES = {"taking", "testing"}
+REFERENCE_CASE_SENSITIVITY_RATES = (0.0, 0.015, 0.03, 0.05)
+SEXUAL_FUNCTION_QOL = ("erectile_dysfunction_tto_utility_gain_stolk_2000",)
+HAIR_QOL = ("mild_alopecia_areata_tto_proxy_2024",)
+STRESS_QOL = ("anxiety_disorders_mild_disability_weight_europe_2015",)
+SLEEP_RESIDUAL_QOL = (
+    "insomnia_disability_weight_europe_2015",
+    "anxiety_disorders_mild_disability_weight_europe_2015",
+)
+AIRWAY_SLEEP_QOL = (
+    "sleep_apnoea_disability_weight_europe_2015",
+    "insomnia_disability_weight_europe_2015",
+)
+GUT_QOL = ("irritable_bowel_syndrome_disability_weight_europe_2015",)
+BOWEL_HABIT_QOL = (
+    "constipation_disability_weight_europe_2015",
+    "irritable_bowel_syndrome_disability_weight_europe_2015",
+)
+UPPER_GI_QOL = ("gerd_disability_weight_europe_2015",)
+JOINT_QOL = ("low_back_pain_mild_disability_weight_europe_2015",)
+VISION_QOL = ("distance_vision_mild_impairment_disability_weight_europe_2015",)
+FUNCTION_QOL = ("motor_impairment_mild_disability_weight_europe_2015",)
+WEIGHT_RELATED_FUNCTION_QOL = FUNCTION_QOL + SLEEP_RESIDUAL_QOL
+ACUTE_MILD_QOL = (
+    "infectious_disease_acute_episode_mild_disability_weight_europe_2015",
+)
+ACUTE_MODERATE_QOL = (
+    "infectious_disease_acute_episode_moderate_disability_weight_europe_2015",
+)
+ACUTE_SEVERE_QOL = (
+    "infectious_disease_acute_episode_severe_disability_weight_europe_2015",
+)
+HARM_UTILITY_WEIGHT_IDS: dict[str, tuple[str, ...]] = {
+    "sexual_or_mood_side_effects": SEXUAL_FUNCTION_QOL + STRESS_QOL,
+    "sedation_stack": FUNCTION_QOL,
+    "bleeding_stack": ACUTE_SEVERE_QOL,
+    "duplicate_vitamin_d": ACUTE_MILD_QOL,
+    "headache_or_hypotension": ACUTE_MILD_QOL + FUNCTION_QOL,
+    "daytime_sedation": FUNCTION_QOL,
+    "residual_sedation": FUNCTION_QOL,
+    "next_day_somnolence": FUNCTION_QOL,
+    "antihistamine_hangover": FUNCTION_QOL,
+    "sedation_or_emotional_blunting": FUNCTION_QOL + STRESS_QOL,
+    "mouth_tape_irritation_or_fragmentation": ACUTE_MILD_QOL,
+    "rare_liver_or_thyroid_issue": ACUTE_SEVERE_QOL,
+    "rare_liver_injury": ACUTE_SEVERE_QOL,
+    "liver_injury": ACUTE_SEVERE_QOL,
+    "thyroid_overactivation": ACUTE_MODERATE_QOL + STRESS_QOL,
+    "gi_intolerance": GUT_QOL,
+    "ongoing_gi_side_effects": GUT_QOL,
+    "gallbladder_or_pancreatitis": ACUTE_SEVERE_QOL,
+    "bleeding": ACUTE_SEVERE_QOL,
+    "barotrauma_or_oxygen_toxicity": ACUTE_MODERATE_QOL,
+    "gray_market_peptide_quality_risk": ACUTE_MILD_QOL,
+    "gray_market_tb500_quality_risk": ACUTE_MILD_QOL,
+}
+QOL_UNCERTAINTY_RELATIVE_SD_BY_EVIDENCE = {
+    "high": 0.35,
+    "moderate": 0.60,
+    "low": 0.90,
+    "very-low": 1.25,
+}
+DEFAULT_QOL_UNCERTAINTY_RELATIVE_SD = 0.75
+LATENT_GLOBAL_SCORE_WEIGHT = 0.18
+LATENT_MECHANISM_SCORE_WEIGHT = 0.32
+LATENT_CATEGORY_SCORE_WEIGHT = 0.12
+LATENT_MAX_SHARED_SCORE_WEIGHT = 0.55
+PROTOCOL_OPTIMIZER_WTP = 200_000
+PROTOCOL_OPTIMIZER_MAX_STEPS = 40
+PROTOCOL_OPTIMIZER_MIN_IMPROVEMENT = 1e-6
+GLP1_STEP_WEIGHT_LOSS_FRACTION = 0.124
+GLP1_DURABLE_EFFECT_FRACTION = 0.65
+GLP1_DIABETES_WEIGHT_LOSS_MULTIPLIER = 0.70
+GLP1_ALL_CAUSE_PROXY_HR = 0.92
+GLP1_SOURCES = (
+    "https://pubmed.ncbi.nlm.nih.gov/37952131/",
+    "https://pubmed.ncbi.nlm.nih.gov/33567185/",
+    "https://pubmed.ncbi.nlm.nih.gov/35441470/",
+    "https://www.ncbi.nlm.nih.gov/books/NBK601688/",
+)
 
 @dataclass(frozen=True)
 class ProtocolContext:
@@ -109,8 +204,12 @@ class StackSpec:
     personalization: str | None = None
     rationale: str | None = None
     sources: tuple[str, ...] | None = None
+    general_qol_utility_weight_ids: tuple[str, ...] | None = None
+    general_qol_lineage_note: str | None = None
     sleep_component_relief: dict[str, float] | None = None
     airway_target_weights: dict[str, float] | None = None
+    apply_profile_effect_rules: bool = True
+    model_details: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -127,8 +226,12 @@ class ResolvedStackSpec:
     personalization: str
     rationale: str
     sources: tuple[str, ...]
+    general_qol_utility_weight_ids: tuple[str, ...] = ()
+    general_qol_lineage_note: str | None = None
     sleep_component_relief: dict[str, float] = field(default_factory=dict)
     airway_target_weights: dict[str, float] = field(default_factory=dict)
+    apply_profile_effect_rules: bool = True
+    model_details: dict[str, Any] | None = None
 
 
 def resolve_protocol_context(context: ProtocolContext | None = None) -> ProtocolContext:
@@ -149,8 +252,12 @@ def make_spec(
     personalization: str | None = None,
     rationale: str | None = None,
     sources: tuple[str, ...] | None = None,
+    general_qol_utility_weight_ids: tuple[str, ...] | None = None,
+    general_qol_lineage_note: str | None = None,
     sleep_component_relief: dict[str, float] | None = None,
     airway_target_weights: dict[str, float] | None = None,
+    apply_profile_effect_rules: bool = True,
+    model_details: dict[str, Any] | None = None,
 ) -> StackSpec:
     return StackSpec(
         item_id=item_id,
@@ -165,8 +272,16 @@ def make_spec(
         personalization=personalization,
         rationale=rationale,
         sources=None if sources is None else tuple(sources),
+        general_qol_utility_weight_ids=(
+            None
+            if general_qol_utility_weight_ids is None
+            else tuple(general_qol_utility_weight_ids)
+        ),
+        general_qol_lineage_note=general_qol_lineage_note,
         sleep_component_relief=None if sleep_component_relief is None else dict(sleep_component_relief),
         airway_target_weights=None if airway_target_weights is None else dict(airway_target_weights),
+        apply_profile_effect_rules=apply_profile_effect_rules,
+        model_details=None if model_details is None else dict(model_details),
     )
 
 
@@ -255,6 +370,12 @@ def resolve_stack_spec(
         personalization=fallback_notes if spec.personalization is None else spec.personalization,
         rationale=fallback_notes if spec.rationale is None else spec.rationale,
         sources=fallback_sources if spec.sources is None else tuple(spec.sources),
+        general_qol_utility_weight_ids=(
+            ()
+            if spec.general_qol_utility_weight_ids is None
+            else tuple(spec.general_qol_utility_weight_ids)
+        ),
+        general_qol_lineage_note=spec.general_qol_lineage_note,
         sleep_component_relief=(
             dict(spec.sleep_component_relief)
             if spec.sleep_component_relief is not None
@@ -265,6 +386,8 @@ def resolve_stack_spec(
             if spec.airway_target_weights is not None
             else dict(base_entry.airway_target_weights if base_entry is not None else {})
         ),
+        apply_profile_effect_rules=spec.apply_profile_effect_rules,
+        model_details=None if spec.model_details is None else dict(spec.model_details),
     )
 
 
@@ -297,6 +420,218 @@ def apply_spec_to_catalog_entry(
 
 def clamp(value: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, value))
+
+
+def _float_or_none(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+    if math.isnan(parsed):
+        return None
+    return parsed
+
+
+def latest_lab_value(
+    baseline: dict[str, Any],
+    marker: str,
+    default: float | None = None,
+) -> float | None:
+    parsed = _float_or_none(baseline.get("labs", {}).get(marker))
+    return default if parsed is None else parsed
+
+
+def glp1_obesity_qol_disutility(bmi_category: str) -> float:
+    """Annual function/QOL decrement available to recover through weight loss."""
+    return {
+        "normal": 0.0,
+        "overweight": 0.006,
+        "obese": 0.025,
+        "severely_obese": 0.050,
+    }.get(bmi_category, 0.0)
+
+
+def glp1_weight_loss_fraction(
+    profile: Profile,
+    *,
+    cardiometabolic_signal: float,
+) -> float:
+    """Durable placebo-subtracted weight-loss fraction for a phenotype.
+
+    STEP trials show about 12.4 percentage points placebo-subtracted loss at
+    68 weeks in obesity/overweight trial populations. This converts that to a
+    long-horizon expected fraction after persistence, discontinuation, and
+    regain, and zeroes intentional weight loss for normal-BMI profiles.
+    """
+    if profile.bmi_category == "normal":
+        return 0.0
+    if profile.bmi_category == "overweight":
+        raw = GLP1_STEP_WEIGHT_LOSS_FRACTION * (
+            0.45 + 0.35 * cardiometabolic_signal
+        )
+    elif profile.bmi_category == "obese":
+        raw = GLP1_STEP_WEIGHT_LOSS_FRACTION
+    else:
+        raw = GLP1_STEP_WEIGHT_LOSS_FRACTION * 1.10
+    if profile.has_diabetes:
+        raw *= GLP1_DIABETES_WEIGHT_LOSS_MULTIPLIER
+    return raw * GLP1_DURABLE_EFFECT_FRACTION
+
+
+def build_glp1_phenotype_model(
+    baseline: dict[str, Any],
+    profile: Profile,
+) -> dict[str, Any]:
+    """Phenotype-conditioned GLP-1 model for chronic semaglutide therapy."""
+    bmi = profile.bmi_midpoint
+    a1c = latest_lab_value(baseline, "HbA1c", 5.4)
+    glucose = latest_lab_value(baseline, "Glucose", 90.0)
+    cardio_need = float(baseline.get("derived", {}).get("cardio_need", 0.0))
+    sleep_breathing_burden = float(
+        baseline.get("derived", {})
+        .get("sleep_component_burdens", {})
+        .get("breathing", 0.0)
+    )
+    diabetes_signal = 1.0 if profile.has_diabetes or (a1c or 0) >= 6.5 else 0.0
+    prediabetes_signal = max(
+        clamp(((a1c or 0.0) - 5.6) / 0.8, 0.0, 1.0),
+        clamp(((glucose or 0.0) - 100.0) / 25.0, 0.0, 1.0),
+    )
+    cardiometabolic_signal = clamp(
+        0.45 * cardio_need
+        + 0.25 * prediabetes_signal
+        + 0.20 * float(profile.has_hypertension)
+        + 0.20 * diabetes_signal
+        + 0.10 * float(profile.smoking_status == "current")
+        + 0.10 * clamp((profile.age - 45) / 20.0, 0.0, 1.0),
+        0.0,
+        1.0,
+    )
+    durable_weight_loss_fraction = glp1_weight_loss_fraction(
+        profile,
+        cardiometabolic_signal=cardiometabolic_signal,
+    )
+    excess_bmi_fraction = max(0.0, (bmi - 25.0) / bmi)
+    excess_bmi_reversal_fraction = (
+        0.0
+        if excess_bmi_fraction == 0.0
+        else clamp(durable_weight_loss_fraction / excess_bmi_fraction, 0.0, 1.0)
+    )
+    obesity_qol_disutility = glp1_obesity_qol_disutility(profile.bmi_category)
+    annual_weight_qol_gain = obesity_qol_disutility * excess_bmi_reversal_fraction
+    annual_glycemic_qol_gain = 0.0015 * diabetes_signal + 0.0007 * prediabetes_signal
+    lean_mass_penalty_rate = 0.006 if profile.activity_level in {"active", "moderate"} else 0.010
+    annual_lean_mass_penalty = durable_weight_loss_fraction * lean_mass_penalty_rate
+    annual_off_label_penalty = 0.001 if profile.bmi_category == "normal" else 0.0
+    net_qol_annual = (
+        annual_weight_qol_gain
+        + annual_glycemic_qol_gain
+        - annual_lean_mass_penalty
+        - annual_off_label_penalty
+    )
+
+    if profile.bmi_category == "normal":
+        cv_transport = 0.0
+    else:
+        cv_transport = clamp(
+            0.12
+            + 0.35 * cardiometabolic_signal
+            + 0.15 * diabetes_signal
+            + 0.10 * float(profile.bmi_category in {"obese", "severely_obese"})
+            + 0.08 * float(profile.age >= 50),
+            0.0,
+            0.85,
+        )
+        if profile.age < 45 and diabetes_signal == 0.0:
+            cv_transport *= 0.55
+    observed_hr = profile_adjusted_observed_hr(GLP1_ALL_CAUSE_PROXY_HR, cv_transport)
+
+    adiposity_signal = clamp((bmi - 25.0) / 10.0, 0.0, 1.0)
+    weight_loss_signal = clamp(durable_weight_loss_fraction / 0.10, 0.0, 1.0)
+    sleep_relief_signal = adiposity_signal * weight_loss_signal
+    sleep_component_relief = {
+        "breathing": round(0.18 * sleep_relief_signal, 4),
+        "daytime": round(0.06 * sleep_relief_signal, 4),
+        "quality": round(0.04 * sleep_relief_signal, 4),
+    }
+    if sleep_breathing_burden <= 0:
+        sleep_component_relief = {key: 0.0 for key in sleep_component_relief}
+
+    return {
+        "bmi_category": profile.bmi_category,
+        "bmi_midpoint": bmi,
+        "a1c": a1c,
+        "glucose": glucose,
+        "cardio_need": round(cardio_need, 4),
+        "diabetes_signal": round(diabetes_signal, 4),
+        "prediabetes_signal": round(prediabetes_signal, 4),
+        "cardiometabolic_signal": round(cardiometabolic_signal, 4),
+        "durable_weight_loss_fraction": round(durable_weight_loss_fraction, 4),
+        "excess_bmi_reversal_fraction": round(excess_bmi_reversal_fraction, 4),
+        "annual_weight_qol_gain": round(annual_weight_qol_gain, 6),
+        "annual_glycemic_qol_gain": round(annual_glycemic_qol_gain, 6),
+        "annual_lean_mass_penalty": round(annual_lean_mass_penalty, 6),
+        "annual_off_label_penalty": round(annual_off_label_penalty, 6),
+        "net_qol_annual": round(net_qol_annual, 6),
+        "cv_transport": round(cv_transport, 4),
+        "observed_hr": round(observed_hr, 6),
+        "all_cause_proxy_hr_source": GLP1_ALL_CAUSE_PROXY_HR,
+        "sleep_component_relief": sleep_component_relief,
+    }
+
+
+def build_semaglutide_spec(
+    baseline: dict[str, Any],
+    profile: Profile,
+) -> StackSpec:
+    model = build_glp1_phenotype_model(baseline, profile)
+    is_weight_indicated = profile.bmi_category != "normal"
+    phenotype_note = (
+        "No obesity, diabetes, hypertension, or strong cardiometabolic signal is present, "
+        "so benefits are zeroed except for a small off-label lean-mass/appetite downside."
+        if not is_weight_indicated
+        else (
+            f"Modeled durable weight loss of "
+            f"{model['durable_weight_loss_fraction']:.1%}, recovering "
+            f"{model['excess_bmi_reversal_fraction']:.0%} of excess-BMI function burden."
+        )
+    )
+    return make_spec(
+        "semaglutide",
+        observed_hr=float(model["observed_hr"]),
+        log_sd=0.10,
+        conf_alpha=2.2 if is_weight_indicated else 1.3,
+        conf_beta=4.8 if is_weight_indicated else 7.0,
+        qol_annual=float(model["net_qol_annual"]),
+        qol_years=10,
+        low_qaly=-0.12,
+        high_qaly=0.16 if is_weight_indicated else 0.01,
+        personalization=(
+            "GLP-1 model now keys off BMI category, glycemia, hypertension, age, "
+            f"and lipid/metabolic signal. {phenotype_note}"
+        ),
+        rationale=(
+            "Semaglutide is modeled as chronic obesity/metabolic therapy, not a generic "
+            "longevity peptide: STEP weight loss and HRQoL effects feed a function/QOL "
+            "overlay, SELECT informs only a transported hard-outcome proxy, and GI plus "
+            "biliary/pancreatic harms still apply."
+        ),
+        sources=GLP1_SOURCES,
+        general_qol_utility_weight_ids=WEIGHT_RELATED_FUNCTION_QOL,
+        general_qol_lineage_note=(
+            "Weight-loss utility is mapped to function and sleep-residual fallback weights; "
+            "the model stores explicit phenotype components in assumptions.model_details."
+        ),
+        sleep_component_relief={
+            key: float(value)
+            for key, value in model["sleep_component_relief"].items()
+            if float(value) > 0.0
+        },
+        apply_profile_effect_rules=False,
+        model_details=model,
+    )
 
 
 def apply_joint_fall_pathway(
@@ -358,8 +693,376 @@ def apply_joint_fall_pathway(
     )
 
 
-def discount_factor(years: int, rate: float = QALY_DISCOUNT_RATE) -> float:
-    return sum((1.0 / ((1.0 + rate) ** t)) for t in range(years))
+def discount_factor(years: float, rate: float = QALY_DISCOUNT_RATE) -> float:
+    """Present-value multiplier for an annual QOL stream.
+
+    ``qol_years`` enters through ``StackSpec`` resolution as a float, even when
+    the author wrote integer literals. Handle fractional durations by adding
+    the pro-rated final year at the next discount period.
+    """
+    if years <= 0:
+        return 0.0
+    full_years = int(math.floor(years))
+    remainder = years - full_years
+    total = sum((1.0 / ((1.0 + rate) ** t)) for t in range(full_years))
+    if remainder:
+        total += remainder / ((1.0 + rate) ** full_years)
+    return total
+
+
+def modeled_total_cost(
+    annual_cost: float | None,
+    years: float,
+    rate: float = COST_DISCOUNT_RATE,
+) -> float:
+    """Discounted cost over the same modeled duration as QOL effects."""
+    if annual_cost is None:
+        return 0.0
+    return float(annual_cost) * discount_factor(years, rate)
+
+
+def cost_per_qaly(total_cost: float, total_qaly: float) -> float | None:
+    if total_cost <= 0 or total_qaly <= 0:
+        return None
+    return total_cost / total_qaly
+
+
+def reference_case_payload() -> dict[str, Any]:
+    """Reference-case assumptions and current-protocol compliance metadata."""
+    discounting_matches_reference_case = (
+        abs(QALY_DISCOUNT_RATE - DEFAULT_REFERENCE_CASE.health_discount_rate) < 1e-12
+        and abs(COST_DISCOUNT_RATE - DEFAULT_REFERENCE_CASE.cost_discount_rate) < 1e-12
+    )
+    return {
+        "base": DEFAULT_REFERENCE_CASE.to_dict(),
+        "discount_sensitivity_rates": list(REFERENCE_CASE_SENSITIVITY_RATES),
+        "utility_source_priority": [
+            {
+                "instrument": instrument,
+                "status": utility_reference_case_status(instrument),
+            }
+            for instrument in DEFAULT_REFERENCE_CASE.utility_preference_order
+        ],
+        "current_protocol_model": {
+            "health_discount_rate": QALY_DISCOUNT_RATE,
+            "cost_discount_rate": COST_DISCOUNT_RATE,
+            "discounting_matches_reference_case": discounting_matches_reference_case,
+            "is_formal_reference_case": False,
+            "reference_case_alignment": (
+                "reference_case_discounting_with_fallback_utility_lineage"
+                if discounting_matches_reference_case
+                else "fallback_utility_lineage_only"
+            ),
+            "gap": (
+                "The current personal protocol model now uses reference-case discounting. Sleep, "
+                "sexual-function, hair, GI, musculoskeletal, vision, stress, and functional QOL "
+                "overlays carry explicit utility lineage; rows without a defensible mapped utility "
+                "source get no generic QOL overlay. Some symptom overlays and direct harms still "
+                "use disability-weight fallback lineage rather than preferred EQ-5D/SF-6D/HUI "
+                "sources, so the output is reference-case aligned, not a formal reference-case "
+                "cost-utility analysis."
+            ),
+        },
+    }
+
+
+def profile_adjusted_observed_hr(observed_hr: float, multiplier: float) -> float:
+    """Apply catalog profile/genetic transport rules to a resolved HR."""
+    if observed_hr <= 0:
+        raise ValueError(f"Observed HR must be positive, got {observed_hr}")
+    if math.isclose(multiplier, 1.0, rel_tol=0.0, abs_tol=1e-12):
+        return observed_hr
+    return float(math.exp(math.log(observed_hr) * multiplier))
+
+
+def profile_payload(profile: Profile) -> dict[str, Any]:
+    """Serialize profile fields without leaking derived genetic details."""
+    payload = asdict(replace(profile, genetic_profile=None))
+    genetic_profile = getattr(profile, "genetic_profile", None)
+    if genetic_profile is None:
+        payload["genetic_profile"] = None
+    else:
+        payload["genetic_profile"] = {
+            "available": True,
+            "phenotype_count": len(getattr(genetic_profile, "phenotypes", {})),
+            "actionable_finding_count": len(
+                getattr(genetic_profile, "actionable_findings", []),
+            ),
+            "chip_version": getattr(genetic_profile, "chip_version", None),
+        }
+    return payload
+
+
+def matching_genetic_rule_rationales(
+    entry: CatalogEntry,
+    profile: Profile,
+) -> list[str]:
+    genetic_profile = getattr(profile, "genetic_profile", None)
+    if genetic_profile is None:
+        return []
+    rationales = []
+    for rule in entry.genetic_effect_rules:
+        if rule.matches(genetic_profile):
+            rationales.append(rule.rationale)
+    return rationales
+
+
+REFERENCE_CASE_READY_UTILITY_STATUSES = {"reference_case", "acceptable_mapped"}
+UTILITY_LINEAGE_STATUSES = REFERENCE_CASE_READY_UTILITY_STATUSES | {
+    "fallback",
+    "non_reference_case",
+}
+
+
+def utility_weight_lineage_payload(
+    weight_ids: tuple[str, ...],
+    *,
+    note: str | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Serialize named utility weights with reference-case status attached."""
+    lineage: dict[str, dict[str, Any]] = {}
+    for weight_id in weight_ids:
+        weight = get_public_health_utility_weight(weight_id)
+        payload = weight.to_dict()
+        if note:
+            payload["lineage_note"] = note
+        lineage[weight_id] = payload
+    return lineage
+
+
+def general_qol_utility_lineage(
+    resolved: ResolvedStackSpec,
+) -> dict[str, dict[str, Any]]:
+    """Return public-health utility lineage for a hand-estimated general-QOL overlay."""
+    lineage = utility_weight_lineage_payload(
+        resolved.general_qol_utility_weight_ids,
+        note=resolved.general_qol_lineage_note,
+    )
+    for payload in lineage.values():
+        utility_decrement = float(payload["utility_decrement"])
+        payload["annual_utility_overlay"] = round(resolved.qol_annual, 6)
+        payload["overlay_fraction_of_utility_decrement"] = (
+            None
+            if utility_decrement <= 0
+            else round(abs(resolved.qol_annual) / utility_decrement, 6)
+        )
+    return lineage
+
+
+def distribution_payload(distribution: Distribution | None) -> dict[str, Any] | None:
+    """Serialize an Optiqal distribution without relying on a dataclass round-trip."""
+    if distribution is None:
+        return None
+    return {
+        "type": distribution.type,
+        "params": dict(distribution.params),
+    }
+
+
+def direct_harm_utility_lineage(item_id: str) -> dict[str, dict[str, Any]]:
+    """Return explicit utility lineage for catalog direct-harm QALY penalties."""
+    catalog_entry = CATALOG[item_id]
+    return harm_utility_lineage_payload(catalog_entry.harm_effects)
+
+
+def triggered_interaction_rules(
+    item_id: str,
+    active_interaction_tags: tuple[str, ...] = (),
+) -> list[Any]:
+    """Return stack-aware interaction rules activated for an item."""
+    catalog_entry = CATALOG[item_id]
+    tag_counts = Counter(active_interaction_tags)
+    for tag in catalog_entry.interaction_tags:
+        tag_counts[tag] += 1
+
+    triggered = []
+    for rule in catalog_entry.interaction_rules:
+        threshold = rule.minimum_matches or len(rule.requires_tags)
+        matches = sum(tag_counts[tag] for tag in rule.requires_tags)
+        if matches >= threshold and all(tag_counts[tag] > 0 for tag in rule.requires_tags):
+            triggered.append(allocate_interaction_rule(rule, matches))
+    return triggered
+
+
+def harm_utility_lineage_payload(
+    harm_sources: list[Any],
+) -> dict[str, dict[str, Any]]:
+    """Return explicit utility lineage for direct harms or interaction rules."""
+    lineage: dict[str, dict[str, Any]] = {}
+    for harm in harm_sources:
+        weight_ids = HARM_UTILITY_WEIGHT_IDS.get(harm.id, ())
+        note = (
+            "Direct-harm QALY penalty is anchored to this fallback health-state utility; "
+            "the catalog still owns the event probability or annual loss magnitude."
+        )
+        lineage[harm.id] = {
+            "id": harm.id,
+            "description": harm.description,
+            "source": harm.source,
+            "annual_qaly_loss": distribution_payload(harm.annual_qaly_loss),
+            "event_probability": distribution_payload(harm.event_probability),
+            "event_qaly_loss": distribution_payload(harm.event_qaly_loss),
+            "max_events": harm.max_events,
+            "utility_lineage": utility_weight_lineage_payload(weight_ids, note=note),
+        }
+    return lineage
+
+
+def item_harm_utility_lineage(
+    item_id: str,
+    active_interaction_tags: tuple[str, ...] = (),
+) -> dict[str, dict[str, Any]]:
+    """Return direct plus triggered interaction harm lineage for an item."""
+    catalog_entry = CATALOG[item_id]
+    harms = list(catalog_entry.harm_effects)
+    harms.extend(triggered_interaction_rules(item_id, active_interaction_tags))
+    return harm_utility_lineage_payload(harms)
+
+
+def flatten_direct_harm_utility_lineage(
+    direct_harm_lineage: dict[str, dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    """Flatten nested harm utility sources for component-status summarization."""
+    flattened: dict[str, dict[str, Any]] = {}
+    for harm_id, harm_payload in direct_harm_lineage.items():
+        for weight_id, source in harm_payload.get("utility_lineage", {}).items():
+            flattened[f"{harm_id}:{weight_id}"] = source
+    return flattened
+
+
+def utility_lineage_component_status(
+    lineage: dict[str, dict[str, Any]],
+    *,
+    empty_status: str,
+) -> str:
+    """Summarize reference-case status across one component's utility sources."""
+    statuses = {str(source.get("reference_case_status")) for source in lineage.values()}
+    if not statuses:
+        return empty_status
+    if not statuses <= UTILITY_LINEAGE_STATUSES:
+        return "needs_preference_based_utility_validation"
+    if "non_reference_case" in statuses:
+        return "non_reference_case"
+    if "fallback" in statuses:
+        return "fallback"
+    if "acceptable_mapped" in statuses:
+        return "acceptable_mapped"
+    return "reference_case"
+
+
+def qaly_lineage_payload(
+    *,
+    resolved: ResolvedStackSpec,
+    mortality_qaly: float,
+    direct_harm_qaly: float,
+    general_qol_qaly: float,
+    sleep_qol_qaly: float,
+    direct_harm_lineage: dict[str, dict[str, Any]] | None = None,
+    sleep_lineage: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Describe whether each QALY component is reference-case ready."""
+    issues: list[str] = []
+    general_lineage = general_qol_utility_lineage(resolved)
+    general_status = utility_lineage_component_status(
+        general_lineage,
+        empty_status="needs_preference_based_utility_source",
+    )
+    direct_lineage = direct_harm_lineage or {}
+    direct_weight_lineage = flatten_direct_harm_utility_lineage(direct_lineage)
+    direct_status = utility_lineage_component_status(
+        direct_weight_lineage,
+        empty_status="needs_utility_lineage",
+    )
+    if abs(general_qol_qaly) > 1e-12:
+        if not general_lineage:
+            issues.append("general_qol_needs_preference_based_utility_source")
+        elif general_status == "needs_preference_based_utility_validation":
+            issues.append("general_qol_needs_preference_based_utility_validation")
+        elif general_status == "fallback":
+            issues.append("general_qol_uses_fallback_disability_weights")
+        elif general_status == "non_reference_case":
+            issues.append("general_qol_uses_non_reference_case_utility")
+    if abs(sleep_qol_qaly) > 1e-12:
+        sleep_status = utility_lineage_component_status(
+            sleep_lineage or {},
+            empty_status="needs_preference_based_utility_validation",
+        )
+        if sleep_status == "needs_preference_based_utility_validation":
+            issues.append("sleep_qol_needs_mapped_preference_based_utility_validation")
+        elif sleep_status == "fallback":
+            issues.append("sleep_qol_uses_fallback_disability_weights")
+        elif sleep_status == "non_reference_case":
+            issues.append("sleep_qol_uses_non_reference_case_utility")
+    if abs(direct_harm_qaly) > 1e-12:
+        if not direct_lineage or not direct_weight_lineage:
+            issues.append("direct_harm_needs_event_probability_and_utility_lineage")
+        elif direct_status in {
+            "needs_utility_lineage",
+            "needs_preference_based_utility_validation",
+        }:
+            issues.append("direct_harm_needs_event_probability_and_utility_validation")
+        elif direct_status == "fallback":
+            issues.append("direct_harm_uses_fallback_disability_weights")
+        elif direct_status == "non_reference_case":
+            issues.append("direct_harm_uses_non_reference_case_utility")
+
+    needs_lineage = any("needs_" in issue for issue in issues)
+    uses_fallback = any("uses_fallback" in issue for issue in issues)
+    uses_non_reference = any("uses_non_reference" in issue for issue in issues)
+
+    return {
+        "overall_reference_case_status": (
+            "needs_utility_lineage"
+            if needs_lineage
+            else "non_reference_case_utility_lineage"
+            if uses_non_reference
+            else "fallback_utility_lineage"
+            if uses_fallback
+            else "reference_case_ready"
+        ),
+        "issues": issues,
+        "components": {
+            "mortality": {
+                "qaly": round(mortality_qaly, 6),
+                "method": "life_table_simulation",
+                "reference_case_status": "reference_case_ready",
+            },
+            "direct_harm": {
+                "qaly": round(direct_harm_qaly, 6),
+                "method": "harm_model_annual_or_event_loss",
+                "reference_case_status": (
+                    "not_applicable"
+                    if abs(direct_harm_qaly) <= 1e-12
+                    else direct_status
+                ),
+                "utility_lineage": direct_lineage,
+            },
+            "general_qol": {
+                "qaly": round(general_qol_qaly, 6),
+                "annual_utility": round(resolved.qol_annual, 6),
+                "method": "annual_utility_overlay",
+                "reference_case_status": (
+                    "not_applicable"
+                    if abs(general_qol_qaly) <= 1e-12
+                    else general_status
+                ),
+                "utility_lineage": general_lineage,
+            },
+            "sleep_qol": {
+                "qaly": round(sleep_qol_qaly, 6),
+                "method": "sleep_burden_component_mapping",
+                "reference_case_status": (
+                    "not_applicable"
+                    if abs(sleep_qol_qaly) <= 1e-12
+                    else utility_lineage_component_status(
+                        sleep_lineage or {},
+                        empty_status="needs_preference_based_utility_validation",
+                    )
+                ),
+                "utility_lineage": sleep_lineage or {},
+            },
+        },
+    }
 
 
 def status_for_category(category: str) -> str:
@@ -372,6 +1075,178 @@ def status_for_category(category: str) -> str:
         "sleep_current": "taking",
         "sleep_candidate": "watching",
     }.get(category, "watching")
+
+
+def is_actionable_item(item: dict[str, Any]) -> bool:
+    return str(item.get("status", "")) in ACTIONABLE_STATUSES
+
+
+def current_stack_interaction_tags(
+    protocol_items: list[dict[str, Any]],
+    *,
+    exclude_item_id: str | None = None,
+) -> tuple[str, ...]:
+    """Return active interaction tags from the current stack, optionally excluding one item."""
+    tags: list[str] = []
+    for item in protocol_items:
+        item_id = str(item.get("id", ""))
+        if item_id == exclude_item_id:
+            continue
+        if str(item.get("status", "")) not in CURRENT_STACK_STATUSES:
+            continue
+        catalog_entry = CATALOG.get(item_id)
+        if catalog_entry is None:
+            continue
+        tags.extend(catalog_entry.interaction_tags)
+    return tuple(tags)
+
+
+def stable_random_seed(*parts: str) -> int:
+    """Return a deterministic seed for item/component-level Monte Carlo draws."""
+    digest = hashlib.blake2b("|".join(parts).encode("utf-8"), digest_size=8).digest()
+    return int.from_bytes(digest, "big") % (2**32)
+
+
+def qol_uncertainty_relative_sd(evidence_quality: str | None) -> float:
+    return QOL_UNCERTAINTY_RELATIVE_SD_BY_EVIDENCE.get(
+        str(evidence_quality or "").lower(),
+        DEFAULT_QOL_UNCERTAINTY_RELATIVE_SD,
+    )
+
+
+def sample_qol_component_draws(
+    mean_qaly: float,
+    *,
+    item_id: str,
+    component: str,
+    evidence_quality: str | None,
+    n_simulations: int = N_SIMULATIONS,
+) -> np.ndarray:
+    """Sample QOL overlay uncertainty while preserving the authored mean."""
+    if abs(mean_qaly) <= 1e-12:
+        return np.zeros(n_simulations)
+    relative_sd = qol_uncertainty_relative_sd(evidence_quality)
+    rng = np.random.default_rng(stable_random_seed(item_id, component, "qol"))
+    draws = rng.normal(
+        loc=mean_qaly,
+        scale=abs(mean_qaly) * relative_sd,
+        size=n_simulations,
+    )
+    return draws + (mean_qaly - float(np.mean(draws)))
+
+
+def _standardize_draws(draws: np.ndarray) -> np.ndarray:
+    """Return zero-mean, unit-SD draws when possible."""
+    standardized = np.asarray(draws, dtype=float)
+    sd = float(np.std(standardized))
+    if sd <= 1e-12:
+        return np.zeros_like(standardized)
+    return (standardized - float(np.mean(standardized))) / sd
+
+
+def latent_protocol_factor(name: str, n_simulations: int = N_SIMULATIONS) -> np.ndarray:
+    """Stable latent-world factor used to pair protocol-state counterfactuals."""
+    rng = np.random.default_rng(stable_random_seed("protocol_latent", name))
+    return _standardize_draws(rng.normal(size=n_simulations))
+
+
+def _combined_latent_mechanism_factor(
+    item_id: str,
+    entry: CatalogEntry,
+    n_simulations: int = N_SIMULATIONS,
+) -> np.ndarray | None:
+    tags = [
+        f"benefit:{tag}"
+        for tag in sorted(set(entry.benefit_tags))
+    ]
+    tags.extend(
+        f"interaction:{tag}"
+        for tag in sorted(set(entry.interaction_tags))
+    )
+    if not tags:
+        return None
+    factors = [
+        latent_protocol_factor(tag, n_simulations)
+        for tag in tags
+    ]
+    return _standardize_draws(np.sum(factors, axis=0) / math.sqrt(len(factors)))
+
+
+def latent_protocol_item_score(
+    item_id: str,
+    entry: CatalogEntry | None = None,
+    n_simulations: int = N_SIMULATIONS,
+) -> np.ndarray:
+    """Return the latent-world ordering score for one protocol item.
+
+    Higher scores represent worlds where this item is a better personal fit.
+    The score is intentionally shared across related items through global,
+    mechanism, and category factors, with item-specific residual variation.
+    """
+    entry = entry or CATALOG[item_id]
+    weighted_components: list[tuple[float, np.ndarray]] = [
+        (LATENT_GLOBAL_SCORE_WEIGHT, latent_protocol_factor("global_fit", n_simulations)),
+        (
+            LATENT_CATEGORY_SCORE_WEIGHT,
+            latent_protocol_factor(
+                f"category:{public_display_category(entry)}",
+                n_simulations,
+            ),
+        ),
+    ]
+    mechanism_factor = _combined_latent_mechanism_factor(item_id, entry, n_simulations)
+    if mechanism_factor is not None:
+        weighted_components.append((LATENT_MECHANISM_SCORE_WEIGHT, mechanism_factor))
+
+    shared_weight_sq = sum(weight * weight for weight, _ in weighted_components)
+    max_weight_sq = LATENT_MAX_SHARED_SCORE_WEIGHT ** 2
+    if shared_weight_sq > max_weight_sq:
+        scale = math.sqrt(max_weight_sq / shared_weight_sq)
+        weighted_components = [
+            (weight * scale, component)
+            for weight, component in weighted_components
+        ]
+        shared_weight_sq = max_weight_sq
+
+    residual_weight = math.sqrt(max(0.0, 1.0 - shared_weight_sq))
+    residual = latent_protocol_factor(f"item:{item_id}:residual", n_simulations)
+    score = residual_weight * residual
+    for weight, component in weighted_components:
+        score += weight * component
+    return _standardize_draws(score)
+
+
+def rank_preserving_latent_draws(
+    draws: np.ndarray,
+    score: np.ndarray,
+) -> np.ndarray:
+    """Reorder item draws by latent-world score without changing the marginal."""
+    draws = np.asarray(draws, dtype=float)
+    if draws.size != score.size:
+        raise ValueError(
+            f"draw/score size mismatch: {draws.size} draws vs {score.size} scores",
+        )
+    if draws.size == 0 or float(np.std(draws)) <= 1e-12:
+        return draws.copy()
+    order = np.argsort(score, kind="mergesort")
+    sorted_draws = np.sort(draws)
+    reordered = np.empty_like(draws)
+    reordered[order] = sorted_draws
+    return reordered
+
+
+def latent_protocol_item_draws(
+    item_id: str,
+    estimate: dict[str, Any],
+) -> np.ndarray:
+    """Return item draws paired to shared latent protocol worlds."""
+    cached = estimate.get("_latent_total_draws")
+    if cached is not None:
+        return cached
+    score = latent_protocol_item_score(item_id)
+    draws = rank_preserving_latent_draws(estimate["_total_draws"], score)
+    estimate["_latent_total_draws"] = draws
+    return draws
 
 
 def load_protocol_items(context: ProtocolContext | None = None) -> list[dict[str, Any]]:
@@ -389,11 +1264,92 @@ def load_protocol_items(context: ProtocolContext | None = None) -> list[dict[str
             "name": entry.name,
             "status": prior.get("status", status_for_category(entry.category)),
             "category": entry.category,
+            "display_category": public_display_category(entry),
             "annual_cost": entry.annual_cost,
             "dose_notes": prior.get("dose_notes"),
             "time_of_day": prior.get("time_of_day"),
         })
     return items
+
+
+def cost_effectiveness_sort_key(item: dict[str, Any]) -> tuple[float, float]:
+    """Sort positive-QALY items by practical cost effectiveness.
+
+    Free beneficial behavior changes are treated as dominant and sorted ahead
+    of paid items; paid items sort by modeled dollars per QALY.
+    """
+    if item["total_qaly"] <= 0:
+        return (math.inf, math.inf)
+    if item["modeled_total_cost"] <= 0:
+        return (-1.0, -item["total_qaly"])
+    cost_per = item["cost_per_qaly"]
+    if cost_per is None:
+        return (math.inf, math.inf)
+    return (float(cost_per), -item["total_qaly"])
+
+
+def ranking_projection(item: dict[str, Any]) -> dict[str, Any]:
+    fields = (
+        "id",
+        "name",
+        "status",
+        "category",
+        "display_category",
+        "annual_cost",
+        "modeled_total_cost",
+        "cost_per_qaly",
+        "total_qaly",
+        "days",
+        "p_benefit",
+        "p_harm",
+    )
+    return {field: item.get(field) for field in fields}
+
+
+def build_decision_rankings(estimates: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    actionable = [item for item in estimates if is_actionable_item(item)]
+    positive_actionable = [item for item in actionable if item["total_qaly"] > 0]
+    paid_positive_actionable = [
+        item for item in positive_actionable if item["modeled_total_cost"] > 0
+    ]
+    supplement_candidates = [
+        item for item in positive_actionable if item["display_category"] == "supplement"
+    ]
+    free_positive_actionable = [
+        item for item in positive_actionable if item["modeled_total_cost"] <= 0
+    ]
+    negative_actionable = [item for item in actionable if item["total_qaly"] < 0]
+
+    return {
+        "actionable_by_total_qaly": [
+            ranking_projection(item)
+            for item in sorted(
+                positive_actionable,
+                key=lambda item: item["total_qaly"],
+                reverse=True,
+            )[:15]
+        ],
+        "actionable_by_cost_per_qaly": [
+            ranking_projection(item)
+            for item in sorted(paid_positive_actionable, key=cost_effectiveness_sort_key)[:15]
+        ],
+        "supplement_candidates_by_cost_per_qaly": [
+            ranking_projection(item)
+            for item in sorted(supplement_candidates, key=cost_effectiveness_sort_key)[:15]
+        ],
+        "free_positive_actions": [
+            ranking_projection(item)
+            for item in sorted(
+                free_positive_actionable,
+                key=lambda item: item["total_qaly"],
+                reverse=True,
+            )[:10]
+        ],
+        "negative_actionable": [
+            ranking_projection(item)
+            for item in sorted(negative_actionable, key=lambda item: item["total_qaly"])[:15]
+        ],
+    }
 
 
 def query_one(conn: sqlite3.Connection, sql: str) -> sqlite3.Row:
@@ -547,6 +1503,29 @@ def load_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
         conn,
         "SELECT MAX(date) AS latest_lab_date FROM bloodwork",
     )["latest_lab_date"]
+    latest_body_comp = conn.execute(
+        """
+        SELECT date, weight_kg, body_fat_pct, muscle_mass_kg, source
+        FROM body_comp
+        ORDER BY date DESC
+        LIMIT 1
+        """
+    ).fetchone()
+    body_comp_180 = query_one(
+        conn,
+        """
+        WITH recent AS (
+          SELECT * FROM body_comp
+          WHERE date >= date('now', '-180 day')
+        )
+        SELECT
+          COUNT(*) AS days,
+          AVG(weight_kg) AS avg_weight_kg,
+          AVG(body_fat_pct) AS avg_body_fat_pct,
+          AVG(muscle_mass_kg) AS avg_muscle_mass_kg
+        FROM recent
+        """,
+    )
     conn.close()
 
     combined_sleep = (
@@ -699,6 +1678,35 @@ def load_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
             "very_high_strain_share": round(very_high_strain_share, 3),
         },
         "latest_lab_date": latest_lab_date,
+        "body_comp_latest": (
+            None
+            if latest_body_comp is None
+            else {
+                "date": latest_body_comp["date"],
+                "weight_kg": latest_body_comp["weight_kg"],
+                "body_fat_pct": latest_body_comp["body_fat_pct"],
+                "muscle_mass_kg": latest_body_comp["muscle_mass_kg"],
+                "source": latest_body_comp["source"],
+            }
+        ),
+        "body_comp_180d": {
+            "days": int(body_comp_180["days"]),
+            "avg_weight_kg": (
+                None
+                if body_comp_180["avg_weight_kg"] is None
+                else round(float(body_comp_180["avg_weight_kg"]), 1)
+            ),
+            "avg_body_fat_pct": (
+                None
+                if body_comp_180["avg_body_fat_pct"] is None
+                else round(float(body_comp_180["avg_body_fat_pct"]), 1)
+            ),
+            "avg_muscle_mass_kg": (
+                None
+                if body_comp_180["avg_muscle_mass_kg"] is None
+                else round(float(body_comp_180["avg_muscle_mass_kg"]), 1)
+            ),
+        },
         "labs": {
             "LDL": labs.get("LDL"),
             "HDL": labs.get("HDL"),
@@ -723,6 +1731,10 @@ def load_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
             "sleep_component_losses": {
                 key: round(value, 5) for key, value in sleep_estimate.component_losses.items()
             },
+            "sleep_component_utility_weight_ids": dict(
+                sleep_estimate.component_utility_weight_ids
+            ),
+            "sleep_component_utility_lineage": sleep_utility_lineage(sleep_estimate),
             "sleep_mortality_signal": round(sleep_estimate.mortality_signal, 3),
             "airway_response_signal": round(airway_response_signal, 3),
             "sleep_study": {
@@ -793,6 +1805,11 @@ def build_specs(
             conf_beta=6.0,
             qol_annual=0.0032,
             qol_years=15,
+            general_qol_utility_weight_ids=SEXUAL_FUNCTION_QOL,
+            general_qol_lineage_note=(
+                "Low-dose tadalafil's modeled utility is a small fraction of the published "
+                "time-tradeoff utility gain for treating erectile dysfunction."
+            ),
             low_qaly=0.02,
             high_qaly=0.09,
             personalization=(
@@ -817,6 +1834,11 @@ def build_specs(
             conf_beta=8.0,
             qol_annual=0.0024,
             qol_years=15,
+            general_qol_utility_weight_ids=HAIR_QOL,
+            general_qol_lineage_note=(
+                "Hair-preservation utility is mapped from mild alopecia health-state utilities; "
+                "the source is alopecia areata rather than androgenetic alopecia."
+            ),
             low_qaly=-0.01,
             high_qaly=0.06,
             personalization=(
@@ -841,6 +1863,11 @@ def build_specs(
             conf_beta=4.0,
             qol_annual=0.0018 * sleep_multiplier,
             qol_years=12,
+            general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
+            general_qol_lineage_note=(
+                "Residual hand-estimated utility is anchored to insomnia/anxiety disability "
+                "weights; component sleep relief is modeled separately."
+            ),
             sleep_component_relief={
                 "duration": 0.08,
                 "quality": 0.20,
@@ -869,6 +1896,11 @@ def build_specs(
             conf_beta=6.0,
             qol_annual=0.0030 * sleep_multiplier,
             qol_years=10,
+            general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
+            general_qol_lineage_note=(
+                "Residual symptom utility is anchored to insomnia/anxiety disability weights; "
+                "sedation harms and component sleep relief are modeled separately."
+            ),
             low_qaly=-0.01,
             high_qaly=0.06,
             personalization=(
@@ -892,7 +1924,12 @@ def build_specs(
             conf_beta=5.5,
             qol_annual=0.0014 * sleep_multiplier,
             qol_years=10,
-            low_qaly=0.0,
+            general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
+            general_qol_lineage_note=(
+                "Residual symptom utility is anchored to insomnia/anxiety disability weights; "
+                "component sleep relief is modeled separately."
+            ),
+            low_qaly=-0.01,
             high_qaly=0.03,
             personalization=(
                 "Upweighted because short sleep is a live issue, but kept modest because human meta-analytic effects "
@@ -910,7 +1947,12 @@ def build_specs(
             item_id="nasacort_nightly",
             qol_annual=0.0002,
             qol_years=10,
-            low_qaly=0.0,
+            general_qol_utility_weight_ids=AIRWAY_SLEEP_QOL,
+            general_qol_lineage_note=(
+                "Small residual nasal-comfort utility is anchored to sleep-apnoea/insomnia "
+                "fallback weights; component sleep-breathing relief is modeled separately."
+            ),
+            low_qaly=-0.01,
             high_qaly=0.06,
             personalization=(
                 "Upweighted because your recent airway-directed trial improved breathing, latency, snoring, and sleep quality, "
@@ -929,6 +1971,11 @@ def build_specs(
             item_id="nasal_strips_nightly",
             qol_annual=0.0001,
             qol_years=10,
+            general_qol_utility_weight_ids=AIRWAY_SLEEP_QOL,
+            general_qol_lineage_note=(
+                "Small residual nasal-comfort utility is anchored to sleep-apnoea/insomnia "
+                "fallback weights; component sleep-breathing relief is modeled separately."
+            ),
             low_qaly=0.0,
             high_qaly=0.03,
             personalization=(
@@ -946,6 +1993,11 @@ def build_specs(
             item_id="humidifier_nightly",
             qol_annual=0.00005,
             qol_years=10,
+            general_qol_utility_weight_ids=AIRWAY_SLEEP_QOL,
+            general_qol_lineage_note=(
+                "Fallback proxy for nasal-airway comfort; this is not a formal nasal-dryness "
+                "utility source."
+            ),
             low_qaly=0.0,
             high_qaly=0.01,
             personalization=(
@@ -966,6 +2018,11 @@ def build_specs(
             item_id="mouth_tape_nightly",
             qol_annual=0.00008,
             qol_years=10,
+            general_qol_utility_weight_ids=AIRWAY_SLEEP_QOL,
+            general_qol_lineage_note=(
+                "Small residual mouth-breathing comfort utility is anchored to sleep-apnoea/"
+                "insomnia fallback weights."
+            ),
             low_qaly=-0.002,
             high_qaly=0.03,
             personalization=(
@@ -990,6 +2047,11 @@ def build_specs(
             conf_beta=4.4,
             qol_annual=0.0001,
             qol_years=10,
+            general_qol_utility_weight_ids=AIRWAY_SLEEP_QOL,
+            general_qol_lineage_note=(
+                "Small residual positional-comfort utility is anchored to sleep-apnoea/"
+                "insomnia fallback weights."
+            ),
             low_qaly=0.0,
             high_qaly=0.04,
             personalization=(
@@ -1008,7 +2070,7 @@ def build_specs(
             log_sd=0.09,
             conf_alpha=2.5,
             conf_beta=4.5,
-            qol_annual=0.0005,
+            qol_annual=0.0,
             qol_years=15,
             low_qaly=0.0,
             high_qaly=0.03,
@@ -1030,6 +2092,11 @@ def build_specs(
             conf_beta=5.0,
             qol_annual=0.0014 * exercise_multiplier * kidney_safe_multiplier,
             qol_years=15,
+            general_qol_utility_weight_ids=FUNCTION_QOL,
+            general_qol_lineage_note=(
+                "Functional/performance utility is anchored to a mild motor-impairment "
+                "fallback weight; the modeled annual utility is intentionally much smaller."
+            ),
             low_qaly=0.0,
             high_qaly=0.03,
             personalization=(
@@ -1051,7 +2118,7 @@ def build_specs(
             log_sd=0.08,
             conf_alpha=3.2,
             conf_beta=4.2,
-            qol_annual=0.0003,
+            qol_annual=0.0,
             qol_years=15,
             low_qaly=0.0,
             high_qaly=0.015,
@@ -1072,7 +2139,7 @@ def build_specs(
             log_sd=0.08,
             conf_alpha=2.8,
             conf_beta=4.2,
-            qol_annual=0.0004,
+            qol_annual=0.0,
             qol_years=15,
             low_qaly=0.0,
             high_qaly=0.03,
@@ -1095,6 +2162,10 @@ def build_specs(
             conf_beta=5.5,
             qol_annual=0.0008,
             qol_years=10,
+            general_qol_utility_weight_ids=BOWEL_HABIT_QOL,
+            general_qol_lineage_note=(
+                "Gut-comfort utility is anchored to bowel-habit/IBS fallback disability weights."
+            ),
             low_qaly=0.0,
             high_qaly=0.02,
             personalization=(
@@ -1114,7 +2185,7 @@ def build_specs(
             log_sd=0.08,
             conf_alpha=3.0,
             conf_beta=4.0,
-            qol_annual=0.0002 * vitamin_d_multiplier,
+            qol_annual=0.0,
             qol_years=15,
             low_qaly=-0.02,
             high_qaly=0.005,
@@ -1135,7 +2206,7 @@ def build_specs(
             log_sd=0.06,
             conf_alpha=1.2,
             conf_beta=6.0,
-            qol_annual=0.0002 * longevity_multiplier,
+            qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
             high_qaly=0.005,
@@ -1158,6 +2229,11 @@ def build_specs(
             conf_beta=5.8,
             qol_annual=0.0010 * fatigue_multiplier,
             qol_years=10,
+            general_qol_utility_weight_ids=FUNCTION_QOL,
+            general_qol_lineage_note=(
+                "Fatigue/functional-reserve utility is anchored to a mild motor-impairment "
+                "fallback weight; airway sleep relief is modeled separately."
+            ),
             sleep_component_relief={
                 "breathing": 0.08,
                 "quality": 0.02,
@@ -1188,6 +2264,11 @@ def build_specs(
             conf_beta=5.5,
             qol_annual=0.0008 * fatigue_multiplier,
             qol_years=10,
+            general_qol_utility_weight_ids=JOINT_QOL,
+            general_qol_lineage_note=(
+                "Anti-inflammatory symptom utility is anchored to a mild musculoskeletal-pain "
+                "fallback weight."
+            ),
             low_qaly=0.0,
             high_qaly=0.012,
             personalization=(
@@ -1210,6 +2291,11 @@ def build_specs(
                 conf_beta=5.0,
                 qol_annual=0.0008 * joint_multiplier,
                 qol_years=10,
+                general_qol_utility_weight_ids=JOINT_QOL,
+                general_qol_lineage_note=(
+                    "Joint-comfort utility is anchored to a mild musculoskeletal-pain "
+                    "fallback weight."
+                ),
                 low_qaly=0.0,
                 high_qaly=0.01,
                 personalization=(
@@ -1236,6 +2322,11 @@ def build_specs(
             conf_beta=4.5,
             qol_annual=0.0004 * eye_multiplier,
             qol_years=20,
+            general_qol_utility_weight_ids=VISION_QOL,
+            general_qol_lineage_note=(
+                "Vision-preservation utility is anchored to a mild vision-impairment "
+                "fallback weight."
+            ),
             low_qaly=0.0,
             high_qaly=0.008,
             personalization=(
@@ -1255,7 +2346,7 @@ def build_specs(
             log_sd=0.05,
             conf_alpha=2.0,
             conf_beta=4.8,
-            qol_annual=0.0004 * eye_multiplier,
+            qol_annual=0.0,
             qol_years=20,
             low_qaly=0.0,
             high_qaly=0.008,
@@ -1276,7 +2367,7 @@ def build_specs(
             log_sd=0.05,
             conf_alpha=1.8,
             conf_beta=5.2,
-            qol_annual=0.0002,
+            qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
             high_qaly=0.01,
@@ -1297,7 +2388,7 @@ def build_specs(
             log_sd=0.05,
             conf_alpha=1.8,
             conf_beta=5.2,
-            qol_annual=0.0002,
+            qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
             high_qaly=0.01,
@@ -1321,6 +2412,10 @@ def build_specs(
             conf_beta=6.0,
             qol_annual=0.0009 * fatigue_multiplier,
             qol_years=10,
+            general_qol_utility_weight_ids=FUNCTION_QOL,
+            general_qol_lineage_note=(
+                "Fatigue/recovery utility is anchored to a mild motor-impairment fallback weight."
+            ),
             low_qaly=0.0,
             high_qaly=0.015,
             personalization=(
@@ -1343,6 +2438,10 @@ def build_specs(
             conf_beta=6.0,
             qol_annual=0.0009 * fatigue_multiplier,
             qol_years=10,
+            general_qol_utility_weight_ids=FUNCTION_QOL,
+            general_qol_lineage_note=(
+                "Fatigue/recovery utility is anchored to a mild motor-impairment fallback weight."
+            ),
             low_qaly=0.0,
             high_qaly=0.015,
             personalization=(
@@ -1364,7 +2463,7 @@ def build_specs(
             log_sd=0.06,
             conf_alpha=1.0,
             conf_beta=6.5,
-            qol_annual=0.0002 * longevity_multiplier,
+            qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
             high_qaly=0.005,
@@ -1382,7 +2481,7 @@ def build_specs(
             log_sd=0.06,
             conf_alpha=1.0,
             conf_beta=6.5,
-            qol_annual=0.0002 * longevity_multiplier,
+            qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
             high_qaly=0.005,
@@ -1400,7 +2499,7 @@ def build_specs(
             log_sd=0.05,
             conf_alpha=1.1,
             conf_beta=6.2,
-            qol_annual=0.0001,
+            qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
             high_qaly=0.005,
@@ -1421,6 +2520,11 @@ def build_specs(
                 conf_beta=5.5,
                 qol_annual=0.0006 * joint_multiplier,
                 qol_years=10,
+                general_qol_utility_weight_ids=JOINT_QOL,
+                general_qol_lineage_note=(
+                    "Joint-comfort utility is anchored to a mild musculoskeletal-pain "
+                    "fallback weight."
+                ),
                 low_qaly=0.0,
                 high_qaly=0.01,
                 personalization=(
@@ -1444,7 +2548,7 @@ def build_specs(
             log_sd=0.06,
             conf_alpha=1.2,
             conf_beta=6.0,
-            qol_annual=0.0005 * longevity_multiplier,
+            qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
             high_qaly=0.008,
@@ -1462,7 +2566,7 @@ def build_specs(
             log_sd=0.06,
             conf_alpha=1.2,
             conf_beta=6.0,
-            qol_annual=0.0002 * longevity_multiplier,
+            qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
             high_qaly=0.005,
@@ -1496,7 +2600,7 @@ def build_specs(
             log_sd=0.05,
             conf_alpha=1.4,
             conf_beta=5.2,
-            qol_annual=0.0002 * longevity_multiplier,
+            qol_annual=0.0,
             qol_years=15,
             low_qaly=0.0,
             high_qaly=0.005,
@@ -1519,6 +2623,11 @@ def build_specs(
                 conf_beta=5.0,
                 qol_annual=0.0005 * joint_multiplier,
                 qol_years=10,
+                general_qol_utility_weight_ids=JOINT_QOL,
+                general_qol_lineage_note=(
+                    "Joint-comfort utility is anchored to a mild musculoskeletal-pain "
+                    "fallback weight."
+                ),
                 low_qaly=0.0,
                 high_qaly=0.01,
                 personalization=(
@@ -1542,7 +2651,7 @@ def build_specs(
             log_sd=0.05,
             conf_alpha=1.0,
             conf_beta=6.2,
-            qol_annual=0.0001,
+            qol_annual=0.0,
             qol_years=15,
             low_qaly=0.0,
             high_qaly=0.005,
@@ -1582,15 +2691,13 @@ def build_additional_specs(
     context = resolve_protocol_context(context)
     sleep_need = baseline["derived"]["sleep_need"]
     cardio_need = baseline["derived"]["cardio_need"]
-    airway_signal = baseline["derived"]["airway_response_signal"]
     sleep_airway = baseline["derived"]["sleep_airway"]
     sleep_study = baseline["derived"].get("sleep_study") or {}
     hiit_headroom = baseline["derived"]["hiit_headroom"]
     training_180 = baseline.get("training_180d", {})
     stress_multiplier = 0.45 + 0.55 * sleep_need
     metabolic_multiplier = 0.10 + 0.35 * cardio_need
-    skin_multiplier = 0.35
-
+    semaglutide_spec = build_semaglutide_spec(baseline, context.profile)
     return {
         "statin_5mg": make_spec(
             "statin_5mg",
@@ -1598,7 +2705,7 @@ def build_additional_specs(
             log_sd=0.08,
             conf_alpha=3.8,
             conf_beta=3.2,
-            qol_annual=-0.0001,
+            qol_annual=0.0,
             qol_years=20,
             low_qaly=-0.01,
             high_qaly=0.05,
@@ -1614,7 +2721,7 @@ def build_additional_specs(
             conf_beta=5.5,
             qol_annual=0.0,
             qol_years=12,
-            low_qaly=-0.005,
+            low_qaly=-0.01,
             high_qaly=0.02,
             personalization="Downweighted heavily because your glycemia is already good and most compelling outcome data are in diabetic or prediabetic populations.",
             rationale="Metformin is plausible as a modest metabolic-risk intervention, but not a big generic longevity lever for your phenotype.",
@@ -1626,7 +2733,7 @@ def build_additional_specs(
             log_sd=0.10,
             conf_alpha=1.8,
             conf_beta=6.0,
-            qol_annual=-0.0002,
+            qol_annual=0.0,
             qol_years=10,
             low_qaly=-0.01,
             high_qaly=0.02,
@@ -1640,35 +2747,22 @@ def build_additional_specs(
             log_sd=0.08,
             conf_alpha=2.2,
             conf_beta=5.8,
-            qol_annual=-0.0002,
+            qol_annual=0.0,
             qol_years=12,
-            low_qaly=-0.02,
+            low_qaly=-0.03,
             high_qaly=0.01,
             personalization="The bleeding downside transports better to you than the net-prevention upside, because you are young and low-risk rather than high-ASCVD.",
             rationale="Low-dose aspirin is now mostly a narrow-risk tool, not a generic prevention default.",
             sources=("https://pubmed.ncbi.nlm.nih.gov/30221597/",),
         ),
-        "semaglutide": make_spec(
-            "semaglutide",
-            observed_hr=1.0,
-            log_sd=0.08,
-            conf_alpha=1.5,
-            conf_beta=6.5,
-            qol_annual=-0.0004,
-            qol_years=10,
-            low_qaly=-0.03,
-            high_qaly=0.01,
-            personalization="Your BMI and likely body-fat profile do not resemble the obesity/CVD populations where semaglutide shows the clearest benefit.",
-            rationale="For you this is closer to a weakly justified, harm-prone off-label bet than a real healthspan intervention.",
-            sources=("https://pubmed.ncbi.nlm.nih.gov/38740993/",),
-        ),
+        "semaglutide": semaglutide_spec,
         "rapamycin_5mg_wk": make_spec(
             "rapamycin_5mg_wk",
             observed_hr=1.0,
             log_sd=0.12,
             conf_alpha=1.1,
             conf_beta=6.5,
-            qol_annual=-0.0001,
+            qol_annual=0.0,
             qol_years=10,
             low_qaly=-0.01,
             high_qaly=0.03,
@@ -1684,7 +2778,11 @@ def build_additional_specs(
             conf_beta=6.0,
             qol_annual=0.0002,
             qol_years=15,
-            low_qaly=-0.005,
+            general_qol_utility_weight_ids=STRESS_QOL,
+            general_qol_lineage_note=(
+                "Mood-stability hedge utility is anchored to a mild-anxiety fallback disability weight."
+            ),
+            low_qaly=-0.015,
             high_qaly=0.015,
             personalization="Kept small because the low-dose human outcome case is still mostly ecological and indirect.",
             rationale="Interesting neuropsychiatric hedge, but still thin as a quantified longevity intervention.",
@@ -1710,6 +2808,10 @@ def build_additional_specs(
             conf_beta=6.0,
             qol_annual=-0.0005,
             qol_years=10,
+            general_qol_utility_weight_ids=GUT_QOL,
+            general_qol_lineage_note=(
+                "Negative utility is anchored to an IBS fallback disability weight for GI burden."
+            ),
             low_qaly=-0.02,
             high_qaly=0.01,
             personalization="Modeled as mildly negative because GI burden transports better than lifespan-mouse optimism.",
@@ -1723,12 +2825,17 @@ def build_additional_specs(
             conf_beta=6.0,
             qol_annual=0.0010 * stress_multiplier,
             qol_years=10,
+            general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
+            general_qol_lineage_note=(
+                "Residual calming utility is anchored to insomnia/anxiety disability weights; "
+                "component sleep relief is modeled separately."
+            ),
             sleep_component_relief={
                 "duration": 0.06,
                 "quality": 0.14,
                 "daytime": 0.10,
             },
-            low_qaly=0.0,
+            low_qaly=-0.01,
             high_qaly=0.03,
             personalization="Upweighted because sleep remains an active problem, but the evidence is still mainly symptom-level and measured in modest changes.",
             rationale="Glycine looks like a plausible sleep/QOL helper rather than a major mortality intervention.",
@@ -1742,11 +2849,15 @@ def build_additional_specs(
             conf_beta=6.3,
             qol_annual=0.0008 * stress_multiplier,
             qol_years=10,
+            general_qol_utility_weight_ids=STRESS_QOL,
+            general_qol_lineage_note=(
+                "Calming utility is anchored to a mild-anxiety fallback disability weight."
+            ),
             sleep_component_relief={
                 "quality": 0.12,
                 "daytime": 0.08,
             },
-            low_qaly=0.0,
+            low_qaly=-0.01,
             high_qaly=0.02,
             personalization="Kept positive only through plausible calming/sleep utility, not through a strong causal longevity claim.",
             rationale="Apigenin is a reasonable sleep-stack experiment, but not a proven life-extension tool.",
@@ -1757,9 +2868,9 @@ def build_additional_specs(
             log_sd=0.09,
             conf_alpha=2.5,
             conf_beta=4.5,
-            qol_annual=0.0003,
+            qol_annual=0.0,
             qol_years=15,
-            low_qaly=0.0,
+            low_qaly=-0.002,
             high_qaly=0.02,
             personalization="Marginally more plausible than low-dose omega-3 because triglycerides are not perfect, but still sharply trimmed at your baseline risk.",
             rationale="Some cardiometabolic plausibility remains, but the incremental value over your existing health profile is modest.",
@@ -1770,7 +2881,7 @@ def build_additional_specs(
             log_sd=0.05,
             conf_alpha=1.2,
             conf_beta=6.0,
-            qol_annual=0.0001,
+            qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
             high_qaly=0.01,
@@ -1789,6 +2900,10 @@ def build_additional_specs(
             conf_beta=5.8,
             qol_annual=0.0003,
             qol_years=12,
+            general_qol_utility_weight_ids=FUNCTION_QOL,
+            general_qol_lineage_note=(
+                "Exercise-recovery utility is anchored to a mild motor-impairment fallback weight."
+            ),
             low_qaly=0.0,
             high_qaly=0.015,
             personalization="I kept a small functional upside for exercise recovery / mitochondria, but not enough to justify a major QALY number.",
@@ -1800,7 +2915,7 @@ def build_additional_specs(
             log_sd=0.06,
             conf_alpha=1.1,
             conf_beta=6.2,
-            qol_annual=0.0001,
+            qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
             high_qaly=0.008,
@@ -1815,6 +2930,10 @@ def build_additional_specs(
             conf_beta=5.8,
             qol_annual=0.0003,
             qol_years=10,
+            general_qol_utility_weight_ids=FUNCTION_QOL,
+            general_qol_lineage_note=(
+                "Symptom/function utility is anchored to a mild motor-impairment fallback weight."
+            ),
             low_qaly=0.0,
             high_qaly=0.012,
             personalization="Kept small because the best case is symptom relief in inflammatory/viral-persistence settings, not generic prevention.",
@@ -1826,7 +2945,7 @@ def build_additional_specs(
             log_sd=0.06,
             conf_alpha=1.2,
             conf_beta=6.0,
-            qol_annual=0.0001,
+            qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
             high_qaly=0.01,
@@ -1867,6 +2986,10 @@ def build_additional_specs(
             conf_beta=5.8,
             qol_annual=-0.0005,
             qol_years=10,
+            general_qol_utility_weight_ids=GUT_QOL,
+            general_qol_lineage_note=(
+                "Negative utility is anchored to an IBS fallback disability weight for GI burden."
+            ),
             low_qaly=-0.02,
             high_qaly=0.01,
             personalization="Your glycemia is already good, so the GI downside matters more than the diabetes-trial upside.",
@@ -1878,7 +3001,7 @@ def build_additional_specs(
             log_sd=0.05,
             conf_alpha=1.2,
             conf_beta=6.0,
-            qol_annual=0.0001,
+            qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
             high_qaly=0.008,
@@ -1891,7 +3014,7 @@ def build_additional_specs(
             log_sd=0.05,
             conf_alpha=1.1,
             conf_beta=6.2,
-            qol_annual=0.0001,
+            qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
             high_qaly=0.008,
@@ -1904,7 +3027,7 @@ def build_additional_specs(
             log_sd=0.05,
             conf_alpha=1.1,
             conf_beta=6.0,
-            qol_annual=0.00005,
+            qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
             high_qaly=0.005,
@@ -1919,12 +3042,17 @@ def build_additional_specs(
             conf_beta=5.5,
             qol_annual=0.0012 * stress_multiplier,
             qol_years=10,
+            general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
+            general_qol_lineage_note=(
+                "Stress/sleep utility is anchored to insomnia/anxiety disability weights; "
+                "component sleep relief is modeled separately."
+            ),
             sleep_component_relief={
                 "duration": 0.05,
                 "quality": 0.12,
                 "daytime": 0.12,
             },
-            low_qaly=-0.005,
+            low_qaly=-0.015,
             high_qaly=0.04,
             personalization="This is one of the few candidates I’d keep meaningfully positive because your sleep/stress profile leaves room for symptomatic benefit.",
             rationale="Ashwagandha is best modeled as a stress/sleep/QOL intervention with non-zero rare downside.",
@@ -1937,6 +3065,10 @@ def build_additional_specs(
             conf_beta=6.0,
             qol_annual=0.0006,
             qol_years=15,
+            general_qol_utility_weight_ids=FUNCTION_QOL,
+            general_qol_lineage_note=(
+                "Cognition/function utility is anchored to a mild motor-impairment fallback weight."
+            ),
             low_qaly=0.0,
             high_qaly=0.015,
             personalization="Small only: human evidence is mainly cognition/mood signal, not durable prevention.",
@@ -1948,7 +3080,7 @@ def build_additional_specs(
             log_sd=0.06,
             conf_alpha=1.2,
             conf_beta=6.0,
-            qol_annual=0.0002,
+            qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
             high_qaly=0.01,
@@ -1963,6 +3095,10 @@ def build_additional_specs(
             conf_beta=6.0,
             qol_annual=0.00075,
             qol_years=15,
+            general_qol_utility_weight_ids=FUNCTION_QOL,
+            general_qol_lineage_note=(
+                "Performance/recovery utility is anchored to a mild motor-impairment fallback weight."
+            ),
             low_qaly=0.0,
             high_qaly=0.02,
             personalization="Small positive through possible exercise/recovery utility, not because I trust a direct longevity story.",
@@ -1974,7 +3110,7 @@ def build_additional_specs(
             log_sd=0.06,
             conf_alpha=1.2,
             conf_beta=6.0,
-            qol_annual=0.0001,
+            qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
             high_qaly=0.008,
@@ -1987,12 +3123,12 @@ def build_additional_specs(
             log_sd=0.05,
             conf_alpha=1.1,
             conf_beta=6.2,
-            qol_annual=0.00015 * (1.0 + skin_multiplier),
+            qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
             high_qaly=0.01,
-            personalization="This is mostly aesthetic/skin utility, which is real but should stay modest in a QALY-only model.",
-            rationale="Topical GHK-Cu may help skin appearance, but not enough to justify a large healthspan estimate.",
+            personalization="Modeled as flat because aesthetic/skin appearance utility is not currently represented in the public-health QALY reference case.",
+            rationale="Topical GHK-Cu may help skin appearance, but I am not assigning generic healthspan QALYs without a mapped utility domain.",
         ),
         "vitamin_c_500_extra": make_spec(
             "vitamin_c_500_extra",
@@ -2015,6 +3151,10 @@ def build_additional_specs(
             conf_beta=5.0,
             qol_annual=0.0002,
             qol_years=10,
+            general_qol_utility_weight_ids=UPPER_GI_QOL,
+            general_qol_lineage_note=(
+                "Upper-GI symptom utility is anchored to a reflux fallback disability weight."
+            ),
             low_qaly=0.0,
             high_qaly=0.006,
             personalization="Useful mainly if you have a real GI barrier/irritation problem; otherwise near zero.",
@@ -2028,6 +3168,10 @@ def build_additional_specs(
             conf_beta=5.5,
             qol_annual=0.0004,
             qol_years=10,
+            general_qol_utility_weight_ids=GUT_QOL,
+            general_qol_lineage_note=(
+                "Gut-comfort utility is anchored to an IBS fallback disability weight."
+            ),
             low_qaly=-0.002,
             high_qaly=0.01,
             personalization=(
@@ -2039,7 +3183,7 @@ def build_additional_specs(
                 "and the marginal value on top of your existing gut stack should be small."
             ),
             sources=(
-                "https://preview.sportsresearch.com/products/daily-probiotics",
+                "https://www.sportsresearch.store/products/probiotic-60-billion",
                 "https://pubmed.ncbi.nlm.nih.gov/24230488/",
                 "https://pubmed.ncbi.nlm.nih.gov/41233756/",
             ),
@@ -2048,6 +3192,11 @@ def build_additional_specs(
             "apap_nightly",
             qol_annual=0.0002,
             qol_years=10,
+            general_qol_utility_weight_ids=AIRWAY_SLEEP_QOL,
+            general_qol_lineage_note=(
+                "Residual mask/convenience-adjusted utility is anchored to sleep-apnoea/"
+                "insomnia fallback weights; main sleep benefit is modeled separately."
+            ),
             low_qaly=0.0,
             high_qaly=0.15,
             personalization=(
@@ -2068,6 +3217,11 @@ def build_additional_specs(
             "oral_appliance_custom",
             qol_annual=0.0002,
             qol_years=10,
+            general_qol_utility_weight_ids=AIRWAY_SLEEP_QOL,
+            general_qol_lineage_note=(
+                "Residual appliance-convenience utility is anchored to sleep-apnoea/"
+                "insomnia fallback weights; main sleep benefit is modeled separately."
+            ),
             low_qaly=0.0,
             high_qaly=0.10,
             personalization=(
@@ -2086,7 +3240,12 @@ def build_additional_specs(
             "doxepin_3mg",
             qol_annual=0.0011 * stress_multiplier,
             qol_years=8,
-            low_qaly=-0.005,
+            general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
+            general_qol_lineage_note=(
+                "Residual insomnia/stress utility is anchored to insomnia/anxiety disability "
+                "weights; component sleep relief is modeled separately."
+            ),
+            low_qaly=-0.01,
             high_qaly=0.04,
             personalization=(
                 "Modeled as a better-targeted sleep-maintenance bridge than trazodone, but still with some hangover and respiratory caution rather than assuming it is free upside."
@@ -2103,6 +3262,11 @@ def build_additional_specs(
             "daridorexant_25mg",
             qol_annual=0.0013 * stress_multiplier,
             qol_years=8,
+            general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
+            general_qol_lineage_note=(
+                "Residual insomnia/stress utility is anchored to insomnia/anxiety disability "
+                "weights; component sleep relief is modeled separately."
+            ),
             low_qaly=-0.005,
             high_qaly=0.05,
             personalization=(
@@ -2121,6 +3285,11 @@ def build_additional_specs(
             "lemborexant_5mg",
             qol_annual=0.00145 * stress_multiplier,
             qol_years=8,
+            general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
+            general_qol_lineage_note=(
+                "Residual insomnia/stress utility is anchored to insomnia/anxiety disability "
+                "weights; component sleep relief is modeled separately."
+            ),
             low_qaly=-0.005,
             high_qaly=0.055,
             personalization=(
@@ -2142,6 +3311,11 @@ def build_additional_specs(
             "suvorexant_10mg",
             qol_annual=0.0012 * stress_multiplier,
             qol_years=8,
+            general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
+            general_qol_lineage_note=(
+                "Residual insomnia/stress utility is anchored to insomnia/anxiety disability "
+                "weights; component sleep relief is modeled separately."
+            ),
             low_qaly=-0.008,
             high_qaly=0.045,
             personalization=(
@@ -2167,6 +3341,10 @@ def build_additional_specs(
             conf_beta=4.8,
             qol_annual=0.0028 * hiit_headroom,
             qol_years=12,
+            general_qol_utility_weight_ids=FUNCTION_QOL,
+            general_qol_lineage_note=(
+                "Exercise-function utility is anchored to a mild motor-impairment fallback weight."
+            ),
             low_qaly=0.0,
             high_qaly=0.04,
             personalization=(
@@ -2190,6 +3368,10 @@ def build_additional_specs(
             conf_beta=5.0,
             qol_annual=0.0045 * hiit_headroom,
             qol_years=12,
+            general_qol_utility_weight_ids=FUNCTION_QOL,
+            general_qol_lineage_note=(
+                "Exercise-function utility is anchored to a mild motor-impairment fallback weight."
+            ),
             low_qaly=0.0,
             high_qaly=0.06,
             personalization=(
@@ -2212,6 +3394,10 @@ def build_additional_specs(
             conf_beta=5.4,
             qol_annual=0.0038 * hiit_headroom - 0.0008 * (1.0 - sleep_need),
             qol_years=12,
+            general_qol_utility_weight_ids=FUNCTION_QOL,
+            general_qol_lineage_note=(
+                "Exercise-function utility is anchored to a mild motor-impairment fallback weight."
+            ),
             low_qaly=-0.005,
             high_qaly=0.05,
             personalization=(
@@ -2234,6 +3420,10 @@ def build_additional_specs(
             conf_beta=5.0,
             qol_annual=0.0018 * hiit_headroom,
             qol_years=12,
+            general_qol_utility_weight_ids=FUNCTION_QOL,
+            general_qol_lineage_note=(
+                "Exercise-function utility is anchored to a mild motor-impairment fallback weight."
+            ),
             low_qaly=0.0,
             high_qaly=0.025,
             personalization=(
@@ -2254,6 +3444,10 @@ def build_additional_specs(
             conf_beta=4.9,
             qol_annual=0.0034 * hiit_headroom,
             qol_years=12,
+            general_qol_utility_weight_ids=FUNCTION_QOL,
+            general_qol_lineage_note=(
+                "Exercise-function utility is anchored to a mild motor-impairment fallback weight."
+            ),
             low_qaly=0.0,
             high_qaly=0.045,
             personalization=(
@@ -2275,6 +3469,10 @@ def build_additional_specs(
             conf_beta=5.6,
             qol_annual=0.0003,
             qol_years=12,
+            general_qol_utility_weight_ids=FUNCTION_QOL,
+            general_qol_lineage_note=(
+                "Strength/function utility is anchored to a mild motor-impairment fallback weight."
+            ),
             low_qaly=0.0,
             high_qaly=0.01,
             personalization=(
@@ -2295,6 +3493,11 @@ def build_additional_specs(
             conf_beta=4.8,
             qol_annual=0.0008,
             qol_years=15,
+            general_qol_utility_weight_ids=STRESS_QOL + FUNCTION_QOL,
+            general_qol_lineage_note=(
+                "Relaxation/recovery utility is anchored to mild anxiety and functional "
+                "impairment fallback weights."
+            ),
             low_qaly=0.0,
             high_qaly=0.03,
             personalization=(
@@ -2316,6 +3519,11 @@ def build_additional_specs(
             conf_beta=5.2,
             qol_annual=0.00035,
             qol_years=10,
+            general_qol_utility_weight_ids=STRESS_QOL + FUNCTION_QOL,
+            general_qol_lineage_note=(
+                "Relaxation/recovery utility is anchored to mild anxiety and functional "
+                "impairment fallback weights."
+            ),
             low_qaly=0.0,
             high_qaly=0.015,
             personalization=(
@@ -2335,7 +3543,7 @@ def build_additional_specs(
             log_sd=0.06,
             conf_alpha=1.2,
             conf_beta=6.4,
-            qol_annual=0.0002,
+            qol_annual=0.0,
             qol_years=5,
             low_qaly=-0.01,
             high_qaly=0.01,
@@ -2379,7 +3587,7 @@ def build_additional_specs(
             conf_beta=7.0,
             qol_annual=0.0,
             qol_years=2,
-            low_qaly=-0.01,
+            low_qaly=-0.012,
             high_qaly=0.004,
             personalization=(
                 "This is even more speculative than BPC-157 in the absence of a specific recovery use case."
@@ -2394,21 +3602,112 @@ def build_additional_specs(
     }
 
 
+def format_cost_per_qaly(item: dict[str, Any]) -> str:
+    if item["total_qaly"] <= 0:
+        return "net negative"
+    if item["modeled_total_cost"] <= 0:
+        return "dominant"
+    cost_per = item["cost_per_qaly"]
+    return "—" if cost_per is None else f"${cost_per:,}"
+
+
+def render_ranking_table(items: list[dict[str, Any]]) -> list[str]:
+    if not items:
+        return ["_None._"]
+    lines = [
+        "| Item | Status | Type | Total QALY | Days | Cost | $/QALY | P(harm) |",
+        "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for item in items:
+        lines.append(
+            f"| {item['name']} | {item['status']} | {item['display_category']} | "
+            f"{item['total_qaly']:.4f} | {item['days']:.1f} | "
+            f"${item['modeled_total_cost']:,.0f} | {format_cost_per_qaly(item)} | "
+            f"{item['p_harm']:.1%} |"
+        )
+    return lines
+
+
+def build_current_stack_drop_table(
+    estimates: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Rank current-stack items by the modeled effect of dropping each one."""
+    rows: list[dict[str, Any]] = []
+    for item in estimates:
+        if item.get("status") not in CURRENT_STACK_STATUSES:
+            continue
+        drop_qaly = -float(item["total_qaly"])
+        rows.append({
+            "id": item["id"],
+            "name": item["name"],
+            "status": item.get("status"),
+            "display_category": item.get("display_category"),
+            "annual_cost": item.get("annual_cost"),
+            "modeled_total_cost": item.get("modeled_total_cost"),
+            "continue_total_qaly": item["total_qaly"],
+            "drop_qaly": round(drop_qaly, 4),
+            "drop_days": round(drop_qaly * 365.25, 1),
+            "p_drop_benefit": item["p_harm"],
+            "continue_cost_per_qaly": item.get("cost_per_qaly"),
+            "reference_case_status": item["reference_case_status"],
+            "qaly_lineage_issues": list(item["qaly_lineage"]["issues"]),
+        })
+    rows.sort(key=lambda row: row["drop_qaly"], reverse=True)
+    return rows
+
+
+def format_continue_cost_per_qaly_for_drop(row: dict[str, Any]) -> str:
+    if row["continue_total_qaly"] <= 0:
+        return "net negative" if row["modeled_total_cost"] > 0 else "flat"
+    if row["modeled_total_cost"] <= 0:
+        return "free/bundled"
+    cost_per = row["continue_cost_per_qaly"]
+    return "—" if cost_per is None else f"${cost_per:,}"
+
+
+def render_current_stack_drop_table(rows: list[dict[str, Any]]) -> list[str]:
+    if not rows:
+        return ["_None._"]
+    lines = [
+        "| Item | Status | Drop ΔQALY | Drop days | Drop helps | Continue $/QALY | Lineage |",
+        "| --- | --- | ---: | ---: | ---: | ---: | --- |",
+    ]
+    for row in rows:
+        lines.append(
+            f"| {row['name']} | {row['status']} | {row['drop_qaly']:+.4f} | "
+            f"{row['drop_days']:+.1f} | {row['p_drop_benefit']:.1%} | "
+            f"{format_continue_cost_per_qaly_for_drop(row)} | "
+            f"{row['reference_case_status']} |"
+        )
+    return lines
+
+
 def simulate_structured_qaly(
     spec: StackSpec,
     item_id: str,
     sleep_estimate: SleepBurdenEstimate | None = None,
     profile: Profile | None = None,
+    active_interaction_tags: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     catalog_entry = CATALOG[item_id]
     resolved = resolve_stack_spec(spec, catalog_entry)
-    if abs(resolved.observed_hr - 1.0) < 1e-12:
+    active_profile = profile or PROFILE
+    profile_effect_multiplier = (
+        catalog_entry.profile_effect_multiplier(active_profile)
+        if resolved.apply_profile_effect_rules
+        else 1.0
+    )
+    adjusted_observed_hr = profile_adjusted_observed_hr(
+        resolved.observed_hr,
+        profile_effect_multiplier,
+    )
+    if abs(adjusted_observed_hr - 1.0) < 1e-12:
         hazard_ratio = Distribution(type="point", params={"value": 1.0})
     else:
         hazard_ratio = Distribution(
             type="lognormal",
             params={
-                "log_mean": math.log(resolved.observed_hr),
+                "hr": adjusted_observed_hr,
                 "log_sd": resolved.log_sd,
             },
         )
@@ -2420,6 +3719,8 @@ def simulate_structured_qaly(
             hazard_ratio=hazard_ratio
         ),
         harm_model=list(catalog_entry.harm_effects),
+        interaction_tags=list(catalog_entry.interaction_tags),
+        interaction_rules=list(catalog_entry.interaction_rules),
         confounding_prior=ConfoundingPrior(alpha=resolved.conf_alpha, beta=resolved.conf_beta),
     )
     scaled_sleep_relief = effective_sleep_component_relief(
@@ -2429,7 +3730,7 @@ def simulate_structured_qaly(
     )
     result, qaly_draws = simulate_qaly_profile_vectorized(
         intervention,
-        profile or PROFILE,
+        active_profile,
         n_simulations=N_SIMULATIONS,
         discount_rate=QALY_DISCOUNT_RATE,
         baseline_hazard_multiplier=sleep_baseline_mortality_multiplier(sleep_estimate),
@@ -2437,7 +3738,9 @@ def simulate_structured_qaly(
             sleep_estimate,
             scaled_sleep_relief,
         ),
-        random_state=SEED,
+        active_interaction_tags=active_interaction_tags,
+        active_years=resolved.qol_years,
+        random_state=stable_random_seed(item_id, "structured_qaly"),
         return_qaly_gains=True,
     )
     direct_harm_qaly = float(result.expected_harm_qalys + result.expected_interaction_harm_qalys)
@@ -2449,6 +3752,8 @@ def simulate_structured_qaly(
         "p_benefit": float(result.prob_positive),
         "p_harm": float(result.prob_negative),
         "qaly_draws": qaly_draws,
+        "profile_effect_multiplier": profile_effect_multiplier,
+        "effective_observed_hr": adjusted_observed_hr,
     }
 
 
@@ -2457,6 +3762,8 @@ def estimate_item(
     spec: StackSpec,
     baseline: dict[str, Any],
     context: ProtocolContext | None = None,
+    active_interaction_tags: tuple[str, ...] = (),
+    include_draws: bool = False,
 ) -> dict[str, Any]:
     context = resolve_protocol_context(context)
     resolved = resolve_stack_spec(spec, CATALOG[item["id"]])
@@ -2472,6 +3779,12 @@ def estimate_item(
         annual_qaly_loss=float(baseline["derived"].get("sleep_burden_annual_qaly", 0.0)),
         mortality_signal=float(baseline["derived"].get("sleep_mortality_signal", 0.0)),
         airway=None,
+        component_utility_weight_ids={
+            key: str(value)
+            for key, value in (
+                baseline["derived"].get("sleep_component_utility_weight_ids") or {}
+            ).items()
+        },
     )
     airway = baseline["derived"].get("sleep_airway") or {}
     if airway:
@@ -2486,12 +3799,14 @@ def estimate_item(
                 mucus_probability=float(airway.get("mucus_probability", 0.0)),
                 response_signal=float(baseline["derived"].get("airway_response_signal", 0.0)),
             ),
+            component_utility_weight_ids=sleep_estimate.component_utility_weight_ids,
         )
     simulated = simulate_structured_qaly(
         spec,
         item["id"],
         sleep_estimate=sleep_estimate,
         profile=context.profile,
+        active_interaction_tags=active_interaction_tags,
     )
     mortality_qaly = simulated["mortality_qaly"]
     direct_harm_qaly = simulated["direct_harm_qaly"]
@@ -2511,20 +3826,48 @@ def estimate_item(
         scaled_sleep_relief,
     )
     sleep_qol_qaly = sleep_qol_annual * discount_factor(resolved.qol_years)
-    qol_qaly = general_qol_qaly + sleep_qol_qaly
-    total_draws = simulated["qaly_draws"] + qol_qaly
+    general_qol_draws = sample_qol_component_draws(
+        general_qol_qaly,
+        item_id=item["id"],
+        component="general_qol",
+        evidence_quality=CATALOG[item["id"]].evidence_quality,
+    )
+    sleep_qol_draws = sample_qol_component_draws(
+        sleep_qol_qaly,
+        item_id=item["id"],
+        component="sleep_qol",
+        evidence_quality=CATALOG[item["id"]].evidence_quality,
+    )
+    qol_qaly = float(np.mean(general_qol_draws + sleep_qol_draws))
+    total_draws = simulated["qaly_draws"] + general_qol_draws + sleep_qol_draws
     total_qaly = float(np.mean(total_draws))
     p_benefit = float(np.mean(total_draws > 0))
     p_harm = float(np.mean(total_draws < 0))
     if p_benefit == 0.0 and p_harm == 0.0:
         p_benefit = p_harm = 0.5
+    total_cost = modeled_total_cost(item.get("annual_cost"), resolved.qol_years)
+    item_cost_per_qaly = cost_per_qaly(total_cost, total_qaly)
+    qaly_lineage = qaly_lineage_payload(
+        resolved=resolved,
+        mortality_qaly=mortality_qaly,
+        direct_harm_qaly=direct_harm_qaly,
+        general_qol_qaly=general_qol_qaly,
+        sleep_qol_qaly=sleep_qol_qaly,
+        direct_harm_lineage=item_harm_utility_lineage(item["id"], active_interaction_tags),
+        sleep_lineage=sleep_utility_lineage(sleep_estimate, scaled_sleep_relief),
+    )
 
-    return {
+    estimate = {
         "id": item["id"],
         "name": item["name"],
         "status": item.get("status"),
         "category": item.get("category"),
+        "display_category": item.get("display_category"),
         "annual_cost": item.get("annual_cost"),
+        "modeled_total_cost": round(total_cost, 2),
+        "cost_per_qaly": (
+            None if item_cost_per_qaly is None else round(item_cost_per_qaly)
+        ),
         "dose_notes": item.get("dose_notes"),
         "time_of_day": item.get("time_of_day"),
         "mortality_qaly": round(mortality_qaly, 4),
@@ -2539,8 +3882,17 @@ def estimate_item(
         "range_low_qaly": resolved.low_qaly,
         "range_high_qaly": resolved.high_qaly,
         "within_range": resolved.low_qaly <= total_qaly <= resolved.high_qaly,
+        "reference_case_status": qaly_lineage["overall_reference_case_status"],
+        "qaly_lineage": qaly_lineage,
         "assumptions": {
             "observed_hr": resolved.observed_hr,
+            "profile_effect_multiplier": round(simulated["profile_effect_multiplier"], 6),
+            "apply_profile_effect_rules": resolved.apply_profile_effect_rules,
+            "effective_observed_hr": round(simulated["effective_observed_hr"], 6),
+            "genetic_rule_matches": matching_genetic_rule_rationales(
+                CATALOG[item["id"]],
+                context.profile,
+            ),
             "log_sd": resolved.log_sd,
             "confounding_prior": {"alpha": resolved.conf_alpha, "beta": resolved.conf_beta},
             "qol_annual": round(resolved.qol_annual, 6),
@@ -2554,11 +3906,589 @@ def estimate_item(
                 key: round(value, 3) for key, value in resolved.airway_target_weights.items()
             },
             "qol_years": resolved.qol_years,
+            "cost_years": resolved.qol_years,
+            "qol_uncertainty_relative_sd": qol_uncertainty_relative_sd(
+                CATALOG[item["id"]].evidence_quality,
+            ),
         },
         "personalization": resolved.personalization,
         "rationale": resolved.rationale,
         "sources": list(resolved.sources),
     }
+    if resolved.model_details is not None:
+        estimate["assumptions"]["model_details"] = resolved.model_details
+    if include_draws:
+        estimate["_total_draws"] = total_draws
+        estimate["_benefit_overlap_qaly"] = max(mortality_qaly, 0.0) + max(qol_qaly, 0.0)
+    return estimate
+
+
+def public_estimate_payload(estimate: dict[str, Any]) -> dict[str, Any]:
+    """Drop internal Monte Carlo arrays before JSON serialization."""
+    return {key: value for key, value in estimate.items() if not key.startswith("_")}
+
+
+def active_state_item_ids(protocol_items: list[dict[str, Any]]) -> list[str]:
+    """Return item ids that define the currently active protocol state."""
+    return [
+        str(item["id"])
+        for item in protocol_items
+        if str(item.get("status", "")) in CURRENT_STACK_STATUSES
+    ]
+
+
+def _ordered_state_ids(item_ids: list[str]) -> list[str]:
+    """Stable unique state id list, preserving catalog/protocol order."""
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for item_id in item_ids:
+        if item_id in seen:
+            continue
+        seen.add(item_id)
+        ordered.append(item_id)
+    return ordered
+
+
+def _state_item_active_years(
+    item_ids: list[str],
+    specs: dict[str, StackSpec],
+) -> dict[str, float]:
+    years: dict[str, float] = {}
+    for item_id in item_ids:
+        if item_id not in specs or item_id not in CATALOG:
+            continue
+        years[item_id] = resolve_stack_spec(specs[item_id], CATALOG[item_id]).qol_years
+    return years
+
+
+def _state_item_qalys(
+    item_ids: list[str],
+    estimates_by_id: dict[str, dict[str, Any]],
+) -> dict[str, float]:
+    return {
+        item_id: float(
+            estimates_by_id[item_id].get(
+                "_benefit_overlap_qaly",
+                max(float(estimates_by_id[item_id].get("total_qaly", 0.0)), 0.0),
+            )
+        )
+        for item_id in item_ids
+        if item_id in estimates_by_id
+    }
+
+
+def evaluate_protocol_state(
+    item_ids: list[str],
+    estimates_by_id: dict[str, dict[str, Any]],
+    specs: dict[str, StackSpec],
+    context: ProtocolContext,
+) -> dict[str, Any]:
+    """Evaluate a full protocol state once, including shared stack effects."""
+    state_ids = _ordered_state_ids(item_ids)
+    draws = np.zeros(N_SIMULATIONS)
+    total_cost = 0.0
+    additive_qaly = 0.0
+    for item_id in state_ids:
+        estimate = estimates_by_id[item_id]
+        draws += latent_protocol_item_draws(item_id, estimate)
+        additive_qaly += float(estimate["total_qaly"])
+        total_cost += float(estimate.get("modeled_total_cost") or 0.0)
+
+    interaction_qaly, interaction_details = expected_stack_interaction_qaly(
+        item_ids=state_ids,
+        catalog_entries=CATALOG,
+        profile=context.profile,
+        qaly_discount_rate=QALY_DISCOUNT_RATE,
+        item_active_years=_state_item_active_years(state_ids, specs),
+        item_qalys=_state_item_qalys(state_ids, estimates_by_id),
+    )
+    state_draws = draws + interaction_qaly
+    total_qaly = float(np.mean(state_draws))
+    return {
+        "item_ids": state_ids,
+        "n_items": len(state_ids),
+        "additive_qaly": round(additive_qaly, 4),
+        "stack_interaction_qaly": round(interaction_qaly, 4),
+        "total_qaly": round(total_qaly, 4),
+        "total_days": round(total_qaly * 365.25, 1),
+        "modeled_total_cost": round(total_cost, 2),
+        "p_positive": round(float(np.mean(state_draws > 0)), 4),
+        "interaction_details": interaction_details,
+        "draw_model": "paired_latent_rank_copula",
+        "_total_qaly_raw": total_qaly,
+        "_modeled_total_cost_raw": total_cost,
+        "_draws": state_draws,
+    }
+
+
+def marginal_cost_per_qaly(delta_cost: float, delta_qaly: float) -> int | None:
+    if delta_qaly <= 0 or delta_cost <= 0:
+        return None
+    return round(delta_cost / delta_qaly)
+
+
+def draw_correlation(a: np.ndarray, b: np.ndarray) -> float | None:
+    if float(np.std(a)) <= 1e-12 or float(np.std(b)) <= 1e-12:
+        return None
+    return float(np.corrcoef(a, b)[0, 1])
+
+
+def format_marginal_cost_per_qaly(row: dict[str, Any]) -> str:
+    if row["delta_qaly"] <= 0:
+        return "net negative"
+    if row["delta_cost"] < 0:
+        return "dominant"
+    if row["delta_cost"] == 0:
+        return "free/bundled"
+    cost_per = row.get("cost_per_qaly")
+    return "—" if cost_per is None else f"${cost_per:,}"
+
+
+def build_state_marginal_decision_table(
+    protocol_items: list[dict[str, Any]],
+    estimates_by_id: dict[str, dict[str, Any]],
+    specs: dict[str, StackSpec],
+    context: ProtocolContext,
+) -> list[dict[str, Any]]:
+    """Compute add/drop decisions as V(new full state) - V(current full state)."""
+    current_ids = active_state_item_ids(protocol_items)
+    current_state = evaluate_protocol_state(current_ids, estimates_by_id, specs, context)
+    current_draws = current_state["_draws"]
+    current_cost = float(current_state["modeled_total_cost"])
+
+    rows: list[dict[str, Any]] = []
+    for item in protocol_items:
+        item_id = str(item["id"])
+        status = str(item.get("status", ""))
+        if status in CURRENT_STACK_STATUSES:
+            action = "drop"
+            new_ids = [state_id for state_id in current_ids if state_id != item_id]
+        elif is_actionable_item(item):
+            action = "add"
+            new_ids = current_ids + [item_id]
+        else:
+            continue
+
+        new_state = evaluate_protocol_state(new_ids, estimates_by_id, specs, context)
+        new_draws = new_state["_draws"]
+        delta_draws = new_draws - current_draws
+        delta_qaly = float(np.mean(delta_draws))
+        delta_cost = float(new_state["modeled_total_cost"]) - current_cost
+        paired_state_correlation = draw_correlation(current_draws, new_draws)
+        independent_delta_sd = math.sqrt(
+            float(np.var(current_draws)) + float(np.var(new_draws)),
+        )
+        estimate = estimates_by_id[item_id]
+        row = {
+            "id": item_id,
+            "name": estimate["name"],
+            "action": action,
+            "status": status,
+            "display_category": estimate.get("display_category"),
+            "standalone_total_qaly": estimate["total_qaly"],
+            "delta_qaly": round(delta_qaly, 4),
+            "delta_days": round(delta_qaly * 365.25, 1),
+            "delta_sd": round(float(np.std(delta_draws)), 4),
+            "independent_delta_sd": round(independent_delta_sd, 4),
+            "paired_state_correlation": (
+                None
+                if paired_state_correlation is None
+                else round(paired_state_correlation, 4)
+            ),
+            "delta_ci80": [
+                round(float(np.percentile(delta_draws, 10)), 4),
+                round(float(np.percentile(delta_draws, 90)), 4),
+            ],
+            "p_positive": round(float(np.mean(delta_draws > 0)), 4),
+            "delta_cost": round(delta_cost, 2),
+            "cost_per_qaly": marginal_cost_per_qaly(delta_cost, delta_qaly),
+            "state_total_qaly_after": new_state["total_qaly"],
+            "state_interaction_delta_qaly": round(
+                float(new_state["stack_interaction_qaly"])
+                - float(current_state["stack_interaction_qaly"]),
+                4,
+            ),
+            "reference_case_status": estimate["reference_case_status"],
+            "qaly_lineage_issues": list(estimate["qaly_lineage"]["issues"]),
+        }
+        if action == "drop":
+            row.update({
+                "continue_total_qaly": estimate["total_qaly"],
+                "drop_qaly": row["delta_qaly"],
+                "drop_days": row["delta_days"],
+                "p_drop_benefit": row["p_positive"],
+                "continue_cost_per_qaly": estimate.get("cost_per_qaly"),
+                "modeled_total_cost": estimate.get("modeled_total_cost"),
+            })
+        rows.append(row)
+
+    rows.sort(key=lambda row: row["delta_qaly"], reverse=True)
+    return rows
+
+
+def optimizable_protocol_item_ids(protocol_items: list[dict[str, Any]]) -> list[str]:
+    """Return item ids the state optimizer may keep, add, or drop."""
+    return _ordered_state_ids([
+        str(item["id"])
+        for item in protocol_items
+        if (
+            str(item.get("status", "")) in CURRENT_STACK_STATUSES
+            or is_actionable_item(item)
+        )
+    ])
+
+
+def exclusive_group_by_id(item_ids: list[str]) -> dict[str, str]:
+    return {
+        item_id: CATALOG[item_id].exclusive_group
+        for item_id in item_ids
+        if item_id in CATALOG and CATALOG[item_id].exclusive_group
+    }
+
+
+def feasible_protocol_state(
+    item_ids: list[str],
+    exclusive_groups: dict[str, str],
+) -> list[str]:
+    """Return a stable feasible state, keeping the first item in each group."""
+    selected_groups: set[str] = set()
+    feasible_ids: list[str] = []
+    for item_id in _ordered_state_ids(item_ids):
+        group = exclusive_groups.get(item_id)
+        if group and group in selected_groups:
+            continue
+        if group:
+            selected_groups.add(group)
+        feasible_ids.append(item_id)
+    return feasible_ids
+
+
+def state_transition_actions(
+    current_ids: list[str],
+    target_ids: list[str],
+) -> dict[str, list[str]]:
+    current = set(current_ids)
+    target = set(target_ids)
+    added = sorted(target - current)
+    dropped = sorted(current - target)
+    swaps: list[str] = []
+    for added_id in added:
+        added_group = CATALOG.get(added_id).exclusive_group if added_id in CATALOG else None
+        if not added_group:
+            continue
+        for dropped_id in dropped:
+            dropped_group = (
+                CATALOG.get(dropped_id).exclusive_group
+                if dropped_id in CATALOG
+                else None
+            )
+            if dropped_group == added_group:
+                swaps.append(f"{dropped_id}->{added_id}")
+    return {
+        "add": added,
+        "drop": dropped,
+        "swap": swaps,
+    }
+
+
+def state_objective_value(
+    state: dict[str, Any],
+    objective: str,
+    wtp: float,
+) -> float:
+    qaly = float(state.get("_total_qaly_raw", state["total_qaly"]))
+    if objective == "qaly":
+        return qaly
+    if objective == "net_benefit":
+        cost = float(state.get("_modeled_total_cost_raw", state["modeled_total_cost"]))
+        return qaly * wtp - cost
+    raise ValueError(f"Unknown optimizer objective: {objective}")
+
+
+def protocol_state_cost(state: dict[str, Any]) -> float:
+    return float(state.get("_modeled_total_cost_raw", state["modeled_total_cost"]))
+
+
+def protocol_state_qaly(state: dict[str, Any]) -> float:
+    return float(state.get("_total_qaly_raw", state["total_qaly"]))
+
+
+def protocol_optimizer_neighbors(
+    state_ids: list[str],
+    universe_ids: list[str],
+    exclusive_groups: dict[str, str],
+) -> list[list[str]]:
+    """Generate add/drop/swap neighbors for local full-state search."""
+    selected = set(state_ids)
+    neighbors: list[list[str]] = []
+    seen: set[tuple[str, ...]] = set()
+
+    def add_neighbor(candidate_ids: list[str]) -> None:
+        feasible_ids = feasible_protocol_state(candidate_ids, exclusive_groups)
+        key = tuple(feasible_ids)
+        if key == tuple(state_ids) or key in seen:
+            return
+        seen.add(key)
+        neighbors.append(feasible_ids)
+
+    for item_id in state_ids:
+        add_neighbor([selected_id for selected_id in state_ids if selected_id != item_id])
+
+    for item_id in universe_ids:
+        if item_id in selected:
+            continue
+        group = exclusive_groups.get(item_id)
+        if group:
+            conflicting_ids = [
+                selected_id
+                for selected_id in state_ids
+                if exclusive_groups.get(selected_id) == group
+            ]
+            if conflicting_ids:
+                add_neighbor([
+                    selected_id
+                    for selected_id in state_ids
+                    if selected_id not in conflicting_ids
+                ] + [item_id])
+                continue
+        add_neighbor(state_ids + [item_id])
+
+    return neighbors
+
+
+def build_optimizer_step(
+    *,
+    step: int,
+    previous_ids: list[str],
+    new_ids: list[str],
+    previous_state: dict[str, Any],
+    new_state: dict[str, Any],
+    previous_objective_value: float,
+    new_objective_value: float,
+    objective: str,
+    wtp: float,
+    estimates_by_id: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    delta_draws = new_state["_draws"] - previous_state["_draws"]
+    delta_qaly = float(np.mean(delta_draws))
+    delta_cost = protocol_state_cost(new_state) - protocol_state_cost(previous_state)
+    actions = state_transition_actions(previous_ids, new_ids)
+    return {
+        "step": step,
+        "objective": objective,
+        "actions": actions,
+        "add_names": [estimates_by_id[item_id]["name"] for item_id in actions["add"]],
+        "drop_names": [estimates_by_id[item_id]["name"] for item_id in actions["drop"]],
+        "delta_qaly": round(delta_qaly, 4),
+        "delta_days": round(delta_qaly * 365.25, 1),
+        "p_positive": round(float(np.mean(delta_draws > 0)), 4),
+        "delta_cost": round(delta_cost, 2),
+        "cost_per_qaly": marginal_cost_per_qaly(delta_cost, delta_qaly),
+        "delta_net_benefit": round(delta_qaly * wtp - delta_cost, 2),
+        "delta_objective_value": (
+            round(new_objective_value - previous_objective_value, 2)
+            if objective == "net_benefit"
+            else round(new_objective_value - previous_objective_value, 4)
+        ),
+        "state_total_qaly": new_state["total_qaly"],
+        "state_total_days": new_state["total_days"],
+        "state_total_cost": new_state["modeled_total_cost"],
+        "state_objective_value": (
+            round(new_objective_value, 2)
+            if objective == "net_benefit"
+            else round(new_objective_value, 4)
+        ),
+        "delta_ci80": [
+            round(float(np.percentile(delta_draws, 10)), 4),
+            round(float(np.percentile(delta_draws, 90)), 4),
+        ],
+        "paired_state_correlation": (
+            None
+            if draw_correlation(previous_state["_draws"], new_state["_draws"]) is None
+            else round(float(draw_correlation(previous_state["_draws"], new_state["_draws"])), 4)
+        ),
+    }
+
+
+def optimize_protocol_state(
+    protocol_items: list[dict[str, Any]],
+    estimates_by_id: dict[str, dict[str, Any]],
+    specs: dict[str, StackSpec],
+    context: ProtocolContext,
+    *,
+    objective: str = "net_benefit",
+    wtp: float = PROTOCOL_OPTIMIZER_WTP,
+    max_steps: int = PROTOCOL_OPTIMIZER_MAX_STEPS,
+    min_improvement: float = PROTOCOL_OPTIMIZER_MIN_IMPROVEMENT,
+) -> dict[str, Any]:
+    """Greedy local search over full protocol states with exclusivity constraints."""
+    universe_ids = optimizable_protocol_item_ids(protocol_items)
+    exclusive_groups = exclusive_group_by_id(universe_ids)
+    initial_ids = feasible_protocol_state(active_state_item_ids(protocol_items), exclusive_groups)
+    state_cache: dict[tuple[str, ...], dict[str, Any]] = {}
+
+    def evaluate_ids(item_ids: list[str]) -> dict[str, Any]:
+        key = tuple(item_ids)
+        if key not in state_cache:
+            state_cache[key] = evaluate_protocol_state(
+                item_ids,
+                estimates_by_id,
+                specs,
+                context,
+            )
+        return state_cache[key]
+
+    current_ids = initial_ids
+    current_state = evaluate_ids(current_ids)
+    initial_state = current_state
+    current_objective_value = state_objective_value(current_state, objective, wtp)
+    path: list[dict[str, Any]] = []
+
+    for step in range(1, max_steps + 1):
+        best_ids: list[str] | None = None
+        best_state: dict[str, Any] | None = None
+        best_objective_value = current_objective_value
+        for neighbor_ids in protocol_optimizer_neighbors(
+            current_ids,
+            universe_ids,
+            exclusive_groups,
+        ):
+            neighbor_state = evaluate_ids(neighbor_ids)
+            neighbor_objective_value = state_objective_value(
+                neighbor_state,
+                objective,
+                wtp,
+            )
+            if neighbor_objective_value > best_objective_value + min_improvement:
+                best_ids = neighbor_ids
+                best_state = neighbor_state
+                best_objective_value = neighbor_objective_value
+
+        if best_ids is None or best_state is None:
+            break
+
+        path.append(
+            build_optimizer_step(
+                step=step,
+                previous_ids=current_ids,
+                new_ids=best_ids,
+                previous_state=current_state,
+                new_state=best_state,
+                previous_objective_value=current_objective_value,
+                new_objective_value=best_objective_value,
+                objective=objective,
+                wtp=wtp,
+                estimates_by_id=estimates_by_id,
+            )
+        )
+        current_ids = best_ids
+        current_state = best_state
+        current_objective_value = best_objective_value
+
+    delta_draws = current_state["_draws"] - initial_state["_draws"]
+    delta_qaly = float(np.mean(delta_draws))
+    delta_cost = protocol_state_cost(current_state) - protocol_state_cost(initial_state)
+    transition = state_transition_actions(initial_ids, current_ids)
+    return {
+        "objective": objective,
+        "wtp": wtp,
+        "search_strategy": "greedy_full_state_local_search",
+        "max_steps": max_steps,
+        "steps_taken": len(path),
+        "initial_state": public_state_payload(initial_state),
+        "recommended_state": public_state_payload(current_state),
+        "delta_qaly": round(delta_qaly, 4),
+        "delta_days": round(delta_qaly * 365.25, 1),
+        "p_positive_delta": round(float(np.mean(delta_draws > 0)), 4),
+        "delta_cost": round(delta_cost, 2),
+        "cost_per_qaly": marginal_cost_per_qaly(delta_cost, delta_qaly),
+        "delta_net_benefit": round(
+            state_objective_value(current_state, "net_benefit", wtp)
+            - state_objective_value(initial_state, "net_benefit", wtp),
+            2,
+        ),
+        "delta_ci80": [
+            round(float(np.percentile(delta_draws, 10)), 4),
+            round(float(np.percentile(delta_draws, 90)), 4),
+        ],
+        "actions_from_current": transition,
+        "add_names": [estimates_by_id[item_id]["name"] for item_id in transition["add"]],
+        "drop_names": [estimates_by_id[item_id]["name"] for item_id in transition["drop"]],
+        "path": path,
+        "exclusive_groups": exclusive_groups,
+        "evaluated_state_count": len(state_cache),
+    }
+
+
+def build_protocol_optimizers(
+    protocol_items: list[dict[str, Any]],
+    estimates_by_id: dict[str, dict[str, Any]],
+    specs: dict[str, StackSpec],
+    context: ProtocolContext,
+    *,
+    wtp: float = PROTOCOL_OPTIMIZER_WTP,
+) -> dict[str, Any]:
+    return {
+        "net_benefit": optimize_protocol_state(
+            protocol_items,
+            estimates_by_id,
+            specs,
+            context,
+            objective="net_benefit",
+            wtp=wtp,
+        ),
+        "qaly": optimize_protocol_state(
+            protocol_items,
+            estimates_by_id,
+            specs,
+            context,
+            objective="qaly",
+            wtp=wtp,
+        ),
+    }
+
+
+def public_state_payload(state: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in state.items() if not key.startswith("_")}
+
+
+def render_state_marginal_decision_table(rows: list[dict[str, Any]]) -> list[str]:
+    if not rows:
+        return ["_None._"]
+    lines = [
+        "| Action | Item | ΔQALY | Δdays | P(+Δ) | Δcost | $/QALY | Stack Δ |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for row in rows:
+        lines.append(
+            f"| {row['action']} | {row['name']} | {row['delta_qaly']:+.4f} | "
+            f"{row['delta_days']:+.1f} | {row['p_positive']:.1%} | "
+            f"${row['delta_cost']:,.0f} | {format_marginal_cost_per_qaly(row)} | "
+            f"{row['state_interaction_delta_qaly']:+.4f} |"
+        )
+    return lines
+
+
+def render_protocol_optimizer_table(optimizers: dict[str, Any]) -> list[str]:
+    if not optimizers:
+        return ["_None._"]
+    lines = [
+        "| Objective | ΔQALY | Δdays | P(+Δ) | Δcost | Net benefit | Adds | Drops | Steps |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: |",
+    ]
+    for key in ("net_benefit", "qaly"):
+        result = optimizers.get(key)
+        if not result:
+            continue
+        adds = ", ".join(result["add_names"]) or "—"
+        drops = ", ".join(result["drop_names"]) or "—"
+        lines.append(
+            f"| {key.replace('_', ' ')} | {result['delta_qaly']:+.4f} | "
+            f"{result['delta_days']:+.1f} | {result['p_positive_delta']:.1%} | "
+            f"${result['delta_cost']:,.0f} | ${result['delta_net_benefit']:,.0f} | "
+            f"{adds} | {drops} | {result['steps_taken']} |"
+        )
+    return lines
 
 
 def render_markdown(payload: dict[str, Any]) -> str:
@@ -2569,6 +4499,26 @@ def render_markdown(payload: dict[str, Any]) -> str:
         "Fresh, personalized ground-up estimates using the live protocol inventory from `protocol-data.json` "
         "and personalization from `health.db`, rather than the existing protocol-page QALY outputs."
     )
+    lines.append("")
+    lines.append("## Reference Case")
+    lines.append("")
+    reference_case = payload["reference_case"]["base"]
+    current_model = payload["reference_case"]["current_protocol_model"]
+    lines.append(f"- Base reference case: {reference_case['name']}")
+    lines.append(f"- Perspective: {reference_case['perspective']}")
+    lines.append(
+        f"- Reference-case discounting: {reference_case['health_discount_rate']:.1%} health, "
+        f"{reference_case['cost_discount_rate']:.1%} costs"
+    )
+    lines.append(
+        f"- Current protocol discounting: {current_model['health_discount_rate']:.1%} health"
+        f", {current_model['cost_discount_rate']:.1%} costs"
+    )
+    lines.append(
+        f"- Reference-case alignment: {current_model['reference_case_alignment']}; "
+        f"formal reference case: {'yes' if current_model['is_formal_reference_case'] else 'no'}"
+    )
+    lines.append(f"- Utility gap: {current_model['gap']}")
     lines.append("")
     lines.append("## Baseline")
     lines.append("")
@@ -2602,15 +4552,101 @@ def render_markdown(payload: dict[str, Any]) -> str:
         f"eGFR {payload['baseline']['labs']['eGFR']}, creatinine {payload['baseline']['labs']['Creatinine']}"
     )
     lines.append("")
+    lines.append(
+        f"- Reference-case audit: {payload['summary']['items_needing_utility_lineage']} "
+        "items still need explicit preference-based utility lineage; "
+        f"{payload['summary']['items_using_fallback_utility_lineage']} items use fallback disability-weight lineage"
+    )
+    lines.append("")
+    lines.append("## Current State")
+    lines.append("")
+    current_state = payload["current_state"]
+    lines.append(
+        f"- Full-state value: {current_state['total_qaly']:.4f} QALY "
+        f"({current_state['total_days']:.1f} days)"
+    )
+    lines.append(
+        f"- Additive standalone value: {current_state['additive_qaly']:.4f} QALY; "
+        f"shared stack adjustment: {current_state['stack_interaction_qaly']:.4f} QALY"
+    )
+    if current_state["interaction_details"]:
+        lines.append(
+            "- Shared interaction adjustments: "
+            + ", ".join(
+                f"{detail['id']} {detail['penalty_qaly']:.4f}"
+                for detail in current_state["interaction_details"]
+            )
+        )
+    lines.append("")
+    lines.append("## Marginal Decisions")
+    lines.append("")
+    lines.append(
+        "Decision rows are computed as V(new full state) - V(current full state), "
+        "so shared stack effects are counted once."
+    )
+    lines.append("")
+    lines.extend(render_state_marginal_decision_table(payload["state_marginal_decisions"][:30]))
+    lines.append("")
+    lines.append("## Constrained Optimizer")
+    lines.append("")
+    lines.append(
+        "The optimizer searches full protocol states with exclusive groups enforced "
+        "(for example, one cardio mode and one primary OSA therapy), rather than "
+        "treating every positive marginal as independently addable."
+    )
+    lines.append("")
+    lines.extend(render_protocol_optimizer_table(payload["protocol_optimizers"]))
+    lines.append("")
+    lines.append("## Current Stack Drop Table")
+    lines.append("")
+    lines.append(
+        "Positive Drop ΔQALY means stopping the item is expected to help; negative means stopping is expected to hurt. "
+        "These are full-state marginal drop values."
+    )
+    lines.append("")
+    lines.extend(render_current_stack_drop_table(payload["current_stack_drop_table"]))
+    lines.append("")
+    lines.append("## Decision Slices")
+    lines.append("")
+    lines.append("### Actionable By Total QALY")
+    lines.append("")
+    lines.extend(render_ranking_table(payload["rankings"]["actionable_by_total_qaly"]))
+    lines.append("")
+    lines.append("### Actionable By $/QALY")
+    lines.append("")
+    lines.extend(render_ranking_table(payload["rankings"]["actionable_by_cost_per_qaly"]))
+    lines.append("")
+    lines.append("### Supplement Candidates By $/QALY")
+    lines.append("")
+    lines.extend(
+        render_ranking_table(
+            payload["rankings"]["supplement_candidates_by_cost_per_qaly"]
+        )
+    )
+    lines.append("")
+    lines.append("### Free Positive Actions")
+    lines.append("")
+    lines.extend(render_ranking_table(payload["rankings"]["free_positive_actions"]))
+    lines.append("")
+    lines.append("### Negative Actionable Items")
+    lines.append("")
+    lines.extend(render_ranking_table(payload["rankings"]["negative_actionable"]))
+    lines.append("")
     lines.append("## Ranking")
     lines.append("")
-    lines.append("| Item | Total QALY | Range | Check | Days | Mortality QALY | Direct Harm | QOL QALY |")
-    lines.append("| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |")
+    lines.append(
+        "| Item | Status | Type | Total QALY | Days | Cost | $/QALY | "
+        "Mortality QALY | Direct Harm | QOL QALY |"
+    )
+    lines.append(
+        "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
+    )
     for item in payload["items"]:
+        cpq = "—" if item["cost_per_qaly"] is None else f"${item['cost_per_qaly']:,}"
         lines.append(
-            f"| {item['name']} | {item['total_qaly']:.4f} | "
-            f"[{item['range_low_qaly']:.3f}, {item['range_high_qaly']:.3f}] | "
-            f"{'inside' if item['within_range'] else 'outside'} | {item['days']:.1f} | "
+            f"| {item['name']} | {item['status']} | {item['display_category']} | "
+            f"{item['total_qaly']:.4f} | {item['days']:.1f} | "
+            f"${item['modeled_total_cost']:,.0f} | {cpq} | "
             f"{item['mortality_qaly']:.4f} | {item['direct_harm_qaly']:.4f} | {item['qol_qaly']:.4f} |"
         )
     lines.append("")
@@ -2623,6 +4659,12 @@ def render_markdown(payload: dict[str, Any]) -> str:
             f"- Estimate: {item['total_qaly']:.4f} QALY ({item['days']:.1f} days), "
             f"sanity range [{item['range_low_qaly']:.3f}, {item['range_high_qaly']:.3f}]"
         )
+        lines.append(f"- Reference-case status: {item['reference_case_status']}")
+        if item["qaly_lineage"]["issues"]:
+            lines.append(
+                "- Utility-lineage gaps: "
+                + ", ".join(item["qaly_lineage"]["issues"])
+            )
         lines.append(f"- Why: {item['rationale']}")
         lines.append(f"- Personalization: {item['personalization']}")
         if item["sources"]:
@@ -2644,14 +4686,49 @@ def main(context: ProtocolContext | None = None) -> None:
     if missing:
         raise RuntimeError(f"Missing specs for protocol items: {missing}")
 
-    estimates = [estimate_item(item, specs[item["id"]], baseline, context) for item in protocol_items]
+    internal_estimates = [
+        estimate_item(
+            item,
+            specs[item["id"]],
+            baseline,
+            context,
+            active_interaction_tags=(),
+            include_draws=True,
+        )
+        for item in protocol_items
+    ]
+    estimates_by_id = {item["id"]: item for item in internal_estimates}
+    current_state = evaluate_protocol_state(
+        active_state_item_ids(protocol_items),
+        estimates_by_id,
+        specs,
+        context,
+    )
+    state_marginal_decisions = build_state_marginal_decision_table(
+        protocol_items,
+        estimates_by_id,
+        specs,
+        context,
+    )
+    protocol_optimizers = build_protocol_optimizers(
+        protocol_items,
+        estimates_by_id,
+        specs,
+        context,
+    )
+    estimates = [public_estimate_payload(item) for item in internal_estimates]
     estimates.sort(key=lambda x: x["total_qaly"], reverse=True)
+    current_stack_drop_table = [
+        row for row in state_marginal_decisions if row["action"] == "drop"
+    ]
 
     payload = {
         "generated_at": date.today().isoformat(),
-        "profile": asdict(context.profile),
+        "profile": profile_payload(context.profile),
+        "reference_case": reference_case_payload(),
         "assumptions": {
             "qaly_discount_rate": QALY_DISCOUNT_RATE,
+            "cost_discount_rate": COST_DISCOUNT_RATE,
             "n_simulations": N_SIMULATIONS,
             "method": (
                 "Fresh item-by-item assumptions: structured components are simulated through "
@@ -2659,6 +4736,25 @@ def main(context: ProtocolContext | None = None) -> None:
                 "quality-of-life components are hand-estimated annual utilities discounted "
                 "over item-specific durability windows."
             ),
+            "state_draw_model": {
+                "type": "paired_latent_rank_copula",
+                "description": (
+                    "Each Monte Carlo row is treated as one latent personal world. Item draws keep "
+                    "their original marginal distributions but are rank-paired through shared global, "
+                    "mechanism, and category factors before full-state values and marginal deltas are "
+                    "computed."
+                ),
+                "global_score_weight": LATENT_GLOBAL_SCORE_WEIGHT,
+                "mechanism_score_weight": LATENT_MECHANISM_SCORE_WEIGHT,
+                "category_score_weight": LATENT_CATEGORY_SCORE_WEIGHT,
+                "max_shared_score_weight": LATENT_MAX_SHARED_SCORE_WEIGHT,
+            },
+            "protocol_optimizer": {
+                "wtp": PROTOCOL_OPTIMIZER_WTP,
+                "max_steps": PROTOCOL_OPTIMIZER_MAX_STEPS,
+                "min_improvement": PROTOCOL_OPTIMIZER_MIN_IMPROVEMENT,
+                "search_strategy": "greedy_full_state_local_search",
+            },
             "caveat": (
                 "These are explicit judgment calls, not clinical truth. The point is to create "
                 "a transparent, reusable benchmark that can later be upgraded to a study-level Bayesian model."
@@ -2667,11 +4763,31 @@ def main(context: ProtocolContext | None = None) -> None:
         "baseline": baseline,
         "summary": {
             "n_items": len(estimates),
-            "total_stack_qaly": round(sum(item["total_qaly"] for item in estimates), 4),
-            "total_stack_days": round(sum(item["days"] for item in estimates), 1),
+            "total_stack_qaly": current_state["total_qaly"],
+            "total_stack_days": current_state["total_days"],
+            "standalone_additive_qaly": current_state["additive_qaly"],
+            "state_stack_interaction_qaly": current_state["stack_interaction_qaly"],
             "items_within_range": sum(1 for item in estimates if item["within_range"]),
             "items_outside_range": sum(1 for item in estimates if not item["within_range"]),
+            "items_needing_utility_lineage": sum(
+                1
+                for item in estimates
+                if item["reference_case_status"] == "needs_utility_lineage"
+            ),
+            "items_using_fallback_utility_lineage": sum(
+                1
+                for item in estimates
+                if any(
+                    "uses_fallback" in issue
+                    for issue in item["qaly_lineage"]["issues"]
+                )
+            ),
         },
+        "current_state": public_state_payload(current_state),
+        "state_marginal_decisions": state_marginal_decisions,
+        "protocol_optimizers": protocol_optimizers,
+        "current_stack_drop_table": current_stack_drop_table,
+        "rankings": build_decision_rankings(estimates),
         "items": estimates,
     }
 

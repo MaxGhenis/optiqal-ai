@@ -12,6 +12,7 @@ from optiqal.intervention import (
 )
 from optiqal.confounding import ConfoundingPrior
 from optiqal.profile import Profile
+from optiqal.defaults import DEFAULT_QALY_DISCOUNT_RATE
 from optiqal.simulate import (
     effective_qol_factor_for_years,
     simulate_qaly,
@@ -60,6 +61,47 @@ def default_profile():
         has_hypertension=False,
         activity_level="moderate",
     )
+
+
+def test_centenarian_profile_returns_zero_without_crashing(protective_intervention):
+    """Ages at/beyond the modeled horizon (100) must not crash the simulator.
+
+    Regression: simulate_qaly_profile_vectorized previously raised IndexError
+    (age 100) / ValueError (age >= 101) because ``n_years`` became 0 or negative,
+    producing empty/negative-length arrays.
+    """
+    for age in (100, 101, 120):
+        profile = Profile(
+            age=age,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=False,
+        )
+        result = simulate_qaly_profile_vectorized(
+            protective_intervention, profile, n_simulations=200, random_state=1
+        )
+        assert isinstance(result, SimulationResult)
+        assert result.mean == 0
+        assert result.life_years_gained == 0
+
+    # The return_qaly_gains tuple contract must still hold at the boundary.
+    result, gains = simulate_qaly_profile_vectorized(
+        protective_intervention,
+        Profile(
+            age=100,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=False,
+        ),
+        n_simulations=200,
+        random_state=1,
+        return_qaly_gains=True,
+    )
+    assert isinstance(result, SimulationResult)
+    assert gains.shape == (200,)
+    assert np.all(gains == 0)
 
 
 class TestSimulateQALY:
@@ -228,11 +270,11 @@ class TestSimulateQALY:
             protective_intervention,
             default_profile,
             n_simulations=2000,
-            discount_rate=0.0,
+            discount_rate=DEFAULT_QALY_DISCOUNT_RATE,
             random_state=42,
         )
 
-        assert default_result.discount_rate == pytest.approx(0.0)
+        assert default_result.discount_rate == pytest.approx(DEFAULT_QALY_DISCOUNT_RATE)
         assert default_result.median == pytest.approx(explicit_result.median)
         assert default_result.mean == pytest.approx(explicit_result.mean)
 
@@ -254,13 +296,13 @@ class TestSimulateQALY:
         assert np.mean(qaly_gains > 0) == pytest.approx(result.prob_positive, abs=1e-9)
         assert np.mean(qaly_gains < 0) == pytest.approx(result.prob_negative, abs=1e-9)
 
-    def test_nonzero_qaly_discount_is_rejected(self, protective_intervention, default_profile):
-        with pytest.raises(ValueError, match="0% QALY discounting only"):
+    def test_negative_qaly_discount_is_rejected(self, protective_intervention, default_profile):
+        with pytest.raises(ValueError, match="nonnegative"):
             simulate_qaly_profile_vectorized(
                 protective_intervention,
                 default_profile,
                 n_simulations=1000,
-                discount_rate=0.03,
+                discount_rate=-0.01,
                 random_state=42,
             )
 
@@ -290,6 +332,41 @@ class TestSimulateQALY:
         assert result.mean < 0
         assert result.expected_harm_qalys < 0
         assert result.prob_negative > 0.95
+
+    def test_active_years_limits_annual_harm_exposure(self, default_profile):
+        intervention = Intervention(
+            id="limited_harm",
+            name="Limited Harm",
+            category="medical",
+            mortality=MortalityEffect(
+                hazard_ratio=Distribution(type="point", params={"value": 1.0}),
+            ),
+            harm_model=[
+                HarmEffect(
+                    id="sedation",
+                    annual_qaly_loss=Distribution(type="point", params={"value": 0.01}),
+                )
+            ],
+        )
+
+        one_year = simulate_qaly_profile_vectorized(
+            intervention,
+            default_profile,
+            n_simulations=1000,
+            active_years=1,
+            random_state=42,
+        )
+        ten_year = simulate_qaly_profile_vectorized(
+            intervention,
+            default_profile,
+            n_simulations=1000,
+            active_years=10,
+            random_state=42,
+        )
+
+        assert one_year.expected_harm_qalys == pytest.approx(-0.01, rel=0.05)
+        assert ten_year.expected_harm_qalys < one_year.expected_harm_qalys
+        assert abs(ten_year.expected_harm_qalys) < 10 * abs(one_year.expected_harm_qalys)
 
     def test_interaction_rule_uses_active_stack_tags(self, default_profile):
         intervention = Intervention(
@@ -327,6 +404,40 @@ class TestSimulateQALY:
         assert alone.expected_interaction_harm_qalys == pytest.approx(0.0)
         assert stacked.expected_interaction_harm_qalys < 0
         assert stacked.mean < alone.mean
+
+    def test_split_interaction_rule_allocates_shared_stack_harm(self, default_profile):
+        intervention = Intervention(
+            id="sedating_aid",
+            name="Sedating aid",
+            category="medical",
+            mortality=MortalityEffect(
+                hazard_ratio=Distribution(type="point", params={"value": 1.0}),
+            ),
+            interaction_tags=["sedating"],
+            interaction_rules=[
+                InteractionRule(
+                    id="sedation_stack",
+                    requires_tags=["sedating"],
+                    minimum_matches=2,
+                    allocation="split_across_matches",
+                    annual_qaly_loss=Distribution(type="point", params={"value": 0.01}),
+                )
+            ],
+        )
+
+        stacked = simulate_qaly_profile_vectorized(
+            intervention,
+            default_profile,
+            n_simulations=1000,
+            active_interaction_tags=["sedating"],
+            active_years=1,
+            random_state=42,
+        )
+
+        assert stacked.expected_interaction_harm_qalys == pytest.approx(
+            -0.005,
+            rel=0.05,
+        )
 
     def test_sleep_baseline_hazard_multiplier_changes_absolute_effect_size(
         self, protective_intervention, default_profile

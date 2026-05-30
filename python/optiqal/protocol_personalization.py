@@ -87,6 +87,8 @@ def protocol_metadata_from_specs(
                 "qol_years": resolved.qol_years,
                 "sleep_component_relief": dict(resolved.sleep_component_relief),
                 "airway_target_weights": dict(resolved.airway_target_weights),
+                "apply_profile_effect_rules": resolved.apply_profile_effect_rules,
+                "model_details": resolved.model_details,
             },
             "rationale": resolved.rationale,
             "personalization": resolved.personalization,
@@ -121,4 +123,8 @@ def protocol_sleep_estimate_from_baseline(
             if airway
             else None
         ),
+        component_utility_weight_ids={
+            k: str(v)
+            for k, v in (derived.get("sleep_component_utility_weight_ids") or {}).items()
+        },
     )

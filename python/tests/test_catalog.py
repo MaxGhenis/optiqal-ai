@@ -1,15 +1,13 @@
 """Tests for the intervention catalog and publication bias correction."""
 
 import pytest
-import numpy as np
 
-from optiqal.confounding import publication_bias_correct
 from optiqal.catalog import (
     CATALOG,
-    CatalogEntry,
     PUBLIC_CONDITION_DATA_PATH,
     PUBLIC_ITEM_POLICY_DATA_PATH,
     PUBLIC_LANE_DATA_PATH,
+    CatalogEntry,
     build_public_policy_spec,
     get_catalog,
     has_meaningful_public_glp1_signal,
@@ -17,11 +15,13 @@ from optiqal.catalog import (
     has_meaningful_public_statin_signal,
     is_publicly_rankable,
     public_display_category,
-    public_recommendation_lane,
     public_rankability_reason,
+    public_recommendation_lane,
     simulate_catalog,
 )
 from optiqal.combination import find_optimal_portfolio_with_costs
+from optiqal.confounding import publication_bias_correct
+from optiqal.defaults import DEFAULT_QALY_DISCOUNT_RATE
 from optiqal.profile import Profile
 from optiqal.sleep import SleepMetrics, estimate_sleep_burden
 from optiqal.stack_interactions import build_stack_interaction_penalty_fn
@@ -287,10 +287,44 @@ class TestPosteriorHrExposure:
         assert glycine.to_intervention(pub_bias_shrinkage=0.30).mortality is None
         assert taurine.to_intervention(pub_bias_shrinkage=0.30).mortality is None
 
-    def test_probiotic_candidate_is_low_evidence_gut_support_without_direct_mortality(self):
+    def test_creatine_qol_is_componentized_with_cognitive_uncertainty(self):
+        creatine = CATALOG["creatine_5g"]
+        effect_ids = {effect.id for effect in creatine.qol_effects}
+
+        assert creatine.qol_annual == 0
+        assert creatine.raw_qol_annual() > 0.005
+        assert "cognitive_resilience" in effect_ids
+        assert "strength_power_lean_mass" in effect_ids
+        assert creatine.harm_effects
+
+    def test_creatine_total_probability_includes_qol_draws(self):
+        profile = Profile(
+            age=39,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=False,
+            has_hypertension=False,
+            activity_level="light",
+        )
+
+        result = simulate_catalog(
+            profile,
+            n_simulations=4000,
+            random_state=42,
+            catalog_entries={"creatine_5g": CATALOG["creatine_5g"]},
+        )[0]
+
+        assert result["qol_effects"]
+        assert result["p_benefit"] > 0.90
+        assert result["ci_low"] < result["days"] < result["ci_high"]
+        assert result["qol_qaly"] > abs(result["harm_qaly"])
+
+    def test_probiotic_testing_is_low_evidence_gut_support_without_direct_mortality(self):
         probiotic = CATALOG["probiotic_daily"]
 
-        assert probiotic.annual_cost == 258
+        assert probiotic.category == "supplement_bought"
+        assert probiotic.annual_cost == 273
         assert probiotic.evidence_quality == "low"
         assert probiotic.benefit_tags == ["gut_support"]
         assert probiotic.has_direct_mortality_effect is False
@@ -443,6 +477,7 @@ class TestPosteriorHrExposure:
         assert public_display_category(CATALOG["nasacort_nightly"]) == "sleep"
         assert public_display_category(CATALOG["humidifier_nightly"]) == "sleep"
         assert public_display_category(CATALOG["mouth_tape_nightly"]) == "sleep"
+        assert public_display_category(CATALOG["doxepin_3mg"]) == "sleep"
         assert public_display_category(CATALOG["statin_5mg"]) == "rx"
         assert public_display_category(CATALOG["quercetin_500"]) == "supplement"
 
@@ -557,7 +592,7 @@ class TestPosteriorHrExposure:
             n_simulations=2000,
             random_state=42,
             categories=["rx_current"],
-            qaly_discount_rate=0.0,
+            qaly_discount_rate=DEFAULT_QALY_DISCOUNT_RATE,
         )
 
         default_by_id = {result["id"]: result for result in default_results}
@@ -575,7 +610,7 @@ class TestPosteriorHrExposure:
             assert "top_positive_component" in default_by_id[item_id]
             assert "top_negative_component" in default_by_id[item_id]
 
-    def test_simulate_catalog_rejects_nonzero_qaly_discount(self):
+    def test_simulate_catalog_rejects_negative_qaly_discount(self):
         profile = Profile(
             age=39,
             sex="male",
@@ -586,13 +621,13 @@ class TestPosteriorHrExposure:
             activity_level="light",
         )
 
-        with pytest.raises(ValueError, match="0% QALY discounting only"):
+        with pytest.raises(ValueError, match="nonnegative"):
             simulate_catalog(
                 profile,
                 n_simulations=1000,
                 random_state=42,
                 categories=["rx_current"],
-                qaly_discount_rate=0.03,
+                qaly_discount_rate=-0.01,
             )
 
     def test_simulate_catalog_can_apply_personalized_sleep_relief(self):

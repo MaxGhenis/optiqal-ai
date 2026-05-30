@@ -183,8 +183,8 @@ def test_public_sleep_decision_states_match_golden_ranges():
         entries,
         analysis.config.profile,
         analysis.config.qaly_discount_rate,
-        single_qalys,
-        analysis.config.sleep_overlap_multipliers,
+        item_qalys=single_qalys,
+        benefit_tag_multipliers=analysis.config.sleep_overlap_multipliers,
     )
     serialized = serialize_decision_state_evaluations(
         evaluate_decision_states(
