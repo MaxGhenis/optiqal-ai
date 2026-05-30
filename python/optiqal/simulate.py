@@ -261,12 +261,17 @@ def mortality_qaly_for_combined_hr(
 ) -> float:
     """Deterministic mortality QALY gain from a flat all-cause hazard ratio.
 
-    Mirrors the mean of the Monte Carlo mortality QALYs the simulator produces
-    for a uniform all-cause hazard multiplier ``combined_hr`` (quality-weight
-    heterogeneity is mean-zero, so the deterministic integral matches the MC
-    mean). Combining a stack's per-item hazard ratios multiplicatively and
-    integrating once with this function avoids the shared-survival double-count
-    of summing per-item QALYs.
+    This is a *relative* integrator used only for combining a stack: applying a
+    single all-cause HR flat to baseline mortality and integrating QALYs once.
+    Its absolute level does NOT equal the Monte Carlo per-item ``mort_qaly``
+    (the MC mean averages QALY over the whole HR distribution and quality-weight
+    draws, which is convex in HR). To stay consistent with the per-item sim,
+    callers should NOT pass the raw posterior HR; instead derive each item's
+    effective HR with :func:`effective_hr_for_mortality_qaly` (which inverts this
+    function against the item's own sim ``mort_qaly``), combine those effective
+    HRs multiplicatively, and integrate once here. That makes a single-item
+    "stack" reproduce its sim value exactly while correctly avoiding the
+    shared-survival double-count of summing per-item QALYs across a stack.
     """
     discount_rate = validate_qaly_discount_rate(discount_rate)
     n_years = max_age - profile.age
@@ -291,6 +296,48 @@ def mortality_qaly_for_combined_hr(
         return float(np.sum(survival * quality * discount))
 
     return _qaly(combined_hr) - _qaly(1.0)
+
+
+def effective_hr_for_mortality_qaly(
+    profile: Profile,
+    mortality_qaly: float,
+    discount_rate: float = DEFAULT_QALY_DISCOUNT_RATE,
+    baseline_hazard_multiplier: float = 1.0,
+    max_age: int = 100,
+) -> float:
+    """Invert :func:`mortality_qaly_for_combined_hr` for a single item.
+
+    Returns the flat all-cause HR whose deterministic integral reproduces the
+    item's Monte Carlo ``mortality_qaly``. Combining these effective HRs
+    multiplicatively (then integrating once) gives a stack total that reproduces
+    each item alone and is correctly sub-additive across items. Items with no
+    mortality benefit (``mortality_qaly <= 0``) map to HR 1.0.
+    """
+    if mortality_qaly <= 0:
+        return 1.0
+
+    def gain(hr: float) -> float:
+        return mortality_qaly_for_combined_hr(
+            profile,
+            hr,
+            discount_rate=discount_rate,
+            baseline_hazard_multiplier=baseline_hazard_multiplier,
+            max_age=max_age,
+        )
+
+    # gain is monotone decreasing in hr (lower hr -> larger gain). Bracket and
+    # bisect; clamp to the achievable range so an out-of-range target is capped.
+    lo, hi = 1e-3, 1.0
+    max_gain = gain(lo)
+    if mortality_qaly >= max_gain:
+        return lo
+    for _ in range(60):
+        mid = 0.5 * (lo + hi)
+        if gain(mid) >= mortality_qaly:
+            lo = mid
+        else:
+            hi = mid
+    return 0.5 * (lo + hi)
 
 
 def _simulate_reversible_policy(

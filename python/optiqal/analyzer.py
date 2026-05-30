@@ -22,6 +22,7 @@ from .defaults import (
 from .intervention import Distribution, Intervention, MortalityEffect
 from .profile import Profile
 from .simulate import (
+    effective_hr_for_mortality_qaly,
     effective_qol_factor_for_years,
     mortality_qaly_for_combined_hr,
     simulate_qaly_profile_vectorized,
@@ -353,8 +354,19 @@ def analyze(
     annual_costs = {r["id"]: r["annual_cost"] for r in item_results}
     cost_values = {r["id"]: r["total_cost"] for r in item_results}
     # Hazard-aware stacking: mortality combines multiplicatively (one joint
-    # integration), non-mortality (QoL/harm) QALYs add across items.
-    item_mortality_hrs = {r["id"]: r.get("posterior_hr", 1.0) for r in item_results}
+    # integration), non-mortality (QoL/harm) QALYs add across items. Each item's
+    # effective HR is inverted from its own sim mort_qaly so a single-item stack
+    # reproduces the sim exactly (the raw posterior HR does NOT, due to Jensen
+    # over the HR/quality draws).
+    item_mortality_hrs = {
+        r["id"]: effective_hr_for_mortality_qaly(
+            config.profile,
+            r["mort_qaly"],
+            discount_rate=config.qaly_discount_rate,
+            baseline_hazard_multiplier=config.sleep_baseline_hazard_multiplier,
+        )
+        for r in item_results
+    }
     item_qol_qalys = {r["id"]: r["total_qaly"] - r["mort_qaly"] for r in item_results}
 
     def _stack_mortality_qaly(combined_hr: float) -> float:

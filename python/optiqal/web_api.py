@@ -569,10 +569,21 @@ def build_frontier_response_with_policy(
     }
     # Hazard-aware stacking: mortality combines multiplicatively (one joint
     # survival integration); non-mortality (QoL/harm) QALYs add across items.
-    from .simulate import mortality_qaly_for_combined_hr
+    # Each item's effective HR is inverted from its own sim mort_qaly so a
+    # single-item stack reproduces the sim exactly (raw posterior HR does not —
+    # the MC mean is convex over the HR/quality draws).
+    from .simulate import (
+        effective_hr_for_mortality_qaly,
+        mortality_qaly_for_combined_hr,
+    )
 
     item_mortality_hrs = {
-        item_id: result.get("posterior_hr", 1.0)
+        item_id: effective_hr_for_mortality_qaly(
+            config.profile,
+            result["mort_qaly"],
+            discount_rate=config.qaly_discount_rate,
+            baseline_hazard_multiplier=config.sleep_baseline_hazard_multiplier,
+        )
         for item_id, result in analysis.item_results_by_id.items()
         if item_id in rankable_ids
     }
