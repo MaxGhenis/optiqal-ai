@@ -2,14 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Activity, ArrowLeft, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { Activity, ArrowLeft, ChevronDown, ChevronUp, Loader2, Pill } from "lucide-react";
 import { LogoLockup } from "@/components/brand/logo";
+import { MedicalDisclaimer } from "@/components/medical-disclaimer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { DEFAULT_PROFILE, type UserProfile } from "@/types";
+import { cn } from "@/lib/utils";
 import { useLatestRequest } from "@/hooks/use-latest-request";
 import type {
   FrontierItem,
@@ -52,6 +54,52 @@ function formatCostPerQaly(
 
 function formatProbability(value: number): string {
   return `${Math.round(value * 100)}%`;
+}
+
+/**
+ * Days with an optional confidence interval, e.g. "84 (range 78–91)".
+ * When a range is shown, the point estimate and bounds are rounded to whole
+ * days to avoid implying false precision; without a range, one decimal is kept.
+ */
+function formatDaysWithRange(days: number, ci?: [number, number]): string {
+  if (!ci) {
+    return `${days.toFixed(1)}d`;
+  }
+  return `${Math.round(days)} (range ${Math.round(ci[0])}–${Math.round(ci[1])})`;
+}
+
+function formatSignedQaly(value: number): string {
+  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}`;
+}
+
+/**
+ * Net QALYs with an optional confidence interval,
+ * e.g. "+0.12 QALYs (0.02–0.21)".
+ */
+function formatQalyWithRange(qaly: number, ci?: [number, number]): string {
+  const point = `${formatSignedQaly(qaly)} QALYs`;
+  if (!ci) {
+    return point;
+  }
+  return `${point} (${ci[0].toFixed(2)}–${ci[1].toFixed(2)})`;
+}
+
+function isPrescriptionItem(displayCategory: string): boolean {
+  return displayCategory === "rx";
+}
+
+function PrescriptionBadge({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border border-highlight/40 bg-highlight/10 px-2 py-0.5 text-[11px] font-medium text-highlight",
+        className
+      )}
+    >
+      <Pill aria-hidden="true" className="h-3 w-3" />
+      Prescription — consult a clinician
+    </span>
+  );
 }
 
 function formatRunTime(timestamp: number | null): string {
@@ -580,6 +628,8 @@ export function FrontierWorkbench() {
 
         {results ? (
           <>
+            <MedicalDisclaimer />
+
             <div className="grid md:grid-cols-4 gap-4">
               <Card className="decision-card">
                 <CardContent className="p-5 space-y-2">
@@ -1035,9 +1085,12 @@ export function FrontierWorkbench() {
 
               <Card className="decision-card">
                 <CardContent className="p-6 space-y-4">
-                  <div>
+                  <div className="space-y-2">
                     <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Selected item</p>
                     <h2 className="text-xl font-semibold">{selectedItem?.name ?? "Pick an intervention"}</h2>
+                    {selectedItem && isPrescriptionItem(selectedItem.display_category) ? (
+                      <PrescriptionBadge />
+                    ) : null}
                   </div>
 
                   {selectedItem ? (
@@ -1045,7 +1098,15 @@ export function FrontierWorkbench() {
                       <div className="grid grid-cols-2 gap-3">
                         <div className="rounded-2xl bg-muted/15 px-4 py-3">
                           <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Standalone effect</p>
-                          <p className="text-lg font-medium">{selectedItem.days.toFixed(1)}d</p>
+                          <p className="text-lg font-medium">
+                            {formatDaysWithRange(selectedItem.days, selectedItem.net_days_ci)}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl bg-muted/15 px-4 py-3">
+                          <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Net QALYs</p>
+                          <p className="text-lg font-medium">
+                            {formatQalyWithRange(selectedItem.total_qaly, selectedItem.net_qaly_ci)}
+                          </p>
                         </div>
                         <div className="rounded-2xl bg-muted/15 px-4 py-3">
                           <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">$ / QALY</p>
@@ -1187,12 +1248,15 @@ export function FrontierWorkbench() {
                           }`}
                         >
                           <td className="py-3 pr-3">
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <span className="font-medium">{item.name}</span>
                               {item.selected_in_frontier ? (
                                 <span className="rounded-full bg-primary/12 px-2 py-0.5 text-[11px] uppercase tracking-[0.12em] text-primary">
                                   Frontier
                                 </span>
+                              ) : null}
+                              {isPrescriptionItem(item.display_category) ? (
+                                <PrescriptionBadge />
                               ) : null}
                             </div>
                           </td>

@@ -17,26 +17,26 @@ import { MobileNav } from "@/components/mobile-nav";
 const focusAreas = [
   {
     icon: Clock3,
-    title: "Head elevation nightly",
-    detail: "Behavioral · $0/yr",
+    title: "Sleep position changes",
+    detail: "Behavioral",
     value: "Category: sleep",
   },
   {
     icon: FlaskConical,
-    title: "Rosuvastatin 5 mg",
-    detail: "Prescription · $120/yr",
+    title: "A prescribed statin",
+    detail: "Prescription",
     value: "Category: medication",
   },
   {
     icon: Target,
-    title: "HIIT 2x/week",
-    detail: "Exercise · $0/yr",
+    title: "Interval cardio",
+    detail: "Exercise",
     value: "Category: exercise",
   },
   {
     icon: Pill,
-    title: "Melatonin 300 mcg",
-    detail: "OTC · $27/yr",
+    title: "An over-the-counter supplement",
+    detail: "OTC",
     value: "Category: supplement",
   },
 ] as const;
@@ -89,7 +89,9 @@ function DecisionBoard() {
                 What is most worth doing next?
               </h2>
             </div>
-            <span className="data-pill">Personalized</span>
+            <span className="data-pill border-highlight/40 bg-highlight/10 text-highlight">
+              Illustrative example
+            </span>
           </div>
         </div>
 
@@ -142,7 +144,8 @@ function DecisionBoard() {
         </div>
 
         <div className="border-t border-border/80 px-6 py-4 text-sm text-muted-foreground">
-          Same unit. Different actions. Explicit tradeoffs.
+          Same unit. Different actions. Explicit tradeoffs. Numbers shown are an
+          illustrative example, not your results.
         </div>
       </CardContent>
     </Card>

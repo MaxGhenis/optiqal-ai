@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Activity, ArrowLeft, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { LogoLockup } from "@/components/brand/logo";
+import { MedicalDisclaimer } from "@/components/medical-disclaimer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -85,6 +86,15 @@ function toRequest(profile: UserProfile, sleep: BaselineSleepInput): BaselineReq
 
 function formatProbability(value: number): string {
   return `${Math.round(value * 100)}%`;
+}
+
+/**
+ * Render a confidence interval as a whole-number range, e.g. "range 36–46".
+ * Bounds are rounded to integers to avoid implying false precision.
+ */
+function formatIntegerRange(ci: [number, number] | undefined): string | null {
+  if (!ci) return null;
+  return `range ${Math.round(ci[0])}–${Math.round(ci[1])}`;
 }
 
 function humanizeKey(value: string): string {
@@ -445,6 +455,8 @@ export function BaselineWorkbench() {
 
         {results ? (
           <>
+            <MedicalDisclaimer />
+
             <div className="grid md:grid-cols-4 gap-4">
               <Card className="decision-card">
                 <CardContent className="p-6 space-y-2">
@@ -454,7 +466,10 @@ export function BaselineWorkbench() {
                   <p className="text-4xl font-serif">
                     {results.point_estimate.remaining_life_expectancy.toFixed(1)}
                   </p>
-                  <p className="text-sm text-muted-foreground">years</p>
+                  <p className="text-sm text-muted-foreground">
+                    {formatIntegerRange(results.point_estimate.remaining_life_expectancy_ci) ??
+                      "years"}
+                  </p>
                 </CardContent>
               </Card>
               <Card className="decision-card">
@@ -476,7 +491,10 @@ export function BaselineWorkbench() {
                   <p className="text-4xl font-serif">
                     {results.point_estimate.remaining_qalys.toFixed(1)}
                   </p>
-                  <p className="text-sm text-muted-foreground">0% discount</p>
+                  <p className="text-sm text-muted-foreground">
+                    {formatIntegerRange(results.point_estimate.remaining_qalys_ci) ??
+                      "0% discount"}
+                  </p>
                 </CardContent>
               </Card>
               <Card className="decision-card">

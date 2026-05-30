@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { MedicalDisclaimer } from "@/components/medical-disclaimer";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -47,7 +48,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        {children}
+        <footer className="relative z-10 border-t border-border/40 bg-surface-panel/60">
+          <MedicalDisclaimer variant="compact" className="mx-auto max-w-7xl" />
+        </footer>
+      </body>
     </html>
   );
 }

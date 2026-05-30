@@ -8,6 +8,7 @@ import {
   parseMetaProfile,
   parseNumberRecord,
   parseOptionalArray,
+  parseOptionalConfidenceInterval,
 } from "@/lib/contract-validation";
 
 function parseSurvivalRow(value: unknown): BaselineResponse["survival_curve"][number] | null {
@@ -100,6 +101,12 @@ export function parseBaselineResponse(value: unknown): BaselineResponse | null {
   const expectedDeathAge = parseFiniteNumber(value.point_estimate.expected_death_age);
   const remainingQalys = parseFiniteNumber(value.point_estimate.remaining_qalys);
   const currentQualityWeight = parseFiniteNumber(value.point_estimate.current_quality_weight);
+  const remainingLifeExpectancyCi = parseOptionalConfidenceInterval(
+    value.point_estimate.remaining_life_expectancy_ci
+  );
+  const remainingQalysCi = parseOptionalConfidenceInterval(
+    value.point_estimate.remaining_qalys_ci
+  );
 
   const lifestyleMultiplier = parseFiniteNumber(value.risk.lifestyle_multiplier);
   const conditionMultiplier = parseFiniteNumber(value.risk.condition_multiplier);
@@ -120,6 +127,8 @@ export function parseBaselineResponse(value: unknown): BaselineResponse | null {
     expectedDeathAge === null ||
     remainingQalys === null ||
     currentQualityWeight === null ||
+    remainingLifeExpectancyCi === INVALID ||
+    remainingQalysCi === INVALID ||
     lifestyleMultiplier === null ||
     conditionMultiplier === null ||
     sleepMultiplier === null ||
@@ -144,6 +153,10 @@ export function parseBaselineResponse(value: unknown): BaselineResponse | null {
       expected_death_age: expectedDeathAge,
       remaining_qalys: remainingQalys,
       current_quality_weight: currentQualityWeight,
+      ...(remainingLifeExpectancyCi !== undefined
+        ? { remaining_life_expectancy_ci: remainingLifeExpectancyCi }
+        : {}),
+      ...(remainingQalysCi !== undefined ? { remaining_qalys_ci: remainingQalysCi } : {}),
     },
     risk: {
       lifestyle_multiplier: lifestyleMultiplier,

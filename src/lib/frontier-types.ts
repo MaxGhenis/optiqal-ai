@@ -65,6 +65,10 @@ export interface FrontierItem {
   total_cost: number;
   cost_per_qaly: number | null;
   total_qaly: number;
+  /** Optional 90% confidence interval for net QALYs, as [low, high]. */
+  net_qaly_ci?: [number, number];
+  /** Optional 90% confidence interval for net days, as [low, high]. */
+  net_days_ci?: [number, number];
   days: number;
   p_benefit: number;
   p_harm: number;

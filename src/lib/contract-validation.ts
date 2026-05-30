@@ -109,6 +109,23 @@ export function parseNumberRecord(value: unknown): Record<string, number> | null
 
 export const INVALID = Symbol("invalid-optional-value");
 
+export function parseOptionalConfidenceInterval(
+  value: unknown
+): [number, number] | undefined | typeof INVALID {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (!Array.isArray(value) || value.length !== 2) {
+    return INVALID;
+  }
+  const low = parseFiniteNumber(value[0]);
+  const high = parseFiniteNumber(value[1]);
+  if (low === null || high === null) {
+    return INVALID;
+  }
+  return [low, high];
+}
+
 export function parseAnalysisProfileInput(value: unknown): {
   age: number;
   sex: "male" | "female" | "other";

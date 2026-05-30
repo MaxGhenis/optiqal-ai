@@ -28,7 +28,7 @@ const faqs = [
   {
     question: "How is my data handled?",
     answer:
-      "All calculations happen in your browser. We do not collect, store, or transmit your personal health information. See our Privacy Policy for complete details on our data practices.",
+      "The profile you enter is sent to our server, which runs the analysis engine to compute your estimates (the computation may use an external model service we operate for that purpose). We do not keep a database of user profiles, and your inputs are processed only to return your results rather than stored long-term. You can also save your profile to your browser's local storage for convenience. See our Privacy Policy for complete details.",
   },
   {
     question: "What lifestyle factors are included?",

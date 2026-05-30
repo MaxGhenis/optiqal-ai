@@ -259,6 +259,221 @@ describe("frontier contract", () => {
     });
   });
 
+  it("parses frontier item confidence intervals when present", () => {
+    const parsed = parseFrontierResponse({
+      meta: {
+        selection_mode: "ordered_by_marginal_cost_per_qaly",
+        analyzed_count: 1,
+        positive_count: 1,
+        qaly_discount_rate: 0,
+        cost_discount_rate: 0,
+        n_simulations: 5000,
+        rankable_count: 1,
+        profile: {
+          age: 39,
+          sex: "male",
+          bmi_category: "normal",
+          smoking_status: "never",
+          has_diabetes: false,
+          has_hypertension: false,
+          activity_level: "active",
+        },
+      },
+      sleep_estimate: null,
+      public_policy: { lanes: [], conditions: [], items: [] },
+      frontier: [],
+      items: [
+        {
+          id: "head_elevation",
+          name: "Head elevation nightly",
+          category: "sleep",
+          display_category: "behavioral",
+          public_lane: "consumer_public",
+          annual_cost: 0,
+          total_cost: 0,
+          cost_per_qaly: null,
+          total_qaly: 0.12,
+          net_qaly_ci: [0.02, 0.21],
+          net_days_ci: [7.3, 76.6],
+          days: 43.8,
+          p_benefit: 0.68,
+          p_harm: 0.04,
+          mort_qaly: 0.1,
+          harm_qaly: 0,
+          qol_qaly: 0.02,
+          sleep_qol_qaly: 0.02,
+          profile_effect_multiplier: 1,
+          airway_effect_multiplier: 1,
+          sleep_mortality_hr_multiplier: 1,
+          sleep_mortality_relief_fraction: 0,
+          interaction_tags: [],
+          benefit_tags: ["sleep"],
+          notes: "",
+          sources: [],
+          selected_in_frontier: true,
+          pricing_status: "free",
+          rankability_reason: null,
+          access: {
+            tier: "behavioral",
+            coverage_outlook: "na",
+            friction: "low",
+            notes: "",
+          },
+        },
+      ],
+      decision_states: [],
+      decision_sequence: [],
+    });
+
+    expect(parsed?.items[0]?.net_qaly_ci).toEqual([0.02, 0.21]);
+    expect(parsed?.items[0]?.net_days_ci).toEqual([7.3, 76.6]);
+  });
+
+  it("still parses frontier items that omit confidence intervals", () => {
+    const parsed = parseFrontierResponse({
+      meta: {
+        selection_mode: "ordered_by_marginal_cost_per_qaly",
+        analyzed_count: 1,
+        positive_count: 1,
+        qaly_discount_rate: 0,
+        cost_discount_rate: 0,
+        n_simulations: 5000,
+        rankable_count: 1,
+        profile: {
+          age: 39,
+          sex: "male",
+          bmi_category: "normal",
+          smoking_status: "never",
+          has_diabetes: false,
+          has_hypertension: false,
+          activity_level: "active",
+        },
+      },
+      sleep_estimate: null,
+      public_policy: { lanes: [], conditions: [], items: [] },
+      frontier: [],
+      items: [
+        {
+          id: "head_elevation",
+          name: "Head elevation nightly",
+          category: "sleep",
+          display_category: "behavioral",
+          public_lane: "consumer_public",
+          annual_cost: 0,
+          total_cost: 0,
+          cost_per_qaly: null,
+          total_qaly: 0.12,
+          days: 43.8,
+          p_benefit: 0.68,
+          p_harm: 0.04,
+          mort_qaly: 0.1,
+          harm_qaly: 0,
+          qol_qaly: 0.02,
+          sleep_qol_qaly: 0.02,
+          profile_effect_multiplier: 1,
+          airway_effect_multiplier: 1,
+          sleep_mortality_hr_multiplier: 1,
+          sleep_mortality_relief_fraction: 0,
+          interaction_tags: [],
+          benefit_tags: ["sleep"],
+          notes: "",
+          sources: [],
+          selected_in_frontier: true,
+          pricing_status: "free",
+          rankability_reason: null,
+          access: {
+            tier: "behavioral",
+            coverage_outlook: "na",
+            friction: "low",
+            notes: "",
+          },
+        },
+      ],
+      decision_states: [],
+      decision_sequence: [],
+    });
+
+    expect(parsed).not.toBeNull();
+    expect(parsed?.items[0]?.net_qaly_ci).toBeUndefined();
+    expect(parsed?.items[0]?.net_days_ci).toBeUndefined();
+  });
+
+  it("rejects frontier items whose confidence interval is malformed", () => {
+    const base = {
+      meta: {
+        selection_mode: "ordered_by_marginal_cost_per_qaly",
+        analyzed_count: 1,
+        positive_count: 1,
+        qaly_discount_rate: 0,
+        cost_discount_rate: 0,
+        n_simulations: 5000,
+        rankable_count: 1,
+        profile: {
+          age: 39,
+          sex: "male",
+          bmi_category: "normal",
+          smoking_status: "never",
+          has_diabetes: false,
+          has_hypertension: false,
+          activity_level: "active",
+        },
+      },
+      sleep_estimate: null,
+      public_policy: { lanes: [], conditions: [], items: [] },
+      frontier: [],
+      decision_states: [],
+      decision_sequence: [],
+    };
+    const item = {
+      id: "head_elevation",
+      name: "Head elevation nightly",
+      category: "sleep",
+      display_category: "behavioral",
+      public_lane: "consumer_public",
+      annual_cost: 0,
+      total_cost: 0,
+      cost_per_qaly: null,
+      total_qaly: 0.12,
+      days: 43.8,
+      p_benefit: 0.68,
+      p_harm: 0.04,
+      mort_qaly: 0.1,
+      harm_qaly: 0,
+      qol_qaly: 0.02,
+      sleep_qol_qaly: 0.02,
+      profile_effect_multiplier: 1,
+      airway_effect_multiplier: 1,
+      sleep_mortality_hr_multiplier: 1,
+      sleep_mortality_relief_fraction: 0,
+      interaction_tags: [],
+      benefit_tags: ["sleep"],
+      notes: "",
+      sources: [],
+      selected_in_frontier: true,
+      pricing_status: "free",
+      rankability_reason: null,
+      access: {
+        tier: "behavioral",
+        coverage_outlook: "na",
+        friction: "low",
+        notes: "",
+      },
+    };
+
+    expect(
+      parseFrontierResponse({
+        ...base,
+        items: [{ ...item, net_qaly_ci: [0.02] }],
+      })
+    ).toBeNull();
+    expect(
+      parseFrontierResponse({
+        ...base,
+        items: [{ ...item, net_days_ci: [7.3, "bad"] }],
+      })
+    ).toBeNull();
+  });
+
   it("rejects malformed nested response fields", () => {
     expect(
       parseFrontierResponse({

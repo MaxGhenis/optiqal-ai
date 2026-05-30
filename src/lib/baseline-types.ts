@@ -52,6 +52,10 @@ export interface BaselineResponse {
     expected_death_age: number;
     remaining_qalys: number;
     current_quality_weight: number;
+    /** Optional 90% confidence interval for remaining life expectancy, as [low, high]. */
+    remaining_life_expectancy_ci?: [number, number];
+    /** Optional 90% confidence interval for remaining QALYs, as [low, high]. */
+    remaining_qalys_ci?: [number, number];
   };
   risk: {
     lifestyle_multiplier: number;
