@@ -30,11 +30,21 @@ jobs:
 
       - name: Run tests
         # --all-extras pulls pytest/pandas (declared as extras); uv re-syncs on
-        # each `uv run`, so extras must be requested here. Run serially: the
-        # suite finishes in ~8 min (< the 30-min cap), and pytest-xdist (-n auto)
-        # hung at worker startup on the 2-core GitHub runner. xdist stays
-        # installed for fast local runs (`pytest -n auto`).
-        run: uv run --all-extras pytest -q
+        # each `uv run`, so extras must be requested here. Run serially:
+        # pytest-xdist (-n auto) hung at worker startup on the 2-core GitHub
+        # runner (xdist stays installed for fast local `pytest -n auto`).
+        #
+        # The AutoAgent/Harbor sidecar tests are excluded: they exercise an
+        # experimental external agent harness (autoagent/), spawn slow
+        # subprocesses (~13 min on their own — they alone blew the timeout), and
+        # need a sidecar runtime absent on a stock runner (agent.py exits
+        # non-zero in CI). They still run locally. Engine, API, frontend, and
+        # genetics suites all run here (385 passed in ~4 min).
+        run: >-
+          uv run --all-extras pytest -q
+          --ignore=tests/test_public_frontier_harbor_task.py
+          --ignore=tests/test_public_frontier_autoagent_harness.py
+          --ignore=tests/test_public_frontier_autoagent_bootstrap.py
 
       # ~1,000 pre-existing ruff findings exist (line length, imports, etc.).
       # Surface them without gating the build.
