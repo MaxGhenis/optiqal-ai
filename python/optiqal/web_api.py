@@ -21,6 +21,7 @@ from optiqal import (
     has_meaningful_public_osa_therapy_signal,
     is_publicly_rankable,
     public_display_category,
+    public_display_name,
     public_recommendation_lane,
     public_rankability_reason,
     rank_interventions_by_marginal_cost_per_qaly,
@@ -557,7 +558,7 @@ def build_frontier_response_with_policy(
         )
         items.append({
             "id": raw["id"],
-            "name": entry.name,
+            "name": public_display_name(entry, public_policy),
             "category": entry.category,
             "display_category": public_display_category(entry, public_policy),
             "public_lane": public_recommendation_lane(entry, policy=public_policy),

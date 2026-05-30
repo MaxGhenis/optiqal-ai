@@ -9,6 +9,7 @@ Use with `publication_bias_correct()` from `confounding.py` before simulation.
 """
 
 import json
+import re
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Mapping, Optional
@@ -2865,6 +2866,44 @@ def public_display_category(entry: CatalogEntry, policy: Optional[PublicPolicy] 
     if entry.category.startswith("sleep_"):
         return "sleep"
     return "supplement"
+
+
+_DOSE_TOKEN = re.compile(
+    r"\s*\b\d+(?:\.\d+)?\s*(?:mg|mcg|g|iu|ug)(?:\s*/\s*\w+)?\b", re.I
+)
+_ROUTE_WORDS = {
+    "topical",
+    "oral",
+    "sublingual",
+    "nasal",
+    "inhaled",
+    "intranasal",
+    "transdermal",
+    "subcutaneous",
+}
+
+
+def public_display_name(entry: CatalogEntry, policy: Optional[PublicPolicy] = None) -> str:
+    """Public-facing name, with dose/brand stripped for prescription items.
+
+    Surfacing a specific dose ("rosuvastatin 5mg") or brand ("(semaglutide)") to
+    a consumer is a prescribing detail; public ``rx`` items are shown as the drug
+    class only and badged as prescription elsewhere. Route parentheticals such as
+    "(topical)" are preserved. Non-rx names are returned unchanged.
+    """
+    name = entry.name
+    if public_display_category(entry, policy) != "rx":
+        return name
+
+    name = _DOSE_TOKEN.sub("", name)
+
+    def _strip_brand(match: "re.Match[str]") -> str:
+        inner = match.group(1).strip().lower()
+        return match.group(0) if inner in _ROUTE_WORDS else ""
+
+    name = re.sub(r"\s*\(([^)]*)\)", _strip_brand, name)
+    name = re.sub(r"\s{2,}", " ", name).strip()
+    return name or entry.name
 
 
 def is_publicly_rankable(

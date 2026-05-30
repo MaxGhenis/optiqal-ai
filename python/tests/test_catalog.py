@@ -1180,3 +1180,43 @@ class TestCostAwarePortfolio:
         )
 
         assert [step["added_intervention"] for step in result] == ["a"]
+
+
+def test_public_rx_display_names_have_no_dose_or_brand():
+    """Public prescription names must not embed dose or brand.
+
+    Surfacing 'rosuvastatin 5mg' or '(semaglutide)' to a consumer is a
+    prescribing detail; the public tool should name the drug class only and
+    badge it as prescription. Route parentheticals (e.g. '(topical)') are kept.
+    """
+    import re
+
+    from optiqal.catalog import (
+        get_catalog,
+        public_display_category,
+        public_display_name,
+    )
+
+    dose = re.compile(r"\b\d+(\.\d+)?\s*(mg|mcg|g|iu|ug)\b", re.I)
+    routes = {
+        "topical",
+        "oral",
+        "sublingual",
+        "nasal",
+        "inhaled",
+        "transdermal",
+        "subcutaneous",
+    }
+    brand_paren = re.compile(r"\(([^)]*)\)")
+
+    cat = get_catalog()
+    entries = cat.values() if isinstance(cat, dict) else cat
+    rx = [e for e in entries if public_display_category(e) == "rx"]
+    assert rx, "expected some rx items in the catalog"
+    for e in rx:
+        name = public_display_name(e)
+        assert not dose.search(name), f"{e.id}: public name {name!r} still has a dose"
+        for inner in brand_paren.findall(name):
+            assert inner.strip().lower() in routes, (
+                f"{e.id}: public name {name!r} still exposes a brand/molecule {inner!r}"
+            )

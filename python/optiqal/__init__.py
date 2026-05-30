@@ -65,6 +65,7 @@ from .catalog import (
     has_meaningful_public_osa_therapy_signal,
     public_recommendation_lane,
     public_display_category,
+    public_display_name,
     is_publicly_rankable,
     public_rankability_reason,
 )
@@ -188,6 +189,7 @@ __all__ = [
     "has_meaningful_public_osa_therapy_signal",
     "public_recommendation_lane",
     "public_display_category",
+    "public_display_name",
     "is_publicly_rankable",
     "public_rankability_reason",
     "Bundle",
