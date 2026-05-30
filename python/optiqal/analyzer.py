@@ -192,6 +192,12 @@ def _simulate_one(
         "expected_downside_days": r.expected_downside * 365.25,
         "ci_low": r.ci95[0] * 365.25 if r.ci95 else 0,
         "ci_high": r.ci95[1] * 365.25 if r.ci95 else 0,
+        # 80% interval on TOTAL QALYs: shift the draw-based interval by the
+        # deterministic non-mortality (QoL) component (total_qaly - r.mean).
+        "net_qaly_ci": [
+            r.ci80[0] + (total_qaly - r.mean),
+            r.ci80[1] + (total_qaly - r.mean),
+        ],
     }
 
 

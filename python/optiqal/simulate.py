@@ -45,6 +45,9 @@ class SimulationResult:
     # Life years
     life_years_gained: float
 
+    # 80% interval (p10, p90) of the net-QALY draws, for surfacing uncertainty.
+    ci80: tuple = (0.0, 0.0)
+
     # Posterior decision metrics
     prob_negative: float = 0.0
     expected_upside: float = 0.0
@@ -142,6 +145,7 @@ def _build_simulation_result(
         mean=float(np.mean(qaly_gains)),
         std=float(np.std(qaly_gains)),
         ci95=(float(np.percentile(qaly_gains, 2.5)), float(np.percentile(qaly_gains, 97.5))),
+        ci80=(float(np.percentile(qaly_gains, 10)), float(np.percentile(qaly_gains, 90))),
         ci50=(float(np.percentile(qaly_gains, 25)), float(np.percentile(qaly_gains, 75))),
         prob_positive=metrics["prob_positive"],
         prob_negative=metrics["prob_negative"],

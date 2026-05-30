@@ -164,3 +164,44 @@ def test_web_frontier_can_offer_humidifier_when_nasal_dryness_signal_is_strong()
     )
     option_ids = {option["id"] for option in support_state["options"]}
     assert "humidifier_nightly" in option_ids
+
+
+def test_web_frontier_items_carry_confidence_intervals():
+    """Every ranked item must expose an 80% interval, not just a point estimate.
+
+    The engine runs Monte Carlo draws but historically collapsed them to a
+    single number; the UI cannot show uncertainty without these fields.
+    """
+    payload = {
+        "profile": {
+            "age": 50,
+            "sex": "male",
+            "weight_kg": 80.0,
+            "height_cm": 178.0,
+            "smoker": False,
+            "has_diabetes": False,
+            "has_hypertension": False,
+            "activity_level": "light",
+            "sleep_hours_per_night": 7.0,
+        },
+        "n_simulations": 800,
+    }
+
+    response = run_web_frontier(payload)
+    items = response["items"]
+    assert items, "expected ranked items"
+
+    for item in items:
+        qaly_ci = item.get("net_qaly_ci")
+        days_ci = item.get("net_days_ci")
+        assert isinstance(qaly_ci, list) and len(qaly_ci) == 2, (
+            f"{item['id']} missing net_qaly_ci"
+        )
+        assert isinstance(days_ci, list) and len(days_ci) == 2, (
+            f"{item['id']} missing net_days_ci"
+        )
+        assert qaly_ci[0] <= qaly_ci[1], f"{item['id']} net_qaly_ci unordered: {qaly_ci}"
+        assert days_ci[0] <= days_ci[1], f"{item['id']} net_days_ci unordered: {days_ci}"
+        # days interval is the QALY interval rescaled to days
+        assert days_ci[0] == round(qaly_ci[0] * 365.25, 1)
+        assert days_ci[1] == round(qaly_ci[1] * 365.25, 1)

@@ -144,8 +144,19 @@ def _calculate_projection(
     survival = 1.0
     remaining_life_expectancy = 0.0
     remaining_qalys = 0.0
+    # Discounted QALYs accrued while alive (NOT survival-weighted): the lifetime
+    # QALYs realized by someone who dies in a given year. Used for the interval.
+    realized_qalys = 0.0
     current_quality_weight = max(0.0, get_quality_weight(age) - quality_decrement)
     curve: list[dict[str, float]] = []
+
+    # Age-at-death prediction interval, captured as cumulative survival decays.
+    # When survival first falls to <= t, ~(1 - t) of the cohort has died by this
+    # age, so that year is the (1 - t) percentile of age at death.
+    death_targets = {"p10": 0.90, "p50": 0.50, "p90": 0.10}
+    le_at: dict[str, float] = {}
+    qalys_at: dict[str, float] = {}
+    last_year = 0
 
     for year in range(max(0, MAX_AGE - age + 1)):
         current_age = age + year
@@ -156,6 +167,12 @@ def _calculate_projection(
 
         remaining_life_expectancy += survival
         remaining_qalys += expected_qaly
+        realized_qalys += quality_weight * discount
+
+        for key, threshold in death_targets.items():
+            if key not in le_at and survival <= threshold:
+                le_at[key] = float(year)
+                qalys_at[key] = float(realized_qalys)
 
         if year == 0 or current_age % 5 == 0 or survival < 0.02:
             curve.append(
@@ -167,9 +184,15 @@ def _calculate_projection(
                 }
             )
 
+        last_year = year
         survival *= 1.0 - base_qx
         if survival < 0.001:
             break
+
+    # Percentiles not reached within the horizon clamp to the horizon end.
+    for key in death_targets:
+        le_at.setdefault(key, float(last_year))
+        qalys_at.setdefault(key, float(realized_qalys))
 
     return {
         "remaining_life_expectancy": remaining_life_expectancy,
@@ -177,6 +200,9 @@ def _calculate_projection(
         "remaining_qalys": remaining_qalys,
         "current_quality_weight": current_quality_weight,
         "curve": curve,
+        "remaining_life_expectancy_ci": [le_at["p10"], le_at["p90"]],
+        "expected_death_age_ci": [age + le_at["p10"], age + le_at["p90"]],
+        "remaining_qalys_ci": [qalys_at["p10"], qalys_at["p90"]],
     }
 
 
@@ -292,6 +318,18 @@ def build_baseline_response(payload: Dict[str, Any]) -> dict[str, Any]:
                 float(sum(p["current_quality_weight"] for p in projections) / len(projections)),
                 3,
             ),
+            "remaining_life_expectancy_ci": [
+                round(float(sum(p["remaining_life_expectancy_ci"][0] for p in projections) / len(projections)), 1),
+                round(float(sum(p["remaining_life_expectancy_ci"][1] for p in projections) / len(projections)), 1),
+            ],
+            "expected_death_age_ci": [
+                round(float(sum(p["expected_death_age_ci"][0] for p in projections) / len(projections)), 1),
+                round(float(sum(p["expected_death_age_ci"][1] for p in projections) / len(projections)), 1),
+            ],
+            "remaining_qalys_ci": [
+                round(float(sum(p["remaining_qalys_ci"][0] for p in projections) / len(projections)), 1),
+                round(float(sum(p["remaining_qalys_ci"][1] for p in projections) / len(projections)), 1),
+            ],
         },
         "risk": {
             "lifestyle_multiplier": round(float(lifestyle_multiplier), 4),
@@ -556,6 +594,8 @@ def build_frontier_response_with_policy(
             sleep_estimate=config.sleep_estimate,
             policy=public_policy,
         )
+        _raw_ci = raw.get("net_qaly_ci", [0.0, 0.0])
+        _net_qaly_ci = [round(float(_raw_ci[0]), 4), round(float(_raw_ci[1]), 4)]
         items.append({
             "id": raw["id"],
             "name": public_display_name(entry, public_policy),
@@ -569,6 +609,11 @@ def build_frontier_response_with_policy(
             "days": round(float(raw["days"]), 1),
             "p_benefit": round(float(raw["p_benefit"]), 2),
             "p_harm": round(float(raw["p_harm"]), 2),
+            "net_qaly_ci": _net_qaly_ci,
+            "net_days_ci": [
+                round(_net_qaly_ci[0] * 365.25, 1),
+                round(_net_qaly_ci[1] * 365.25, 1),
+            ],
             "mort_qaly": round(float(raw["mort_qaly"]), 4),
             "harm_qaly": round(float(raw["harm_qaly"]), 4),
             "qol_qaly": round(float(raw["qol_qaly"]), 4),
