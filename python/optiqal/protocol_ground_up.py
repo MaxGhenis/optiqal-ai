@@ -235,8 +235,34 @@ class ResolvedStackSpec:
 
 
 def resolve_protocol_context(context: ProtocolContext | None = None) -> ProtocolContext:
-    """Return the provided protocol context or the default personalized context."""
-    return context or DEFAULT_PROTOCOL_CONTEXT
+    """Return the provided protocol context or the default personalized context.
+
+    The default points at Max's personal files under ``~``. Environment
+    overrides let CI and other machines (which lack those files) redirect the
+    health DB and protocol JSON to fixtures without code changes:
+    ``OPTIQAL_HEALTH_DB`` and ``OPTIQAL_PROTOCOL_JSON``.
+    """
+    if context is not None:
+        return context
+
+    health_db_override = os.environ.get("OPTIQAL_HEALTH_DB")
+    protocol_json_override = os.environ.get("OPTIQAL_PROTOCOL_JSON")
+    if not health_db_override and not protocol_json_override:
+        return DEFAULT_PROTOCOL_CONTEXT
+
+    return replace(
+        DEFAULT_PROTOCOL_CONTEXT,
+        health_db=(
+            Path(health_db_override)
+            if health_db_override
+            else DEFAULT_PROTOCOL_CONTEXT.health_db
+        ),
+        protocol_json=(
+            Path(protocol_json_override)
+            if protocol_json_override
+            else DEFAULT_PROTOCOL_CONTEXT.protocol_json
+        ),
+    )
 
 
 def make_spec(
