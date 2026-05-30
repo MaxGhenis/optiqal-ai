@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from .parser import RawGenotype, genotype_at
+from .parser import RawGenotype, genotype_at, strand_ambiguous_genotype
 
 _DATA_DIR = Path(__file__).parent / "data"
 _PGX_VARIANTS: Optional[dict] = None
@@ -71,10 +71,20 @@ def _variant_allele_count(
     calls: Dict[str, RawGenotype],
     rsid: str,
     variant_allele: str,
+    ref_allele: Optional[str] = None,
 ) -> Optional[int]:
-    """Return 0, 1, or 2 copies of the variant allele; None if missing call."""
+    """Return 0, 1, or 2 copies of the variant allele; None if uncallable.
+
+    Returns ``None`` for a missing call and for a strand-ambiguous read at a
+    palindromic (A/T, C/G) SNP, where containment counting could silently
+    invert the result. None of the bundled PGx star-allele variants are
+    palindromic (all are C/T or G/A transitions), so this guard is defensive
+    rather than active for the current panel.
+    """
     g = genotype_at(calls, rsid)
     if g is None:
+        return None
+    if strand_ambiguous_genotype(g, ref_allele, variant_allele):
         return None
     if len(g) == 1:
         return 1 if g == variant_allele else 0
@@ -116,7 +126,9 @@ def _call_gene(
         for defining in allele_spec["defining_variants"]:
             rsid = defining["rsid"]
             variant_allele = defining["variant_allele"]
-            count = _variant_allele_count(calls, rsid, variant_allele)
+            count = _variant_allele_count(
+                calls, rsid, variant_allele, defining.get("ref_allele")
+            )
             if count is None:
                 missing_variants.append(f"{allele_name}:{rsid}")
                 continue

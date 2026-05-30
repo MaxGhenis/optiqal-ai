@@ -184,6 +184,48 @@ class TestCyp2d6:
         assert diplotype_to_phenotype(dp) == "unknown"
 
 
+class TestCyp2d6ActivityScoreBands:
+    """CYP2D6 activity-score bands must be gap-free.
+
+    The published lattice for the bundled star alleles can land scores in
+    the historical gaps (1.0, 1.25) and (2.25, 2.5); a real score there
+    must map to a real phenotype, never "unknown".
+    """
+
+    def _pheno_for_score(self, score):
+        from optiqal.genetics.pgx import Diplotype
+        from optiqal.genetics.cpic import diplotype_to_phenotype
+
+        dp = Diplotype(
+            gene="CYP2D6", allele1="*1", allele2="*1", activity_score=score,
+        )
+        return diplotype_to_phenotype(dp)
+
+    def test_score_in_lower_gap_is_normal_metabolizer(self):
+        # 1.0 < AS <= 2.25 is normal metabolizer per CPIC consensus.
+        assert self._pheno_for_score(1.1) == "normal_metabolizer"
+
+    def test_score_in_upper_gap_is_ultrarapid_metabolizer(self):
+        # AS > 2.25 is ultrarapid metabolizer per CPIC consensus.
+        assert self._pheno_for_score(2.4) == "ultrarapid_metabolizer"
+
+    def test_as_one_boundary_is_intermediate(self):
+        # CPIC 2019 consensus assigns AS == 1.0 to intermediate metabolizer.
+        assert self._pheno_for_score(1.0) == "intermediate_metabolizer"
+
+    def test_as_2_25_boundary_is_normal(self):
+        # AS == 2.25 is the top of the normal-metabolizer band.
+        assert self._pheno_for_score(2.25) == "normal_metabolizer"
+
+    def test_bands_contiguous_over_score_range(self):
+        # No achievable score in [0, 3] may fall into an "unknown" gap.
+        score = 0.0
+        while score <= 3.0 + 1e-9:
+            pheno = self._pheno_for_score(round(score, 2))
+            assert pheno != "unknown", f"AS={score:.2f} fell into a band gap"
+            score += 0.05
+
+
 class TestCyp2c19:
     def test_reference_normal(self, tmp_path):
         p = _write_23andme(tmp_path, {
@@ -242,7 +284,12 @@ class TestActionable:
         })
         findings = call_hfe(parse_23andme(p))
         assert len(findings) == 1
-        assert "High-penetrance" in findings[0].clinical_significance
+        # Highest-penetrance C282Y/C282Y branch is flagged (wording softened
+        # in the non-prescriptive pass; still references penetrance).
+        assert "penetrance" in findings[0].clinical_significance.lower()
+        assert "C282Y homozygous" in findings[0].zygosity
+        # Non-diagnostic caveat is present.
+        assert "not a diagnosis" in findings[0].clinical_significance.lower()
 
     def test_hfe_wild_type(self, tmp_path):
         p = _write_23andme(tmp_path, {
@@ -305,6 +352,179 @@ class TestActionable:
         assert [(finding.locus, finding.zygosity) for finding in findings] == [
             ("BRCA1 5382insC", "heterozygous")
         ]
+
+
+class TestNonPrescriptivePhrasing:
+    """Actionable findings must read as informational, not prescriptive.
+
+    Every user-facing significance string must (a) carry a non-diagnostic
+    caveat steering the user to a clinician/genetic counselor or clinical-
+    grade confirmation, and (b) avoid bare prescriptive/diagnostic phrasing
+    ("Recommend", "standard of care") and population penetrance figures
+    presented as if individually predictive.
+    """
+
+    # Any one of these caveat signals is sufficient per finding.
+    CAVEAT_SIGNALS = (
+        "not a diagnosis",
+        "genetic counselor",
+        "discuss with a clinician",
+        "confirm with clinical",
+        "clinical-grade",
+        "informational",
+    )
+    # Bare prescriptive/diagnostic phrasing that must not appear.
+    FORBIDDEN = (
+        "recommend",
+        "standard of care",
+    )
+
+    def _dir(self, tmp_path, name):
+        d = tmp_path / name
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+
+    def _all_findings(self, tmp_path):
+        findings = []
+        # HFE C282Y homozygous (high-penetrance branch).
+        findings += call_hfe(parse_23andme(_write_23andme(self._dir(tmp_path, "a"), {
+            "rs1800562": ("6", 26093141, "AA"),
+            "rs1799945": ("6", 26091179, "CG"),  # H63D het (callable palindrome)
+        })))
+        # HFE C282Y het + H63D het (compound-het branch).
+        findings += call_hfe(parse_23andme(_write_23andme(self._dir(tmp_path, "b"), {
+            "rs1800562": ("6", 26093141, "GA"),
+            "rs1799945": ("6", 26091179, "CG"),
+        })))
+        # HFE C282Y carrier only.
+        findings += call_hfe(parse_23andme(_write_23andme(self._dir(tmp_path, "c"), {
+            "rs1800562": ("6", 26093141, "GA"),
+        })))
+        # HFE H63D homozygous — exercised via a heterozygous-callable read is
+        # not possible (homozygous palindromes are uncallable), so cover the
+        # wild-type "no pathogenic genotype" branch instead.
+        findings += call_hfe(parse_23andme(_write_23andme(self._dir(tmp_path, "d"), {
+            "rs1800562": ("6", 26093141, "GG"),
+        })))
+        # APOE e4/e4, e3/e4, e3/e3.
+        for gt in ("CC", "CT", "TT"):
+            findings += call_apoe(parse_23andme(_write_23andme(
+                self._dir(tmp_path, f"e_{gt}"), {
+                    "rs429358": ("19", 45411941, gt),
+                    "rs7412": ("19", 45412079, "CC"),
+                })))
+        # BRCA carrier (BRCA1 185delAG) and the all-absent panel summary.
+        findings += call_ashkenazi_brca(parse_23andme(_write_23andme(
+            self._dir(tmp_path, "f"), {
+                "rs80357914": ("17", 41276046, "DI"),
+                "rs80357906": ("17", 41244936, "--"),
+                "rs80359550": ("13", 32914438, "TT"),
+            })))
+        findings += call_ashkenazi_brca(parse_23andme(_write_23andme(
+            self._dir(tmp_path, "g"), {
+                "rs80357914": ("17", 41276046, "AG"),
+                "rs80357906": ("17", 41244936, "--"),
+                "rs80359550": ("13", 32914438, "TT"),
+            })))
+        return findings
+
+    def test_every_finding_has_caveat_and_no_prescriptive_verbs(self, tmp_path):
+        findings = self._all_findings(tmp_path)
+        assert findings, "expected a battery of findings to evaluate"
+        for f in findings:
+            sig = f.clinical_significance.lower()
+            assert any(sig_phrase in sig for sig_phrase in self.CAVEAT_SIGNALS), (
+                f"finding {f.locus!r} lacks a non-diagnostic caveat: "
+                f"{f.clinical_significance!r}"
+            )
+            for bad in self.FORBIDDEN:
+                assert bad not in sig, (
+                    f"finding {f.locus!r} uses prescriptive phrasing {bad!r}: "
+                    f"{f.clinical_significance!r}"
+                )
+
+    def test_brca_penetrance_not_presented_as_individual_prediction(self, tmp_path):
+        # The ~70%/~40% founder-mutation penetrance figures, when shown, must
+        # be framed as population averages in carriers, not the user's risk.
+        carrier = call_ashkenazi_brca(parse_23andme(_write_23andme(
+            self._dir(tmp_path, "h"), {
+                "rs80357914": ("17", 41276046, "DI"),
+                "rs80357906": ("17", 41244936, "--"),
+                "rs80359550": ("13", 32914438, "TT"),
+            })))
+        assert len(carrier) == 1
+        sig = carrier[0].clinical_significance.lower()
+        if "70%" in sig or "40%" in sig:
+            assert "average" in sig or "population" in sig, (
+                "penetrance figures must be framed as population averages: "
+                f"{carrier[0].clinical_significance!r}"
+            )
+
+
+class TestPalindromicStrandGuard:
+    """HFE H63D (rs1799945) is the one palindromic (C/G) actionable locus.
+
+    A homozygous observation at a palindromic SNP is strand-ambiguous: a
+    true ref/ref (CC) reported on the reverse strand is indistinguishable
+    from a true alt/alt (GG). Without strand annotation the call must be
+    treated as uncallable rather than silently inverted.
+    """
+
+    def test_zygosity_at_palindromic_homozygous_is_uncallable(self, tmp_path):
+        from optiqal.genetics.actionable import _zygosity_at
+
+        # H63D ref=C / alt=G. A reverse-strand ref/ref person reads as "GG".
+        p = _write_23andme(tmp_path, {"rs1799945": ("6", 26091179, "GG")})
+        calls = parse_23andme(p)
+        # Naive containment counting would call this homozygous-variant.
+        # Strand-aware logic must return None (uncallable) instead.
+        assert _zygosity_at(calls, "rs1799945", "G", "C") is None
+
+        # Symmetrically, a "CC" homozygous read is equally strand-ambiguous.
+        p2 = _write_23andme(tmp_path, {"rs1799945": ("6", 26091179, "CC")})
+        calls2 = parse_23andme(p2)
+        assert _zygosity_at(calls2, "rs1799945", "G", "C") is None
+
+    def test_zygosity_at_palindromic_heterozygous_still_callable(self, tmp_path):
+        from optiqal.genetics.actionable import _zygosity_at
+
+        # A het carries one C and one G regardless of strand — unambiguous.
+        p = _write_23andme(tmp_path, {"rs1799945": ("6", 26091179, "CG")})
+        calls = parse_23andme(p)
+        assert _zygosity_at(calls, "rs1799945", "G", "C") == "heterozygous"
+
+    def test_zygosity_at_palindromic_foreign_allele_is_uncallable(self, tmp_path):
+        from optiqal.genetics.actionable import _zygosity_at
+
+        # An allele outside {ref, alt} can't be scored for containment.
+        p = _write_23andme(tmp_path, {"rs1799945": ("6", 26091179, "AA")})
+        calls = parse_23andme(p)
+        assert _zygosity_at(calls, "rs1799945", "G", "C") is None
+
+    def test_zygosity_at_nonpalindromic_homozygous_unaffected(self, tmp_path):
+        from optiqal.genetics.actionable import _zygosity_at
+
+        # C282Y (rs1800562) is G/A — NOT complementary, so not palindromic.
+        # Homozygous-variant (AA) must still be callable as before.
+        p = _write_23andme(tmp_path, {"rs1800562": ("6", 26093141, "AA")})
+        calls = parse_23andme(p)
+        assert _zygosity_at(calls, "rs1800562", "A", "G") == "homozygous"
+
+    def test_call_hfe_reverse_strand_refref_not_miscalled_as_h63d(self, tmp_path):
+        # True ref/ref H63D person on the reverse strand reads rs1799945="GG".
+        # C282Y is plain wild-type. The buggy code reported H63D homozygous
+        # (mildly elevated iron risk). The guard must instead leave H63D
+        # not-called and report no pathogenic genotype.
+        p = _write_23andme(tmp_path, {
+            "rs1800562": ("6", 26093141, "GG"),  # C282Y absent
+            "rs1799945": ("6", 26091179, "GG"),  # palindromic homozygous read
+        })
+        findings = call_hfe(parse_23andme(p))
+        assert len(findings) == 1
+        f = findings[0]
+        assert "H63D homozygous" not in f.clinical_significance
+        assert "H63D not-called" in f.zygosity
+        assert "No pathogenic" in f.clinical_significance
 
 
 class TestGeneticProfile:

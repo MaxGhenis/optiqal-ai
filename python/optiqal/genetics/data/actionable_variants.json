@@ -58,7 +58,7 @@
         "variant_allele": "-",
         "ref_allele": "AG",
         "pathogenicity": "pathogenic",
-        "notes": "BRCA1 frameshift; ~1% Ashkenazi allele frequency. Lifetime breast cancer risk ~70%, ovarian ~40%."
+        "notes": "BRCA1 frameshift; ~1% Ashkenazi allele frequency. Across carriers, population-average lifetime breast cancer risk is ~70% and ovarian ~40%; an individual's risk varies widely with family history and other factors."
       },
       {
         "rsid": "rs80357906",
@@ -76,7 +76,7 @@
         "variant_allele": "-",
         "ref_allele": "T",
         "pathogenicity": "pathogenic",
-        "notes": "BRCA2 frameshift; ~1.5% Ashkenazi allele frequency. Elevated breast and prostate cancer risk; men carry meaningful prostate + male breast cancer risk."
+        "notes": "BRCA2 frameshift; ~1.5% Ashkenazi allele frequency. Associated on average with elevated breast and prostate cancer risk across carriers; men carry meaningful prostate and male breast cancer risk. Individual risk varies with family history and other factors."
       }
     ]
   }

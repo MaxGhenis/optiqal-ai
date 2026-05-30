@@ -43,6 +43,10 @@ def _load_cpic() -> dict:
 
 
 def _activity_score_phenotype(gene_spec: dict, activity_score: float) -> Phenotype:
+    # Ranges are contiguous with shared inclusive endpoints, ordered low->high.
+    # Returning the FIRST match means the lower band owns each shared boundary
+    # (e.g. AS=1.0 -> intermediate, AS=2.25 -> normal per the CPIC 2019
+    # consensus). This keeps the bands gap-free over the achievable lattice.
     for r in gene_spec["ranges"]:
         if r["min"] <= activity_score <= r["max"]:
             return r["phenotype"]  # type: ignore[return-value]

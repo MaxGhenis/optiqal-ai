@@ -271,3 +271,44 @@ def genotype_at(calls: Dict[str, RawGenotype], rsid: str) -> Optional[str]:
     if len(g.genotype) == 2:
         return "".join(sorted(g.genotype))
     return g.genotype
+
+
+_COMPLEMENT = {"A": "T", "T": "A", "C": "G", "G": "C"}
+
+
+def is_palindromic_snp(ref_allele: Optional[str], alt_allele: Optional[str]) -> bool:
+    """True iff a biallelic SNP's two alleles are reverse-complements.
+
+    Only the A/T and C/G SNPs are *palindromic*: the variant looks the same
+    on both DNA strands, so a call lacking strand annotation cannot be
+    oriented. ``G/A`` and ``C/T`` (transitions) are NOT palindromic. Indels
+    (multi-character or ``-``/``I``/``D`` alleles) are never palindromic.
+    """
+    if not ref_allele or not alt_allele:
+        return False
+    r = ref_allele.upper()
+    a = alt_allele.upper()
+    if r not in _COMPLEMENT or a not in _COMPLEMENT:
+        return False
+    return _COMPLEMENT[r] == a
+
+
+def strand_ambiguous_genotype(
+    genotype: str,
+    ref_allele: Optional[str],
+    alt_allele: Optional[str],
+) -> bool:
+    """True iff this genotype cannot be reliably oriented to ref/alt.
+
+    A genotype is strand-ambiguous when, for a palindromic SNP, it is
+    *homozygous* (e.g. ``"CC"`` at a C/G locus): a true ref/ref read on the
+    reverse strand is identical to a true alt/alt read on the forward
+    strand, so containment counting would silently invert the call. A
+    heterozygote (one ref + one alt) is orientation-invariant and therefore
+    unambiguous. Non-palindromic loci are never strand-ambiguous here.
+    """
+    if not is_palindromic_snp(ref_allele, alt_allele):
+        return False
+    distinct = set(genotype.upper())
+    # Homozygous (single distinct base) at a palindrome → unorientable.
+    return len(distinct) == 1

@@ -1,12 +1,12 @@
 {
   "CYP2D6": {
-    "description": "Activity-score-based phenotype assignment per CPIC (clinicalpharmacology.wustl.edu) 2020 guidelines.",
+    "description": "Activity-score-based phenotype assignment per the CPIC/DPWG 2019 consensus standardizing CYP2D6 AS->phenotype translation (Caudle et al., Clin Transl Sci 2020). Bands are contiguous so no achievable score maps to 'unknown'. Boundaries are encoded as shared inclusive endpoints; the comparator returns the FIRST matching range, so the lower band owns each shared endpoint. The AS=1.0 boundary is assigned to intermediate_metabolizer (the 2019 consensus choice), and AS=2.25 to normal_metabolizer. Bands: PM AS=0; IM 0<AS<=1.0; NM 1.0<AS<=2.25; UM AS>2.25.",
     "mode": "activity_score",
     "ranges": [
       {"min": 0.0, "max": 0.0, "phenotype": "poor_metabolizer", "label": "Poor metabolizer"},
-      {"min": 0.25, "max": 1.0, "phenotype": "intermediate_metabolizer", "label": "Intermediate metabolizer"},
-      {"min": 1.25, "max": 2.25, "phenotype": "normal_metabolizer", "label": "Normal metabolizer"},
-      {"min": 2.5, "max": 6.0, "phenotype": "ultrarapid_metabolizer", "label": "Ultrarapid metabolizer"}
+      {"min": 0.0, "max": 1.0, "phenotype": "intermediate_metabolizer", "label": "Intermediate metabolizer"},
+      {"min": 1.0, "max": 2.25, "phenotype": "normal_metabolizer", "label": "Normal metabolizer"},
+      {"min": 2.25, "max": 9.0, "phenotype": "ultrarapid_metabolizer", "label": "Ultrarapid metabolizer"}
     ]
   },
   "CYP2C19": {
