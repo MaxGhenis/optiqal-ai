@@ -405,9 +405,19 @@ def find_optimal_portfolio_with_costs(
     marginal_cost_value_fn: Optional[Callable[[List[str], str], float]] = None,
     total_annual_cost_fn: Optional[Callable[[List[str]], float]] = None,
     portfolio_qaly_ceiling: Optional[float] = None,
+    item_mortality_hrs: Optional[Dict[str, float]] = None,
+    item_qol_qalys: Optional[Dict[str, float]] = None,
+    mortality_qaly_fn: Optional[Callable[[float], float]] = None,
 ) -> List[Dict]:
     """
     Find optimal portfolio using cost-aware greedy selection.
+
+    When ``item_mortality_hrs``, ``item_qol_qalys`` and ``mortality_qaly_fn`` are
+    supplied, a stack's mortality QALYs are computed by combining the per-item
+    all-cause hazard ratios multiplicatively (one joint survival integration via
+    ``mortality_qaly_fn``) and adding the non-mortality (QoL/harm) QALYs across
+    items. This avoids double-counting the shared baseline survival that summing
+    per-item totals (the ``single_qalys`` fallback) introduces.
 
     At each step, adds the intervention with highest marginal net value,
     accounting for:
@@ -448,8 +458,19 @@ def find_optimal_portfolio_with_costs(
     selected: List[str] = preselected.copy()
     portfolio_path: List[Dict] = []
     penalty_cache: Dict[tuple[str, ...], float] = {}
+    _hazard_aware = (
+        mortality_qaly_fn is not None
+        and item_mortality_hrs is not None
+        and item_qol_qalys is not None
+    )
 
     def _base_total_qaly(item_ids: List[str]) -> float:
+        if _hazard_aware:
+            combined_hr = 1.0
+            for s in item_ids:
+                combined_hr *= item_mortality_hrs.get(s, 1.0)
+            qol_total = sum(item_qol_qalys.get(s, 0.0) for s in item_ids)
+            return float(mortality_qaly_fn(combined_hr)) + qol_total
         return sum(single_qalys[s] for s in item_ids)
 
     def _interaction_penalty(item_ids: List[str]) -> float:
@@ -555,9 +576,17 @@ def rank_interventions_by_marginal_cost_per_qaly(
     marginal_cost_value_fn: Optional[Callable[[List[str], str], float]] = None,
     total_annual_cost_fn: Optional[Callable[[List[str]], float]] = None,
     exclusive_groups: Optional[Dict[str, str]] = None,
+    item_mortality_hrs: Optional[Dict[str, float]] = None,
+    item_qol_qalys: Optional[Dict[str, float]] = None,
+    mortality_qaly_fn: Optional[Callable[[float], float]] = None,
 ) -> List[Dict]:
     """
     Rank interventions by marginal cost-effectiveness without applying a WTP cutoff.
+
+    When ``item_mortality_hrs``/``item_qol_qalys``/``mortality_qaly_fn`` are
+    supplied, mortality QALYs combine multiplicatively on the hazard (one joint
+    survival integration) rather than summing per-item totals, avoiding the
+    shared-survival double-count.
 
     At each step, add the remaining intervention with the lowest positive
     marginal cost per QALY, after explicit interaction penalties and shared
@@ -574,8 +603,19 @@ def rank_interventions_by_marginal_cost_per_qaly(
     selected: List[str] = preselected.copy()
     ranking: List[Dict] = []
     penalty_cache: Dict[tuple[str, ...], float] = {}
+    _hazard_aware = (
+        mortality_qaly_fn is not None
+        and item_mortality_hrs is not None
+        and item_qol_qalys is not None
+    )
 
     def _base_total_qaly(item_ids: List[str]) -> float:
+        if _hazard_aware:
+            combined_hr = 1.0
+            for s in item_ids:
+                combined_hr *= item_mortality_hrs.get(s, 1.0)
+            qol_total = sum(item_qol_qalys.get(s, 0.0) for s in item_ids)
+            return float(mortality_qaly_fn(combined_hr)) + qol_total
         return sum(single_qalys[s] for s in item_ids)
 
     def _interaction_penalty(item_ids: List[str]) -> float:

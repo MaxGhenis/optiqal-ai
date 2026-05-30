@@ -325,5 +325,37 @@ class TestPortfolioQalyCeiling:
         assert delta_tenth < 1e-3
 
 
+def test_portfolio_combines_mortality_multiplicatively_not_additively():
+    """Mortality QALYs must combine on the hazard scale (one joint survival
+    integration), not by summing per-item QALYs, which double-counts the shared
+    baseline survival and overstates a stack's total.
+    """
+    item_hrs = {"a": 0.7, "b": 0.7}
+    item_qol = {"a": 0.0, "b": 0.0}
+
+    # Toy deterministic integrator: monotone and sub-additive in (1 - HR), as a
+    # real survival integral is. Joint HR 0.49 < additive (0.7 + 0.7 effect).
+    def mort_fn(combined_hr: float) -> float:
+        return 10.0 * (1.0 - combined_hr)
+
+    single = {"a": mort_fn(0.7), "b": mort_fn(0.7)}  # 3.0 each; additive sum 6.0
+
+    result = find_optimal_portfolio_with_costs(
+        single,
+        {"a": 0.0, "b": 0.0},
+        wtp=100_000,
+        horizon_years=40,
+        item_mortality_hrs=item_hrs,
+        item_qol_qalys=item_qol,
+        mortality_qaly_fn=mort_fn,
+    )
+
+    selected = {step["added_intervention"] for step in result}
+    assert selected == {"a", "b"}
+    final_total = result[-1]["total_base_qaly"]
+    assert final_total == pytest.approx(mort_fn(0.7 * 0.7))  # joint HR 0.49 -> 5.1
+    assert final_total < single["a"] + single["b"]  # strictly below additive 6.0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

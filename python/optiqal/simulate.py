@@ -252,6 +252,47 @@ def effective_qol_factor_for_years(
     return factor
 
 
+def mortality_qaly_for_combined_hr(
+    profile: Profile,
+    combined_hr: float,
+    discount_rate: float = DEFAULT_QALY_DISCOUNT_RATE,
+    baseline_hazard_multiplier: float = 1.0,
+    max_age: int = 100,
+) -> float:
+    """Deterministic mortality QALY gain from a flat all-cause hazard ratio.
+
+    Mirrors the mean of the Monte Carlo mortality QALYs the simulator produces
+    for a uniform all-cause hazard multiplier ``combined_hr`` (quality-weight
+    heterogeneity is mean-zero, so the deterministic integral matches the MC
+    mean). Combining a stack's per-item hazard ratios multiplicatively and
+    integrating once with this function avoids the shared-survival double-count
+    of summing per-item QALYs.
+    """
+    discount_rate = validate_qaly_discount_rate(discount_rate)
+    n_years = max_age - profile.age
+    if n_years <= 0:
+        return 0.0
+
+    baseline_mortality_multiplier = get_baseline_mortality_multiplier(profile)
+    ages = profile.age + np.arange(n_years)
+    base_qx = np.minimum(
+        np.array([get_mortality_rate(int(a), profile.sex) for a in ages])
+        * baseline_mortality_multiplier
+        * float(max(baseline_hazard_multiplier, 0.0)),
+        0.99,
+    )
+    quality = np.array([get_quality_weight(int(a)) for a in ages])
+    discount = (1.0 / (1.0 + discount_rate)) ** np.arange(n_years)
+
+    def _qaly(multiplier: float) -> float:
+        policy_qx = np.minimum(base_qx * multiplier, 0.99)
+        survival = np.cumprod(1 - policy_qx)
+        survival = np.concatenate([[1.0], survival[:-1]])
+        return float(np.sum(survival * quality * discount))
+
+    return _qaly(combined_hr) - _qaly(1.0)
+
+
 def _simulate_reversible_policy(
     base_qx: np.ndarray,
     policy_hr: np.ndarray,

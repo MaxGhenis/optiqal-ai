@@ -21,7 +21,11 @@ from .defaults import (
 )
 from .intervention import Distribution, Intervention, MortalityEffect
 from .profile import Profile
-from .simulate import effective_qol_factor_for_years, simulate_qaly_profile_vectorized
+from .simulate import (
+    effective_qol_factor_for_years,
+    mortality_qaly_for_combined_hr,
+    simulate_qaly_profile_vectorized,
+)
 from .sleep import (
     SleepBurdenEstimate,
     SleepMetrics,
@@ -173,6 +177,7 @@ def _simulate_one(
     return {
         "name": name,
         "mort_qaly": mort_qaly,
+        "posterior_hr": float(r.posterior_hr_mean) if r.posterior_hr_mean is not None else 1.0,
         "harm_qaly": harm_qaly,
         "direct_harm_qaly": r.expected_harm_qalys,
         "interaction_harm_qaly": r.expected_interaction_harm_qalys,
@@ -347,6 +352,18 @@ def analyze(
     single_qalys = {r["id"]: r["total_qaly"] for r in item_results}
     annual_costs = {r["id"]: r["annual_cost"] for r in item_results}
     cost_values = {r["id"]: r["total_cost"] for r in item_results}
+    # Hazard-aware stacking: mortality combines multiplicatively (one joint
+    # integration), non-mortality (QoL/harm) QALYs add across items.
+    item_mortality_hrs = {r["id"]: r.get("posterior_hr", 1.0) for r in item_results}
+    item_qol_qalys = {r["id"]: r["total_qaly"] - r["mort_qaly"] for r in item_results}
+
+    def _stack_mortality_qaly(combined_hr: float) -> float:
+        return mortality_qaly_for_combined_hr(
+            config.profile,
+            combined_hr,
+            discount_rate=config.qaly_discount_rate,
+            baseline_hazard_multiplier=config.sleep_baseline_hazard_multiplier,
+        )
     penalty_fn = stack_interaction_penalty_fn or build_stack_interaction_penalty_fn(
         catalog_entries=entries,
         profile=config.profile,
@@ -365,6 +382,9 @@ def analyze(
         marginal_cost_value_fn=marginal_cost_value_fn,
         total_annual_cost_fn=total_annual_cost_fn,
         portfolio_qaly_ceiling=config.portfolio_qaly_ceiling,
+        item_mortality_hrs=item_mortality_hrs,
+        item_qol_qalys=item_qol_qalys,
+        mortality_qaly_fn=_stack_mortality_qaly,
     )
 
     # 3. Bundle recommendations
