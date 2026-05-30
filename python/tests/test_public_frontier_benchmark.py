@@ -252,7 +252,10 @@ def test_candidate_policy_override_changes_benchmark_outcome(tmp_path):
 
 def test_repo_candidate_template_surfaces_glp1_for_severe_obesity_without_metformin_or_statin():
     candidate_policy = load_public_policy_override(
-        Path("/Users/maxghenis/optiqal-ai/python/optiqal/data/public_policy_candidate_template.json")
+        Path(__file__).resolve().parent.parent
+        / "optiqal"
+        / "data"
+        / "public_policy_candidate_template.json"
     )
     scenario = next(
         case for case in CANONICAL_PUBLIC_FRONTIER_SCENARIOS

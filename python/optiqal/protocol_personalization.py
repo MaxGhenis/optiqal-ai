@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 from .protocol_ground_up import (
-    DEFAULT_PROTOCOL_CONTEXT,
     ProtocolContext,
     apply_spec_to_catalog_entry,
     build_additional_specs,
@@ -25,8 +24,13 @@ def load_protocol_baseline(context: ProtocolContext | None = None) -> dict[str, 
 
 
 def load_protocol_context() -> ProtocolContext:
-    """Load the canonical personalized protocol context."""
-    return DEFAULT_PROTOCOL_CONTEXT
+    """Load the canonical personalized protocol context.
+
+    Routes through resolve_protocol_context so OPTIQAL_HEALTH_DB /
+    OPTIQAL_PROTOCOL_JSON overrides apply here too (e.g. CI fixtures), instead
+    of always returning the personal default.
+    """
+    return resolve_protocol_context()
 
 
 def load_protocol_items(context: ProtocolContext | None = None) -> list[dict[str, Any]]:
