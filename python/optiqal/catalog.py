@@ -1969,6 +1969,160 @@ _add(CatalogEntry(
     annual_cost=15, qol_annual=0.000,
     notes="Already getting 250mg from Longevity Mix. Obs meta: modest CVD.",
 ))
+# -------------------------------------------------------------------------
+# Blueprint Longevity Mix actives (1 scoop = 14.8 g, ~$537/yr, 30 servings).
+# Added so the Mix can be modeled as a bundle AND ingredient-by-ingredient.
+# Every prior traces to a cited source (see notes/sources). Where the
+# longevity/mortality evidence is animal-only or biomarker-only, hr_observed is
+# held at the 1.0 null rather than inventing a benefit. study_quality uses the
+# tiers actually defined in confounding.STUDY_QUALITY_SHRINKAGE.
+# -------------------------------------------------------------------------
+_add(CatalogEntry(
+    "caakg_2000", "Calcium AKG 2000mg", "supplement_current",
+    hr_observed=1.0, log_sd=0.05, conf_alpha=1.2, conf_beta=6.0,
+    annual_cost=0, qol_annual=0.0,
+    has_direct_mortality_effect=False,
+    benefit_tags=["mitochondrial_support"],
+    notes=(
+        "Calcium alpha-ketoglutarate, the largest active in the Blueprint "
+        "Longevity Mix (2000 mg). Lifespan/healthspan evidence is animal-only: "
+        "in C57BL/6 mice, CaAKG begun at 18 months extended median lifespan "
+        "~12-16% and compressed morbidity/frailty (Asadi Shahmirzadi et al., "
+        "Cell Metabolism 2020, PMID 32877690), an effect that was sexually "
+        "dimorphic (stronger in females). The only human data is an open-label, "
+        "uncontrolled biological-age (DNA-methylation) study of Rejuvant "
+        "(Demidenko et al., Aging 2021) - not a mortality endpoint and heavily "
+        "confounded. With no human all-cause mortality RCT or cohort, "
+        "hr_observed is held at the 1.0 null (animal_or_mechanistic tier, "
+        "speculative) rather than extrapolating the mouse effect to humans."
+    ),
+    sources=(
+        "https://pubmed.ncbi.nlm.nih.gov/32877690/",
+        "https://www.aging-us.com/article/203736/text",
+    ),
+    study_quality="animal_or_mechanistic",
+    evidence_quality="very-low",
+))
+_add(CatalogEntry(
+    "glucosamine_sulfate_750", "Glucosamine sulfate 750mg", "supplement_current",
+    hr_observed=0.92, log_sd=0.10, conf_alpha=1.0, conf_beta=5.5,
+    annual_cost=0, qol_annual=0.0,
+    benefit_tags=["anti_inflammatory"],
+    notes=(
+        "Glucosamine sulfate 750 mg (Blueprint Longevity Mix). The only Mix "
+        "active with direct human all-cause mortality data: in the UK Biobank "
+        "prospective cohort (n=495,077, median 8.9 y follow-up, 19,882 deaths), "
+        "regular glucosamine use had a multivariable-adjusted all-cause "
+        "mortality HR of 0.85 (95% CI 0.82-0.89) (Li et al., Ann Rheum Dis "
+        "2020;79:829-836, PMID 32253185). That association is almost certainly "
+        "inflated by healthy-user / selection bias - Suissa et al. "
+        "(Pharmacoepidemiol Drug Saf 2022) argue the apparent benefit largely "
+        "reflects who chooses to take glucosamine, not the supplement. We "
+        "therefore enter a conservative observed HR of 0.92 (well above the raw "
+        "0.85) and tier it observational_speculative (0.55 shrinkage) so the "
+        "confounding machinery pulls it further toward null."
+    ),
+    sources=(
+        "https://pubmed.ncbi.nlm.nih.gov/32253185/",
+        "https://onlinelibrary.wiley.com/doi/abs/10.1002/pds.5535",
+    ),
+    study_quality="observational_speculative",
+    evidence_quality="low",
+))
+_add(CatalogEntry(
+    "l_lysine_1000", "L-Lysine 1000mg", "supplement_current",
+    hr_observed=1.0, log_sd=0.04, conf_alpha=1.1, conf_beta=6.0,
+    annual_cost=0, qol_annual=0.0,
+    has_direct_mortality_effect=False,
+    notes=(
+        "L-Lysine 1000 mg (Blueprint Longevity Mix). Lysine is an essential "
+        "amino acid generally replete in an adequate-protein diet, so "
+        "incremental supplementation has limited expected effect. No all-cause "
+        "mortality, longevity, or healthspan RCT/cohort exists for lysine. The "
+        "human RCT evidence is for unrelated outcomes: recurrent herpes "
+        "labialis prophylaxis at >=1 g/day (Griffith et al. 1987, PMID "
+        "3115841; mixed across trials, Cochrane found no clear benefit), and "
+        "reduced anxiety/cortisol only when COMBINED with L-arginine 2.64 g "
+        "each (Smriga et al., Biomed Res 2007, PMID 17510493) - not lysine "
+        "alone. With no mortality signal, hr_observed is held at the 1.0 null."
+    ),
+    sources=(
+        "https://pubmed.ncbi.nlm.nih.gov/3115841/",
+        "https://pubmed.ncbi.nlm.nih.gov/17510493/",
+    ),
+    study_quality="animal_or_mechanistic",
+    evidence_quality="very-low",
+))
+_add(CatalogEntry(
+    "glutathione_250", "Reduced glutathione 250mg (oral)", "supplement_current",
+    hr_observed=1.0, log_sd=0.05, conf_alpha=1.1, conf_beta=6.0,
+    annual_cost=0, qol_annual=0.0,
+    has_direct_mortality_effect=False,
+    benefit_tags=["antioxidant_support"],
+    notes=(
+        "Oral reduced glutathione 250 mg (Blueprint Longevity Mix). A 6-month "
+        "randomized, double-blind, placebo-controlled trial (n=54) of oral GSH "
+        "at exactly 250 and 1000 mg/day raised body glutathione stores in "
+        "blood, erythrocytes, lymphocytes and buccal cells and increased NK "
+        "cytotoxicity (Richie et al., Eur J Nutr 2015;54:251-263, PMID "
+        "24791752). Those are biomarker/surrogate endpoints only - no clinical "
+        "or mortality outcome was measured, and oral GSH bioavailability is "
+        "inherently limited by gut degradation. With no hard-endpoint or "
+        "mortality evidence, hr_observed is held at the 1.0 null. Tiered as a "
+        "supplement-industry surrogate-endpoint RCT (0.50 shrinkage)."
+    ),
+    sources=(
+        "https://pubmed.ncbi.nlm.nih.gov/24791752/",
+        "https://pmc.ncbi.nlm.nih.gov/articles/PMC3162377/",
+    ),
+    study_quality="supplement_industry_rct",
+    evidence_quality="very-low",
+))
+_add(CatalogEntry(
+    "l_theanine_200", "L-Theanine 200mg", "supplement_current",
+    hr_observed=1.0, log_sd=0.05, conf_alpha=1.2, conf_beta=5.5,
+    annual_cost=0, qol_annual=0.0004, qol_years=10,
+    has_direct_mortality_effect=False,
+    benefit_tags=["neurotrophic_support"],
+    notes=(
+        "L-Theanine 200 mg (Blueprint Longevity Mix). No mortality, longevity, "
+        "or healthspan evidence exists. Randomized placebo-controlled trials at "
+        "this 200 mg/day dose show modest benefits for stress, sleep quality, "
+        "and cognition in healthy adults (Hidese et al., Nutrients 2019, PMID "
+        "31623400; meta-analytic support for acute stress/anxiety at 200-400 "
+        "mg). The mortality HR is held at the 1.0 null; a very small recurring "
+        "quality-of-life term (~0.0004 QALY/yr) captures the stress/sleep "
+        "benefit without implying any lifespan effect."
+    ),
+    sources=(
+        "https://pubmed.ncbi.nlm.nih.gov/31623400/",
+        "https://pmc.ncbi.nlm.nih.gov/articles/PMC6836118/",
+    ),
+    study_quality="rct_standard",
+    evidence_quality="low",
+))
+_add(CatalogEntry(
+    "magnesium_citrate_150", "Magnesium citrate 150mg", "supplement_current",
+    hr_observed=1.0, log_sd=0.04, conf_alpha=1.1, conf_beta=6.0,
+    annual_cost=0, qol_annual=0.0,
+    has_direct_mortality_effect=False,
+    benefit_tags=["cardiometabolic_support"],
+    notes=(
+        "Magnesium citrate 150 mg (Blueprint Longevity Mix). Cohort meta-"
+        "analyses link higher total magnesium intake to lower all-cause and "
+        "cardiovascular mortality (Fang et al., BMC Med 2016, PMID 27927203), "
+        "but the effect is intake/deficiency-driven and confounded. Critically, "
+        "Max separately takes 400 mg magnesium glycinate nightly, so this 150 "
+        "mg is incremental on top of an already-adequate intake; to avoid "
+        "double-counting any magnesium mortality benefit, the incremental HR is "
+        "held at the 1.0 null (observational_speculative tier, very-low)."
+    ),
+    sources=(
+        "https://pubmed.ncbi.nlm.nih.gov/27927203/",
+    ),
+    study_quality="observational_speculative",
+    evidence_quality="very-low",
+))
 _add(CatalogEntry(
     "zinc_carnosine_75", "Zinc carnosine 75mg", "supplement_bought",
     hr_observed=0.97, log_sd=0.10, conf_alpha=1.5, conf_beta=4.5,
@@ -2213,8 +2367,23 @@ BUNDLE_ALLOCATIONS: Dict[str, tuple[str, float]] = {
     "astaxanthin_12": ("blueprint_advanced_antioxidants", 60.0),
     "lutein_zeaxanthin": ("blueprint_advanced_antioxidants", 60.0),
     "lycopene_15": ("blueprint_advanced_antioxidants", 60.0),
-    # Blueprint Longevity Mix: HA is the only Optiqal-tracked bundled item.
-    "hyaluronic_acid_120": ("blueprint_longevity_mix", 80.0),
+    # Blueprint Longevity Mix: 1 scoop (14.8 g) = ~$537/yr across 11 actives.
+    # Shares are allocated in proportion to each active's dose (mg) so they sum
+    # to the real $537 retail price (total dose 9920 mg). Reused items
+    # (creatine, taurine, glycine, vitamin C, HA) get their Mix-attributable
+    # share here; their standalone annual_cost models the separate unbundled
+    # product they could also be bought as.
+    "caakg_2000": ("blueprint_longevity_mix", 108.0),
+    "taurine_500_topup": ("blueprint_longevity_mix", 81.0),
+    "creatine_5g": ("blueprint_longevity_mix", 135.0),
+    "glycine_2g": ("blueprint_longevity_mix", 65.0),
+    "l_lysine_1000": ("blueprint_longevity_mix", 54.0),
+    "glucosamine_sulfate_750": ("blueprint_longevity_mix", 41.0),
+    "glutathione_250": ("blueprint_longevity_mix", 14.0),
+    "hyaluronic_acid_120": ("blueprint_longevity_mix", 6.0),
+    "l_theanine_200": ("blueprint_longevity_mix", 11.0),
+    "magnesium_citrate_150": ("blueprint_longevity_mix", 8.0),
+    "vitamin_c_500_extra": ("blueprint_longevity_mix", 14.0),
     # Blueprint NAC+Ginger+Curcumin: allocate a fair share to ginger (NAC and
     # curcumin are priced separately in the catalog).
     "ginger_400": ("blueprint_nac_ginger_curcumin", 25.0),
