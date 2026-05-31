@@ -209,20 +209,27 @@ def test_frontier_ranker_receives_hazard_aware_combination(monkeypatch):
 
 
 def test_web_frontier_items_carry_confidence_intervals():
-    """Every ranked item must expose an 80% interval, not just a point estimate.
+    """Every ranked item must expose an 80% interval that brackets its point.
 
     The engine runs Monte Carlo draws but historically collapsed them to a
     single number; the UI cannot show uncertainty without these fields.
+
+    Uses a higher-risk profile so the frontier surfaces mortality-bearing items
+    (e.g. a statin) whose draws have genuine spread — that is where a real
+    interval must appear. (For a healthy young profile the frontier only surfaces
+    tiny-effect lifestyle items whose modelled effect is near-deterministic, so a
+    degenerate interval there is correct, not a placeholder — manufacturing width
+    would be fake uncertainty.)
     """
     payload = {
         "profile": {
-            "age": 50,
+            "age": 58,
             "sex": "male",
-            "weight_kg": 80.0,
-            "height_cm": 178.0,
-            "smoker": False,
+            "weight_kg": 95.0,
+            "height_cm": 175.0,
+            "smoker": True,
             "has_diabetes": False,
-            "has_hypertension": False,
+            "has_hypertension": True,
             "activity_level": "light",
             "sleep_hours_per_night": 7.0,
         },
@@ -247,3 +254,20 @@ def test_web_frontier_items_carry_confidence_intervals():
         # days interval is the QALY interval rescaled to days
         assert days_ci[0] == round(qaly_ci[0] * 365.25, 1)
         assert days_ci[1] == round(qaly_ci[1] * 365.25, 1)
+        # The interval is the p10/p90 of the net-QALY draws and total_qaly is
+        # their mean, so it must bracket the point for every item (degenerate
+        # [x, x] brackets x trivially; a [0, 0] placeholder for a non-zero point
+        # would fail here).
+        assert qaly_ci[0] <= item["total_qaly"] <= qaly_ci[1], (
+            f"{item['id']} net_qaly_ci {qaly_ci} does not bracket "
+            f"total_qaly {item['total_qaly']}"
+        )
+
+    # The mortality-bearing items must carry a genuinely non-degenerate interval
+    # (this is what would regress to [0, 0] if the producer stopped emitting real
+    # draws). For this profile that includes the statin/GLP-1 lane.
+    mortality_items = [it for it in items if abs(it.get("mort_qaly", 0.0)) > 1e-3]
+    assert mortality_items, "expected at least one mortality-bearing ranked item"
+    assert any(
+        it["net_qaly_ci"][0] < it["net_qaly_ci"][1] for it in mortality_items
+    ), "mortality-bearing items have degenerate net_qaly_ci — producer not emitting real draws"

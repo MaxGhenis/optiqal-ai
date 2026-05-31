@@ -3258,6 +3258,16 @@ def simulate_catalog(
             float(np.percentile(total_qaly_draws, 2.5)),
             float(np.percentile(total_qaly_draws, 97.5)),
         )
+        # 80% interval (p10, p90) of the full net-QALY draws (mortality + QoL +
+        # sleep QoL). total_qaly is the mean of these draws, so this brackets it
+        # by construction. Consumed by the frontend as net_qaly_ci / net_days_ci.
+        if total_qaly_draws is not None and len(total_qaly_draws) > 0:
+            net_qaly_ci = [
+                float(np.percentile(total_qaly_draws, 10)),
+                float(np.percentile(total_qaly_draws, 90)),
+            ]
+        else:
+            net_qaly_ci = [0.0, 0.0]
         # Survival-weighted discounted cost. Uses effective_annual_cost so
         # bundled items (NR, ubiquinol, astaxanthin, etc.) get their allocated
         # share of the Blueprint Essentials bundle price instead of free-riding.
@@ -3331,6 +3341,7 @@ def simulate_catalog(
             "total_qaly": total_qaly,
             "days": total_qaly * 365.25,
             "total_qaly_ci95": total_qaly_ci95,
+        "net_qaly_ci": net_qaly_ci,
             "ci_low": total_qaly_ci95[0] * 365.25,
             "ci_high": total_qaly_ci95[1] * 365.25,
             # Median QALY of the mortality arm — convexity-invariant

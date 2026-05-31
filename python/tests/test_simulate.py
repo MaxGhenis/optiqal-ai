@@ -699,3 +699,72 @@ class TestJensenBiasResidual:
             f"Stacked null-HR bias super-additive: {stacked_sum:.4f} "
             f"exceeds {n}× single-item bound ({n*single_item_cap:.3f})"
         )
+
+
+def test_effective_hr_inversion_round_trips():
+    """effective_hr_for_mortality_qaly must invert mortality_qaly_for_combined_hr.
+
+    This is the load-bearing invariant behind hazard-aware stacking: each item's
+    effective HR is derived by inverting the deterministic integrator against its
+    Monte-Carlo mortality QALY, so a single-item "stack" reproduces that item's
+    value and multi-item stacks combine multiplicatively. A regression in the
+    inversion (bracket, monotonicity, clamping) would silently corrupt every
+    stacked QALY total.
+    """
+    from optiqal.simulate import (
+        effective_hr_for_mortality_qaly,
+        mortality_qaly_for_combined_hr,
+    )
+
+    profile = Profile(
+        age=55,
+        sex="male",
+        bmi_category="overweight",
+        smoking_status="former",
+        has_diabetes=False,
+    )
+
+    # Round-trip: inverting a target gain then re-integrating returns the target.
+    for target in (0.02, 0.1, 0.34, 0.8, 1.5):
+        hr = effective_hr_for_mortality_qaly(profile, target)
+        assert 0.0 < hr <= 1.0
+        back = mortality_qaly_for_combined_hr(profile, hr)
+        assert back == pytest.approx(target, rel=1e-3, abs=1e-4)
+
+    # Non-positive mortality benefit maps to the null HR (no effect).
+    assert effective_hr_for_mortality_qaly(profile, 0.0) == 1.0
+    assert effective_hr_for_mortality_qaly(profile, -0.5) == 1.0
+
+    # The integrator is monotone decreasing in HR (more protective -> more QALY).
+    gains = [mortality_qaly_for_combined_hr(profile, hr) for hr in (0.6, 0.8, 0.95, 1.0)]
+    assert gains == sorted(gains, reverse=True)
+    assert mortality_qaly_for_combined_hr(profile, 1.0) == pytest.approx(0.0, abs=1e-9)
+
+
+def test_two_item_stack_is_subadditive_and_matches_joint_integration():
+    """Two independent mortality items combine on the hazard (joint HR), strictly
+    below the sum of their standalone QALYs."""
+    from optiqal.simulate import (
+        effective_hr_for_mortality_qaly,
+        mortality_qaly_for_combined_hr,
+    )
+
+    profile = Profile(
+        age=55,
+        sex="male",
+        bmi_category="overweight",
+        smoking_status="former",
+        has_diabetes=False,
+    )
+    target_a, target_b = 0.30, 0.50
+    hr_a = effective_hr_for_mortality_qaly(profile, target_a)
+    hr_b = effective_hr_for_mortality_qaly(profile, target_b)
+
+    joint = mortality_qaly_for_combined_hr(profile, hr_a * hr_b)
+    additive = target_a + target_b
+
+    assert joint < additive  # shared baseline survival not double-counted
+    # Joint exceeds either alone (both still help) but by less than the other's full value.
+    assert joint > target_a
+    assert joint > target_b
+    assert joint < target_a + target_b
