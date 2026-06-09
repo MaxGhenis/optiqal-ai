@@ -42,11 +42,16 @@ class ImputationPrior:
             log_std = np.sqrt(np.log(1 + (self.std/self.mean)**2))
             samples = rng.lognormal(log_mean, log_std, size=n)
         elif self.distribution == "truncated_normal":
-            samples = rng.normal(self.mean, self.std, size=n)
-            if self.lower_bound is not None:
-                samples = np.maximum(samples, self.lower_bound)
-            if self.upper_bound is not None:
-                samples = np.minimum(samples, self.upper_bound)
+            # Proper truncation, not clamping. Clamping with np.maximum/minimum
+            # piles probability mass on the bounds and shifts the realized mean
+            # and std away from the declared prior; truncnorm resamples the tail.
+            lower = -np.inf if self.lower_bound is None else self.lower_bound
+            upper = np.inf if self.upper_bound is None else self.upper_bound
+            a = (lower - self.mean) / self.std
+            b = (upper - self.mean) / self.std
+            samples = stats.truncnorm.rvs(
+                a, b, loc=self.mean, scale=self.std, size=n, random_state=rng
+            )
 
         return samples
 

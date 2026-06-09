@@ -10,8 +10,39 @@ from optiqal.combination import (
     find_optimal_portfolio_from_qalys,
     find_optimal_portfolio_with_costs,
     rank_interventions_by_marginal_cost_per_qaly,
+    combine_intervention_effects,
+    simulate_combined_qaly,
     OVERLAP_MATRIX,
 )
+from optiqal.intervention import Intervention, MortalityEffect, Distribution
+from optiqal.profile import Profile
+
+
+def _point_intervention(id_: str, hr: float) -> Intervention:
+    """Minimal intervention carrying a point all-cause mortality HR."""
+    return Intervention(
+        id=id_,
+        name=id_,
+        category="lifestyle",
+        description="",
+        keywords=[],
+        mechanisms=[],
+        mortality=MortalityEffect(
+            hazard_ratio=Distribution(type="point", params={"value": hr})
+        ),
+    )
+
+
+def _profile() -> Profile:
+    return Profile(
+        age=40,
+        sex="male",
+        bmi_category="normal",
+        smoking_status="never",
+        has_diabetes=False,
+        has_hypertension=False,
+        activity_level="light",
+    )
 
 
 class TestOverlapFactors:
@@ -355,6 +386,58 @@ def test_portfolio_combines_mortality_multiplicatively_not_additively():
     final_total = result[-1]["total_base_qaly"]
     assert final_total == pytest.approx(mort_fn(0.7 * 0.7))  # joint HR 0.49 -> 5.1
     assert final_total < single["a"] + single["b"]  # strictly below additive 6.0
+
+
+class TestCombineInterventionEffects:
+    """combine_intervention_effects / simulate_combined_qaly used to crash on
+    every real Intervention (they referenced intervention.hazard_ratio_mean and
+    .cause_pathways, which do not exist — the HR is on intervention.mortality).
+    These guard the corrected attribute access."""
+
+    def test_combine_runs_and_combines_protective_hrs(self):
+        ivs = [
+            _point_intervention("exercise", 0.85),
+            _point_intervention("diet", 0.90),
+        ]
+        combined = combine_intervention_effects(ivs, _profile())
+        # Joint HR is below either single HR but no lower than the 0.10 floor.
+        assert combined.combined_hr < 0.85
+        assert combined.combined_hr >= 0.10
+        assert set(combined.individual_hrs) == {"exercise", "diet"}
+
+    def test_combine_handles_no_mortality_intervention(self):
+        ivs = [
+            _point_intervention("exercise", 0.85),
+            Intervention(
+                id="neutral",
+                name="neutral",
+                category="lifestyle",
+                description="",
+                keywords=[],
+                mechanisms=[],
+                mortality=None,
+            ),
+        ]
+        combined = combine_intervention_effects(ivs, _profile())
+        # The mortality-free item contributes a neutral 1.0, so the joint HR
+        # equals the single protective HR.
+        assert combined.individual_hrs["neutral"] == pytest.approx(1.0)
+        assert combined.combined_hr == pytest.approx(0.85, abs=1e-6)
+
+    def test_simulate_combined_qaly_runs_end_to_end(self):
+        ivs = [
+            _point_intervention("exercise", 0.85),
+            _point_intervention("diet", 0.90),
+        ]
+        result = simulate_combined_qaly(ivs, _profile(), n_simulations=200)
+        # Two protective interventions should yield a positive expected gain.
+        assert result.mean > 0
+        assert result.life_years_gained > 0
+
+    def test_single_intervention_matches_standard_sim(self):
+        iv = _point_intervention("exercise", 0.85)
+        combined = simulate_combined_qaly([iv], _profile(), n_simulations=200)
+        assert combined.mean > 0
 
 
 if __name__ == "__main__":

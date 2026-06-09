@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Callable, List, Tuple, Dict, Optional
 import numpy as np
 
-from .intervention import Intervention
+from .intervention import Intervention, MortalityEffect, Distribution
 from .profile import Profile, get_baseline_mortality_multiplier, get_intervention_modifier
 from .simulate import simulate_qaly_profile, SimulationResult
 
@@ -112,7 +112,13 @@ def combine_intervention_effects(
     # Get base HRs with profile modifiers
     individual_hrs = {}
     for intervention in interventions:
-        base_hr = intervention.hazard_ratio_mean
+        # The all-cause HR lives on the mortality effect; a no-mortality
+        # intervention contributes a neutral 1.0.
+        base_hr = (
+            intervention.mortality.hazard_ratio.mean
+            if intervention.mortality is not None
+            else 1.0
+        )
 
         if profile is not None:
             # Apply effect modifier
@@ -221,19 +227,12 @@ def simulate_combined_qaly(
     combined_intervention = deepcopy(base_intervention)
     combined_intervention.id = "+".join(i.id for i in interventions)
     combined_intervention.name = " + ".join(i.name for i in interventions)
-    combined_intervention.hazard_ratio_mean = combined.combined_hr
-    combined_intervention.hazard_ratio_std = 0.0  # TODO: propagate uncertainty
-
-    # Merge cause pathways from all interventions
-    merged_pathways = {}
-    for intervention in interventions:
-        for cause, weight in intervention.cause_pathways.items():
-            if cause in merged_pathways:
-                # Average the weights, capped at 1.0
-                merged_pathways[cause] = min(1.0, (merged_pathways[cause] + weight) / 2)
-            else:
-                merged_pathways[cause] = weight
-    combined_intervention.cause_pathways = merged_pathways
+    # Set the combined all-cause HR as a point mortality effect. The simulator
+    # derives the per-pathway split from cause fractions internally, so there is
+    # no separate cause_pathways field to merge.
+    combined_intervention.mortality = MortalityEffect(
+        hazard_ratio=Distribution(type="point", params={"value": combined.combined_hr})
+    )
 
     # Run simulation with combined intervention
     # Note: profile modifiers already applied in combine_intervention_effects,
