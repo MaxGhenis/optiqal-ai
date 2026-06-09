@@ -46,14 +46,11 @@ export async function POST(request: NextRequest) {
     const result = await runPythonFrontier(payload, request);
     return NextResponse.json(result);
   } catch (error) {
+    // Log full detail server-side, but never return it to the client: bridge
+    // errors can carry raw Python stderr (tracebacks, absolute paths).
     console.error("Error in /api/frontier:", error);
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to run frontier analysis",
-      },
+      { error: "Failed to run frontier analysis" },
       { status: 500 }
     );
   }

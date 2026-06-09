@@ -63,6 +63,46 @@ describe("frontier contract", () => {
     ).toBeNull();
   });
 
+  const validProfile = {
+    age: 39,
+    sex: "male" as const,
+    weight_kg: 74.8,
+    height_cm: 178,
+    smoker: false,
+    has_diabetes: false,
+    has_hypertension: false,
+    activity_level: "active" as const,
+  };
+
+  it("rejects out-of-range profile values (DoS / div-by-zero guard)", () => {
+    // Hostile age drives an effectively unbounded life-table loop.
+    expect(
+      parseFrontierRequest({ profile: { ...validProfile, age: -1_000_000 } })
+    ).toBeNull();
+    expect(
+      parseFrontierRequest({ profile: { ...validProfile, age: 500 } })
+    ).toBeNull();
+    // Zero height divides by zero in BMI.
+    expect(
+      parseFrontierRequest({ profile: { ...validProfile, height_cm: 0 } })
+    ).toBeNull();
+    expect(
+      parseFrontierRequest({ profile: { ...validProfile, weight_kg: 0 } })
+    ).toBeNull();
+  });
+
+  it("rejects an out-of-range n_simulations (CPU/memory guard)", () => {
+    expect(
+      parseFrontierRequest({
+        profile: validProfile,
+        n_simulations: 100_000_000,
+      })
+    ).toBeNull();
+    expect(
+      parseFrontierRequest({ profile: validProfile, n_simulations: 0 })
+    ).toBeNull();
+  });
+
   it("accepts branching response payloads", () => {
     const parsed = parseFrontierResponse({
       meta: {

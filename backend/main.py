@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+
+logger = logging.getLogger("optiqal.api")
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -43,7 +46,10 @@ def baseline(payload: dict[str, Any]) -> dict[str, Any]:
     except (KeyError, TypeError, ValueError) as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     except Exception as error:
-        raise HTTPException(status_code=500, detail=str(error)) from error
+        # Log the detail server-side; return a generic message so tracebacks
+        # and internal paths never reach the client.
+        logger.exception("Unhandled error in /baseline")
+        raise HTTPException(status_code=500, detail="Internal server error") from error
 
 
 @app.post("/frontier")
@@ -55,4 +61,7 @@ def frontier(payload: dict[str, Any]) -> dict[str, Any]:
     except (KeyError, TypeError, ValueError) as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     except Exception as error:
-        raise HTTPException(status_code=500, detail=str(error)) from error
+        # Log the detail server-side; return a generic message so tracebacks
+        # and internal paths never reach the client.
+        logger.exception("Unhandled error in /frontier")
+        raise HTTPException(status_code=500, detail="Internal server error") from error

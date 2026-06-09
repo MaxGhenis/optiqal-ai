@@ -30,6 +30,7 @@ import {
   parseOptionalArray,
   parseOptionalConfidenceInterval,
   parseOptionalFiniteNumber,
+  parseOptionalBoundedNumber,
   parseString,
   parseStringArray,
 } from "@/lib/contract-validation";
@@ -769,7 +770,9 @@ export function parseFrontierRequest(value: unknown): FrontierRequest | null {
 
   const profile = parseAnalysisProfileInput(value.profile);
   const sleepMetrics = parseAnalysisSleepInput(value.sleep_metrics);
-  const nSimulations = parseOptionalFiniteNumber(value.n_simulations);
+  // Bound simulation count: an unbounded value lets a single request make the
+  // engine allocate/iterate arbitrarily large arrays (CPU/memory exhaustion).
+  const nSimulations = parseOptionalBoundedNumber(value.n_simulations, 1, 20000);
 
   if (profile === null || sleepMetrics === INVALID || nSimulations === INVALID) {
     return null;

@@ -78,6 +78,30 @@ def _clean_float(value: Any) -> Optional[float]:
     return number
 
 
+def _bounded_number(value: Any, *, name: str, low: float, high: float) -> float:
+    """Coerce ``value`` to a float and require it within [low, high].
+
+    Defence-in-depth: the TypeScript contract validates these bounds first, but
+    the FastAPI engine can be reached directly, where an out-of-range age drives
+    an effectively unbounded life-table loop and a zero height divides by zero.
+    """
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{name} must be a number")
+    if math.isnan(number) or math.isinf(number) or not (low <= number <= high):
+        raise ValueError(f"{name} must be between {low} and {high}")
+    return number
+
+
+def _bounded_simulations(value: Any, *, default: int = 5000, cap: int = 20000) -> int:
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(1, min(cap, number))
+
+
 def _bmi_category(weight_kg: float, height_cm: float) -> str:
     bmi = weight_kg / ((height_cm / 100.0) ** 2)
     if bmi < 25:
@@ -241,10 +265,10 @@ def build_baseline_response(payload: Dict[str, Any]) -> dict[str, Any]:
     profile_payload = payload.get("profile") or {}
     sleep_payload = payload.get("sleep_metrics") or {}
 
-    age = int(profile_payload["age"])
+    age = int(_bounded_number(profile_payload["age"], name="age", low=0, high=120))
     sex_value = str(profile_payload.get("sex", "male"))
-    weight_kg = float(profile_payload["weight_kg"])
-    height_cm = float(profile_payload["height_cm"])
+    weight_kg = _bounded_number(profile_payload["weight_kg"], name="weight_kg", low=20, high=500)
+    height_cm = _bounded_number(profile_payload["height_cm"], name="height_cm", low=50, high=275)
     smoker = bool(profile_payload.get("smoker"))
     has_diabetes = bool(profile_payload.get("has_diabetes"))
     has_hypertension = bool(profile_payload.get("has_hypertension"))
@@ -500,14 +524,14 @@ def build_frontier_response_with_policy(
     profile_payload = payload.get("profile") or {}
     sleep_payload = payload.get("sleep_metrics") or {}
 
-    weight_kg = float(profile_payload["weight_kg"])
-    height_cm = float(profile_payload["height_cm"])
+    weight_kg = _bounded_number(profile_payload["weight_kg"], name="weight_kg", low=20, high=500)
+    height_cm = _bounded_number(profile_payload["height_cm"], name="height_cm", low=50, high=275)
     sex = profile_payload.get("sex", "male")
     if sex not in ("male", "female"):
         sex = "male"
 
     profile = Profile(
-        age=int(profile_payload["age"]),
+        age=int(_bounded_number(profile_payload["age"], name="age", low=0, high=120)),
         sex=sex,
         bmi_category=_bmi_category(weight_kg, height_cm),
         smoking_status="current" if bool(profile_payload.get("smoker")) else "never",
@@ -522,7 +546,7 @@ def build_frontier_response_with_policy(
         if duration_hours is not None:
             sleep_metrics = SleepMetrics(duration_hours=duration_hours)
 
-    n_simulations = int(payload.get("n_simulations", 5000))
+    n_simulations = _bounded_simulations(payload.get("n_simulations", 5000))
     categories = payload.get("categories")
 
     config = AnalysisConfig(

@@ -19,6 +19,10 @@ interface CacheEntry {
   value: unknown;
 }
 
+// Bound the cache so a flood of distinct (attacker-controlled) payloads cannot
+// grow it without limit. Map preserves insertion order, so deleting the first
+// key evicts approximately the oldest entry.
+const MAX_CACHE_ENTRIES = 500;
 const responseCache = new Map<string, CacheEntry>();
 const inflightRequests = new Map<string, Promise<unknown>>();
 
@@ -36,6 +40,19 @@ function getCachedValue<T>(cacheKey: string, now: number): T | null {
     return null;
   }
   return cached.value as T;
+}
+
+function setCachedValue(cacheKey: string, entry: CacheEntry): void {
+  // Refresh recency by re-inserting at the end.
+  responseCache.delete(cacheKey);
+  responseCache.set(cacheKey, entry);
+  while (responseCache.size > MAX_CACHE_ENTRIES) {
+    const oldest = responseCache.keys().next().value;
+    if (oldest === undefined) {
+      break;
+    }
+    responseCache.delete(oldest);
+  }
 }
 
 function formatProcessFailure(label: string, stderr: string, code: number | null): Error {
@@ -251,7 +268,7 @@ export async function runPythonJson<T>({
     inflightRequests.set(resolvedCacheKey, requestPromise);
     try {
       const result = await requestPromise;
-      responseCache.set(resolvedCacheKey, {
+      setCachedValue(resolvedCacheKey, {
         expiresAt: Date.now() + cacheTtlMs,
         value: result,
       });
@@ -353,7 +370,7 @@ export async function runPythonJson<T>({
 
   try {
     const result = await requestPromise;
-    responseCache.set(resolvedCacheKey, {
+    setCachedValue(resolvedCacheKey, {
       expiresAt: Date.now() + cacheTtlMs,
       value: result,
     });

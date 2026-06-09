@@ -77,9 +77,10 @@ function deployFrontend(modelUrl, runtimeModelUrl = modelUrl) {
     `MODEL_URL=${runtimeModelUrl}`,
   ];
   if (modelProtectionBypassSecret) {
+    // Runtime-only: the bridge reads this when calling the protected model
+    // service. Never pass it as a build var (-b) — build env is echoed in
+    // build logs and baked into the build cache.
     deployArgs.push(
-      "-b",
-      `MODEL_PROTECTION_BYPASS_SECRET=${modelProtectionBypassSecret}`,
       "-e",
       `MODEL_PROTECTION_BYPASS_SECRET=${modelProtectionBypassSecret}`
     );
