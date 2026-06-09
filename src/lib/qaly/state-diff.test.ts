@@ -4,7 +4,6 @@ import {
   computeInterventionImpact,
   compareInterventions,
   identifyStateChanges,
-  type StateComparisonResult,
 } from "./state-diff";
 import { createDefaultState, updateState } from "./state";
 

@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import {
-  type PersonState,
   createDefaultState,
   updateState,
   getAge,
@@ -102,7 +101,6 @@ describe("updateState", () => {
 
 describe("getAge", () => {
   it("calculates current age from birthYear", () => {
-    const currentYear = new Date().getFullYear();
     const state = createDefaultState(40, "male");
 
     const age = getAge(state);

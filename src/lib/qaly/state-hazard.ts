@@ -15,11 +15,7 @@ import {
   type HazardValue,
   type PersonState as RiskFactorPersonState,
 } from "./risk-factors";
-import {
-  getAnnualMortalityRate,
-  getSurvivalProbability,
-  getCauseFraction,
-} from "./lifecycle";
+import { getAnnualMortalityRate } from "./lifecycle";
 import { random } from "./random";
 
 /**

@@ -29,7 +29,6 @@ import {
   parseNumberRecord,
   parseOptionalArray,
   parseOptionalConfidenceInterval,
-  parseOptionalFiniteNumber,
   parseOptionalBoundedNumber,
   parseString,
   parseStringArray,

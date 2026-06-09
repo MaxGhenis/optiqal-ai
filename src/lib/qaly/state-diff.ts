@@ -306,8 +306,8 @@ export function identifyStateChanges(
 
   // Helper to recursively compare objects
   function compareObjects(
-    a: any,
-    b: any,
+    a: unknown,
+    b: unknown,
     path: string = ""
   ): void {
     if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) {
@@ -327,16 +327,18 @@ export function identifyStateChanges(
     }
 
     // Compare object keys
-    const allKeys = new Set([...Object.keys(a), ...Object.keys(b)]);
+    const aObj = a as Record<string, unknown>;
+    const bObj = b as Record<string, unknown>;
+    const allKeys = new Set([...Object.keys(aObj), ...Object.keys(bObj)]);
     for (const key of allKeys) {
       const newPath = path ? `${path}.${key}` : key;
 
-      if (!(key in a)) {
-        changes.push({ path: newPath, before: undefined, after: b[key] });
-      } else if (!(key in b)) {
-        changes.push({ path: newPath, before: a[key], after: undefined });
+      if (!(key in aObj)) {
+        changes.push({ path: newPath, before: undefined, after: bObj[key] });
+      } else if (!(key in bObj)) {
+        changes.push({ path: newPath, before: aObj[key], after: undefined });
       } else {
-        compareObjects(a[key], b[key], newPath);
+        compareObjects(aObj[key], bObj[key], newPath);
       }
     }
   }

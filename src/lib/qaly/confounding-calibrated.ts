@@ -11,8 +11,6 @@
  * - IHME Burden of Proof: Conservative interpretation using between-study heterogeneity
  */
 
-import type { Distribution } from "./types";
-
 /**
  * Calibration data point from literature
  */

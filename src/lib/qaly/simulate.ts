@@ -22,7 +22,6 @@ import type {
 import type { UserProfile } from "@/types";
 import {
   calculateBaselineQALYs,
-  getRemainingLifeExpectancy,
   getAgeQualityWeight,
 } from "@/lib/evidence/baseline";
 import {
@@ -565,9 +564,7 @@ export function qalyYearsToMinutes(years: number): number {
 
 import {
   calculateLifecycleQALYs,
-  STANDARD_PATHWAY_HRS,
   type PathwayHRs,
-  type LifecycleResult,
 } from "./lifecycle";
 
 /**

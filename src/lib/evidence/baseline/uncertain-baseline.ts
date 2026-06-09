@@ -15,7 +15,7 @@ import {
   calculateProfileCompleteness,
   partialToMeanProfile,
 } from "./partial-profile";
-import { calculateBaselineQALYs, type BaselineProjection } from "./index";
+import { calculateBaselineQALYs } from "./index";
 import { random, setSeed } from "@/lib/qaly/random";
 
 /**

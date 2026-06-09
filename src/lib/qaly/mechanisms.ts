@@ -9,7 +9,7 @@
  * 3. Properly propagate uncertainty through the causal chain
  */
 
-import type { Distribution, HealthCondition } from "./types";
+import type { HealthCondition } from "./types";
 
 /**
  * Biological mechanisms that mediate health effects

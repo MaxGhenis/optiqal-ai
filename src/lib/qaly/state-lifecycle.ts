@@ -17,7 +17,6 @@ import { getAge } from "./state";
 import {
   getAnnualMortalityRate,
   applyDiscount,
-  getCauseFraction,
 } from "./lifecycle";
 import { DISABILITY_WEIGHTS } from "./conditions";
 import type { HealthCondition } from "./types";

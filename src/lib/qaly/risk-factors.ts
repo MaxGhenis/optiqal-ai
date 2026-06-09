@@ -123,7 +123,6 @@ function createHR(
   ci95Upper: number
 ): HRWithUncertainty {
   // Calculate log-scale standard deviation from 95% CI
-  const logHR = Math.log(point);
   const logLower = Math.log(ci95Lower);
   const logUpper = Math.log(ci95Upper);
   const logSd = (logUpper - logLower) / (2 * 1.96);
@@ -312,7 +311,7 @@ const bloodPressureHazard: RiskFactorHazard = {
   },
   notes:
     "Log-linear relationship. HR doubles for each 20 mmHg increase above 115 mmHg for CVD. Effect starts at SBP ~115.",
-  getHazardRatio: (value: number | string, context?: RiskContext): HazardValue => {
+  getHazardRatio: (value: number | string): HazardValue => {
     const sbp = value as number;
     const reference = 115; // Theoretical minimum
 

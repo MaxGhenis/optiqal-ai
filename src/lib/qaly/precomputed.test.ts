@@ -3,7 +3,6 @@ import {
   PRECOMPUTED_INTERVENTIONS,
   matchIntervention,
   getPrecomputedEffect,
-  type PrecomputedIntervention,
 } from "./precomputed";
 
 describe("precomputed interventions library", () => {
@@ -94,7 +93,6 @@ describe("precomputed interventions library", () => {
 
     it("should return confidence score", () => {
       const exactMatch = matchIntervention("quit smoking");
-      const lessExactMatch = matchIntervention("reduce cigarettes"); // Less specific
 
       expect(exactMatch?.confidence).toBeGreaterThan(0.5);
       // Both should match quit_smoking but exact phrase should score higher
