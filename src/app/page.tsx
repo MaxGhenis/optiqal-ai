@@ -178,6 +178,20 @@ export default function Home() {
               <Link href="#how-it-works">How it works</Link>
             </Button>
             <Button
+              variant="ghost"
+              className="text-muted-foreground hover:text-foreground"
+              asChild
+            >
+              <Link href="/about">About</Link>
+            </Button>
+            <Button
+              variant="ghost"
+              className="text-muted-foreground hover:text-foreground"
+              asChild
+            >
+              <Link href="/faq">FAQ</Link>
+            </Button>
+            <Button
               className="btn-glow bg-primary text-primary-foreground hover:bg-primary/95"
               asChild
             >
