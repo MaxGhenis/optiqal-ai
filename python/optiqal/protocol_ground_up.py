@@ -3626,6 +3626,23 @@ def build_additional_specs(
                 "https://www.fda.gov/drugs/human-drug-compounding/understanding-risks-compounded-drugs",
             ),
         ),
+        # Blueprint Longevity Mix actives added to the catalog in 4bf5a610.
+        # These are sparse specs: they declare only the QALY sanity range and
+        # inherit every evidence field (HR, log_sd, confounding prior, QoL,
+        # sources, rationale) from the cited CatalogEntry via resolve_stack_spec,
+        # so nothing is fabricated here. Five are modeled-null (catalog HR=1.0);
+        # glucosamine alone carries a cohort mortality signal (catalog HR=0.92),
+        # and l-theanine carries a small cited QoL term but no mortality signal.
+        "caakg_2000": make_spec("caakg_2000", low_qaly=-0.01, high_qaly=0.01),
+        "glucosamine_sulfate_750": make_spec(
+            "glucosamine_sulfate_750", low_qaly=-0.01, high_qaly=0.15
+        ),
+        "glutathione_250": make_spec("glutathione_250", low_qaly=-0.01, high_qaly=0.01),
+        "l_lysine_1000": make_spec("l_lysine_1000", low_qaly=-0.01, high_qaly=0.01),
+        "l_theanine_200": make_spec("l_theanine_200", low_qaly=-0.01, high_qaly=0.05),
+        "magnesium_citrate_150": make_spec(
+            "magnesium_citrate_150", low_qaly=-0.01, high_qaly=0.01
+        ),
     }
 
 

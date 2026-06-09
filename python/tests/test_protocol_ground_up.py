@@ -1,5 +1,6 @@
 """Tests for personalized ground-up protocol assumptions."""
 
+import json
 import math
 from dataclasses import replace
 from types import SimpleNamespace
@@ -1246,3 +1247,123 @@ def test_apply_protocol_spec_uses_specs_directly_without_metadata_roundtrip():
     assert personalized.qol_annual == resolved.qol_annual
     assert personalized.annual_cost == 123.0
     assert personalized.notes == resolved.rationale
+
+
+# ----------------------------------------------------------------------
+# Blueprint Longevity Mix ingredient specs.
+#
+# Commit 4bf5a610 added the eleven Longevity Mix actives to the catalog as
+# ``supplement_current`` entries, so load_protocol_items() returns them and
+# main() requires a StackSpec for each. Five of them already had specs in
+# build_specs (creatine, glycine, taurine, hyaluronic acid, vitamin C); the
+# remaining six did not, which broke main(). We add sparse specs that supply
+# only the predeclared sanity range and inherit every evidence field (HR,
+# uncertainty, QoL, sources, rationale) from the catalog entry, so nothing is
+# fabricated. Only glucosamine carries a cohort mortality signal (catalog HR
+# 0.92); the other five hold mortality at the 1.0 null, though l-theanine adds
+# a small cited QoL term (so the cohort distinction is on mortality_qaly).
+# ----------------------------------------------------------------------
+LONGEVITY_MIX_MISSING_SPEC_IDS = [
+    "caakg_2000",
+    "glucosamine_sulfate_750",
+    "glutathione_250",
+    "l_lysine_1000",
+    "l_theanine_200",
+    "magnesium_citrate_150",
+]
+
+
+def test_all_longevity_mix_ingredients_have_specs():
+    """Every protocol item (incl. the 6 new Mix actives) has a spec."""
+    baseline = load_baseline()
+    specs = build_specs(baseline)
+    specs.update(build_additional_specs(baseline))
+    item_ids = {item["id"] for item in load_protocol_items()}
+
+    missing = [iid for iid in item_ids if iid not in specs]
+    assert missing == [], f"protocol items without a spec: {missing}"
+    for iid in LONGEVITY_MIX_MISSING_SPEC_IDS:
+        assert iid in specs
+
+
+def test_longevity_mix_specs_inherit_catalog_evidence():
+    """Sparse Mix specs inherit HR/sources/rationale from the catalog."""
+    baseline = load_baseline()
+    specs = build_additional_specs(baseline)
+
+    for iid in LONGEVITY_MIX_MISSING_SPEC_IDS:
+        spec = specs[iid]
+        resolved = resolve_stack_spec(spec, CATALOG[iid])
+        # Sanity range must be explicitly declared (no NaN).
+        assert not math.isnan(spec.low_qaly)
+        assert not math.isnan(spec.high_qaly)
+        # Evidence fields are inherited from the catalog, not fabricated.
+        assert resolved.observed_hr == pytest.approx(CATALOG[iid].hr_observed)
+        assert resolved.sources == tuple(CATALOG[iid].sources)
+        assert resolved.rationale == CATALOG[iid].notes
+
+
+def test_glucosamine_is_the_only_mix_component_with_mortality_signal():
+    """Glucosamine alone has cohort mortality data (catalog HR 0.92); the
+    other five hold mortality at the 1.0 null. l-theanine carries a small
+    cited QoL term but no mortality signal, so the cohort-signal distinction
+    is on mortality_qaly, not total_qaly."""
+    baseline = load_baseline()
+    specs = build_specs(baseline)
+    specs.update(build_additional_specs(baseline))
+    loaded = {item["id"]: item for item in load_protocol_items()}
+
+    with_mortality_signal = []
+    for iid in LONGEVITY_MIX_MISSING_SPEC_IDS:
+        estimate = estimate_item(loaded[iid], specs[iid], baseline)
+        # Every component must stay inside its declared sanity range.
+        assert estimate["within_range"]
+        if estimate["mortality_qaly"] > 1e-6:
+            with_mortality_signal.append(iid)
+        else:
+            # Null-mortality components contribute no mortality QALYs.
+            assert estimate["mortality_qaly"] == pytest.approx(0.0, abs=1e-6)
+
+    assert with_mortality_signal == ["glucosamine_sulfate_750"]
+
+    # l-theanine is modeled-null on mortality but carries its cited QoL term.
+    theanine = estimate_item(
+        loaded["l_theanine_200"], specs["l_theanine_200"], baseline
+    )
+    assert theanine["mortality_qaly"] == pytest.approx(0.0, abs=1e-6)
+    assert theanine["qol_qaly"] > 0.0
+
+    gluc = estimate_item(
+        loaded["glucosamine_sulfate_750"],
+        specs["glucosamine_sulfate_750"],
+        baseline,
+    )
+    assert gluc["total_qaly"] > 0.0
+    assert gluc["within_range"]
+    # Glucosamine's modeled benefit flows from the (confounded) mortality
+    # signal, with its real cohort citations attached.
+    assert gluc["mortality_qaly"] > 0.0
+    assert gluc["sources"]
+
+
+def test_main_runs_to_temp_dir_and_writes_valid_outputs(tmp_path):
+    """End-to-end: main() writes parseable JSON + non-empty Markdown."""
+    out_json = tmp_path / "protocol-ground-up.json"
+    out_md = tmp_path / "protocol-ground-up.md"
+    context = replace(
+        load_protocol_context(),
+        output_json=out_json,
+        output_md=out_md,
+    )
+
+    protocol_ground_up.main(context)
+
+    assert out_json.exists() and out_md.exists()
+    payload = json.loads(out_json.read_text())
+    assert payload["items"], "no items rendered"
+    assert payload["summary"]["total_stack_qaly"] > 0
+    item_ids = {item["id"] for item in payload["items"]}
+    for iid in LONGEVITY_MIX_MISSING_SPEC_IDS:
+        assert iid in item_ids
+    assert out_md.read_text().strip()
+    assert "Glucosamine" in out_md.read_text()
