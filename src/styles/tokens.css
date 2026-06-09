@@ -9,10 +9,15 @@
     --ink-500: 166 11% 38%;
     --sage-700: 167 43% 31%;
     --sage-400: 168 30% 68%;
-    --rust-600: 18 77% 55%;
+    /* rust-600 deepened from 55% → 42% to clear WCAG AA 4.5:1 as text on
+       paper-050 (4.69:1). Used as `--highlight` / `--accent` text on icons,
+       badges, and small-text disclaimers. See contrast.test.ts. */
+    --rust-600: 18 77% 42%;
     --rust-300: 23 70% 74%;
     --sand-300: 38 28% 82%;
-    --sand-400: 38 24% 70%;
+    /* sand-400 deepened from 70% → 50% to clear WCAG SC 1.4.11 non-text 3:1
+       as `--border-strong` on form inputs (3.19:1 on paper-050). */
+    --sand-400: 38 24% 50%;
     --danger-600: 3 70% 46%;
 
     --surface-canvas: var(--paper-050);
@@ -64,7 +69,10 @@
     --destructive: var(--danger);
     --destructive-foreground: var(--text-inverse);
     --border: var(--border-subtle);
-    --input: var(--border-subtle);
+    /* Form inputs need 3:1 per WCAG SC 1.4.11. `--input` resolves to the
+       deepened sand-400 so <input>/<select>/<textarea> via Tailwind's
+       `border-input` clear the threshold; decorative `--border` stays soft. */
+    --input: var(--border-strong);
     --ring: var(--ring-strong);
     --radius: var(--radius-md);
   }
