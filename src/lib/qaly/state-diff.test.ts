@@ -117,6 +117,25 @@ describe("compareStates", () => {
     expect(result.probPositive).toBeLessThanOrEqual(1);
   });
 
+  it("trajectory comparison keeps both arms on the same HR-adjusted scale", () => {
+    // Regression guard: stateA was previously plotted on the unadjusted
+    // baseline curve while stateB used the adjusted curve, which let a heavy
+    // smoker (stateA) appear to out-survive a never-smoker (stateB).
+    const smoker = updateState(createDefaultState(40, "male"), {
+      behaviors: { smoking: { status: "current", cigarettesPerDay: 30 } },
+    });
+    const neverSmoker = createDefaultState(40, "male");
+
+    const result = compareStates(smoker, neverSmoker, { nSimulations: 100 });
+
+    // The never-smoker (B) must never survive worse than the smoker (A).
+    const lateYears = result.trajectoryComparison.filter((p) => p.year >= 20);
+    expect(lateYears.length).toBeGreaterThan(0);
+    for (const point of lateYears) {
+      expect(point.survivalB).toBeGreaterThanOrEqual(point.survivalA);
+    }
+  });
+
   it("shows positive QALY impact from exercise increase", () => {
     const stateA = createDefaultState(40, "male");
     const stateB = updateState(stateA, {

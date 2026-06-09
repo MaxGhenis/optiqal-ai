@@ -24,6 +24,50 @@ import type { HealthCondition } from "./types";
 import { random, setSeed } from "./random";
 
 /**
+ * Rough all-cause mortality hazard multipliers for diagnosed conditions,
+ * applied on top of severity/control multipliers. These are order-of-magnitude
+ * estimates pending per-condition calibration, not GBD point values.
+ *
+ * Keyed exhaustively by HealthCondition so the compiler forces every condition
+ * to be assigned a value — the previous `condition.type.includes("Diabetes")`
+ * string match never fired (the values are lowercase, e.g. "diabetes"), so
+ * every condition silently collapsed to the 1.2 default and a severe cancer
+ * looked identical to fatigue.
+ */
+const CONDITION_MORTALITY_HR: Record<HealthCondition, number> = {
+  // Cardiovascular
+  heart_failure: 1.8,
+  angina: 1.5,
+  stroke: 1.8,
+  hypertension: 1.3,
+  // Metabolic
+  diabetes: 1.5,
+  obesity: 1.2,
+  // Respiratory
+  copd: 1.7,
+  asthma: 1.1,
+  // Mental health
+  depression: 1.2,
+  anxiety: 1.1,
+  cognitive_impairment: 1.4,
+  // Musculoskeletal
+  back_pain: 1.0,
+  osteoarthritis: 1.0,
+  osteoporosis: 1.2,
+  // Cancer
+  cancer: 2.0,
+  melanoma: 1.8,
+  non_melanoma_skin_cancer: 1.05,
+  // Sensory
+  vision_loss: 1.1,
+  hearing_loss: 1.0,
+  // Other
+  fatigue: 1.0,
+  sleep_disorder: 1.1,
+  general_wellbeing: 1.0,
+};
+
+/**
  * Year-by-year trajectory entry
  */
 export interface YearlyTrajectory {
@@ -270,12 +314,9 @@ function getCompositeHazardRatio(state: PersonState): number {
     const severityMult = condition.severity === "severe" ? 1.5 : condition.severity === "moderate" ? 1.2 : 1.1;
     const controlledMult = condition.controlled ? 0.7 : 1.0;
 
-    // Add base condition mortality (rough estimates)
-    if (condition.type.includes("Diabetes")) hr *= 1.5 * severityMult * controlledMult;
-    else if (condition.type.includes("Heart")) hr *= 1.8 * severityMult * controlledMult;
-    else if (condition.type.includes("Cancer")) hr *= 2.0 * severityMult * controlledMult;
-    else if (condition.type.includes("COPD")) hr *= 1.7 * severityMult * controlledMult;
-    else hr *= 1.2 * severityMult * controlledMult;
+    // Add base condition mortality (rough estimates, keyed by condition).
+    const conditionHR = CONDITION_MORTALITY_HR[condition.type] ?? 1.2;
+    hr *= conditionHR * severityMult * controlledMult;
   }
 
   return hr;

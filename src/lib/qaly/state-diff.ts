@@ -456,14 +456,20 @@ export function compareStates(
     discountRate,
   });
 
+  // Both arms must be read from the HR-adjusted intervention curve: resultA is
+  // computed with stateA's hazard ratios (and resultB with stateB's), so each
+  // state's own trajectory lives in `*Intervention`. Reading stateA from the
+  // unadjusted `*Baseline` curve while reading stateB from `*Intervention`
+  // mixes scales and can invert the chart (e.g. a smoker out-surviving a
+  // never-smoker).
   const trajectoryComparison = resultA.yearlyBreakdown.map((yearA, i) => {
     const yearB = resultB.yearlyBreakdown[i];
     return {
       year: yearA.year,
       age: yearA.age,
-      survivalA: yearA.survivalBaseline,
+      survivalA: yearA.survivalIntervention,
       survivalB: yearB.survivalIntervention,
-      qalyA: yearA.qalyBaseline,
+      qalyA: yearA.qalyIntervention,
       qalyB: yearB.qalyIntervention,
     };
   });
