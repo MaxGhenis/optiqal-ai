@@ -46,11 +46,11 @@ jobs:
           --ignore=tests/test_public_frontier_autoagent_harness.py
           --ignore=tests/test_public_frontier_autoagent_bootstrap.py
 
-      # ~1,000 pre-existing ruff findings exist (line length, imports, etc.).
-      # Surface them without gating the build.
-      - name: Lint (non-blocking)
-        continue-on-error: true
+      - name: Lint
         run: uv run --all-extras ruff check
+
+      - name: Format check
+        run: uv run --all-extras ruff format --check
 
   web:
     name: Web tests
@@ -72,7 +72,39 @@ jobs:
         run: bun install
 
       - name: Type-check
-        run: bunx tsc --noEmit
+        run: bun run typecheck
+
+      - name: Lint
+        run: bun run lint
 
       - name: Run tests
         run: bun run test
+
+  e2e:
+    name: End-to-end tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build
+        run: bun run build
+
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+
+      # playwright.config.ts starts `next start` against the build above.
+      - name: Run e2e tests
+        run: bun run test:e2e
