@@ -56,7 +56,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    // base.css sets smooth scrolling; Next.js needs the attribute declared to
+    // suppress it during route transitions.
+    <html lang="en" data-scroll-behavior="smooth">
       <body className="antialiased">
         {children}
         <footer className="relative z-10 border-t border-border/40 bg-surface-panel/60">
