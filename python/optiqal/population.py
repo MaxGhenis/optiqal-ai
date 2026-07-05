@@ -5,13 +5,12 @@ Uses MEPS microdata to sample from P(all_variables | known_variables).
 As users enter more profile information, the conditional distribution narrows.
 """
 
-import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, Literal, Optional
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
-from typing import Dict, List, Optional, Literal, Any
-from dataclasses import dataclass, field
-
 
 # Cache for loaded population data
 _POPULATION_CACHE: Optional[pd.DataFrame] = None
@@ -49,13 +48,9 @@ def _load_population_data() -> pd.DataFrame:
 
     # Race/ethnicity
     race_col = raw.get("RACETHX", raw.get("RACEV2X"))
-    pop["race"] = race_col.map({
-        1: "hispanic",
-        2: "white",
-        3: "black",
-        4: "asian",
-        5: "other"
-    })
+    pop["race"] = race_col.map(
+        {1: "hispanic", 2: "white", 3: "black", 4: "asian", 5: "other"}
+    )
 
     # BMI
     bmi_col = None
@@ -68,71 +63,71 @@ def _load_population_data() -> pd.DataFrame:
 
     # Smoking (ADSMOK42: 1=current, 2=former, 3=never)
     if "ADSMOK42" in raw.columns:
-        pop["smoking"] = raw["ADSMOK42"].map({
-            1: "current",
-            2: "former",
-            3: "never"
-        })
+        pop["smoking"] = raw["ADSMOK42"].map({1: "current", 2: "former", 3: "never"})
 
     # Education
     if "HIDEG" in raw.columns:
-        pop["education"] = raw["HIDEG"].map({
-            1: "no_degree",
-            2: "ged",
-            3: "high_school",
-            4: "bachelors",
-            5: "masters",
-            6: "doctorate",
-            7: "other"
-        })
+        pop["education"] = raw["HIDEG"].map(
+            {
+                1: "no_degree",
+                2: "ged",
+                3: "high_school",
+                4: "bachelors",
+                5: "masters",
+                6: "doctorate",
+                7: "other",
+            }
+        )
 
     # Income category (federal poverty level)
     for col in ["POVCAT22", "POVCAT21", "POVCAT20", "POVCAT19"]:
         if col in raw.columns:
-            pop["income_category"] = raw[col].map({
-                1: "poor",        # < 100% FPL
-                2: "near_poor",   # 100-125% FPL
-                3: "low_income",  # 125-200% FPL
-                4: "middle",      # 200-400% FPL
-                5: "high"         # > 400% FPL
-            })
+            pop["income_category"] = raw[col].map(
+                {
+                    1: "poor",  # < 100% FPL
+                    2: "near_poor",  # 100-125% FPL
+                    3: "low_income",  # 125-200% FPL
+                    4: "middle",  # 200-400% FPL
+                    5: "high",  # > 400% FPL
+                }
+            )
             break
 
     # Employment
     for col in ["EMPST53", "EMPST42", "EMPST31"]:
         if col in raw.columns:
-            pop["employment"] = raw[col].map({
-                1: "employed",
-                2: "job_waiting",
-                3: "unemployed",
-                4: "retired",
-                34: "retired",  # Some years code differently
-            })
+            pop["employment"] = raw[col].map(
+                {
+                    1: "employed",
+                    2: "job_waiting",
+                    3: "unemployed",
+                    4: "retired",
+                    34: "retired",  # Some years code differently
+                }
+            )
             break
 
     # Marital status
     for col in ["MARRY53X", "MARRY42X", "MARRY31X"]:
         if col in raw.columns:
-            pop["marital"] = raw[col].map({
-                1: "married",
-                2: "widowed",
-                3: "divorced",
-                4: "separated",
-                5: "never_married",
-                -7: np.nan,
-                -8: np.nan,
-                -9: np.nan,
-            })
+            pop["marital"] = raw[col].map(
+                {
+                    1: "married",
+                    2: "widowed",
+                    3: "divorced",
+                    4: "separated",
+                    5: "never_married",
+                    -7: np.nan,
+                    -8: np.nan,
+                    -9: np.nan,
+                }
+            )
             break
 
     # Insurance
     for col in ["INSCOV22", "INSCOV21", "INSCOV20", "INSCOV19"]:
         if col in raw.columns:
-            pop["insurance"] = raw[col].map({
-                1: "private",
-                2: "public",
-                3: "uninsured"
-            })
+            pop["insurance"] = raw[col].map({1: "private", 2: "public", 3: "uninsured"})
             break
 
     # Chronic conditions (1=Yes, 2=No, -1=Inapplicable, etc.)
@@ -165,8 +160,7 @@ def _load_population_data() -> pd.DataFrame:
     if pcs is not None and mcs is not None:
         # SF-12 to EQ-5D mapping (Franks et al. 2004)
         pop["eq5d"] = (
-            0.057867 + 0.010367 * pcs + 0.00822 * mcs
-            - 0.000034 * pcs * mcs - 0.01067
+            0.057867 + 0.010367 * pcs + 0.00822 * mcs - 0.000034 * pcs * mcs - 0.01067
         ).clip(upper=1.0)
 
     # Sample weights (use most recent available)
@@ -259,7 +253,14 @@ def sample_from_population(
         hard_constraints.append("sex")
 
     # Conditions are known facts about the person
-    for cond in ["diabetes", "hypertension", "heart_disease", "stroke", "cancer", "arthritis"]:
+    for cond in [
+        "diabetes",
+        "hypertension",
+        "heart_disease",
+        "stroke",
+        "cancer",
+        "arthritis",
+    ]:
         value = getattr(constraints, cond, None)
         if value is not None:
             hard_mask = hard_mask & (pop[cond] == value)
@@ -287,8 +288,9 @@ def sample_from_population(
         age_weights = np.exp(-0.5 * (age_diff / 5) ** 2)
         propensity_weights *= age_weights
     elif constraints.age_range is not None:
-        in_range = (hard_pool["age"].values >= constraints.age_range[0]) & \
-                   (hard_pool["age"].values <= constraints.age_range[1])
+        in_range = (hard_pool["age"].values >= constraints.age_range[0]) & (
+            hard_pool["age"].values <= constraints.age_range[1]
+        )
         propensity_weights *= np.where(in_range, 1.0, 0.2)
 
     # BMI: weight by proximity to target
@@ -323,7 +325,7 @@ def sample_from_population(
     samples = hard_pool.iloc[indices].copy()
 
     # Compute effective sample size (ESS) to measure weighting quality
-    ess = 1.0 / np.sum(final_weights ** 2) if final_weights.sum() > 0 else 0
+    ess = 1.0 / np.sum(final_weights**2) if final_weights.sum() > 0 else 0
 
     samples["_pool_size"] = len(hard_pool)
     samples["_effective_sample_size"] = ess
@@ -376,7 +378,7 @@ def estimate_remaining_qalys(
     Returns:
         Dict with expected QALYs, confidence intervals, and metadata
     """
-    from .markov import simulate_lifetime_markov, HealthState
+    from .markov import HealthState, simulate_lifetime_markov
 
     rng = np.random.default_rng(random_state)
 
@@ -412,10 +414,22 @@ def estimate_remaining_qalys(
     life_years = np.array(life_years_list)
 
     # Count how many constraints were known
-    known_count = sum(1 for attr in [
-        "age", "sex", "race", "smoking", "bmi", "education",
-        "diabetes", "hypertension", "heart_disease", "stroke"
-    ] if getattr(constraints, attr, None) is not None)
+    known_count = sum(
+        1
+        for attr in [
+            "age",
+            "sex",
+            "race",
+            "smoking",
+            "bmi",
+            "education",
+            "diabetes",
+            "hypertension",
+            "heart_disease",
+            "stroke",
+        ]
+        if getattr(constraints, attr, None) is not None
+    )
 
     certainty = "low" if known_count <= 2 else "medium" if known_count <= 5 else "high"
 
@@ -423,8 +437,14 @@ def estimate_remaining_qalys(
         "expected_qalys": float(np.mean(qalys)),
         "qaly_std": float(np.std(qalys)),
         "qaly_median": float(np.median(qalys)),
-        "qaly_ci95": (float(np.percentile(qalys, 2.5)), float(np.percentile(qalys, 97.5))),
-        "qaly_p10_p90": (float(np.percentile(qalys, 10)), float(np.percentile(qalys, 90))),
+        "qaly_ci95": (
+            float(np.percentile(qalys, 2.5)),
+            float(np.percentile(qalys, 97.5)),
+        ),
+        "qaly_p10_p90": (
+            float(np.percentile(qalys, 10)),
+            float(np.percentile(qalys, 90)),
+        ),
         "expected_life_years": float(np.mean(life_years)),
         "n_simulations": n_simulations,
         "pool_size": int(samples["_pool_size"].iloc[0]),
@@ -460,4 +480,4 @@ if __name__ == "__main__":
     # Check condition distribution in sample
     print("Condition prevalence in sample:")
     for cond in ["diabetes", "hypertension", "heart_disease"]:
-        print(f"  {cond}: {samples[cond].mean()*100:.1f}%")
+        print(f"  {cond}: {samples[cond].mean() * 100:.1f}%")

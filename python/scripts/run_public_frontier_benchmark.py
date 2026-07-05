@@ -9,8 +9,8 @@ from pathlib import Path
 from optiqal.public_frontier_benchmark import (
     benchmark_report_from_dict,
     benchmark_report_to_dict,
-    build_public_frontier_benchmark_scenarios,
     build_pairwise_judge_packets,
+    build_public_frontier_benchmark_scenarios,
     compute_hybrid_public_frontier_score,
     compute_pairwise_judge_score,
     judge_packet_to_dict,
@@ -94,7 +94,9 @@ def main() -> None:
         other_report = benchmark_report_from_dict(
             json.loads(args.judge_against_report.read_text())
         )
-        packets = build_pairwise_judge_packets(report, other_report, scenarios=scenarios)
+        packets = build_pairwise_judge_packets(
+            report, other_report, scenarios=scenarios
+        )
         args.emit_judge_packets.write_text(
             json.dumps([judge_packet_to_dict(packet) for packet in packets], indent=2)
         )

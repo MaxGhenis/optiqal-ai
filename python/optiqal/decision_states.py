@@ -78,9 +78,17 @@ def build_public_sleep_decision_specs(
 ) -> List[DecisionStateSpec]:
     """Return the public app's generic sleep-pathway decision specs."""
     insomnia_rx_options = [
-        ChoiceOptionSpec(id="no_insomnia_rx", label="No insomnia Rx", added_item_ids=[]),
-        ChoiceOptionSpec(id="trazodone_50mg", label="Use trazodone", added_item_ids=["trazodone_50mg"]),
-        ChoiceOptionSpec(id="doxepin_3mg", label="Use doxepin", added_item_ids=["doxepin_3mg"]),
+        ChoiceOptionSpec(
+            id="no_insomnia_rx", label="No insomnia Rx", added_item_ids=[]
+        ),
+        ChoiceOptionSpec(
+            id="trazodone_50mg",
+            label="Use trazodone",
+            added_item_ids=["trazodone_50mg"],
+        ),
+        ChoiceOptionSpec(
+            id="doxepin_3mg", label="Use doxepin", added_item_ids=["doxepin_3mg"]
+        ),
         ChoiceOptionSpec(
             id="daridorexant_25mg",
             label="Use daridorexant",
@@ -99,7 +107,9 @@ def build_public_sleep_decision_specs(
     ]
 
     conservative_options = [
-        ChoiceOptionSpec(id="status_quo", label="No airway support yet", added_item_ids=[]),
+        ChoiceOptionSpec(
+            id="status_quo", label="No airway support yet", added_item_ids=[]
+        ),
         ChoiceOptionSpec(
             id="head_elevation_nightly",
             label="Use head elevation",
@@ -159,50 +169,62 @@ def build_public_sleep_decision_specs(
     if not include_therapy:
         return specs
 
-    specs.extend([
-        ChoiceStateSpec(
-            id="primary_osa_therapy_choice",
-            label="If a sleep study confirms mild OSA",
-            description=(
-                "Primary-airway treatment options after diagnosis. This branch is here to make the app "
-                "sequence-aware instead of treating insomnia drugs and airway therapy as interchangeable."
-            ),
-            base_item_ids=[],
-            options=[
-                ChoiceOptionSpec(id="status_quo", label="No primary airway treatment yet", added_item_ids=[]),
-                ChoiceOptionSpec(id="apap_nightly", label="Start APAP", added_item_ids=["apap_nightly"]),
-                ChoiceOptionSpec(
-                    id="oral_appliance_custom",
-                    label="Start custom oral appliance",
-                    added_item_ids=["oral_appliance_custom"],
+    specs.extend(
+        [
+            ChoiceStateSpec(
+                id="primary_osa_therapy_choice",
+                label="If a sleep study confirms mild OSA",
+                description=(
+                    "Primary-airway treatment options after diagnosis. This branch is here to make the app "
+                    "sequence-aware instead of treating insomnia drugs and airway therapy as interchangeable."
                 ),
-            ],
-        ),
-        ChoiceStateSpec(
-            id="rx_after_apap_if_needed",
-            label="If insomnia persists after APAP",
-            description=(
-                "Sleep Rx choices after the airway problem is treated first. This is the public-product version "
-                "of the trazodone-vs-DORA comparison."
+                base_item_ids=[],
+                options=[
+                    ChoiceOptionSpec(
+                        id="status_quo",
+                        label="No primary airway treatment yet",
+                        added_item_ids=[],
+                    ),
+                    ChoiceOptionSpec(
+                        id="apap_nightly",
+                        label="Start APAP",
+                        added_item_ids=["apap_nightly"],
+                    ),
+                    ChoiceOptionSpec(
+                        id="oral_appliance_custom",
+                        label="Start custom oral appliance",
+                        added_item_ids=["oral_appliance_custom"],
+                    ),
+                ],
             ),
-            base_item_ids=["apap_nightly"],
-            options=insomnia_rx_options,
-        ),
-        ChoiceStateSpec(
-            id="rx_after_oral_appliance_if_needed",
-            label="If insomnia persists after oral appliance",
-            description=(
-                "Sleep Rx choices after a custom oral appliance, so the sequence can branch cleanly based on "
-                "the primary airway treatment path."
+            ChoiceStateSpec(
+                id="rx_after_apap_if_needed",
+                label="If insomnia persists after APAP",
+                description=(
+                    "Sleep Rx choices after the airway problem is treated first. This is the public-product version "
+                    "of the trazodone-vs-DORA comparison."
+                ),
+                base_item_ids=["apap_nightly"],
+                options=insomnia_rx_options,
             ),
-            base_item_ids=["oral_appliance_custom"],
-            options=insomnia_rx_options,
-        ),
-    ])
+            ChoiceStateSpec(
+                id="rx_after_oral_appliance_if_needed",
+                label="If insomnia persists after oral appliance",
+                description=(
+                    "Sleep Rx choices after a custom oral appliance, so the sequence can branch cleanly based on "
+                    "the primary airway treatment path."
+                ),
+                base_item_ids=["oral_appliance_custom"],
+                options=insomnia_rx_options,
+            ),
+        ]
+    )
     return specs
 
 
-def build_public_sleep_decision_sequence(*, include_therapy: bool = True) -> List[DecisionSequenceStepSpec]:
+def build_public_sleep_decision_sequence(
+    *, include_therapy: bool = True
+) -> List[DecisionSequenceStepSpec]:
     """Return the public app's generic sleep-pathway sequence."""
     steps = [
         DecisionSequenceStepSpec(
@@ -216,21 +238,23 @@ def build_public_sleep_decision_sequence(*, include_therapy: bool = True) -> Lis
     if not include_therapy:
         return steps
 
-    steps.extend([
-        DecisionSequenceStepSpec(
-            step=2,
-            id="primary_osa_therapy_choice",
-            label="If mild OSA is confirmed, choose the primary airway treatment before chasing better hypnotics.",
-            state_id="primary_osa_therapy_choice",
-        ),
-        DecisionSequenceStepSpec(
-            step=3,
-            id="rx_after_apap_if_needed",
-            label="Only compare insomnia Rx options after primary airway treatment if sleep maintenance is still a problem.",
-            preferred_state_id="rx_after_apap_if_needed",
-            alternative_state_id="rx_after_oral_appliance_if_needed",
-        ),
-    ])
+    steps.extend(
+        [
+            DecisionSequenceStepSpec(
+                step=2,
+                id="primary_osa_therapy_choice",
+                label="If mild OSA is confirmed, choose the primary airway treatment before chasing better hypnotics.",
+                state_id="primary_osa_therapy_choice",
+            ),
+            DecisionSequenceStepSpec(
+                step=3,
+                id="rx_after_apap_if_needed",
+                label="Only compare insomnia Rx options after primary airway treatment if sleep maintenance is still a problem.",
+                preferred_state_id="rx_after_apap_if_needed",
+                alternative_state_id="rx_after_oral_appliance_if_needed",
+            ),
+        ]
+    )
     return steps
 
 
@@ -260,9 +284,7 @@ def summarize_stack_from_qalys(
         else float(sum(annual_costs.get(item_id, 0.0) for item_id in ids))
     )
     total_cost_value = (
-        float(total_cost_value_fn(ids))
-        if total_cost_value_fn is not None
-        else None
+        float(total_cost_value_fn(ids)) if total_cost_value_fn is not None else None
     )
     return {
         "item_ids": ids,
@@ -273,7 +295,9 @@ def summarize_stack_from_qalys(
         "adjusted_qaly": round(adjusted_qaly, 4),
         "adjusted_days": round(adjusted_qaly * 365.25, 1),
         "total_annual_cost": round(total_annual_cost),
-        "total_cost_value": round(total_cost_value) if total_cost_value is not None else None,
+        "total_cost_value": round(total_cost_value)
+        if total_cost_value is not None
+        else None,
     }
 
 
@@ -306,7 +330,11 @@ def evaluate_choice_set(
 
     option_rows: List[Dict] = []
     for option_id, option_items in options.items():
-        added_item_ids = [item_id for item_id in ordered_unique(option_items) if item_id in single_qalys]
+        added_item_ids = [
+            item_id
+            for item_id in ordered_unique(option_items)
+            if item_id in single_qalys
+        ]
         combined_ids = ordered_unique(list(base_item_ids) + added_item_ids)
         total = summarize_stack_from_qalys(
             combined_ids,
@@ -318,28 +346,45 @@ def evaluate_choice_set(
         )
         marginal_qaly = total["adjusted_qaly"] - baseline["adjusted_qaly"]
         marginal_cost_value = None
-        if total["total_cost_value"] is not None and baseline["total_cost_value"] is not None:
-            marginal_cost_value = total["total_cost_value"] - baseline["total_cost_value"]
-        option_rows.append({
-            "id": option_id,
-            "label": labels.get(option_id, option_id) if labels is not None else option_id,
-            "added_item_ids": added_item_ids,
-            "stack": total,
-            "marginal_qaly": round(marginal_qaly, 4),
-            "marginal_days": round(marginal_qaly * 365.25, 1),
-            "marginal_annual_cost": round(total["total_annual_cost"] - baseline["total_annual_cost"]),
-            "marginal_cost_value": round(marginal_cost_value) if marginal_cost_value is not None else None,
-            "marginal_cost_per_qaly": (
-                round(marginal_cost_value / marginal_qaly)
-                if marginal_cost_value is not None and marginal_qaly > 0
-                else None
-            ),
-        })
+        if (
+            total["total_cost_value"] is not None
+            and baseline["total_cost_value"] is not None
+        ):
+            marginal_cost_value = (
+                total["total_cost_value"] - baseline["total_cost_value"]
+            )
+        option_rows.append(
+            {
+                "id": option_id,
+                "label": labels.get(option_id, option_id)
+                if labels is not None
+                else option_id,
+                "added_item_ids": added_item_ids,
+                "stack": total,
+                "marginal_qaly": round(marginal_qaly, 4),
+                "marginal_days": round(marginal_qaly * 365.25, 1),
+                "marginal_annual_cost": round(
+                    total["total_annual_cost"] - baseline["total_annual_cost"]
+                ),
+                "marginal_cost_value": round(marginal_cost_value)
+                if marginal_cost_value is not None
+                else None,
+                "marginal_cost_per_qaly": (
+                    round(marginal_cost_value / marginal_qaly)
+                    if marginal_cost_value is not None and marginal_qaly > 0
+                    else None
+                ),
+            }
+        )
 
     option_rows.sort(
         key=lambda row: (
             row["marginal_qaly"],
-            -(row["marginal_cost_value"] if row["marginal_cost_value"] is not None else 0),
+            -(
+                row["marginal_cost_value"]
+                if row["marginal_cost_value"] is not None
+                else 0
+            ),
         ),
         reverse=True,
     )
@@ -392,7 +437,9 @@ def evaluate_frontier_state(
         stack_interaction_penalty_fn=stack_interaction_penalty_fn,
         marginal_cost_value_fn=marginal_cost_value_fn,
         total_annual_cost_fn=total_annual_cost_fn,
-        exclusive_groups=dict(exclusive_groups) if exclusive_groups is not None else None,
+        exclusive_groups=dict(exclusive_groups)
+        if exclusive_groups is not None
+        else None,
     )
     return {
         "baseline": baseline,
@@ -439,14 +486,8 @@ def evaluate_decision_states(
             }
             continue
 
-        option_map = {
-            option.id: list(option.added_item_ids)
-            for option in spec.options
-        }
-        option_labels = {
-            option.id: option.label
-            for option in spec.options
-        }
+        option_map = {option.id: list(option.added_item_ids) for option in spec.options}
+        option_labels = {option.id: option.label for option in spec.options}
         evaluation = evaluate_choice_set(
             base_item_ids=spec.base_item_ids,
             options=option_map,

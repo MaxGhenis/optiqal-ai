@@ -17,8 +17,6 @@ import os
 import sqlite3
 from datetime import date, timedelta
 
-import pytest
-
 # Columns load_baseline() reads from sleep_nights (a subset of the real schema).
 _SLEEP_COLUMNS = [
     "whoop_recovery",
@@ -50,9 +48,7 @@ def _build_synthetic_health_db(path: str) -> None:
         + ", ".join(f"{col} REAL" for col in _SLEEP_COLUMNS)
         + ")"
     )
-    cur.execute(
-        "CREATE TABLE bloodwork (date TEXT, marker TEXT, value REAL)"
-    )
+    cur.execute("CREATE TABLE bloodwork (date TEXT, marker TEXT, value REAL)")
     cur.execute(
         "CREATE TABLE body_comp (date TEXT, weight_kg REAL, body_fat_pct REAL, "
         "muscle_mass_kg REAL, source TEXT)"

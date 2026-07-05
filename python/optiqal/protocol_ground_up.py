@@ -136,6 +136,7 @@ GLP1_SOURCES = (
     "https://www.ncbi.nlm.nih.gov/books/NBK601688/",
 )
 
+
 @dataclass(frozen=True)
 class ProtocolContext:
     """Container for personalized protocol inputs and filesystem locations."""
@@ -153,7 +154,11 @@ DEFAULT_PROTOCOL_CONTEXT = ProtocolContext(
     root=Path.home() / "maxghenis.com",
     protocol_json=Path.home() / "maxghenis.com" / "src" / "data" / "protocol-data.json",
     health_db=Path.home() / "clawd" / "data" / "health.db",
-    output_json=Path.home() / "maxghenis.com" / "src" / "data" / "protocol-ground-up.json",
+    output_json=Path.home()
+    / "maxghenis.com"
+    / "src"
+    / "data"
+    / "protocol-ground-up.json",
     output_md=Path.home() / "maxghenis.com" / "src" / "data" / "protocol-ground-up.md",
     profile=Profile(
         age=39,
@@ -305,8 +310,12 @@ def make_spec(
             else tuple(general_qol_utility_weight_ids)
         ),
         general_qol_lineage_note=general_qol_lineage_note,
-        sleep_component_relief=None if sleep_component_relief is None else dict(sleep_component_relief),
-        airway_target_weights=None if airway_target_weights is None else dict(airway_target_weights),
+        sleep_component_relief=None
+        if sleep_component_relief is None
+        else dict(sleep_component_relief),
+        airway_target_weights=None
+        if airway_target_weights is None
+        else dict(airway_target_weights),
         apply_profile_effect_rules=apply_profile_effect_rules,
         model_details=None if model_details is None else dict(model_details),
     )
@@ -394,7 +403,9 @@ def resolve_stack_spec(
             field_name="high_qaly",
             value=spec.high_qaly,
         ),
-        personalization=fallback_notes if spec.personalization is None else spec.personalization,
+        personalization=fallback_notes
+        if spec.personalization is None
+        else spec.personalization,
         rationale=fallback_notes if spec.rationale is None else spec.rationale,
         sources=fallback_sources if spec.sources is None else tuple(spec.sources),
         general_qol_utility_weight_ids=(
@@ -406,12 +417,16 @@ def resolve_stack_spec(
         sleep_component_relief=(
             dict(spec.sleep_component_relief)
             if spec.sleep_component_relief is not None
-            else dict(base_entry.sleep_component_relief if base_entry is not None else {})
+            else dict(
+                base_entry.sleep_component_relief if base_entry is not None else {}
+            )
         ),
         airway_target_weights=(
             dict(spec.airway_target_weights)
             if spec.airway_target_weights is not None
-            else dict(base_entry.airway_target_weights if base_entry is not None else {})
+            else dict(
+                base_entry.airway_target_weights if base_entry is not None else {}
+            )
         ),
         apply_profile_effect_rules=spec.apply_profile_effect_rules,
         model_details=None if spec.model_details is None else dict(spec.model_details),
@@ -432,7 +447,9 @@ def apply_spec_to_catalog_entry(
         log_sd=resolved.log_sd,
         conf_alpha=resolved.conf_alpha,
         conf_beta=resolved.conf_beta,
-        annual_cost=float(base_entry.annual_cost if annual_cost is None else annual_cost),
+        annual_cost=float(
+            base_entry.annual_cost if annual_cost is None else annual_cost
+        ),
         qol_annual=resolved.qol_annual,
         qol_years=resolved.qol_years,
         has_direct_mortality_effect=(
@@ -495,9 +512,7 @@ def glp1_weight_loss_fraction(
     if profile.bmi_category == "normal":
         return 0.0
     if profile.bmi_category == "overweight":
-        raw = GLP1_STEP_WEIGHT_LOSS_FRACTION * (
-            0.45 + 0.35 * cardiometabolic_signal
-        )
+        raw = GLP1_STEP_WEIGHT_LOSS_FRACTION * (0.45 + 0.35 * cardiometabolic_signal)
     elif profile.bmi_category == "obese":
         raw = GLP1_STEP_WEIGHT_LOSS_FRACTION
     else:
@@ -549,7 +564,9 @@ def build_glp1_phenotype_model(
     obesity_qol_disutility = glp1_obesity_qol_disutility(profile.bmi_category)
     annual_weight_qol_gain = obesity_qol_disutility * excess_bmi_reversal_fraction
     annual_glycemic_qol_gain = 0.0015 * diabetes_signal + 0.0007 * prediabetes_signal
-    lean_mass_penalty_rate = 0.006 if profile.activity_level in {"active", "moderate"} else 0.010
+    lean_mass_penalty_rate = (
+        0.006 if profile.activity_level in {"active", "moderate"} else 0.010
+    )
     annual_lean_mass_penalty = durable_weight_loss_fraction * lean_mass_penalty_rate
     annual_off_label_penalty = 0.001 if profile.bmi_category == "normal" else 0.0
     net_qol_annual = (
@@ -692,7 +709,9 @@ def apply_joint_fall_pathway(
         "light": 1.0,
         "active": 0.85,
     }.get(activity_level, 1.0)
-    fall_susceptibility = clamp((0.20 + 0.80 * joint_multiplier) * activity_modifier, 0.0, 1.0)
+    fall_susceptibility = clamp(
+        (0.20 + 0.80 * joint_multiplier) * activity_modifier, 0.0, 1.0
+    )
     qol_fall_pathway = qol_age_gate * fall_susceptibility
     mortality_fall_pathway = mortality_age_gate * fall_susceptibility
 
@@ -703,7 +722,9 @@ def apply_joint_fall_pathway(
     # than the direct symptom/QOL channel, especially in younger adults.
     mortality_scale = min(base_qol_annual / 0.0008, 2.0)
     fall_mortality_log_reduction = 0.01 * mortality_fall_pathway * mortality_scale
-    adjusted_hr = math.exp(math.log(resolved.observed_hr) - fall_mortality_log_reduction)
+    adjusted_hr = math.exp(
+        math.log(resolved.observed_hr) - fall_mortality_log_reduction
+    )
 
     return replace(
         spec,
@@ -906,7 +927,9 @@ def triggered_interaction_rules(
     for rule in catalog_entry.interaction_rules:
         threshold = rule.minimum_matches or len(rule.requires_tags)
         matches = sum(tag_counts[tag] for tag in rule.requires_tags)
-        if matches >= threshold and all(tag_counts[tag] > 0 for tag in rule.requires_tags):
+        if matches >= threshold and all(
+            tag_counts[tag] > 0 for tag in rule.requires_tags
+        ):
             triggered.append(allocate_interaction_rule(rule, matches))
     return triggered
 
@@ -1182,20 +1205,11 @@ def _combined_latent_mechanism_factor(
     entry: CatalogEntry,
     n_simulations: int = N_SIMULATIONS,
 ) -> np.ndarray | None:
-    tags = [
-        f"benefit:{tag}"
-        for tag in sorted(set(entry.benefit_tags))
-    ]
-    tags.extend(
-        f"interaction:{tag}"
-        for tag in sorted(set(entry.interaction_tags))
-    )
+    tags = [f"benefit:{tag}" for tag in sorted(set(entry.benefit_tags))]
+    tags.extend(f"interaction:{tag}" for tag in sorted(set(entry.interaction_tags)))
     if not tags:
         return None
-    factors = [
-        latent_protocol_factor(tag, n_simulations)
-        for tag in tags
-    ]
+    factors = [latent_protocol_factor(tag, n_simulations) for tag in tags]
     return _standardize_draws(np.sum(factors, axis=0) / math.sqrt(len(factors)))
 
 
@@ -1212,7 +1226,10 @@ def latent_protocol_item_score(
     """
     entry = entry or CATALOG[item_id]
     weighted_components: list[tuple[float, np.ndarray]] = [
-        (LATENT_GLOBAL_SCORE_WEIGHT, latent_protocol_factor("global_fit", n_simulations)),
+        (
+            LATENT_GLOBAL_SCORE_WEIGHT,
+            latent_protocol_factor("global_fit", n_simulations),
+        ),
         (
             LATENT_CATEGORY_SCORE_WEIGHT,
             latent_protocol_factor(
@@ -1226,12 +1243,11 @@ def latent_protocol_item_score(
         weighted_components.append((LATENT_MECHANISM_SCORE_WEIGHT, mechanism_factor))
 
     shared_weight_sq = sum(weight * weight for weight, _ in weighted_components)
-    max_weight_sq = LATENT_MAX_SHARED_SCORE_WEIGHT ** 2
+    max_weight_sq = LATENT_MAX_SHARED_SCORE_WEIGHT**2
     if shared_weight_sq > max_weight_sq:
         scale = math.sqrt(max_weight_sq / shared_weight_sq)
         weighted_components = [
-            (weight * scale, component)
-            for weight, component in weighted_components
+            (weight * scale, component) for weight, component in weighted_components
         ]
         shared_weight_sq = max_weight_sq
 
@@ -1286,16 +1302,18 @@ def load_protocol_items(context: ProtocolContext | None = None) -> list[dict[str
     items = []
     for entry in CATALOG.values():
         prior = existing.get(entry.id, {})
-        items.append({
-            "id": entry.id,
-            "name": entry.name,
-            "status": prior.get("status", status_for_category(entry.category)),
-            "category": entry.category,
-            "display_category": public_display_category(entry),
-            "annual_cost": entry.annual_cost,
-            "dose_notes": prior.get("dose_notes"),
-            "time_of_day": prior.get("time_of_day"),
-        })
+        items.append(
+            {
+                "id": entry.id,
+                "name": entry.name,
+                "status": prior.get("status", status_for_category(entry.category)),
+                "category": entry.category,
+                "display_category": public_display_category(entry),
+                "annual_cost": entry.annual_cost,
+                "dose_notes": prior.get("dose_notes"),
+                "time_of_day": prior.get("time_of_day"),
+            }
+        )
     return items
 
 
@@ -1333,7 +1351,9 @@ def ranking_projection(item: dict[str, Any]) -> dict[str, Any]:
     return {field: item.get(field) for field in fields}
 
 
-def build_decision_rankings(estimates: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+def build_decision_rankings(
+    estimates: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
     actionable = [item for item in estimates if is_actionable_item(item)]
     positive_actionable = [item for item in actionable if item["total_qaly"] > 0]
     paid_positive_actionable = [
@@ -1358,11 +1378,15 @@ def build_decision_rankings(estimates: list[dict[str, Any]]) -> dict[str, list[d
         ],
         "actionable_by_cost_per_qaly": [
             ranking_projection(item)
-            for item in sorted(paid_positive_actionable, key=cost_effectiveness_sort_key)[:15]
+            for item in sorted(
+                paid_positive_actionable, key=cost_effectiveness_sort_key
+            )[:15]
         ],
         "supplement_candidates_by_cost_per_qaly": [
             ranking_projection(item)
-            for item in sorted(supplement_candidates, key=cost_effectiveness_sort_key)[:15]
+            for item in sorted(supplement_candidates, key=cost_effectiveness_sort_key)[
+                :15
+            ]
         ],
         "free_positive_actions": [
             ranking_projection(item)
@@ -1374,7 +1398,9 @@ def build_decision_rankings(estimates: list[dict[str, Any]]) -> dict[str, list[d
         ],
         "negative_actionable": [
             ranking_projection(item)
-            for item in sorted(negative_actionable, key=lambda item: item["total_qaly"])[:15]
+            for item in sorted(
+                negative_actionable, key=lambda item: item["total_qaly"]
+            )[:15]
         ],
     }
 
@@ -1556,7 +1582,8 @@ def load_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
     conn.close()
 
     combined_sleep = (
-        float(sleep_90["whoop_sleep_h"] or 0.0) + float(sleep_90["eight_sleep_h"] or 0.0)
+        float(sleep_90["whoop_sleep_h"] or 0.0)
+        + float(sleep_90["eight_sleep_h"] or 0.0)
     ) / 2.0
     airway_response_signal = estimate_airway_response_signal(
         SleepMetrics(
@@ -1594,7 +1621,9 @@ def load_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
             airway_response_signal=airway_response_signal,
         )
     )
-    sleep_estimate = apply_sleep_study(wearable_sleep_estimate, context.home_sleep_study)
+    sleep_estimate = apply_sleep_study(
+        wearable_sleep_estimate, context.home_sleep_study
+    )
     sleep_need = clamp(
         0.55 * sleep_estimate.component_burdens["duration"]
         + 0.30 * sleep_estimate.component_burdens["daytime"]
@@ -1608,7 +1637,8 @@ def load_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
     sleep_burden_annual_qaly = sleep_estimate.annual_qaly_loss
     cardio_need = clamp(
         0.6 * clamp((float(labs.get("LDL", 64.0)) - 50.0) / 70.0, 0.0, 1.0)
-        + 0.4 * clamp((float(labs.get("Triglycerides", 137.0)) - 100.0) / 150.0, 0.0, 1.0),
+        + 0.4
+        * clamp((float(labs.get("Triglycerides", 137.0)) - 100.0) / 150.0, 0.0, 1.0),
         0.0,
         1.0,
     )
@@ -1631,7 +1661,9 @@ def load_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
         0.0,
         1.0,
     )
-    hiit_headroom = clamp(structured_intensity_headroom * (1.0 - 0.35 * fitness_signal), 0.15, 1.0)
+    hiit_headroom = clamp(
+        structured_intensity_headroom * (1.0 - 0.35 * fitness_signal), 0.15, 1.0
+    )
     vitamin_d_need = clamp((30.0 - float(labs.get("Vitamin D", 51.5))) / 20.0, 0.0, 1.0)
     kidney_caution = clamp(
         max(
@@ -1656,7 +1688,9 @@ def load_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
             "eight_waso": round(float(sleep_90["eight_waso"] or 0.0), 1),
             "eight_latency": round(float(sleep_90["eight_latency"] or 0.0), 1),
             "eight_breathing": round(float(sleep_90["eight_breathing"] or 0.0), 3),
-            "eight_social_jetlag": round(float(sleep_90["eight_social_jetlag"] or 0.0), 1),
+            "eight_social_jetlag": round(
+                float(sleep_90["eight_social_jetlag"] or 0.0), 1
+            ),
             "eight_snore_pct": round(float(sleep_90["eight_snore_pct"] or 0.0), 1),
             "eight_sleep_debt": round(float(sleep_90["eight_sleep_debt"] or 0.0), 1),
         },
@@ -1673,7 +1707,9 @@ def load_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
             "eight_waso": round(float(sleep_30["eight_waso"] or 0.0), 1),
             "eight_latency": round(float(sleep_30["eight_latency"] or 0.0), 1),
             "eight_breathing": round(float(sleep_30["eight_breathing"] or 0.0), 3),
-            "eight_social_jetlag": round(float(sleep_30["eight_social_jetlag"] or 0.0), 1),
+            "eight_social_jetlag": round(
+                float(sleep_30["eight_social_jetlag"] or 0.0), 1
+            ),
             "eight_snore_pct": round(float(sleep_30["eight_snore_pct"] or 0.0), 1),
             "eight_sleep_debt": round(float(sleep_30["eight_sleep_debt"] or 0.0), 1),
         },
@@ -1753,10 +1789,12 @@ def load_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
             "waso_gap": round(waso_gap, 3),
             "sleep_burden_annual_qaly": round(sleep_burden_annual_qaly, 5),
             "sleep_component_burdens": {
-                key: round(value, 3) for key, value in sleep_estimate.component_burdens.items()
+                key: round(value, 3)
+                for key, value in sleep_estimate.component_burdens.items()
             },
             "sleep_component_losses": {
-                key: round(value, 5) for key, value in sleep_estimate.component_losses.items()
+                key: round(value, 5)
+                for key, value in sleep_estimate.component_losses.items()
             },
             "sleep_component_utility_weight_ids": dict(
                 sleep_estimate.component_utility_weight_ids
@@ -1779,15 +1817,21 @@ def load_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
             },
             "sleep_airway": {
                 "upper_airway_probability": round(
-                    float(sleep_estimate.airway.upper_airway_probability) if sleep_estimate.airway else 0.0,
+                    float(sleep_estimate.airway.upper_airway_probability)
+                    if sleep_estimate.airway
+                    else 0.0,
                     3,
                 ),
                 "nasal_inflammation_probability": round(
-                    float(sleep_estimate.airway.nasal_inflammation_probability) if sleep_estimate.airway else 0.0,
+                    float(sleep_estimate.airway.nasal_inflammation_probability)
+                    if sleep_estimate.airway
+                    else 0.0,
                     3,
                 ),
                 "mucus_probability": round(
-                    float(sleep_estimate.airway.mucus_probability) if sleep_estimate.airway else 0.0,
+                    float(sleep_estimate.airway.mucus_probability)
+                    if sleep_estimate.airway
+                    else 0.0,
                     3,
                 ),
             },
@@ -1814,7 +1858,6 @@ def build_specs(
     sleep_multiplier = 0.75 + 0.5 * sleep_need
     cardio_multiplier = 0.20 + 0.80 * cardio_need
     vitamin_d_multiplier = 0.05 + 0.95 * vitamin_d_need
-    longevity_multiplier = 0.25
     eye_multiplier = 0.20
     joint_multiplier = 0.30
     fatigue_multiplier = 0.45
@@ -2012,9 +2055,7 @@ def build_specs(
             rationale=(
                 "Nasal strips can help if upper-airway narrowing is part of the problem, but they are usually an adjunct rather than a decisive treatment."
             ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/30154874/",
-            ),
+            sources=("https://pubmed.ncbi.nlm.nih.gov/30154874/",),
         ),
         "humidifier_nightly": StackSpec(
             item_id="humidifier_nightly",
@@ -2087,9 +2128,7 @@ def build_specs(
             rationale=(
                 "Head elevation is a low-risk positional airway aid with the best case in upper-airway-predominant sleep-disordered breathing."
             ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/39347559/",
-            ),
+            sources=("https://pubmed.ncbi.nlm.nih.gov/39347559/",),
         ),
         "cocoa_flavanols_500": StackSpec(
             item_id="cocoa_flavanols_500",
@@ -2107,9 +2146,7 @@ def build_specs(
             rationale=(
                 "Some plausible cardiometabolic value, but your current risk profile leaves less headroom."
             ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/35294962/",
-            ),
+            sources=("https://pubmed.ncbi.nlm.nih.gov/35294962/",),
         ),
         "creatine_5g": StackSpec(
             item_id="creatine_5g",
@@ -2582,9 +2619,7 @@ def build_specs(
             personalization=(
                 "Near zero because sulforaphane has mechanistic appeal but little direct hard-endpoint evidence in a healthy adult."
             ),
-            rationale=(
-                "Promising biology; still thin as a personalized QALY lever."
-            ),
+            rationale=("Promising biology; still thin as a personalized QALY lever."),
             sources=(),
         ),
         "spermidine_10": StackSpec(
@@ -2603,9 +2638,7 @@ def build_specs(
             rationale=(
                 "Spermidine is still more of a longevity hypothesis than a demonstrated human benefit."
             ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/35616942/",
-            ),
+            sources=("https://pubmed.ncbi.nlm.nih.gov/35616942/",),
         ),
         "fisetin_100_unbundled": StackSpec(
             item_id="fisetin_100_unbundled",
@@ -2637,9 +2670,7 @@ def build_specs(
             rationale=(
                 "Lycopene may be fine, but I do not see a strong supplement-specific QALY signal."
             ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/28318092/",
-            ),
+            sources=("https://pubmed.ncbi.nlm.nih.gov/28318092/",),
         ),
         "ginger_400": apply_joint_fall_pathway(
             StackSpec(
@@ -2660,9 +2691,7 @@ def build_specs(
                 personalization=(
                     "Small positive only because human data support biomarker improvements and some joint-pain benefit, but your baseline does not show an obvious inflammatory pain phenotype."
                 ),
-                rationale=(
-                    "Ginger looks mildly helpful, but not transformative."
-                ),
+                rationale=("Ginger looks mildly helpful, but not transformative."),
                 sources=(
                     "https://pubmed.ncbi.nlm.nih.gov/41123858/",
                     "https://pubmed.ncbi.nlm.nih.gov/40732990/",
@@ -3459,9 +3488,7 @@ def build_additional_specs(
             rationale=(
                 "Structured zone-2 work is still plausible as a small positive, but less likely than HIIT to create a meaningful new stimulus in your current routine."
             ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/38599681/",
-            ),
+            sources=("https://pubmed.ncbi.nlm.nih.gov/38599681/",),
         ),
         "tempo_run_1x_week": make_spec(
             "tempo_run_1x_week",
@@ -3508,9 +3535,7 @@ def build_additional_specs(
             rationale=(
                 "Strength is important in general, but your marginal gain from formalizing it further appears small."
             ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/38599681/",
-            ),
+            sources=("https://pubmed.ncbi.nlm.nih.gov/38599681/",),
         ),
         "traditional_sauna_4x_week": make_spec(
             "traditional_sauna_4x_week",
@@ -3681,21 +3706,23 @@ def build_current_stack_drop_table(
         if item.get("status") not in CURRENT_STACK_STATUSES:
             continue
         drop_qaly = -float(item["total_qaly"])
-        rows.append({
-            "id": item["id"],
-            "name": item["name"],
-            "status": item.get("status"),
-            "display_category": item.get("display_category"),
-            "annual_cost": item.get("annual_cost"),
-            "modeled_total_cost": item.get("modeled_total_cost"),
-            "continue_total_qaly": item["total_qaly"],
-            "drop_qaly": round(drop_qaly, 4),
-            "drop_days": round(drop_qaly * 365.25, 1),
-            "p_drop_benefit": item["p_harm"],
-            "continue_cost_per_qaly": item.get("cost_per_qaly"),
-            "reference_case_status": item["reference_case_status"],
-            "qaly_lineage_issues": list(item["qaly_lineage"]["issues"]),
-        })
+        rows.append(
+            {
+                "id": item["id"],
+                "name": item["name"],
+                "status": item.get("status"),
+                "display_category": item.get("display_category"),
+                "annual_cost": item.get("annual_cost"),
+                "modeled_total_cost": item.get("modeled_total_cost"),
+                "continue_total_qaly": item["total_qaly"],
+                "drop_qaly": round(drop_qaly, 4),
+                "drop_days": round(drop_qaly * 365.25, 1),
+                "p_drop_benefit": item["p_harm"],
+                "continue_cost_per_qaly": item.get("cost_per_qaly"),
+                "reference_case_status": item["reference_case_status"],
+                "qaly_lineage_issues": list(item["qaly_lineage"]["issues"]),
+            }
+        )
     rows.sort(key=lambda row: row["drop_qaly"], reverse=True)
     return rows
 
@@ -3759,13 +3786,13 @@ def simulate_structured_qaly(
         id=resolved.item_id,
         name=resolved.item_id,
         category="medical",
-        mortality=MortalityEffect(
-            hazard_ratio=hazard_ratio
-        ),
+        mortality=MortalityEffect(hazard_ratio=hazard_ratio),
         harm_model=list(catalog_entry.harm_effects),
         interaction_tags=list(catalog_entry.interaction_tags),
         interaction_rules=list(catalog_entry.interaction_rules),
-        confounding_prior=ConfoundingPrior(alpha=resolved.conf_alpha, beta=resolved.conf_beta),
+        confounding_prior=ConfoundingPrior(
+            alpha=resolved.conf_alpha, beta=resolved.conf_beta
+        ),
     )
     scaled_sleep_relief = effective_sleep_component_relief(
         sleep_estimate,
@@ -3787,7 +3814,9 @@ def simulate_structured_qaly(
         random_state=stable_random_seed(item_id, "structured_qaly"),
         return_qaly_gains=True,
     )
-    direct_harm_qaly = float(result.expected_harm_qalys + result.expected_interaction_harm_qalys)
+    direct_harm_qaly = float(
+        result.expected_harm_qalys + result.expected_interaction_harm_qalys
+    )
     mortality_qaly = float(result.mean - direct_harm_qaly)
     return {
         "mortality_qaly": mortality_qaly,
@@ -3814,13 +3843,19 @@ def estimate_item(
     sleep_estimate = SleepBurdenEstimate(
         component_burdens={
             key: float(value)
-            for key, value in baseline["derived"].get("sleep_component_burdens", {}).items()
+            for key, value in baseline["derived"]
+            .get("sleep_component_burdens", {})
+            .items()
         },
         component_losses={
             key: float(value)
-            for key, value in baseline["derived"].get("sleep_component_losses", {}).items()
+            for key, value in baseline["derived"]
+            .get("sleep_component_losses", {})
+            .items()
         },
-        annual_qaly_loss=float(baseline["derived"].get("sleep_burden_annual_qaly", 0.0)),
+        annual_qaly_loss=float(
+            baseline["derived"].get("sleep_burden_annual_qaly", 0.0)
+        ),
         mortality_signal=float(baseline["derived"].get("sleep_mortality_signal", 0.0)),
         airway=None,
         component_utility_weight_ids={
@@ -3838,10 +3873,16 @@ def estimate_item(
             annual_qaly_loss=sleep_estimate.annual_qaly_loss,
             mortality_signal=sleep_estimate.mortality_signal,
             airway=AirwayContributorEstimate(
-                upper_airway_probability=float(airway.get("upper_airway_probability", 0.0)),
-                nasal_inflammation_probability=float(airway.get("nasal_inflammation_probability", 0.0)),
+                upper_airway_probability=float(
+                    airway.get("upper_airway_probability", 0.0)
+                ),
+                nasal_inflammation_probability=float(
+                    airway.get("nasal_inflammation_probability", 0.0)
+                ),
                 mucus_probability=float(airway.get("mucus_probability", 0.0)),
-                response_signal=float(baseline["derived"].get("airway_response_signal", 0.0)),
+                response_signal=float(
+                    baseline["derived"].get("airway_response_signal", 0.0)
+                ),
             ),
             component_utility_weight_ids=sleep_estimate.component_utility_weight_ids,
         )
@@ -3864,7 +3905,9 @@ def estimate_item(
         sleep_estimate,
         scaled_sleep_relief,
     )
-    sleep_baseline_hazard_multiplier = sleep_baseline_mortality_multiplier(sleep_estimate)
+    sleep_baseline_hazard_multiplier = sleep_baseline_mortality_multiplier(
+        sleep_estimate
+    )
     sleep_mortality_hr_multiplier = sleep_intervention_mortality_hr_multiplier(
         sleep_estimate,
         scaled_sleep_relief,
@@ -3897,7 +3940,9 @@ def estimate_item(
         direct_harm_qaly=direct_harm_qaly,
         general_qol_qaly=general_qol_qaly,
         sleep_qol_qaly=sleep_qol_qaly,
-        direct_harm_lineage=item_harm_utility_lineage(item["id"], active_interaction_tags),
+        direct_harm_lineage=item_harm_utility_lineage(
+            item["id"], active_interaction_tags
+        ),
         sleep_lineage=sleep_utility_lineage(sleep_estimate, scaled_sleep_relief),
     )
 
@@ -3930,7 +3975,9 @@ def estimate_item(
         "qaly_lineage": qaly_lineage,
         "assumptions": {
             "observed_hr": resolved.observed_hr,
-            "profile_effect_multiplier": round(simulated["profile_effect_multiplier"], 6),
+            "profile_effect_multiplier": round(
+                simulated["profile_effect_multiplier"], 6
+            ),
             "apply_profile_effect_rules": resolved.apply_profile_effect_rules,
             "effective_observed_hr": round(simulated["effective_observed_hr"], 6),
             "genetic_rule_matches": matching_genetic_rule_rationales(
@@ -3938,16 +3985,22 @@ def estimate_item(
                 context.profile,
             ),
             "log_sd": resolved.log_sd,
-            "confounding_prior": {"alpha": resolved.conf_alpha, "beta": resolved.conf_beta},
+            "confounding_prior": {
+                "alpha": resolved.conf_alpha,
+                "beta": resolved.conf_beta,
+            },
             "qol_annual": round(resolved.qol_annual, 6),
             "sleep_qol_annual": round(sleep_qol_annual, 6),
-            "sleep_baseline_hazard_multiplier": round(sleep_baseline_hazard_multiplier, 6),
+            "sleep_baseline_hazard_multiplier": round(
+                sleep_baseline_hazard_multiplier, 6
+            ),
             "sleep_mortality_hr_multiplier": round(sleep_mortality_hr_multiplier, 6),
             "sleep_component_relief": {
                 key: round(value, 4) for key, value in scaled_sleep_relief.items()
             },
             "airway_target_weights": {
-                key: round(value, 3) for key, value in resolved.airway_target_weights.items()
+                key: round(value, 3)
+                for key, value in resolved.airway_target_weights.items()
             },
             "qol_years": resolved.qol_years,
             "cost_years": resolved.qol_years,
@@ -3963,7 +4016,9 @@ def estimate_item(
         estimate["assumptions"]["model_details"] = resolved.model_details
     if include_draws:
         estimate["_total_draws"] = total_draws
-        estimate["_benefit_overlap_qaly"] = max(mortality_qaly, 0.0) + max(qol_qaly, 0.0)
+        estimate["_benefit_overlap_qaly"] = max(mortality_qaly, 0.0) + max(
+            qol_qaly, 0.0
+        )
     return estimate
 
 
@@ -4096,7 +4151,9 @@ def build_state_marginal_decision_table(
 ) -> list[dict[str, Any]]:
     """Compute add/drop decisions as V(new full state) - V(current full state)."""
     current_ids = active_state_item_ids(protocol_items)
-    current_state = evaluate_protocol_state(current_ids, estimates_by_id, specs, context)
+    current_state = evaluate_protocol_state(
+        current_ids, estimates_by_id, specs, context
+    )
     current_draws = current_state["_draws"]
     current_cost = float(current_state["modeled_total_cost"])
 
@@ -4156,14 +4213,16 @@ def build_state_marginal_decision_table(
             "qaly_lineage_issues": list(estimate["qaly_lineage"]["issues"]),
         }
         if action == "drop":
-            row.update({
-                "continue_total_qaly": estimate["total_qaly"],
-                "drop_qaly": row["delta_qaly"],
-                "drop_days": row["delta_days"],
-                "p_drop_benefit": row["p_positive"],
-                "continue_cost_per_qaly": estimate.get("cost_per_qaly"),
-                "modeled_total_cost": estimate.get("modeled_total_cost"),
-            })
+            row.update(
+                {
+                    "continue_total_qaly": estimate["total_qaly"],
+                    "drop_qaly": row["delta_qaly"],
+                    "drop_days": row["delta_days"],
+                    "p_drop_benefit": row["p_positive"],
+                    "continue_cost_per_qaly": estimate.get("cost_per_qaly"),
+                    "modeled_total_cost": estimate.get("modeled_total_cost"),
+                }
+            )
         rows.append(row)
 
     rows.sort(key=lambda row: row["delta_qaly"], reverse=True)
@@ -4172,14 +4231,16 @@ def build_state_marginal_decision_table(
 
 def optimizable_protocol_item_ids(protocol_items: list[dict[str, Any]]) -> list[str]:
     """Return item ids the state optimizer may keep, add, or drop."""
-    return _ordered_state_ids([
-        str(item["id"])
-        for item in protocol_items
-        if (
-            str(item.get("status", "")) in CURRENT_STACK_STATUSES
-            or is_actionable_item(item)
-        )
-    ])
+    return _ordered_state_ids(
+        [
+            str(item["id"])
+            for item in protocol_items
+            if (
+                str(item.get("status", "")) in CURRENT_STACK_STATUSES
+                or is_actionable_item(item)
+            )
+        ]
+    )
 
 
 def exclusive_group_by_id(item_ids: list[str]) -> dict[str, str]:
@@ -4217,7 +4278,9 @@ def state_transition_actions(
     dropped = sorted(current - target)
     swaps: list[str] = []
     for added_id in added:
-        added_group = CATALOG.get(added_id).exclusive_group if added_id in CATALOG else None
+        added_group = (
+            CATALOG.get(added_id).exclusive_group if added_id in CATALOG else None
+        )
         if not added_group:
             continue
         for dropped_id in dropped:
@@ -4276,7 +4339,9 @@ def protocol_optimizer_neighbors(
         neighbors.append(feasible_ids)
 
     for item_id in state_ids:
-        add_neighbor([selected_id for selected_id in state_ids if selected_id != item_id])
+        add_neighbor(
+            [selected_id for selected_id in state_ids if selected_id != item_id]
+        )
 
     for item_id in universe_ids:
         if item_id in selected:
@@ -4289,11 +4354,14 @@ def protocol_optimizer_neighbors(
                 if exclusive_groups.get(selected_id) == group
             ]
             if conflicting_ids:
-                add_neighbor([
-                    selected_id
-                    for selected_id in state_ids
-                    if selected_id not in conflicting_ids
-                ] + [item_id])
+                add_neighbor(
+                    [
+                        selected_id
+                        for selected_id in state_ids
+                        if selected_id not in conflicting_ids
+                    ]
+                    + [item_id]
+                )
                 continue
         add_neighbor(state_ids + [item_id])
 
@@ -4349,7 +4417,10 @@ def build_optimizer_step(
         "paired_state_correlation": (
             None
             if draw_correlation(previous_state["_draws"], new_state["_draws"]) is None
-            else round(float(draw_correlation(previous_state["_draws"], new_state["_draws"])), 4)
+            else round(
+                float(draw_correlation(previous_state["_draws"], new_state["_draws"])),
+                4,
+            )
         ),
     }
 
@@ -4368,7 +4439,9 @@ def optimize_protocol_state(
     """Greedy local search over full protocol states with exclusivity constraints."""
     universe_ids = optimizable_protocol_item_ids(protocol_items)
     exclusive_groups = exclusive_group_by_id(universe_ids)
-    initial_ids = feasible_protocol_state(active_state_item_ids(protocol_items), exclusive_groups)
+    initial_ids = feasible_protocol_state(
+        active_state_item_ids(protocol_items), exclusive_groups
+    )
     state_cache: dict[tuple[str, ...], dict[str, Any]] = {}
 
     def evaluate_ids(item_ids: list[str]) -> dict[str, Any]:
@@ -4456,8 +4529,12 @@ def optimize_protocol_state(
             round(float(np.percentile(delta_draws, 90)), 4),
         ],
         "actions_from_current": transition,
-        "add_names": [estimates_by_id[item_id]["name"] for item_id in transition["add"]],
-        "drop_names": [estimates_by_id[item_id]["name"] for item_id in transition["drop"]],
+        "add_names": [
+            estimates_by_id[item_id]["name"] for item_id in transition["add"]
+        ],
+        "drop_names": [
+            estimates_by_id[item_id]["name"] for item_id in transition["drop"]
+        ],
         "path": path,
         "exclusive_groups": exclusive_groups,
         "evaluated_state_count": len(state_cache),
@@ -4566,9 +4643,7 @@ def render_markdown(payload: dict[str, Any]) -> str:
     lines.append("")
     lines.append("## Baseline")
     lines.append("")
-    lines.append(
-        f"- Generated: {payload['generated_at']}"
-    )
+    lines.append(f"- Generated: {payload['generated_at']}")
     lines.append(
         f"- 90-day combined sleep: {payload['baseline']['derived']['combined_sleep_h_90d']} h/night "
         f"(Whoop {payload['baseline']['sleep_90d']['whoop_sleep_h']} h, Eight Sleep {payload['baseline']['sleep_90d']['eight_sleep_h']} h)"
@@ -4585,7 +4660,9 @@ def render_markdown(payload: dict[str, Any]) -> str:
         "- Sleep burden components: "
         + ", ".join(
             f"{name} {value:.4f}"
-            for name, value in payload["baseline"]["derived"]["sleep_component_losses"].items()
+            for name, value in payload["baseline"]["derived"][
+                "sleep_component_losses"
+            ].items()
             if value > 0
         )
     )
@@ -4629,7 +4706,9 @@ def render_markdown(payload: dict[str, Any]) -> str:
         "so shared stack effects are counted once."
     )
     lines.append("")
-    lines.extend(render_state_marginal_decision_table(payload["state_marginal_decisions"][:30]))
+    lines.extend(
+        render_state_marginal_decision_table(payload["state_marginal_decisions"][:30])
+    )
     lines.append("")
     lines.append("## Constrained Optimizer")
     lines.append("")
@@ -4658,7 +4737,9 @@ def render_markdown(payload: dict[str, Any]) -> str:
     lines.append("")
     lines.append("### Actionable By $/QALY")
     lines.append("")
-    lines.extend(render_ranking_table(payload["rankings"]["actionable_by_cost_per_qaly"]))
+    lines.extend(
+        render_ranking_table(payload["rankings"]["actionable_by_cost_per_qaly"])
+    )
     lines.append("")
     lines.append("### Supplement Candidates By $/QALY")
     lines.append("")
@@ -4682,9 +4763,7 @@ def render_markdown(payload: dict[str, Any]) -> str:
         "| Item | Status | Type | Total QALY | Days | Cost | $/QALY | "
         "Mortality QALY | Direct Harm | QOL QALY |"
     )
-    lines.append(
-        "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
-    )
+    lines.append("| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
     for item in payload["items"]:
         cpq = "—" if item["cost_per_qaly"] is None else f"${item['cost_per_qaly']:,}"
         lines.append(
@@ -4706,15 +4785,16 @@ def render_markdown(payload: dict[str, Any]) -> str:
         lines.append(f"- Reference-case status: {item['reference_case_status']}")
         if item["qaly_lineage"]["issues"]:
             lines.append(
-                "- Utility-lineage gaps: "
-                + ", ".join(item["qaly_lineage"]["issues"])
+                "- Utility-lineage gaps: " + ", ".join(item["qaly_lineage"]["issues"])
             )
         lines.append(f"- Why: {item['rationale']}")
         lines.append(f"- Personalization: {item['personalization']}")
         if item["sources"]:
             lines.append(f"- Sources: {', '.join(item['sources'])}")
         else:
-            lines.append("- Sources: no robust, directly on-point human outcome source found in this pass")
+            lines.append(
+                "- Sources: no robust, directly on-point human outcome source found in this pass"
+            )
         lines.append("")
     return "\n".join(lines)
 
@@ -4812,7 +4892,9 @@ def main(context: ProtocolContext | None = None) -> None:
             "standalone_additive_qaly": current_state["additive_qaly"],
             "state_stack_interaction_qaly": current_state["stack_interaction_qaly"],
             "items_within_range": sum(1 for item in estimates if item["within_range"]),
-            "items_outside_range": sum(1 for item in estimates if not item["within_range"]),
+            "items_outside_range": sum(
+                1 for item in estimates if not item["within_range"]
+            ),
             "items_needing_utility_lineage": sum(
                 1
                 for item in estimates
@@ -4822,8 +4904,7 @@ def main(context: ProtocolContext | None = None) -> None:
                 1
                 for item in estimates
                 if any(
-                    "uses_fallback" in issue
-                    for issue in item["qaly_lineage"]["issues"]
+                    "uses_fallback" in issue for issue in item["qaly_lineage"]["issues"]
                 )
             ),
         },
@@ -4845,9 +4926,13 @@ def main(context: ProtocolContext | None = None) -> None:
     print("")
     print("Top items by personalized ground-up total QALY:")
     for item in top:
-        print(f"  {item['name']:<28} {item['total_qaly']:>7.4f} QALY  ({item['days']:>5.1f} days)")
+        print(
+            f"  {item['name']:<28} {item['total_qaly']:>7.4f} QALY  ({item['days']:>5.1f} days)"
+        )
     print("")
-    print(f"Total stack: {payload['summary']['total_stack_qaly']:.4f} QALY ({payload['summary']['total_stack_days']:.1f} days)")
+    print(
+        f"Total stack: {payload['summary']['total_stack_qaly']:.4f} QALY ({payload['summary']['total_stack_days']:.1f} days)"
+    )
     print(
         f"Sanity check: {payload['summary']['items_within_range']}/{payload['summary']['n_items']} "
         "item estimates inside predeclared ranges"

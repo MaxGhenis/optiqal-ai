@@ -17,13 +17,13 @@ References:
   EQ-5D = 0.057867 + 0.010367*PCS + 0.00822*MCS - 0.000034*PCS*MCS - 0.01067
 """
 
-import os
-import requests
-import pandas as pd
-import numpy as np
-from pathlib import Path
-from io import BytesIO
 import zipfile
+from io import BytesIO
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import requests
 
 # MEPS data URLs (Full-Year Consolidated Files)
 # Format: HC-XXX where XXX is the file number
@@ -47,12 +47,10 @@ VARIABLES = {
     "RACETHX": "Race/ethnicity",
     "BMINDX53": "BMI",
     "REGION31": "Census region",
-
     # SF-12 scores (divide by 100 for actual values)
     "ADPCS42": "Physical Component Summary (PCS)",
     "ADMCS42": "Mental Component Summary (MCS)",
     "SFFLAG42": "SF-12 imputation flag",
-
     # Chronic conditions (1=Yes, 2=No)
     "DIABDX_M18": "Diabetes diagnosis",  # 2018+ naming
     "DIABDX": "Diabetes diagnosis",  # Earlier naming
@@ -64,7 +62,6 @@ VARIABLES = {
     "CANCERDX": "Cancer diagnosis",
     "ARTHDX": "Arthritis diagnosis",
     "ASTHDX": "Asthma diagnosis",
-
     # Weights
     "PERWT22F": "Person weight (2022)",  # Year-specific
     "PERWT21F": "Person weight (2021)",
@@ -100,7 +97,7 @@ def download_meps_file(year: int, cache_dir: Path) -> pd.DataFrame:
     # Extract Stata file from zip
     with zipfile.ZipFile(BytesIO(response.content)) as zf:
         # Find the .dta file
-        dta_files = [f for f in zf.namelist() if f.endswith('.dta')]
+        dta_files = [f for f in zf.namelist() if f.endswith(".dta")]
         if not dta_files:
             raise ValueError(f"No .dta file found in {url}")
 
@@ -131,13 +128,7 @@ def map_sf12_to_eq5d(pcs: pd.Series, mcs: pd.Series) -> pd.Series:
 
     Truncate at 1.0 (perfect health ceiling).
     """
-    eq5d = (
-        0.057867
-        + 0.010367 * pcs
-        + 0.00822 * mcs
-        - 0.000034 * pcs * mcs
-        - 0.01067
-    )
+    eq5d = 0.057867 + 0.010367 * pcs + 0.00822 * mcs - 0.000034 * pcs * mcs - 0.01067
     return eq5d.clip(upper=1.0)
 
 
@@ -154,7 +145,9 @@ def process_meps_data(df: pd.DataFrame, year: int) -> pd.DataFrame:
     processed["panel"] = df.get("PANEL", np.nan)
 
     # Age
-    age_col = next((c for c in ["AGE31X", "AGE42X", "AGE53X", "APTS"] if c in available_cols), None)
+    age_col = next(
+        (c for c in ["AGE31X", "AGE42X", "AGE53X", "APTS"] if c in available_cols), None
+    )
     if age_col:
         processed["age"] = pd.to_numeric(df[age_col], errors="coerce")
 
@@ -163,14 +156,22 @@ def process_meps_data(df: pd.DataFrame, year: int) -> pd.DataFrame:
         processed["sex"] = df["SEX"].map({1: "male", 2: "female"})
 
     # BMI
-    bmi_col = next((c for c in ["BMINDX53", "BMINDX42", "BMINDX31"] if c in available_cols), None)
+    bmi_col = next(
+        (c for c in ["BMINDX53", "BMINDX42", "BMINDX31"] if c in available_cols), None
+    )
     if bmi_col:
         processed["bmi"] = pd.to_numeric(df[bmi_col], errors="coerce")
         processed.loc[processed["bmi"] < 0, "bmi"] = np.nan
 
     # SF-12/VR-12 scores (standard scale: mean=50, sd=10, range ~0-100)
-    pcs_col = next((c for c in ["VPCS42", "ADPCS42", "PCS42", "SFPCS42"] if c in available_cols), None)
-    mcs_col = next((c for c in ["VMCS42", "ADMCS42", "MCS42", "SFMCS42"] if c in available_cols), None)
+    pcs_col = next(
+        (c for c in ["VPCS42", "ADPCS42", "PCS42", "SFPCS42"] if c in available_cols),
+        None,
+    )
+    mcs_col = next(
+        (c for c in ["VMCS42", "ADMCS42", "MCS42", "SFMCS42"] if c in available_cols),
+        None,
+    )
 
     if pcs_col and mcs_col:
         pcs = pd.to_numeric(df[pcs_col], errors="coerce")
@@ -240,7 +241,9 @@ def analyze_quality_weights(df: pd.DataFrame) -> dict:
         "p75": valid["eq5d"].quantile(0.75),
         "n": len(valid),
     }
-    print(f"\nOverall EQ-5D: mean={results['overall']['mean']:.3f}, std={results['overall']['std']:.3f}")
+    print(
+        f"\nOverall EQ-5D: mean={results['overall']['mean']:.3f}, std={results['overall']['std']:.3f}"
+    )
 
     # By age group
     valid["age_group"] = pd.cut(valid["age"], bins=[18, 30, 40, 50, 60, 70, 80, 100])
@@ -250,7 +253,14 @@ def analyze_quality_weights(df: pd.DataFrame) -> dict:
     print(age_stats)
 
     # By condition
-    conditions = ["diabetes", "hypertension", "heart_disease", "stroke", "cancer", "arthritis"]
+    conditions = [
+        "diabetes",
+        "hypertension",
+        "heart_disease",
+        "stroke",
+        "cancer",
+        "arthritis",
+    ]
     results["by_condition"] = {}
 
     print("\nEQ-5D by condition (mean ± std):")
@@ -270,9 +280,11 @@ def analyze_quality_weights(df: pd.DataFrame) -> dict:
                     "n_with": len(has_condition),
                     "n_without": len(no_condition),
                 }
-                print(f"  {condition:15}: with={has_condition.mean():.3f}±{has_condition.std():.3f} "
-                      f"vs without={no_condition.mean():.3f}±{no_condition.std():.3f} "
-                      f"(decrement={decrement:.3f})")
+                print(
+                    f"  {condition:15}: with={has_condition.mean():.3f}±{has_condition.std():.3f} "
+                    f"vs without={no_condition.mean():.3f}±{no_condition.std():.3f} "
+                    f"(decrement={decrement:.3f})"
+                )
 
     # Within-age-group variance (to estimate individual heterogeneity)
     within_age_std = valid.groupby("age_group")["eq5d"].std().mean()
@@ -315,6 +327,7 @@ def main():
 
     # Save results
     import json
+
     output_file = cache_dir / "quality_weight_calibration.json"
 
     # Convert numpy/pandas types for JSON serialization

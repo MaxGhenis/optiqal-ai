@@ -1,17 +1,15 @@
 """Tests for precompute module."""
 
-import pytest
 import json
 import tempfile
 from pathlib import Path
-import numpy as np
 
 from optiqal.intervention import Intervention
 from optiqal.precompute import (
-    PrecomputedResult,
     PrecomputedIntervention,
-    precompute_intervention,
+    PrecomputedResult,
     precompute_all_interventions,
+    precompute_intervention,
 )
 
 
@@ -213,7 +211,7 @@ costs:
   annual_cost_usd: Normal(0, 50)
 """
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write(intervention_yaml)
             f.flush()
 
@@ -327,7 +325,9 @@ mortality:
             assert (output_dir / "test_intervention_2.json").exists()
 
             # Load and verify one of the files
-            loaded = PrecomputedIntervention.load(output_dir / "test_intervention_1.json")
+            loaded = PrecomputedIntervention.load(
+                output_dir / "test_intervention_1.json"
+            )
             assert loaded.id == "test_intervention_1"
             assert loaded.name == "Test Intervention 1"
             assert "40_male" in loaded.results

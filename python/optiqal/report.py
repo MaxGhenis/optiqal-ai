@@ -64,11 +64,13 @@ def format_portfolio_table(portfolio: List[dict]) -> str:
         last = portfolio[-1]
         total_days = last["total_qaly"] * 365.25
         total_cost = last["total_annual_cost"]
-        lines.extend([
-            f"\n  --- STOPPED at {len(portfolio)} items ---",
-            f"\n  Total E[days]: {total_days:.0f}",
-            f"  Total cost: ${total_cost:,.0f}/yr",
-        ])
+        lines.extend(
+            [
+                f"\n  --- STOPPED at {len(portfolio)} items ---",
+                f"\n  Total E[days]: {total_days:.0f}",
+                f"  Total cost: ${total_cost:,.0f}/yr",
+            ]
+        )
 
     return "\n".join(lines)
 
@@ -136,14 +138,16 @@ def format_bundle_recommendations(bundles: List[dict]) -> str:
     ]
     for b in bundles:
         verdict = "WORTH IT" if b["worth_it"] else "NOT WORTH IT"
-        lines.extend([
-            f"\n  {b['bundle_name']} (${b['annual_cost']:.0f}/yr):",
-            f"    Contains {b['n_selected']}/{b['n_total']} selected items: "
-            f"{', '.join(b['selected_items'])}",
-            f"    Combined value: ${b['combined_value']:,.0f} vs "
-            f"cost ${b['total_cost']:,.0f}",
-            f"    → {verdict} (net ${b['net_value']:>+,.0f})",
-        ])
+        lines.extend(
+            [
+                f"\n  {b['bundle_name']} (${b['annual_cost']:.0f}/yr):",
+                f"    Contains {b['n_selected']}/{b['n_total']} selected items: "
+                f"{', '.join(b['selected_items'])}",
+                f"    Combined value: ${b['combined_value']:,.0f} vs "
+                f"cost ${b['total_cost']:,.0f}",
+                f"    → {verdict} (net ${b['net_value']:>+,.0f})",
+            ]
+        )
 
     return "\n".join(lines)
 
@@ -171,11 +175,13 @@ def format_decision_table(decisions: List[dict]) -> str:
             f"{r['p_benefit']:>5.0%} {cost_str:>7} ${r['net_value']:>+9,.0f}"
         )
 
-    lines.extend([
-        "",
-        "RECOMMENDATION SUMMARY",
-        "=" * 110,
-    ])
+    lines.extend(
+        [
+            "",
+            "RECOMMENDATION SUMMARY",
+            "=" * 110,
+        ]
+    )
     for r in decisions:
         lines.append(f"  {r['verdict']:>8}: {r['label']}")
 
@@ -222,13 +228,19 @@ def serialize_ranked_steps(
             "name": item_name_by_id.get(item_id, item_id),
             "marginal_qaly": round(step["marginal_qaly"], 4),
             "marginal_days": round(step["marginal_qaly"] * DAYS_PER_QALY, 1),
-            "marginal_cost_per_qaly": round_cost_per_qaly(step.get("marginal_cost_per_qaly")),
-            "marginal_interaction_days": round(step.get("marginal_interaction_qaly", 0) * DAYS_PER_QALY, 1),
+            "marginal_cost_per_qaly": round_cost_per_qaly(
+                step.get("marginal_cost_per_qaly")
+            ),
+            "marginal_interaction_days": round(
+                step.get("marginal_interaction_qaly", 0) * DAYS_PER_QALY, 1
+            ),
             "cumulative_days": round(step["total_qaly"] * DAYS_PER_QALY, 1),
             "total_annual_cost": round(step["total_annual_cost"]),
         }
         if include_cost_details:
-            row["interaction_penalty_days"] = round(step.get("interaction_penalty_qaly", 0) * DAYS_PER_QALY, 1)
+            row["interaction_penalty_days"] = round(
+                step.get("interaction_penalty_qaly", 0) * DAYS_PER_QALY, 1
+            )
             row["marginal_cost_value"] = round(step.get("marginal_cost_value", 0))
             row["total_cost_value"] = round(step.get("total_cost_value", 0))
         rows.append(row)
@@ -279,7 +291,9 @@ def serialize_item_results(
             "sleep_qol_qaly": round(result.get("sleep_qol_qaly", 0), 4),
             "evidence_discount_qaly": round(result.get("evidence_discount_qaly", 0), 4),
             "evidence_quality": getattr(entry, "evidence_quality", "moderate"),
-            "evidence_effect_multiplier": round(result.get("evidence_effect_multiplier", 1.0), 4),
+            "evidence_effect_multiplier": round(
+                result.get("evidence_effect_multiplier", 1.0), 4
+            ),
             "component_breakdown": {
                 key: round(value, 4)
                 for key, value in result.get("component_breakdown", {}).items()
@@ -291,15 +305,21 @@ def serialize_item_results(
                 if result.get("airway_effect_multiplier") is not None
                 else None
             ),
-            "sleep_mortality_relief_fraction": round(result.get("sleep_mortality_relief_fraction", 0), 4),
-            "sleep_mortality_hr_multiplier": round(result.get("sleep_mortality_hr_multiplier", 1), 6),
+            "sleep_mortality_relief_fraction": round(
+                result.get("sleep_mortality_relief_fraction", 0), 4
+            ),
+            "sleep_mortality_hr_multiplier": round(
+                result.get("sleep_mortality_hr_multiplier", 1), 6
+            ),
             "evidence": evidence_confidence_for_entry(entry),
             "notes": entry.notes,
             "sources": list(entry.sources) if entry.sources else [],
             "in_portfolio": result["id"] in selected_set,
             "cost_per_qaly": round_cost_per_qaly(result.get("cost_per_qaly")),
             "qaly_source": result.get("qaly_source", "catalog"),
-            "catalog_days": round(result.get("catalog_days"), 1) if result.get("catalog_days") is not None else None,
+            "catalog_days": round(result.get("catalog_days"), 1)
+            if result.get("catalog_days") is not None
+            else None,
             "range_low_qaly": result.get("range_low_qaly"),
             "range_high_qaly": result.get("range_high_qaly"),
             "within_range": result.get("within_range"),
@@ -372,8 +392,7 @@ def serialize_choice_evaluation(
         }
         if item_summary_for_id is not None:
             option["added_items"] = [
-                dict(item_summary_for_id(item_id))
-                for item_id in row["added_item_ids"]
+                dict(item_summary_for_id(item_id)) for item_id in row["added_item_ids"]
             ]
         options.append(option)
 

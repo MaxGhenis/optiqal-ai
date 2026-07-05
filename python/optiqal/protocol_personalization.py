@@ -4,17 +4,19 @@ from __future__ import annotations
 
 from typing import Any
 
+from .profile import Profile
 from .protocol_ground_up import (
     ProtocolContext,
     apply_spec_to_catalog_entry,
     build_additional_specs,
     build_specs,
     load_baseline,
-    load_protocol_items as _load_protocol_items,
-    resolve_stack_spec,
     resolve_protocol_context,
+    resolve_stack_spec,
 )
-from .profile import Profile
+from .protocol_ground_up import (
+    load_protocol_items as _load_protocol_items,
+)
 from .sleep import AirwayContributorEstimate, SleepBurdenEstimate
 
 
@@ -119,8 +121,12 @@ def protocol_sleep_estimate_from_baseline(
         mortality_signal=float(derived.get("sleep_mortality_signal", 0.0)),
         airway=(
             AirwayContributorEstimate(
-                upper_airway_probability=float(airway.get("upper_airway_probability", 0.0)),
-                nasal_inflammation_probability=float(airway.get("nasal_inflammation_probability", 0.0)),
+                upper_airway_probability=float(
+                    airway.get("upper_airway_probability", 0.0)
+                ),
+                nasal_inflammation_probability=float(
+                    airway.get("nasal_inflammation_probability", 0.0)
+                ),
                 mucus_probability=float(airway.get("mucus_probability", 0.0)),
                 response_signal=float(derived.get("airway_response_signal", 0.0)),
             )
@@ -129,6 +135,8 @@ def protocol_sleep_estimate_from_baseline(
         ),
         component_utility_weight_ids={
             k: str(v)
-            for k, v in (derived.get("sleep_component_utility_weight_ids") or {}).items()
+            for k, v in (
+                derived.get("sleep_component_utility_weight_ids") or {}
+            ).items()
         },
     )

@@ -1,7 +1,7 @@
 """Tests for intervention module."""
 
-import pytest
 import numpy as np
+import pytest
 
 from optiqal.intervention import Distribution, Intervention, MortalityEffect
 
@@ -47,12 +47,14 @@ class TestDistribution:
 
     def test_lognormal_hr_takes_precedence_over_log_mean(self):
         """When both hr and log_mean are supplied to from_dict, hr wins."""
-        dist = Distribution.from_dict({
-            "type": "lognormal",
-            "hr": 0.85,
-            "log_mean": 999.0,  # should be ignored
-            "log_sd": 0.10,
-        })
+        dist = Distribution.from_dict(
+            {
+                "type": "lognormal",
+                "hr": 0.85,
+                "log_mean": 999.0,  # should be ignored
+                "log_sd": 0.10,
+            }
+        )
         assert dist.mean == 0.85
         assert "log_mean" not in dist.params  # raw key not stored
 
@@ -66,32 +68,36 @@ class TestDistribution:
         hr_keyed = Distribution(type="lognormal", params={"hr": 0.80, "log_sd": 0.15})
         log_mean, log_sd = hr_keyed._lognormal_params()
         # log_mean = log(0.80) - 0.15**2/2 = -0.2231 - 0.01125 = -0.2344
-        assert abs(log_mean - (np.log(0.80) - 0.15 ** 2 / 2)) < 1e-9
+        assert abs(log_mean - (np.log(0.80) - 0.15**2 / 2)) < 1e-9
         assert log_sd == 0.15
 
-        raw_keyed = Distribution(type="lognormal", params={"log_mean": -0.18, "log_sd": 0.10})
+        raw_keyed = Distribution(
+            type="lognormal", params={"log_mean": -0.18, "log_sd": 0.10}
+        )
         log_mean_raw, log_sd_raw = raw_keyed._lognormal_params()
         assert log_mean_raw == -0.18
         assert log_sd_raw == 0.10
 
     def test_lognormal_raw_log_mean_still_works(self):
         """Existing YAML using log_mean continues to work unchanged."""
-        dist = Distribution.from_dict({
-            "type": "lognormal",
-            "log_mean": -0.223,
-            "log_sd": 0.12,
-        })
+        dist = Distribution.from_dict(
+            {
+                "type": "lognormal",
+                "log_mean": -0.223,
+                "log_sd": 0.12,
+            }
+        )
         assert "log_mean" in dist.params
         assert dist.params["log_mean"] == pytest.approx(-0.223)
         # Under raw semantics, mean = exp(log_mean + sigma^2/2).
-        expected_mean = np.exp(-0.223 + 0.12 ** 2 / 2)
+        expected_mean = np.exp(-0.223 + 0.12**2 / 2)
         assert dist.mean == pytest.approx(expected_mean, abs=1e-6)
 
     def test_beta_distribution(self):
         dist = Distribution(type="beta", params={"alpha": 2, "beta": 5})
         samples = dist.sample(10000, random_state=42)
         assert all(0 <= s <= 1 for s in samples)
-        assert abs(dist.mean - 2/7) < 0.01
+        assert abs(dist.mean - 2 / 7) < 0.01
 
     def test_uniform_distribution(self):
         dist = Distribution(type="uniform", params={"min": 0.7, "max": 0.9})
@@ -217,7 +223,10 @@ interaction_rules:
         assert intervention.lineage.estimand.startswith("Lifetime net QALY delta")
         assert len(intervention.lineage.studies) == 1
         assert intervention.lineage.studies[0]["study_type"] == "meta-analysis"
-        assert intervention.lineage.parameter_lineage[0]["parameter"] == "mortality.hazard_ratio"
+        assert (
+            intervention.lineage.parameter_lineage[0]["parameter"]
+            == "mortality.hazard_ratio"
+        )
         assert intervention.lineage.prior_lineage[0]["family"] == "beta"
 
     def test_harm_model_and_interaction_rules_parsed(self, walking_yaml):

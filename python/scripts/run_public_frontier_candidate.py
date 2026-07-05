@@ -11,8 +11,8 @@ from optiqal import load_public_policy_override
 from optiqal.public_frontier_benchmark import (
     benchmark_report_to_dict,
     build_blank_judge_verdict_template,
-    build_public_frontier_benchmark_scenarios,
     build_pairwise_judge_packets,
+    build_public_frontier_benchmark_scenarios,
     compute_hybrid_public_frontier_score,
     compute_pairwise_judge_score,
     judge_packet_to_dict,
@@ -92,7 +92,9 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _case_summary(candidate_case: dict[str, Any], incumbent_case: dict[str, Any]) -> dict[str, Any]:
+def _case_summary(
+    candidate_case: dict[str, Any], incumbent_case: dict[str, Any]
+) -> dict[str, Any]:
     return {
         "scenario_id": candidate_case["scenario_id"],
         "label": candidate_case["label"],
@@ -106,11 +108,10 @@ def _case_summary(candidate_case: dict[str, Any], incumbent_case: dict[str, Any]
     }
 
 
-def _comparison_summary(candidate_report: dict[str, Any], incumbent_report: dict[str, Any]) -> dict[str, Any]:
-    incumbent_cases = {
-        case["scenario_id"]: case
-        for case in incumbent_report["cases"]
-    }
+def _comparison_summary(
+    candidate_report: dict[str, Any], incumbent_report: dict[str, Any]
+) -> dict[str, Any]:
+    incumbent_cases = {case["scenario_id"]: case for case in incumbent_report["cases"]}
     changed_cases = []
     for candidate_case in candidate_report["cases"]:
         incumbent_case = incumbent_cases[candidate_case["scenario_id"]]
@@ -159,8 +160,12 @@ def main() -> None:
         scenario_tuple,
         public_policy=incumbent_policy,
     )
-    candidate_report_dict = benchmark_report_to_dict(candidate_report, include_responses=False)
-    incumbent_report_dict = benchmark_report_to_dict(incumbent_report, include_responses=False)
+    candidate_report_dict = benchmark_report_to_dict(
+        candidate_report, include_responses=False
+    )
+    incumbent_report_dict = benchmark_report_to_dict(
+        incumbent_report, include_responses=False
+    )
 
     summary = {
         "candidate_policy_path": str(args.candidate_policy),

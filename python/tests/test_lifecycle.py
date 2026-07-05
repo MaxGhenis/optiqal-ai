@@ -1,16 +1,14 @@
 """Tests for lifecycle module."""
 
 import pytest
-import numpy as np
 
 from optiqal.lifecycle import (
     CDC_LIFE_TABLE,
-    CAUSE_FRACTIONS,
-    get_mortality_rate,
-    get_cause_fraction,
-    get_quality_weight,
     LifecycleModel,
     PathwayHRs,
+    get_cause_fraction,
+    get_mortality_rate,
+    get_quality_weight,
 )
 
 

@@ -1,8 +1,10 @@
 """Tests for simulation module."""
 
-import pytest
 import numpy as np
+import pytest
 
+from optiqal.confounding import ConfoundingPrior
+from optiqal.defaults import DEFAULT_QALY_DISCOUNT_RATE
 from optiqal.intervention import (
     Distribution,
     HarmEffect,
@@ -10,14 +12,12 @@ from optiqal.intervention import (
     Intervention,
     MortalityEffect,
 )
-from optiqal.confounding import ConfoundingPrior
 from optiqal.profile import Profile
-from optiqal.defaults import DEFAULT_QALY_DISCOUNT_RATE
 from optiqal.simulate import (
+    SimulationResult,
     effective_qol_factor_for_years,
     simulate_qaly,
     simulate_qaly_profile_vectorized,
-    SimulationResult,
 )
 
 
@@ -30,8 +30,7 @@ def protective_intervention():
         category="exercise",
         mortality=MortalityEffect(
             hazard_ratio=Distribution(
-                type="lognormal",
-                params={"log_mean": -0.18, "log_sd": 0.08}
+                type="lognormal", params={"log_mean": -0.18, "log_sd": 0.08}
             )
         ),
         confounding_prior=ConfoundingPrior(alpha=2.5, beta=5.0),
@@ -147,7 +146,7 @@ def test_all_cause_hr_applied_without_pathway_attenuation():
             )
         ),
     )
-    MAX_AGE = 100  # must match simulate.py's modeled horizon
+    max_age = 100  # must match simulate.py's modeled horizon
     for age in (40, 60, 75):
         profile = Profile(
             age=age,
@@ -165,7 +164,7 @@ def test_all_cause_hr_applied_without_pathway_attenuation():
         )
         mult = get_baseline_mortality_multiplier(profile)
         base_qx = np.minimum(
-            np.array([get_mortality_rate(int(a), "male") for a in range(age, MAX_AGE)])
+            np.array([get_mortality_rate(int(a), "male") for a in range(age, max_age)])
             * mult,
             0.99,
         )
@@ -237,7 +236,11 @@ class TestSimulateQALY:
             n_simulations=1000,
             random_state=42,
         )
-        total = result.cvd_contribution + result.cancer_contribution + result.other_contribution
+        total = (
+            result.cvd_contribution
+            + result.cancer_contribution
+            + result.other_contribution
+        )
         # Allow some tolerance
         assert abs(total - result.median) < 0.5
 
@@ -320,7 +323,9 @@ class TestSimulateQALY:
         )
 
         assert 0 <= result.prob_negative <= 1
-        assert result.prob_positive + result.prob_negative == pytest.approx(1.0, abs=0.05)
+        assert result.prob_positive + result.prob_negative == pytest.approx(
+            1.0, abs=0.05
+        )
         assert result.expected_upside >= 0
         assert result.expected_downside <= 0
         assert result.conditional_upside >= result.expected_upside
@@ -369,7 +374,9 @@ class TestSimulateQALY:
         assert np.mean(qaly_gains > 0) == pytest.approx(result.prob_positive, abs=1e-9)
         assert np.mean(qaly_gains < 0) == pytest.approx(result.prob_negative, abs=1e-9)
 
-    def test_negative_qaly_discount_is_rejected(self, protective_intervention, default_profile):
+    def test_negative_qaly_discount_is_rejected(
+        self, protective_intervention, default_profile
+    ):
         with pytest.raises(ValueError, match="nonnegative"):
             simulate_qaly_profile_vectorized(
                 protective_intervention,
@@ -389,9 +396,9 @@ class TestSimulateQALY:
             ),
             harm_model=[
                 HarmEffect(
-                id="sedation",
-                annual_qaly_loss=Distribution(type="point", params={"value": 0.01}),
-            )
+                    id="sedation",
+                    annual_qaly_loss=Distribution(type="point", params={"value": 0.01}),
+                )
             ],
         )
 
@@ -439,7 +446,9 @@ class TestSimulateQALY:
 
         assert one_year.expected_harm_qalys == pytest.approx(-0.01, rel=0.05)
         assert ten_year.expected_harm_qalys < one_year.expected_harm_qalys
-        assert abs(ten_year.expected_harm_qalys) < 10 * abs(one_year.expected_harm_qalys)
+        assert abs(ten_year.expected_harm_qalys) < 10 * abs(
+            one_year.expected_harm_qalys
+        )
 
     def test_interaction_rule_uses_active_stack_tags(self, default_profile):
         intervention = Intervention(
@@ -577,7 +586,8 @@ class TestJensenBiasResidual:
             mortality=MortalityEffect(
                 # hr-centered lognormal so E[HR] == 1.0 exactly.
                 hazard_ratio=Distribution(
-                    type="lognormal", params={"hr": 1.0, "log_sd": log_sd},
+                    type="lognormal",
+                    params={"hr": 1.0, "log_sd": log_sd},
                 ),
             ),
             confounding_prior=ConfoundingPrior(alpha=3.0, beta=3.0),
@@ -592,31 +602,43 @@ class TestJensenBiasResidual:
         confounding.py don't silently widen the penalty.
         """
         profile = Profile(
-            age=39, sex="male", bmi_category="normal",
-            smoking_status="never", has_diabetes=False,
-            has_hypertension=False, activity_level="light",
+            age=39,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=False,
+            has_hypertension=False,
+            activity_level="light",
         )
         r = simulate_qaly_profile_vectorized(
-            self._null_intervention(0.12), profile,
-            n_simulations=100_000, random_state=1,
+            self._null_intervention(0.12),
+            profile,
+            n_simulations=100_000,
+            random_state=1,
         )
         assert abs(r.mean) < 0.05, (
             f"Null-HR bias at log_sd=0.12 grew beyond bounded residual: "
-            f"got {r.mean:.4f} QALY ({r.mean*365.25:.1f} days)"
+            f"got {r.mean:.4f} QALY ({r.mean * 365.25:.1f} days)"
         )
 
     def test_null_bias_monotone_in_variance(self):
         """Magnitude of the null-HR bias grows ~monotonically in log_sd**2."""
         profile = Profile(
-            age=39, sex="male", bmi_category="normal",
-            smoking_status="never", has_diabetes=False,
-            has_hypertension=False, activity_level="light",
+            age=39,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=False,
+            has_hypertension=False,
+            activity_level="light",
         )
         biases = []
         for log_sd in (0.02, 0.04, 0.08):
             r = simulate_qaly_profile_vectorized(
-                self._null_intervention(log_sd), profile,
-                n_simulations=100_000, random_state=1,
+                self._null_intervention(log_sd),
+                profile,
+                n_simulations=100_000,
+                random_state=1,
             )
             biases.append(abs(r.mean))
         # Monotone non-decreasing (allowing noise at the small end).
@@ -625,13 +647,19 @@ class TestJensenBiasResidual:
     def test_null_bias_vanishes_at_zero_variance(self):
         """log_sd=0 means no Monte Carlo noise → exact zero QALY."""
         profile = Profile(
-            age=39, sex="male", bmi_category="normal",
-            smoking_status="never", has_diabetes=False,
-            has_hypertension=False, activity_level="light",
+            age=39,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=False,
+            has_hypertension=False,
+            activity_level="light",
         )
         r = simulate_qaly_profile_vectorized(
-            self._null_intervention(0.0), profile,
-            n_simulations=10_000, random_state=1,
+            self._null_intervention(0.0),
+            profile,
+            n_simulations=10_000,
+            random_state=1,
         )
         assert r.mean == pytest.approx(0.0, abs=1e-9)
 
@@ -647,16 +675,26 @@ class TestJensenBiasResidual:
         convexity corridor.
         """
         profile = Profile(
-            age=39, sex="male", bmi_category="normal",
-            smoking_status="never", has_diabetes=False,
-            has_hypertension=False, activity_level="light",
+            age=39,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=False,
+            has_hypertension=False,
+            activity_level="light",
         )
         r = simulate_qaly_profile_vectorized(
-            self._null_intervention(0.12), profile,
-            n_simulations=100_000, random_state=1,
+            self._null_intervention(0.12),
+            profile,
+            n_simulations=100_000,
+            random_state=1,
         )
-        assert r.median > 0, "median QALY should be slightly positive (median HR < 1 from mean-centering)"
-        assert r.mean < 0, "mean QALY should be slightly negative (Jensen on lifetime survival)"
+        assert r.median > 0, (
+            "median QALY should be slightly positive (median HR < 1 from mean-centering)"
+        )
+        assert r.mean < 0, (
+            "mean QALY should be slightly negative (Jensen on lifetime survival)"
+        )
         # Same order of magnitude (within ~3x of each other).
         assert 0.33 < abs(r.median / r.mean) < 3.0, (
             f"median {r.median:.4f} and mean {r.mean:.4f} diverge too much"
@@ -673,15 +711,21 @@ class TestJensenBiasResidual:
         won't amplify beyond the linear rate.
         """
         profile = Profile(
-            age=39, sex="male", bmi_category="normal",
-            smoking_status="never", has_diabetes=False,
-            has_hypertension=False, activity_level="light",
+            age=39,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=False,
+            has_hypertension=False,
+            activity_level="light",
         )
         per_item_biases = []
         for seed in range(1, 6):
             r = simulate_qaly_profile_vectorized(
-                self._null_intervention(0.12), profile,
-                n_simulations=50_000, random_state=seed,
+                self._null_intervention(0.12),
+                profile,
+                n_simulations=50_000,
+                random_state=seed,
             )
             per_item_biases.append(r.mean)
         per_item_mean = sum(per_item_biases) / len(per_item_biases)
@@ -697,7 +741,7 @@ class TestJensenBiasResidual:
         n = len(per_item_biases)
         assert abs(stacked_sum) < n * single_item_cap * 1.2, (
             f"Stacked null-HR bias super-additive: {stacked_sum:.4f} "
-            f"exceeds {n}× single-item bound ({n*single_item_cap:.3f})"
+            f"exceeds {n}× single-item bound ({n * single_item_cap:.3f})"
         )
 
 
@@ -736,7 +780,9 @@ def test_effective_hr_inversion_round_trips():
     assert effective_hr_for_mortality_qaly(profile, -0.5) == 1.0
 
     # The integrator is monotone decreasing in HR (more protective -> more QALY).
-    gains = [mortality_qaly_for_combined_hr(profile, hr) for hr in (0.6, 0.8, 0.95, 1.0)]
+    gains = [
+        mortality_qaly_for_combined_hr(profile, hr) for hr in (0.6, 0.8, 0.95, 1.0)
+    ]
     assert gains == sorted(gains, reverse=True)
     assert mortality_qaly_for_combined_hr(profile, 1.0) == pytest.approx(0.0, abs=1e-9)
 

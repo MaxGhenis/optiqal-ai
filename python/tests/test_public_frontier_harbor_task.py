@@ -8,7 +8,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 ROOT_AGENT = ROOT / "autoagent" / "public-frontier-policy" / "agent.py"
 TASK_DOCKERFILE = (
@@ -101,7 +100,9 @@ def test_public_policy_root_agent_exports_autoagent_class() -> None:
     assert result.stdout.strip() == "True"
 
 
-def test_public_policy_root_agent_emits_focused_judge_packets_and_template(tmp_path: Path) -> None:
+def test_public_policy_root_agent_emits_focused_judge_packets_and_template(
+    tmp_path: Path,
+) -> None:
     env = dict(os.environ)
     env["PYTHONPATH"] = str(ROOT / "python")
     packets_path = tmp_path / "judge-packets.json"
@@ -135,16 +136,20 @@ def test_public_policy_root_agent_emits_focused_judge_packets_and_template(tmp_p
 def test_harbor_score_task_prefers_hybrid_score_when_present(tmp_path: Path) -> None:
     summary_path = tmp_path / "summary.json"
     logs_dir = tmp_path / "logs"
-    summary_path.write_text(json.dumps({
-        "comparison": {
-            "candidate_score": 1.0,
-            "incumbent_score": 0.95,
-            "score_delta": 0.05,
-            "changed_case_count": 3,
-        },
-        "judge_score": 0.4,
-        "hybrid_score": 0.88,
-    }))
+    summary_path.write_text(
+        json.dumps(
+            {
+                "comparison": {
+                    "candidate_score": 1.0,
+                    "incumbent_score": 0.95,
+                    "score_delta": 0.05,
+                    "changed_case_count": 3,
+                },
+                "judge_score": 0.4,
+                "hybrid_score": 0.88,
+            }
+        )
+    )
 
     env = dict(os.environ)
     env["HARBOR_VERIFIER_LOG_DIR"] = str(logs_dir)
@@ -162,17 +167,23 @@ def test_harbor_score_task_prefers_hybrid_score_when_present(tmp_path: Path) -> 
     assert reward_payload["reward"] == 0.88
 
 
-def test_harbor_score_task_keeps_gradient_for_near_perfect_candidates(tmp_path: Path) -> None:
+def test_harbor_score_task_keeps_gradient_for_near_perfect_candidates(
+    tmp_path: Path,
+) -> None:
     summary_path = tmp_path / "summary.json"
     logs_dir = tmp_path / "logs"
-    summary_path.write_text(json.dumps({
-        "comparison": {
-            "candidate_score": 0.9844,
-            "incumbent_score": 0.9093,
-            "score_delta": 0.0751,
-            "changed_case_count": 9,
-        },
-    }))
+    summary_path.write_text(
+        json.dumps(
+            {
+                "comparison": {
+                    "candidate_score": 0.9844,
+                    "incumbent_score": 0.9093,
+                    "score_delta": 0.0751,
+                    "changed_case_count": 9,
+                },
+            }
+        )
+    )
 
     env = dict(os.environ)
     env["HARBOR_VERIFIER_LOG_DIR"] = str(logs_dir)

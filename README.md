@@ -29,8 +29,16 @@ See [PRODUCT_STRATEGY.md](/Users/maxghenis/optiqal-ai/PRODUCT_STRATEGY.md) for t
 ## Development
 
 ```bash
-npm install
-npm run dev
+bun install
+bun run dev
+```
+
+Checks (all enforced in CI):
+
+```bash
+bun run typecheck && bun run lint && bun run test   # web
+bun run test:e2e                                    # Playwright, needs browsers
+cd python && uv run --all-extras pytest -q && uv run ruff check && uv run ruff format --check
 ```
 
 ## Usage

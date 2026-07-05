@@ -7,9 +7,9 @@ Reads YAML intervention definitions (shared with TypeScript package).
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Union
-import yaml
+
 import numpy as np
-from scipy import stats
+import yaml
 
 from .confounding import ConfoundingPrior, get_confounding_prior
 
@@ -83,7 +83,9 @@ class Distribution:
         if dist_type == "normal":
             return cls(type="normal", params={"mean": args[0], "sd": args[1]})
         elif dist_type == "lognormal":
-            return cls(type="lognormal", params={"log_mean": args[0], "log_sd": args[1]})
+            return cls(
+                type="lognormal", params={"log_mean": args[0], "log_sd": args[1]}
+            )
         elif dist_type == "beta":
             return cls(type="beta", params={"alpha": args[0], "beta": args[1]})
         elif dist_type == "uniform":
@@ -103,7 +105,7 @@ class Distribution:
             hr = float(self.params["hr"])
             if hr <= 0:
                 raise ValueError(f"hr must be positive, got {hr}")
-            log_mean = float(np.log(hr) - (log_sd ** 2) / 2.0)
+            log_mean = float(np.log(hr) - (log_sd**2) / 2.0)
         else:
             log_mean = float(self.params["log_mean"])
         return log_mean, log_sd
@@ -142,7 +144,7 @@ class Distribution:
             if "hr" in self.params:
                 return float(self.params["hr"])
             mu, sigma = float(self.params["log_mean"]), float(self.params["log_sd"])
-            return float(np.exp(mu + sigma ** 2 / 2))
+            return float(np.exp(mu + sigma**2 / 2))
         elif self.type == "beta":
             a, b = self.params["alpha"], self.params["beta"]
             return a / (a + b)
