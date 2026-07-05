@@ -4,9 +4,8 @@ Profile Module
 Defines demographic profiles for precomputation with relative mortality adjustments.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Iterator, Literal, Optional
-import numpy as np
 
 
 @dataclass(frozen=True)
@@ -77,8 +76,8 @@ class Profile:
 # https://doi.org/10.1016/S0140-6736(16)30175-1
 BMI_MORTALITY_RR = {
     "normal": 1.0,
-    "overweight": 1.11,      # BMI 25-30: RR 1.11 (1.10-1.11)
-    "obese": 1.44,           # BMI 30-35: RR 1.44 (1.38-1.50)
+    "overweight": 1.11,  # BMI 25-30: RR 1.11 (1.10-1.11)
+    "obese": 1.44,  # BMI 30-35: RR 1.44 (1.38-1.50)
     "severely_obese": 2.06,  # BMI 35+: RR 2.06 (1.90-2.23)
 }
 
@@ -86,8 +85,8 @@ BMI_MORTALITY_RR = {
 # Source: Jha et al 2013, NEJM; CDC mortality data
 SMOKING_MORTALITY_RR = {
     "never": 1.0,
-    "former": 1.34,    # Former smokers retain ~34% excess risk
-    "current": 2.80,   # Current smokers: 2.8x all-cause mortality
+    "former": 1.34,  # Former smokers retain ~34% excess risk
+    "current": 2.80,  # Current smokers: 2.8x all-cause mortality
 }
 
 # Diabetes relative mortality risk (vs non-diabetic)
@@ -106,10 +105,10 @@ HYPERTENSION_MORTALITY_RR = 1.50  # Conservative for "has hypertension" (may be 
 # Source: Lear et al 2017, Lancet (PURE study); Ekelund et al 2016
 # Sedentary lifestyle substantially increases mortality
 ACTIVITY_MORTALITY_RR = {
-    "sedentary": 1.40,   # Sitting >8h/day with no exercise: RR ~1.4
-    "light": 1.15,       # Some walking but <150 min/week
-    "moderate": 1.00,    # Meets guidelines (150 min/week)
-    "active": 0.90,      # Exceeds guidelines (300+ min/week)
+    "sedentary": 1.40,  # Sitting >8h/day with no exercise: RR ~1.4
+    "light": 1.15,  # Some walking but <150 min/week
+    "moderate": 1.00,  # Meets guidelines (150 min/week)
+    "active": 0.90,  # Exceeds guidelines (300+ min/week)
 }
 
 
@@ -145,10 +144,8 @@ def get_baseline_mortality_multiplier(profile: Profile) -> float:
 # Some interventions have modified effectiveness by profile
 # These are multiplicative adjustments to the intervention's hazard ratio effect
 
-def get_intervention_modifier(
-    profile: Profile,
-    intervention_category: str
-) -> float:
+
+def get_intervention_modifier(profile: Profile, intervention_category: str) -> float:
     """
     Get multiplicative modifier for intervention effect.
 
@@ -176,10 +173,10 @@ def get_intervention_modifier(
         # Sedentary → active: full effect
         # Already active → more active: much smaller marginal effect
         activity_modifiers = {
-            "sedentary": 1.20,   # Largest gains from starting exercise
-            "light": 1.00,       # Baseline effect
-            "moderate": 0.60,    # Already meeting guidelines, smaller marginal gain
-            "active": 0.30,      # Already exceeding guidelines, minimal additional benefit
+            "sedentary": 1.20,  # Largest gains from starting exercise
+            "light": 1.00,  # Baseline effect
+            "moderate": 0.60,  # Already meeting guidelines, smaller marginal gain
+            "active": 0.30,  # Already exceeding guidelines, minimal additional benefit
         }
         modifier *= activity_modifiers[profile.activity_level]
 
@@ -241,15 +238,17 @@ def get_intervention_modifier(
     elif intervention_category == "supplement":
         # Supplements generally less effective in healthy populations
         # More effective in those with deficiencies (proxy: poor lifestyle)
-        if profile.activity_level == "sedentary" and profile.bmi_category in ("obese", "severely_obese"):
+        if profile.activity_level == "sedentary" and profile.bmi_category in (
+            "obese",
+            "severely_obese",
+        ):
             modifier *= 1.20  # More likely to have nutritional gaps
 
     return modifier
 
 
 def get_intervention_modifier_breakdown(
-    profile: Profile,
-    intervention_category: str
+    profile: Profile, intervention_category: str
 ) -> dict:
     """
     Get detailed breakdown of intervention effect modifiers.
@@ -298,9 +297,7 @@ def get_intervention_modifier_breakdown(
             modifier *= 1.10
 
     elif intervention_category == "smoking":
-        age_mods = [
-            (35, 1.30), (45, 1.15), (55, 1.00), (65, 0.85), (999, 0.70)
-        ]
+        age_mods = [(35, 1.30), (45, 1.15), (55, 1.00), (65, 0.85), (999, 0.70)]
         for threshold, mod in age_mods:
             if profile.age < threshold:
                 components["age_effect"] = mod
@@ -314,6 +311,7 @@ def get_intervention_modifier_breakdown(
 # =============================================================================
 # PROFILE GENERATION
 # =============================================================================
+
 
 def generate_all_profiles(
     ages: Optional[list] = None,
@@ -390,7 +388,9 @@ def count_profiles(**kwargs) -> int:
     """Count total profiles without generating them."""
     ages = kwargs.get("ages", list(range(25, 85, 5)))
     sexes = kwargs.get("sexes", ["male", "female"])
-    bmi_categories = kwargs.get("bmi_categories", ["normal", "overweight", "obese", "severely_obese"])
+    bmi_categories = kwargs.get(
+        "bmi_categories", ["normal", "overweight", "obese", "severely_obese"]
+    )
     smoking_statuses = kwargs.get("smoking_statuses", ["never", "former", "current"])
     diabetes_statuses = kwargs.get("diabetes_statuses", [False, True])
     hypertension_statuses = kwargs.get("hypertension_statuses", [False, True])

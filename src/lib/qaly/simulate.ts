@@ -22,7 +22,6 @@ import type {
 import type { UserProfile } from "@/types";
 import {
   calculateBaselineQALYs,
-  getRemainingLifeExpectancy,
   getAgeQualityWeight,
 } from "@/lib/evidence/baseline";
 import {
@@ -77,7 +76,12 @@ function sampleDistribution(dist: Distribution, uncertaintyMultiplier: number = 
       return dist.mean + z * (dist.sd * uncertaintyMultiplier);
 
     case "lognormal":
-      // Sample normal, then exponentiate - inflate logSd
+      // Sample normal in log space, then exponentiate, inflating logSd by the
+      // evidence-quality multiplier. This preserves the median (exp(logMean)) —
+      // the point estimate shown to users — while widening the interval. The
+      // mean (exp(logMean + logSd²/2)) does rise with logSd; that reflects the
+      // skew of integrating over genuine epistemic uncertainty and is intended,
+      // not a drift in the central estimate.
       const u1ln = random();
       const u2ln = random();
       const zln = Math.sqrt(-2 * Math.log(u1ln)) * Math.cos(2 * Math.PI * u2ln);
@@ -288,6 +292,28 @@ function getPercentileValue(sortedValues: number[], percentile: number): number 
     Math.floor((sortedValues.length * percentile) / 100)
   );
   return sortedValues[index];
+}
+
+/**
+ * Summarize the unadjusted (causalFraction = 1) draws against the adjusted
+ * posterior median. Uses the real simulated unadjusted median rather than
+ * rescaling the adjusted median by the causal fraction, which would be wrong
+ * because QALY gain is nonlinear in the causal fraction.
+ */
+function buildConfoundingComparison(
+  unadjustedResults: number[],
+  adjustedMedian: number
+): { unadjustedMedian: number; adjustedMedian: number; reductionPercent: number } {
+  if (unadjustedResults.length === 0) {
+    return { unadjustedMedian: adjustedMedian, adjustedMedian, reductionPercent: 0 };
+  }
+  const sorted = [...unadjustedResults].sort((a, b) => a - b);
+  const unadjustedMedian = sorted[Math.floor(sorted.length / 2)];
+  const reductionPercent =
+    unadjustedMedian !== 0
+      ? (1 - adjustedMedian / unadjustedMedian) * 100
+      : 0;
+  return { unadjustedMedian, adjustedMedian, reductionPercent };
 }
 
 function summarizePosterior(sortedResults: number[]) {
@@ -538,9 +564,7 @@ export function qalyYearsToMinutes(years: number): number {
 
 import {
   calculateLifecycleQALYs,
-  STANDARD_PATHWAY_HRS,
   type PathwayHRs,
-  type LifecycleResult,
 } from "./lifecycle";
 
 /**
@@ -674,12 +698,33 @@ export function simulateQALYImpactRigorous(
   const otherContributions: number[] = [];
   const lifeYearsResults: number[] = [];
   const qualityResults: number[] = [];
+  // Paired draws with no confounding adjustment (causalFraction = 1), used to
+  // report a *real* unadjusted-vs-adjusted comparison instead of dividing the
+  // adjusted median by the causal fraction (QALY gain is nonlinear in it).
+  const unadjustedResults: number[] = [];
 
   const sex = profile.sex === "female" ? "female" : "male";
 
   // Get baseline life expectancy for quality calculations
   const baselineProjection = calculateBaselineQALYs(profile);
   const baselineLE = baselineProjection.remainingLifeExpectancy;
+
+  // Accumulate discounted quality QALYs for an (already confounding-scaled)
+  // annual quality change, respecting any onset delay.
+  const accumulateQualityQALY = (qualityChange: number): number => {
+    if (!effect.quality) return 0;
+    let q = 0;
+    for (let year = 0; year < Math.ceil(baselineLE); year++) {
+      const fractionOfYear = Math.min(1, baselineLE - year);
+      const discountFactor = Math.pow(1 + discountRate, -year);
+      const effectiveQuality =
+        effect.quality.onsetDelay > 0 && year < effect.quality.onsetDelay
+          ? 0
+          : qualityChange;
+      q += effectiveQuality * fractionOfYear * discountFactor;
+    }
+    return q;
+  };
 
   for (let i = 0; i < nSimulations; i++) {
     // Sample causal fraction
@@ -707,33 +752,18 @@ export function simulateQALYImpactRigorous(
       discountRate,
     });
 
-    // Calculate quality QALYs if quality effect provided
-    let qualityQALY = 0;
+    // Sample the raw (pre-confounding) annual quality change once, then scale
+    // by the causal fraction for the adjusted track.
+    let rawQualityChange = 0;
     if (effect.quality) {
-      // Sample quality effect
-      let sampledQualityChange = 0;
       if (effect.quality.subjectiveWellbeing) {
-        sampledQualityChange += sampleDistribution(effect.quality.subjectiveWellbeing, uncertaintyMultiplier);
+        rawQualityChange += sampleDistribution(effect.quality.subjectiveWellbeing, uncertaintyMultiplier);
       }
       for (const dimEffect of effect.quality.directDimensionEffects) {
-        sampledQualityChange += sampleDistribution(dimEffect.change, uncertaintyMultiplier) / 5;
-      }
-
-      // Apply confounding adjustment to quality effect too
-      sampledQualityChange *= causalFraction;
-
-      // Calculate quality QALYs over remaining life (discounted)
-      // Quality improvement × remaining life years × discount factor
-      for (let year = 0; year < Math.ceil(baselineLE); year++) {
-        const fractionOfYear = Math.min(1, baselineLE - year);
-        const discountFactor = Math.pow(1 + discountRate, -year);
-        // Quality effect ramps up over time if onset delay specified
-        const effectiveQuality = effect.quality.onsetDelay > 0 && year < effect.quality.onsetDelay
-          ? 0
-          : sampledQualityChange;
-        qualityQALY += effectiveQuality * fractionOfYear * discountFactor;
+        rawQualityChange += sampleDistribution(dimEffect.change, uncertaintyMultiplier) / 5;
       }
     }
+    const qualityQALY = accumulateQualityQALY(rawQualityChange * causalFraction);
 
     results.push(lifecycleResult.qalyGain + qualityQALY);
     cvdContributions.push(lifecycleResult.pathwayContributions.cvd);
@@ -741,6 +771,30 @@ export function simulateQALYImpactRigorous(
     otherContributions.push(lifecycleResult.pathwayContributions.other);
     lifeYearsResults.push(lifecycleResult.lifeYearsGained);
     qualityResults.push(qualityQALY);
+
+    // Paired unadjusted draw (causalFraction = 1) reusing the same sampled
+    // HR multiplier and quality change, so the confounding comparison is a real
+    // simulated difference rather than an algebraic rescaling. Gated on
+    // effect.mortality to match where unadjustedResults is consumed below —
+    // otherwise a quality-only intervention would compute these draws and
+    // discard them. (These draws consume no RNG, so gating them does not change
+    // the adjusted results.)
+    if (confoundingConfig && effect.mortality) {
+      const unadjustedPathwayHRs: PathwayHRs = {
+        cvd: adjustHazardRatio(basePathwayHRs.cvd * hrMultiplier, 1.0),
+        cancer: adjustHazardRatio(basePathwayHRs.cancer * hrMultiplier, 1.0),
+        other: adjustHazardRatio(basePathwayHRs.other * hrMultiplier, 1.0),
+      };
+      const unadjustedLifecycle = calculateLifecycleQALYs({
+        startAge: profile.age,
+        sex,
+        pathwayHRs: unadjustedPathwayHRs,
+        discountRate,
+      });
+      unadjustedResults.push(
+        unadjustedLifecycle.qalyGain + accumulateQualityQALY(rawQualityChange)
+      );
+    }
   }
 
   // Sort for percentile calculations
@@ -770,12 +824,7 @@ export function simulateQALYImpactRigorous(
         ciLow: eValueCI,
         interpretation,
       },
-      comparison: {
-        unadjustedMedian: posterior.median / getExpectedCausalFraction(confoundingConfig),
-        adjustedMedian: posterior.median,
-        reductionPercent:
-          (1 - getExpectedCausalFraction(confoundingConfig)) * 100,
-      },
+      comparison: buildConfoundingComparison(unadjustedResults, posterior.median),
     };
   }
 

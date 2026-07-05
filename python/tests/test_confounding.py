@@ -1,14 +1,14 @@
 """Tests for confounding module."""
 
-import pytest
 import numpy as np
+import pytest
 
 from optiqal.confounding import (
-    ConfoundingPrior,
     CATEGORY_PRIORS,
-    get_confounding_prior,
+    ConfoundingPrior,
     adjust_hr,
     calculate_e_value,
+    get_confounding_prior,
 )
 
 
@@ -30,7 +30,16 @@ class TestConfoundingPrior:
 
 class TestCategoryPriors:
     def test_all_categories_defined(self):
-        expected = ["exercise", "diet", "sleep", "stress", "substance", "medical", "social", "other"]
+        expected = [
+            "exercise",
+            "diet",
+            "sleep",
+            "stress",
+            "substance",
+            "medical",
+            "social",
+            "other",
+        ]
         for cat in expected:
             assert cat in CATEGORY_PRIORS
 
@@ -110,7 +119,7 @@ class TestHrLognormalMeanCentering:
 
     def test_mean_equals_hr(self):
         from optiqal.confounding import hr_to_lognormal_params
-        import numpy as np
+
         params = hr_to_lognormal_params(0.80, log_sd=0.15)
         # E[Lognormal(mu, sigma)] = exp(mu + sigma**2 / 2) should equal hr.
         mean = np.exp(params["log_mean"] + params["log_sd"] ** 2 / 2)
@@ -119,7 +128,7 @@ class TestHrLognormalMeanCentering:
     def test_null_hr_samples_mean_to_one(self):
         from optiqal.confounding import hr_to_lognormal_params
         from optiqal.intervention import Distribution
-        import numpy as np
+
         params = hr_to_lognormal_params(1.0, log_sd=0.12)
         dist = Distribution(type="lognormal", params=params)
         samples = dist.sample(200_000, random_state=7)
@@ -129,10 +138,10 @@ class TestHrLognormalMeanCentering:
 
     def test_rejects_nonpositive_hr(self):
         from optiqal.confounding import hr_to_lognormal_params
-        import pytest as _pytest
-        with _pytest.raises(ValueError):
+
+        with pytest.raises(ValueError):
             hr_to_lognormal_params(0, log_sd=0.1)
-        with _pytest.raises(ValueError):
+        with pytest.raises(ValueError):
             hr_to_lognormal_params(1.0, log_sd=-0.01)
 
 
@@ -145,6 +154,7 @@ class TestTieredPublicationBias:
             publication_bias_correct,
             shrinkage_for_study_quality,
         )
+
         hr_tier = publication_bias_correct(
             0.80, study_quality="rct_preregistered_hard_endpoint"
         )
@@ -160,6 +170,7 @@ class TestTieredPublicationBias:
     def test_tier_overrides_fallback(self):
         """When study_quality is provided it wins over the fallback shrinkage."""
         from optiqal.confounding import publication_bias_correct
+
         # Caller demands 90% shrinkage, but tier says 10% — tier wins.
         hr_tier = publication_bias_correct(
             0.80,
@@ -172,6 +183,7 @@ class TestTieredPublicationBias:
     def test_unknown_tier_falls_back(self):
         """Unknown tier strings use the fallback shrinkage."""
         from optiqal.confounding import publication_bias_correct
+
         hr = publication_bias_correct(
             0.80, shrinkage=0.30, study_quality="nonexistent_tier"
         )
@@ -181,6 +193,7 @@ class TestTieredPublicationBias:
     def test_animal_tier_very_weak(self):
         """Animal-only tier should shrink effect toward null aggressively."""
         from optiqal.confounding import publication_bias_correct
+
         hr = publication_bias_correct(0.70, study_quality="animal_or_mechanistic")
         # 70% shrinkage of log(0.70) = -0.107, exp ≈ 0.898
         assert 0.88 < hr < 0.92

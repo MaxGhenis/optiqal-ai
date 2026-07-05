@@ -1,10 +1,7 @@
 import { describe, test, expect } from "vitest";
 import {
-  type RiskFactorHazard,
-  type RiskContext,
   type HRWithUncertainty,
   type PersonState,
-  type HazardRatioSet,
   RISK_FACTORS,
   getHazardRatiosForState,
   combineHazardRatios,

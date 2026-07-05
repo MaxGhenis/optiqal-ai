@@ -6,11 +6,12 @@ Requires: pip install optiqal[bayesian]
 """
 
 from typing import List, Literal, Optional
+
 import numpy as np
 
 try:
-    import pymc as pm
     import arviz as az
+    import pymc as pm
 
     HAS_PYMC = True
 except ImportError:
@@ -18,9 +19,9 @@ except ImportError:
     pm = None
     az = None
 
-from .intervention import Intervention
-from .lifecycle import LifecycleModel, PathwayHRs, get_quality_weight
 from .confounding import CATEGORY_PRIORS
+from .intervention import Intervention
+from .lifecycle import LifecycleModel, PathwayHRs
 
 
 def check_pymc():
@@ -85,7 +86,7 @@ def run_mcmc(
         hr_log_sd = 0.1  # Default uncertainty
 
     # Build PyMC model
-    with pm.Model() as model:
+    with pm.Model():
         # Confounding prior: what fraction of observed effect is causal?
         causal_fraction = pm.Beta(
             "causal_fraction",
@@ -106,7 +107,9 @@ def run_mcmc(
             causal_fraction * observed_log_hr,
         )
 
-        causal_hr = pm.Deterministic("causal_hr", pm.math.exp(causal_log_hr))
+        # Registered on the model for the trace; the Python bindings are
+        # unused (posteriors are read back by name in _add_qaly_calculations).
+        pm.Deterministic("causal_hr", pm.math.exp(causal_log_hr))
 
         # Pathway-specific HRs
         # CVD gets stronger effect, cancer/other get weaker
@@ -114,9 +117,9 @@ def run_mcmc(
         cancer_log_hr = pm.Deterministic("cancer_log_hr", causal_log_hr * 0.8)
         other_log_hr = pm.Deterministic("other_log_hr", causal_log_hr * 0.6)
 
-        cvd_hr = pm.Deterministic("cvd_hr", pm.math.exp(cvd_log_hr))
-        cancer_hr = pm.Deterministic("cancer_hr", pm.math.exp(cancer_log_hr))
-        other_hr = pm.Deterministic("other_hr", pm.math.exp(other_log_hr))
+        pm.Deterministic("cvd_hr", pm.math.exp(cvd_log_hr))
+        pm.Deterministic("cancer_hr", pm.math.exp(cancer_log_hr))
+        pm.Deterministic("other_hr", pm.math.exp(other_log_hr))
 
         # Run MCMC
         trace = pm.sample(

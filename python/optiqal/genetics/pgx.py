@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from .parser import RawGenotype, genotype_at
+from .parser import RawGenotype, genotype_at, strand_ambiguous_genotype
 
 _DATA_DIR = Path(__file__).parent / "data"
 _PGX_VARIANTS: Optional[dict] = None
@@ -54,6 +54,8 @@ class Diplotype:
     allele2: str
     activity_score: Optional[float] = None
     notes: List[str] = field(default_factory=list)
+    callable_variants: int = 0
+    missing_variants: int = 0
 
     @property
     def diplotype(self) -> str:
@@ -69,10 +71,20 @@ def _variant_allele_count(
     calls: Dict[str, RawGenotype],
     rsid: str,
     variant_allele: str,
+    ref_allele: Optional[str] = None,
 ) -> Optional[int]:
-    """Return 0, 1, or 2 copies of the variant allele; None if missing call."""
+    """Return 0, 1, or 2 copies of the variant allele; None if uncallable.
+
+    Returns ``None`` for a missing call and for a strand-ambiguous read at a
+    palindromic (A/T, C/G) SNP, where containment counting could silently
+    invert the result. None of the bundled PGx star-allele variants are
+    palindromic (all are C/T or G/A transitions), so this guard is defensive
+    rather than active for the current panel.
+    """
     g = genotype_at(calls, rsid)
     if g is None:
+        return None
+    if strand_ambiguous_genotype(g, ref_allele, variant_allele):
         return None
     if len(g) == 1:
         return 1 if g == variant_allele else 0
@@ -96,15 +108,19 @@ def _call_gene(
         # Prefer calling no-function alleles first so PM/IM classifications
         # take priority over normal when variant copies overlap.
         key=lambda kv: (
-            0 if kv[1]["function"] == "none"
-            else 1 if kv[1]["function"] == "decreased"
-            else 2 if kv[1]["function"] == "increased"
+            0
+            if kv[1]["function"] == "none"
+            else 1
+            if kv[1]["function"] == "decreased"
+            else 2
+            if kv[1]["function"] == "increased"
             else 3
         ),
     )
 
     variant_copies: List[str] = []
     missing_variants: List[str] = []
+    callable_variants = 0
     for allele_name, allele_spec in alleles_sorted:
         if allele_name == "*1":
             continue
@@ -113,13 +129,47 @@ def _call_gene(
         for defining in allele_spec["defining_variants"]:
             rsid = defining["rsid"]
             variant_allele = defining["variant_allele"]
-            count = _variant_allele_count(calls, rsid, variant_allele)
+            count = _variant_allele_count(
+                calls, rsid, variant_allele, defining.get("ref_allele")
+            )
             if count is None:
                 missing_variants.append(f"{allele_name}:{rsid}")
                 continue
+            callable_variants += 1
             for _ in range(count):
                 if len(variant_copies) < 2:
                     variant_copies.append(allele_name)
+
+    notes: List[str] = []
+    if callable_variants == 0:
+        notes.append(
+            f"No {gene} star-allele-defining variants were genotyped; "
+            "phenotype is unknown rather than reference."
+        )
+    elif missing_variants and not variant_copies:
+        notes.append(
+            f"{gene} reference (*1/*1) cannot be assigned because some "
+            "star-allele-defining variants were not genotyped."
+        )
+    if missing_variants:
+        notes.append(
+            "Some star-allele-defining variants not genotyped on this chip: "
+            + ", ".join(missing_variants[:6])
+            + ("" if len(missing_variants) <= 6 else "...")
+        )
+    for limitation in gene_spec.get("chip_limitations", []):
+        notes.append(limitation)
+
+    if callable_variants == 0 or (missing_variants and not variant_copies):
+        return Diplotype(
+            gene=gene,
+            allele1="unknown",
+            allele2="unknown",
+            activity_score=None,
+            notes=notes,
+            callable_variants=callable_variants,
+            missing_variants=len(missing_variants),
+        )
 
     # Pad with reference alleles to reach diploid.
     while len(variant_copies) < 2:
@@ -130,21 +180,10 @@ def _call_gene(
     # Activity score when applicable.
     activity_score = None
     if gene == "CYP2D6":
-        score_lookup = {a: spec["activity_score"]
-                        for a, spec in gene_spec["star_alleles"].items()}
-        activity_score = (
-            score_lookup.get(allele1, 1.0) + score_lookup.get(allele2, 1.0)
-        )
-
-    notes: List[str] = []
-    if missing_variants:
-        notes.append(
-            "Some star-allele-defining variants not genotyped on this chip: "
-            + ", ".join(missing_variants[:6])
-            + ("" if len(missing_variants) <= 6 else "...")
-        )
-    for limitation in gene_spec.get("chip_limitations", []):
-        notes.append(limitation)
+        score_lookup = {
+            a: spec["activity_score"] for a, spec in gene_spec["star_alleles"].items()
+        }
+        activity_score = score_lookup.get(allele1, 1.0) + score_lookup.get(allele2, 1.0)
 
     return Diplotype(
         gene=gene,
@@ -152,6 +191,8 @@ def _call_gene(
         allele2=allele2,
         activity_score=activity_score,
         notes=notes,
+        callable_variants=callable_variants,
+        missing_variants=len(missing_variants),
     )
 
 

@@ -18,8 +18,11 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "pnpm dev",
+    // CI builds first (see ci.yml) and serves the production bundle; local
+    // runs use the dev server so tests pick up in-progress edits.
+    command: process.env.CI ? "bun run start" : "bun run dev",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
   },
 });

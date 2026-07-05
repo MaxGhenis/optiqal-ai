@@ -9,6 +9,7 @@ import {
   getBaseQualityByAge,
 } from "./state-lifecycle";
 import { createDefaultState } from "./state";
+import type { Condition } from "./state";
 
 describe("State Lifecycle Simulator", () => {
   describe("simulateLifecycleFromState", () => {
@@ -243,6 +244,37 @@ describe("State Lifecycle Simulator", () => {
       const quality40 = getBaseQualityByAge(40);
       expect(quality40).toBeGreaterThan(0.7);
       expect(quality40).toBeLessThan(1.0);
+    });
+  });
+
+  describe("condition-based mortality", () => {
+    const leWith = (type: Condition["type"]) => {
+      const state = createDefaultState(50, "male");
+      const withCond = {
+        ...state,
+        conditions: [{ type, severity: "severe" as const, controlled: false }],
+      };
+      return simulateLifecycleFromState(withCond, { nSimulations: 50 })
+        .expectedLifeYears;
+    };
+
+    it("a severe condition lowers life expectancy vs. none", () => {
+      const healthyLE = simulateLifecycleFromState(createDefaultState(50, "male"), {
+        nSimulations: 50,
+      }).expectedLifeYears;
+      expect(leWith("cancer")).toBeLessThan(healthyLE);
+    });
+
+    it("distinguishes high- from low-mortality conditions (cancer != fatigue)", () => {
+      // Regression guard for the case-mismatch bug where every condition
+      // collapsed to the same generic multiplier, so cancer looked like fatigue.
+      expect(leWith("cancer")).toBeLessThan(leWith("fatigue") - 1);
+    });
+
+    it("orders cardiac, diabetes, and benign conditions by mortality burden", () => {
+      // heart_failure (1.8) < diabetes (1.5) < hearing_loss (1.0)
+      expect(leWith("heart_failure")).toBeLessThan(leWith("diabetes"));
+      expect(leWith("diabetes")).toBeLessThan(leWith("hearing_loss"));
     });
   });
 });

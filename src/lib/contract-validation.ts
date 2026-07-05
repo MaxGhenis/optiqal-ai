@@ -24,6 +24,24 @@ export function parseFiniteNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+/**
+ * Parse a finite number and require it to fall within [min, max] (inclusive).
+ * Returns null for non-numbers and for out-of-range values, so callers reject
+ * hostile inputs (e.g. age = -1e9, height_cm = 0) before they reach the
+ * simulation engine and cause hangs or division-by-zero.
+ */
+export function parseBoundedNumber(
+  value: unknown,
+  min: number,
+  max: number
+): number | null {
+  const num = parseFiniteNumber(value);
+  if (num === null || num < min || num > max) {
+    return null;
+  }
+  return num;
+}
+
 export function parseBoolean(value: unknown): boolean | null {
   return typeof value === "boolean" ? value : null;
 }
@@ -51,6 +69,20 @@ export function parseOptionalFiniteNumber(
     return null;
   }
   return parseFiniteNumber(value) ?? INVALID;
+}
+
+export function parseOptionalBoundedNumber(
+  value: unknown,
+  min: number,
+  max: number
+): number | null | undefined | typeof INVALID {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === null) {
+    return null;
+  }
+  return parseBoundedNumber(value, min, max) ?? INVALID;
 }
 
 export function parseOptionalArray<T>(
@@ -109,6 +141,23 @@ export function parseNumberRecord(value: unknown): Record<string, number> | null
 
 export const INVALID = Symbol("invalid-optional-value");
 
+export function parseOptionalConfidenceInterval(
+  value: unknown
+): [number, number] | undefined | typeof INVALID {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (!Array.isArray(value) || value.length !== 2) {
+    return INVALID;
+  }
+  const low = parseFiniteNumber(value[0]);
+  const high = parseFiniteNumber(value[1]);
+  if (low === null || high === null) {
+    return INVALID;
+  }
+  return [low, high];
+}
+
 export function parseAnalysisProfileInput(value: unknown): {
   age: number;
   sex: "male" | "female" | "other";
@@ -124,15 +173,18 @@ export function parseAnalysisProfileInput(value: unknown): {
     return null;
   }
 
-  const age = parseFiniteNumber(value.age);
+  // Clinically plausible bounds. These also protect the engine: an
+  // out-of-range age drives an effectively unbounded life-table loop, and a
+  // zero/negative height divides by zero in BMI.
+  const age = parseBoundedNumber(value.age, 0, 120);
   const sex = parseEnum(value.sex, SEX_VALUES);
-  const weightKg = parseFiniteNumber(value.weight_kg);
-  const heightCm = parseFiniteNumber(value.height_cm);
+  const weightKg = parseBoundedNumber(value.weight_kg, 20, 500);
+  const heightCm = parseBoundedNumber(value.height_cm, 50, 275);
   const smoker = parseBoolean(value.smoker);
   const hasDiabetes = parseBoolean(value.has_diabetes);
   const hasHypertension = parseBoolean(value.has_hypertension);
   const activityLevel = parseEnum(value.activity_level, ACTIVITY_LEVELS);
-  const sleepHours = parseOptionalFiniteNumber(value.sleep_hours_per_night);
+  const sleepHours = parseOptionalBoundedNumber(value.sleep_hours_per_night, 0, 24);
 
   if (
     age === null ||

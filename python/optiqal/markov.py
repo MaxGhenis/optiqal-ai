@@ -6,13 +6,13 @@ and mortality over the lifetime. Calibrated to MEPS 2019-2022 longitudinal data.
 """
 
 import json
-import numpy as np
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Literal
+from typing import Dict, List, Literal, Optional
 
-from .lifecycle import get_mortality_rate, get_quality_weight, CONDITION_DECREMENTS
+import numpy as np
 
+from .lifecycle import CONDITION_DECREMENTS, get_mortality_rate, get_quality_weight
 
 # Load empirical joint distribution of conditions (from MEPS)
 _JOINT_DIST_CACHE: Optional[dict] = None
@@ -170,12 +170,12 @@ INCIDENCE_RATES = {
 # Mortality multipliers for conditions (from literature)
 # These multiply baseline mortality when condition is present
 CONDITION_MORTALITY_MULTIPLIERS = {
-    "diabetes": 1.8,        # Diabetes roughly doubles mortality
-    "hypertension": 1.3,    # Moderate increase
-    "heart_disease": 2.0,   # Heart disease doubles mortality
-    "stroke": 2.5,          # Stroke history high mortality
-    "cancer": 1.5,          # Varies greatly by type, using moderate
-    "arthritis": 1.1,       # Minimal direct mortality effect
+    "diabetes": 1.8,  # Diabetes roughly doubles mortality
+    "hypertension": 1.3,  # Moderate increase
+    "heart_disease": 2.0,  # Heart disease doubles mortality
+    "stroke": 2.5,  # Stroke history high mortality
+    "cancer": 1.5,  # Varies greatly by type, using moderate
+    "arthritis": 1.1,  # Minimal direct mortality effect
 }
 
 
@@ -204,6 +204,7 @@ def get_incidence_rate(condition: str, age: int) -> float:
 @dataclass
 class HealthState:
     """Current health state of an individual."""
+
     alive: bool = True
     diabetes: bool = False
     hypertension: bool = False
@@ -250,6 +251,7 @@ class HealthState:
 @dataclass
 class MarkovResult:
     """Result of a single Markov simulation run."""
+
     qalys: float
     life_years: float
     death_age: int
@@ -323,7 +325,14 @@ def simulate_lifetime_markov(
         life_years += 1
 
         # Check for new conditions
-        conditions = ["diabetes", "hypertension", "heart_disease", "stroke", "cancer", "arthritis"]
+        conditions = [
+            "diabetes",
+            "hypertension",
+            "heart_disease",
+            "stroke",
+            "cancer",
+            "arthritis",
+        ]
         for cond in conditions:
             if not getattr(state, cond):  # Don't already have it
                 incidence = get_incidence_rate(cond, age)
@@ -431,12 +440,14 @@ def simulate_lifetime_paired(
             if mortality_draws[year] < mortality:
                 state.alive = False
 
-        results.append(MarkovResult(
-            qalys=qalys,
-            life_years=life_years,
-            death_age=start_age + int(life_years),
-            conditions_acquired=conditions_acquired,
-        ))
+        results.append(
+            MarkovResult(
+                qalys=qalys,
+                life_years=life_years,
+                death_age=start_age + int(life_years),
+                conditions_acquired=conditions_acquired,
+            )
+        )
 
     return results[0], results[1]
 
@@ -491,14 +502,19 @@ def simulate_markov_monte_carlo(
     baseline_qalys = np.array(baseline_qalys)
     intervention_qalys = np.array(intervention_qalys)
     qaly_gains = intervention_qalys - baseline_qalys
-    life_years_gained = np.array(intervention_life_years) - np.array(baseline_life_years)
+    life_years_gained = np.array(intervention_life_years) - np.array(
+        baseline_life_years
+    )
 
     return {
         "baseline_qalys": {
             "mean": float(np.mean(baseline_qalys)),
             "std": float(np.std(baseline_qalys)),
             "median": float(np.median(baseline_qalys)),
-            "ci95": (float(np.percentile(baseline_qalys, 2.5)), float(np.percentile(baseline_qalys, 97.5))),
+            "ci95": (
+                float(np.percentile(baseline_qalys, 2.5)),
+                float(np.percentile(baseline_qalys, 97.5)),
+            ),
         },
         "intervention_qalys": {
             "mean": float(np.mean(intervention_qalys)),
@@ -508,7 +524,10 @@ def simulate_markov_monte_carlo(
             "mean": float(np.mean(qaly_gains)),
             "std": float(np.std(qaly_gains)),
             "median": float(np.median(qaly_gains)),
-            "ci95": (float(np.percentile(qaly_gains, 2.5)), float(np.percentile(qaly_gains, 97.5))),
+            "ci95": (
+                float(np.percentile(qaly_gains, 2.5)),
+                float(np.percentile(qaly_gains, 97.5)),
+            ),
             "prob_positive": float(np.mean(qaly_gains > 0)),
         },
         "life_years_gained": {
@@ -529,12 +548,12 @@ FRAILTY_STD = 0.3
 # Probability someone at age X already has condition
 PREVALENCE_RATES = {
     "diabetes": {
-        30: 0.04,   # 4% at age 30
-        45: 0.10,   # 10% at age 45
-        55: 0.16,   # 16% at age 55
-        65: 0.23,   # 23% at age 65
-        75: 0.26,   # 26% at age 75
-        85: 0.24,   # 24% at age 85
+        30: 0.04,  # 4% at age 30
+        45: 0.10,  # 10% at age 45
+        55: 0.16,  # 16% at age 55
+        65: 0.23,  # 23% at age 65
+        75: 0.26,  # 26% at age 75
+        85: 0.24,  # 24% at age 85
     },
     "hypertension": {
         30: 0.12,
@@ -717,7 +736,10 @@ def simulate_with_state_uncertainty(
             "mean": float(np.mean(qalys_arr)),
             "std": float(np.std(qalys_arr)),
             "median": float(np.median(qalys_arr)),
-            "ci95": (float(np.percentile(qalys_arr, 2.5)), float(np.percentile(qalys_arr, 97.5))),
+            "ci95": (
+                float(np.percentile(qalys_arr, 2.5)),
+                float(np.percentile(qalys_arr, 97.5)),
+            ),
             "p10": float(np.percentile(qalys_arr, 10)),
             "p90": float(np.percentile(qalys_arr, 90)),
         },
@@ -813,9 +835,7 @@ def get_outcome_distribution(
         )
     else:
         certainty_level = "high"
-        interpretation = (
-            f"Personalized estimate based on {n_known} known conditions."
-        )
+        interpretation = f"Personalized estimate based on {n_known} known conditions."
 
     return {
         "expected_qalys": result["qalys"]["mean"],
@@ -845,27 +865,42 @@ def demonstrate_uncertainty_reduction():
 
     # Level 1: Only age/sex known (all conditions sampled from prevalence)
     result1 = simulate_with_state_uncertainty(
-        start_age=50, sex="male", n_simulations=5000, random_state=42,
+        start_age=50,
+        sex="male",
+        n_simulations=5000,
+        random_state=42,
         known_state={},  # Nothing known - sample all from prevalence
     )
-    print(f"\n1. Only age/sex known (conditions sampled from prevalence):")
+    print("\n1. Only age/sex known (conditions sampled from prevalence):")
     print(f"   Expected QALYs: {result1['qalys']['mean']:.1f}")
     print(f"   Std dev: {result1['qalys']['std']:.2f}")
-    print(f"   90% range: [{result1['qalys']['p10']:.1f}, {result1['qalys']['p90']:.1f}]")
+    print(
+        f"   90% range: [{result1['qalys']['p10']:.1f}, {result1['qalys']['p90']:.1f}]"
+    )
 
     # Level 2: Know diabetes and hypertension status
     result2 = simulate_with_state_uncertainty(
-        start_age=50, sex="male", n_simulations=5000, random_state=42,
+        start_age=50,
+        sex="male",
+        n_simulations=5000,
+        random_state=42,
         known_state={"diabetes": False, "hypertension": False},
     )
-    print(f"\n2. Know: no diabetes, no hypertension (others sampled):")
+    print("\n2. Know: no diabetes, no hypertension (others sampled):")
     print(f"   Expected QALYs: {result2['qalys']['mean']:.1f}")
-    print(f"   Std dev: {result2['qalys']['std']:.2f} (was {result1['qalys']['std']:.2f})")
-    print(f"   90% range: [{result2['qalys']['p10']:.1f}, {result2['qalys']['p90']:.1f}]")
+    print(
+        f"   Std dev: {result2['qalys']['std']:.2f} (was {result1['qalys']['std']:.2f})"
+    )
+    print(
+        f"   90% range: [{result2['qalys']['p10']:.1f}, {result2['qalys']['p90']:.1f}]"
+    )
 
     # Level 3: Know 4 major conditions
     result3 = simulate_with_state_uncertainty(
-        start_age=50, sex="male", n_simulations=5000, random_state=42,
+        start_age=50,
+        sex="male",
+        n_simulations=5000,
+        random_state=42,
         known_state={
             "diabetes": False,
             "hypertension": False,
@@ -873,14 +908,21 @@ def demonstrate_uncertainty_reduction():
             "stroke": False,
         },
     )
-    print(f"\n3. Know: no diabetes/hypertension/heart_disease/stroke:")
+    print("\n3. Know: no diabetes/hypertension/heart_disease/stroke:")
     print(f"   Expected QALYs: {result3['qalys']['mean']:.1f}")
-    print(f"   Std dev: {result3['qalys']['std']:.2f} (was {result1['qalys']['std']:.2f})")
-    print(f"   90% range: [{result3['qalys']['p10']:.1f}, {result3['qalys']['p90']:.1f}]")
+    print(
+        f"   Std dev: {result3['qalys']['std']:.2f} (was {result1['qalys']['std']:.2f})"
+    )
+    print(
+        f"   90% range: [{result3['qalys']['p10']:.1f}, {result3['qalys']['p90']:.1f}]"
+    )
 
     # Level 4: Know all conditions (all absent)
     result4 = simulate_with_state_uncertainty(
-        start_age=50, sex="male", n_simulations=5000, random_state=42,
+        start_age=50,
+        sex="male",
+        n_simulations=5000,
+        random_state=42,
         known_state={
             "diabetes": False,
             "hypertension": False,
@@ -890,14 +932,21 @@ def demonstrate_uncertainty_reduction():
             "arthritis": False,
         },
     )
-    print(f"\n4. All conditions known (all absent - healthy person):")
+    print("\n4. All conditions known (all absent - healthy person):")
     print(f"   Expected QALYs: {result4['qalys']['mean']:.1f}")
-    print(f"   Std dev: {result4['qalys']['std']:.2f} (was {result1['qalys']['std']:.2f})")
-    print(f"   90% range: [{result4['qalys']['p10']:.1f}, {result4['qalys']['p90']:.1f}]")
+    print(
+        f"   Std dev: {result4['qalys']['std']:.2f} (was {result1['qalys']['std']:.2f})"
+    )
+    print(
+        f"   90% range: [{result4['qalys']['p10']:.1f}, {result4['qalys']['p90']:.1f}]"
+    )
 
     # Level 5: Someone WITH conditions (all known, some present)
     result5 = simulate_with_state_uncertainty(
-        start_age=50, sex="male", n_simulations=5000, random_state=42,
+        start_age=50,
+        sex="male",
+        n_simulations=5000,
+        random_state=42,
         known_state={
             "diabetes": True,
             "hypertension": True,
@@ -907,23 +956,31 @@ def demonstrate_uncertainty_reduction():
             "arthritis": False,
         },
     )
-    print(f"\n5. All known: HAS diabetes + hypertension (unhealthy person):")
+    print("\n5. All known: HAS diabetes + hypertension (unhealthy person):")
     print(f"   Expected QALYs: {result5['qalys']['mean']:.1f}")
     print(f"   Std dev: {result5['qalys']['std']:.2f}")
-    print(f"   90% range: [{result5['qalys']['p10']:.1f}, {result5['qalys']['p90']:.1f}]")
+    print(
+        f"   90% range: [{result5['qalys']['p10']:.1f}, {result5['qalys']['p90']:.1f}]"
+    )
 
     # Variance reduction summary
-    print(f"\n" + "=" * 60)
+    print("\n" + "=" * 60)
     print("Summary: Variance reduction as inputs are added")
     print(f"  Level 1 (age/sex only):      std = {result1['qalys']['std']:.2f}")
-    print(f"  Level 2 (+2 conditions):     std = {result2['qalys']['std']:.2f} ({100*(result2['qalys']['std']-result1['qalys']['std'])/result1['qalys']['std']:+.0f}%)")
-    print(f"  Level 3 (+4 conditions):     std = {result3['qalys']['std']:.2f} ({100*(result3['qalys']['std']-result1['qalys']['std'])/result1['qalys']['std']:+.0f}%)")
-    print(f"  Level 4 (all 6 conditions):  std = {result4['qalys']['std']:.2f} ({100*(result4['qalys']['std']-result1['qalys']['std'])/result1['qalys']['std']:+.0f}%)")
+    print(
+        f"  Level 2 (+2 conditions):     std = {result2['qalys']['std']:.2f} ({100 * (result2['qalys']['std'] - result1['qalys']['std']) / result1['qalys']['std']:+.0f}%)"
+    )
+    print(
+        f"  Level 3 (+4 conditions):     std = {result3['qalys']['std']:.2f} ({100 * (result3['qalys']['std'] - result1['qalys']['std']) / result1['qalys']['std']:+.0f}%)"
+    )
+    print(
+        f"  Level 4 (all 6 conditions):  std = {result4['qalys']['std']:.2f} ({100 * (result4['qalys']['std'] - result1['qalys']['std']) / result1['qalys']['std']:+.0f}%)"
+    )
 
-    print(f"\nNote: Remaining variance comes from:")
-    print(f"  - Future condition incidence (will they develop cancer?)")
-    print(f"  - Stochastic mortality (when will they die?)")
-    print(f"  - Residual frailty (unobserved health factors)")
+    print("\nNote: Remaining variance comes from:")
+    print("  - Future condition incidence (will they develop cancer?)")
+    print("  - Stochastic mortality (when will they die?)")
+    print("  - Residual frailty (unobserved health factors)")
 
 
 if __name__ == "__main__":
@@ -938,7 +995,7 @@ if __name__ == "__main__":
     det_model = LifecycleModel(start_age=40, sex="male", discount_rate=0.03)
     det_result = det_model.calculate(PathwayHRs(cvd=1.0, cancer=1.0, other=1.0))
 
-    print(f"\nDeterministic model (40yo male):")
+    print("\nDeterministic model (40yo male):")
     print(f"  Baseline QALYs: {det_result.baseline_qalys:.2f}")
 
     # Markov Monte Carlo
@@ -950,9 +1007,13 @@ if __name__ == "__main__":
         random_state=42,
     )
 
-    print(f"\nMarkov model (40yo male, n=5000):")
-    print(f"  Baseline QALYs: {markov_result['baseline_qalys']['mean']:.2f} ± {markov_result['baseline_qalys']['std']:.2f}")
-    print(f"  95% CI: [{markov_result['baseline_qalys']['ci95'][0]:.1f}, {markov_result['baseline_qalys']['ci95'][1]:.1f}]")
+    print("\nMarkov model (40yo male, n=5000):")
+    print(
+        f"  Baseline QALYs: {markov_result['baseline_qalys']['mean']:.2f} ± {markov_result['baseline_qalys']['std']:.2f}"
+    )
+    print(
+        f"  95% CI: [{markov_result['baseline_qalys']['ci95'][0]:.1f}, {markov_result['baseline_qalys']['ci95'][1]:.1f}]"
+    )
 
     # With intervention (HR = 0.85)
     markov_int = simulate_markov_monte_carlo(
@@ -963,7 +1024,11 @@ if __name__ == "__main__":
         random_state=42,
     )
 
-    print(f"\nWith intervention (HR=0.85):")
-    print(f"  QALY gain: {markov_int['qaly_gain']['mean']:.2f} ± {markov_int['qaly_gain']['std']:.2f}")
-    print(f"  95% CI: [{markov_int['qaly_gain']['ci95'][0]:.2f}, {markov_int['qaly_gain']['ci95'][1]:.2f}]")
+    print("\nWith intervention (HR=0.85):")
+    print(
+        f"  QALY gain: {markov_int['qaly_gain']['mean']:.2f} ± {markov_int['qaly_gain']['std']:.2f}"
+    )
+    print(
+        f"  95% CI: [{markov_int['qaly_gain']['ci95'][0]:.2f}, {markov_int['qaly_gain']['ci95'][1]:.2f}]"
+    )
     print(f"  P(gain > 0): {markov_int['qaly_gain']['prob_positive']:.1%}")

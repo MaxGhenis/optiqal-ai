@@ -22,22 +22,35 @@ See [PRODUCT_STRATEGY.md](/Users/maxghenis/optiqal-ai/PRODUCT_STRATEGY.md) for t
 - Next.js 15 + React 19 + TypeScript
 - Tailwind CSS v4
 - Vitest + Playwright
-- Python package for simulation and precomputation
-- Claude API (Anthropic) for evidence synthesis
+- Python package for the QALY simulation engine and precomputation
+- Evidence base: CDC life tables, GBD 2019 disability weights, and hazard
+  ratios from peer-reviewed meta-analyses, with Monte Carlo uncertainty
 
 ## Development
 
 ```bash
-npm install
-npm run dev
+bun install
+bun run dev
+```
+
+Checks (all enforced in CI):
+
+```bash
+bun run typecheck && bun run lint && bun run test   # web
+bun run test:e2e                                    # Playwright, needs browsers
+cd python && uv run --all-extras pytest -q && uv run ruff check && uv run ruff format --check
 ```
 
 ## Usage
 
-1. Enter your Anthropic API key (stored locally, never sent to our servers)
-2. Fill in your profile for personalized estimates
-3. Enter an intervention to analyze or compare
-4. Review expected benefit, uncertainty, and supporting evidence
+1. Fill in your profile (age, sex, and basic health markers)
+2. Use **Predict** to see your baseline longevity/QALY projection, or
+   **Analyze** to rank interventions by expected marginal QALY gain
+3. Review expected benefit, prediction intervals, and supporting evidence
+
+Your profile is sent to the server to run the analysis engine and is processed
+only to return your results, not stored long-term. See the in-app Privacy
+Policy for details.
 
 ## Disclaimer
 

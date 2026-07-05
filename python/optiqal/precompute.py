@@ -9,16 +9,19 @@ import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Dict, List, Literal, Optional
-from concurrent.futures import ProcessPoolExecutor, as_completed
+
 import numpy as np
 
 from .defaults import DEFAULT_QALY_DISCOUNT_RATE
 from .intervention import Intervention
-from .simulate import simulate_qaly, simulate_qaly_profile, simulate_qaly_profile_vectorized, SimulationResult
-from .profile import Profile, generate_all_profiles, count_profiles
+from .profile import Profile, generate_all_profiles
+from .simulate import (
+    simulate_qaly,
+    simulate_qaly_profile_vectorized,
+)
 
 try:
-    from .bayesian import run_mcmc, summarize_posterior
+    from .bayesian import run_mcmc
 
     HAS_BAYESIAN = True
 except ImportError:
@@ -169,7 +172,9 @@ def precompute_intervention(
                     ),
                     causal_fraction_mean=float(np.mean(causal_samples)),
                     causal_fraction_ci95_low=float(np.percentile(causal_samples, 2.5)),
-                    causal_fraction_ci95_high=float(np.percentile(causal_samples, 97.5)),
+                    causal_fraction_ci95_high=float(
+                        np.percentile(causal_samples, 97.5)
+                    ),
                     n_samples=n_samples * chains,
                     discount_rate=discount_rate,
                     method="mcmc",
@@ -404,7 +409,9 @@ def _simulate_single_profile(args):
         causal_fraction_ci95_low=cf_ci[0],
         causal_fraction_ci95_high=cf_ci[1],
         baseline_mortality_multiplier=get_baseline_mortality_multiplier(profile),
-        intervention_effect_modifier=get_intervention_modifier(profile, intervention.category),
+        intervention_effect_modifier=get_intervention_modifier(
+            profile, intervention.category
+        ),
         n_samples=n_samples,
         discount_rate=discount_rate,
     )
@@ -473,15 +480,17 @@ def precompute_intervention_profiles(
     }
 
     # Generate all profiles
-    profiles = list(generate_all_profiles(
-        ages=ages,
-        sexes=sexes,
-        bmi_categories=bmi_categories,
-        smoking_statuses=smoking_statuses,
-        diabetes_statuses=diabetes_statuses,
-        hypertension_statuses=hypertension_statuses,
-        activity_levels=activity_levels,
-    ))
+    profiles = list(
+        generate_all_profiles(
+            ages=ages,
+            sexes=sexes,
+            bmi_categories=bmi_categories,
+            smoking_statuses=smoking_statuses,
+            diabetes_statuses=diabetes_statuses,
+            hypertension_statuses=hypertension_statuses,
+            activity_levels=activity_levels,
+        )
+    )
 
     total_profiles = len(profiles)
     results = {}
@@ -495,7 +504,9 @@ def precompute_intervention_profiles(
 
     # Sequential execution (simpler, more reliable for now)
     # TODO: Add parallel execution option
-    for i, (intervention, profile, n_samples, discount_rate, seed) in enumerate(work_items):
+    for i, (intervention, profile, n_samples, discount_rate, seed) in enumerate(
+        work_items
+    ):
         key, result = _simulate_single_profile(
             (intervention, profile, n_samples, discount_rate, seed)
         )
@@ -568,7 +579,9 @@ def precompute_all_profiles(
             # Check if file was modified within the last hour (current run)
             file_age = time.time() - output_file.stat().st_mtime
             if file_age < 3600:  # Less than 1 hour old
-                print(f"[{idx + 1}/{total_interventions}] Skipping {yaml_file.name} (already computed)")
+                print(
+                    f"[{idx + 1}/{total_interventions}] Skipping {yaml_file.name} (already computed)"
+                )
                 skipped += 1
                 continue
 
@@ -576,11 +589,13 @@ def precompute_all_profiles(
         remaining_interventions = total_interventions - idx - skipped
         if idx > skipped:
             eta = elapsed / (idx - skipped) * remaining_interventions
-            eta_str = f", ETA: {eta/60:.0f}min"
+            eta_str = f", ETA: {eta / 60:.0f}min"
         else:
             eta_str = ""
 
-        print(f"\n[{idx + 1}/{total_interventions}] Processing {yaml_file.name}{eta_str}")
+        print(
+            f"\n[{idx + 1}/{total_interventions}] Processing {yaml_file.name}{eta_str}"
+        )
         sys.stdout.flush()
 
         intervention_start = time.time()
@@ -590,24 +605,29 @@ def precompute_all_profiles(
             intervention_elapsed = time.time() - intervention_start
             if completed > 0:
                 profile_eta = intervention_elapsed / completed * (total - completed)
-                print(f"  Profile {completed}/{total} ({pct:.0f}%) [{intervention_elapsed:.0f}s elapsed, ~{profile_eta:.0f}s remaining]", end="\r")
+                print(
+                    f"  Profile {completed}/{total} ({pct:.0f}%) [{intervention_elapsed:.0f}s elapsed, ~{profile_eta:.0f}s remaining]",
+                    end="\r",
+                )
             sys.stdout.flush()
 
         precomputed = precompute_intervention_profiles(
-            intervention,
-            progress_callback=progress,
-            **kwargs
+            intervention, progress_callback=progress, **kwargs
         )
 
         precomputed.save(output_file)
 
         results.append(precomputed)
         print(f"\n  Saved to {output_file}")
-        print(f"  QALY range: {precomputed.summary['qaly_min']:.3f} - {precomputed.summary['qaly_max']:.3f}")
+        print(
+            f"  QALY range: {precomputed.summary['qaly_min']:.3f} - {precomputed.summary['qaly_max']:.3f}"
+        )
         sys.stdout.flush()
 
     total_elapsed = time.time() - start_time
-    print(f"\nCompleted {len(results)} interventions in {total_elapsed/60:.1f} minutes")
+    print(
+        f"\nCompleted {len(results)} interventions in {total_elapsed / 60:.1f} minutes"
+    )
     if skipped:
         print(f"  ({skipped} skipped due to existing output)")
 

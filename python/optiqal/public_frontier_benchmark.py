@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import json
-from pathlib import Path
 import random
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Literal, Optional
 
 from .catalog import (
@@ -17,9 +17,12 @@ from .catalog import (
 from .sleep import SleepMetrics, estimate_sleep_burden
 from .web_api import build_frontier_response_with_policy
 
-
-BENCHMARK_SCENARIOS_PATH = Path(__file__).parent / "data" / "public_frontier_benchmark_scenarios.json"
-JUDGE_PROMPT_TEMPLATE_PATH = Path(__file__).parent / "data" / "public_frontier_judge_prompt.md"
+BENCHMARK_SCENARIOS_PATH = (
+    Path(__file__).parent / "data" / "public_frontier_benchmark_scenarios.json"
+)
+JUDGE_PROMPT_TEMPLATE_PATH = (
+    Path(__file__).parent / "data" / "public_frontier_judge_prompt.md"
+)
 
 
 @dataclass(frozen=True)
@@ -134,12 +137,18 @@ def _load_benchmark_scenarios() -> tuple[PublicFrontierBenchmarkScenario, ...]:
                     required_visible_order=tuple(
                         tuple(pair) for pair in rules.get("required_visible_order", [])
                     ),
-                    required_decision_state_ids=tuple(rules.get("required_decision_state_ids", [])),
-                    banned_decision_state_ids=tuple(rules.get("banned_decision_state_ids", [])),
+                    required_decision_state_ids=tuple(
+                        rules.get("required_decision_state_ids", [])
+                    ),
+                    banned_decision_state_ids=tuple(
+                        rules.get("banned_decision_state_ids", [])
+                    ),
                     forbidden_visible_pairs=tuple(
                         tuple(pair) for pair in rules.get("forbidden_visible_pairs", [])
                     ),
-                    expected_airway_decision_states=rules.get("expected_airway_decision_states"),
+                    expected_airway_decision_states=rules.get(
+                        "expected_airway_decision_states"
+                    ),
                 ),
                 tags=tuple(raw_case.get("tags", [])),
             )
@@ -445,7 +454,9 @@ def _nasal_support_only_payload(rng: random.Random) -> dict[str, Any]:
         ):
             return payload
 
-    raise RuntimeError("Could not generate a support-only sleep benchmark payload that matches policy semantics.")
+    raise RuntimeError(
+        "Could not generate a support-only sleep benchmark payload that matches policy semantics."
+    )
 
 
 def generate_stratified_public_frontier_scenarios(
@@ -485,7 +496,11 @@ def generate_stratified_public_frontier_scenarios(
                 top_n=12,
                 required_visible_ids=("statin_5mg", "semaglutide"),
                 required_visible_order=(("statin_5mg", "metformin_500mg"),),
-                banned_visible_ids=("metformin_500mg", "finasteride_1.25mg", "tadalafil_2.5mg"),
+                banned_visible_ids=(
+                    "metformin_500mg",
+                    "finasteride_1.25mg",
+                    "tadalafil_2.5mg",
+                ),
                 expected_airway_decision_states=False,
             ),
         ),
@@ -510,7 +525,12 @@ def generate_stratified_public_frontier_scenarios(
                 top_n=12,
                 required_visible_ids=("statin_5mg",),
                 required_visible_order=(("statin_5mg", "metformin_500mg"),),
-                banned_visible_ids=("metformin_500mg", "semaglutide", "finasteride_1.25mg", "tadalafil_2.5mg"),
+                banned_visible_ids=(
+                    "metformin_500mg",
+                    "semaglutide",
+                    "finasteride_1.25mg",
+                    "tadalafil_2.5mg",
+                ),
                 expected_airway_decision_states=False,
             ),
         ),
@@ -524,7 +544,11 @@ def generate_stratified_public_frontier_scenarios(
                     ("statin_5mg", "metformin_500mg"),
                     ("semaglutide", "metformin_500mg"),
                 ),
-                banned_visible_ids=("metformin_500mg", "finasteride_1.25mg", "tadalafil_2.5mg"),
+                banned_visible_ids=(
+                    "metformin_500mg",
+                    "finasteride_1.25mg",
+                    "tadalafil_2.5mg",
+                ),
                 expected_airway_decision_states=False,
             ),
         ),
@@ -534,7 +558,12 @@ def generate_stratified_public_frontier_scenarios(
             PublicFrontierBenchmarkRules(
                 top_n=12,
                 required_visible_ids=("semaglutide",),
-                banned_visible_ids=("metformin_500mg", "statin_5mg", "finasteride_1.25mg", "tadalafil_2.5mg"),
+                banned_visible_ids=(
+                    "metformin_500mg",
+                    "statin_5mg",
+                    "finasteride_1.25mg",
+                    "tadalafil_2.5mg",
+                ),
                 expected_airway_decision_states=False,
             ),
         ),
@@ -544,7 +573,11 @@ def generate_stratified_public_frontier_scenarios(
             PublicFrontierBenchmarkRules(
                 top_n=12,
                 required_visible_ids=("semaglutide",),
-                banned_visible_ids=("metformin_500mg", "finasteride_1.25mg", "tadalafil_2.5mg"),
+                banned_visible_ids=(
+                    "metformin_500mg",
+                    "finasteride_1.25mg",
+                    "tadalafil_2.5mg",
+                ),
                 expected_airway_decision_states=False,
             ),
         ),
@@ -558,7 +591,12 @@ def generate_stratified_public_frontier_scenarios(
                     ("statin_5mg", "metformin_500mg"),
                     ("statin_5mg", "semaglutide"),
                 ),
-                banned_visible_ids=("metformin_500mg", "semaglutide", "finasteride_1.25mg", "tadalafil_2.5mg"),
+                banned_visible_ids=(
+                    "metformin_500mg",
+                    "semaglutide",
+                    "finasteride_1.25mg",
+                    "tadalafil_2.5mg",
+                ),
                 expected_airway_decision_states=False,
             ),
         ),
@@ -572,7 +610,12 @@ def generate_stratified_public_frontier_scenarios(
                     ("statin_5mg", "metformin_500mg"),
                     ("statin_5mg", "semaglutide"),
                 ),
-                banned_visible_ids=("metformin_500mg", "semaglutide", "finasteride_1.25mg", "tadalafil_2.5mg"),
+                banned_visible_ids=(
+                    "metformin_500mg",
+                    "semaglutide",
+                    "finasteride_1.25mg",
+                    "tadalafil_2.5mg",
+                ),
                 expected_airway_decision_states=False,
             ),
         ),
@@ -583,7 +626,11 @@ def generate_stratified_public_frontier_scenarios(
                 top_n=12,
                 required_visible_ids=("statin_5mg", "metformin_500mg"),
                 required_visible_order=(("metformin_500mg", "statin_5mg"),),
-                banned_visible_ids=("semaglutide", "finasteride_1.25mg", "tadalafil_2.5mg"),
+                banned_visible_ids=(
+                    "semaglutide",
+                    "finasteride_1.25mg",
+                    "tadalafil_2.5mg",
+                ),
                 expected_airway_decision_states=False,
             ),
         ),
@@ -594,7 +641,11 @@ def generate_stratified_public_frontier_scenarios(
                 top_n=12,
                 required_visible_ids=("statin_5mg", "metformin_500mg"),
                 required_visible_order=(("metformin_500mg", "statin_5mg"),),
-                banned_visible_ids=("semaglutide", "finasteride_1.25mg", "tadalafil_2.5mg"),
+                banned_visible_ids=(
+                    "semaglutide",
+                    "finasteride_1.25mg",
+                    "tadalafil_2.5mg",
+                ),
                 expected_airway_decision_states=False,
             ),
         ),
@@ -604,7 +655,11 @@ def generate_stratified_public_frontier_scenarios(
             PublicFrontierBenchmarkRules(
                 top_n=15,
                 required_visible_ids=("apap_nightly", "head_elevation_nightly"),
-                banned_visible_ids=("finasteride_1.25mg", "tadalafil_2.5mg", "mouth_tape_nightly"),
+                banned_visible_ids=(
+                    "finasteride_1.25mg",
+                    "tadalafil_2.5mg",
+                    "mouth_tape_nightly",
+                ),
                 expected_airway_decision_states=True,
             ),
         ),
@@ -638,7 +693,11 @@ def generate_stratified_public_frontier_scenarios(
             lambda: _duration_only_payload(rng),
             PublicFrontierBenchmarkRules(
                 top_n=12,
-                banned_visible_ids=("apap_nightly", "oral_appliance_custom", "head_elevation_nightly"),
+                banned_visible_ids=(
+                    "apap_nightly",
+                    "oral_appliance_custom",
+                    "head_elevation_nightly",
+                ),
                 expected_airway_decision_states=False,
             ),
         ),
@@ -737,7 +796,9 @@ def evaluate_public_frontier_case(
 
     if scenario.rules.required_top_any_of:
         checks_run += 1
-        if not any(item_id in top_ids for item_id in scenario.rules.required_top_any_of):
+        if not any(
+            item_id in top_ids for item_id in scenario.rules.required_top_any_of
+        ):
             failures.append(
                 PublicFrontierBenchmarkFailure(
                     rule="required_top_any_of",
@@ -816,7 +877,9 @@ def evaluate_public_frontier_case(
             )
 
     checks_failed = len(failures)
-    score = 1.0 if checks_run == 0 else max(0.0, (checks_run - checks_failed) / checks_run)
+    score = (
+        1.0 if checks_run == 0 else max(0.0, (checks_run - checks_failed) / checks_run)
+    )
 
     return PublicFrontierBenchmarkCaseResult(
         scenario_id=scenario.id,
@@ -846,7 +909,11 @@ def run_public_frontier_benchmark(
     )
     total_checks = sum(result.checks_run for result in case_results)
     total_failures = sum(result.checks_failed for result in case_results)
-    score = 1.0 if total_checks == 0 else max(0.0, (total_checks - total_failures) / total_checks)
+    score = (
+        1.0
+        if total_checks == 0
+        else max(0.0, (total_checks - total_failures) / total_checks)
+    )
     return PublicFrontierBenchmarkReport(
         case_results=case_results,
         total_checks=total_checks,
@@ -887,7 +954,9 @@ def benchmark_report_to_dict(
     }
 
 
-def benchmark_report_from_dict(payload: dict[str, Any]) -> PublicFrontierBenchmarkReport:
+def benchmark_report_from_dict(
+    payload: dict[str, Any],
+) -> PublicFrontierBenchmarkReport:
     """Deserialize a stored benchmark report."""
     case_results = []
     for raw_case in payload.get("cases", []):
@@ -908,7 +977,9 @@ def benchmark_report_from_dict(payload: dict[str, Any]) -> PublicFrontierBenchma
                 ),
                 frontier_ids=tuple(raw_case.get("frontier_ids", [])),
                 top_ids=tuple(raw_case.get("top_ids", [])),
-                airway_decision_states_present=bool(raw_case.get("airway_decision_states_present", False)),
+                airway_decision_states_present=bool(
+                    raw_case.get("airway_decision_states_present", False)
+                ),
                 response=dict(raw_case["response"] or {}),
             )
         )
@@ -939,7 +1010,9 @@ def _candidate_summary(response: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _scenario_rules_signature(scenario: PublicFrontierBenchmarkScenario) -> tuple[Any, ...]:
+def _scenario_rules_signature(
+    scenario: PublicFrontierBenchmarkScenario,
+) -> tuple[Any, ...]:
     return (
         scenario.rules.top_n,
         scenario.rules.banned_top_ids,
@@ -978,7 +1051,8 @@ def _cases_differ(
         case_a.score != case_b.score
         or case_a.top_ids != case_b.top_ids
         or case_a.failures != case_b.failures
-        or case_a.airway_decision_states_present != case_b.airway_decision_states_present
+        or case_a.airway_decision_states_present
+        != case_b.airway_decision_states_present
     )
 
 
@@ -990,27 +1064,49 @@ def render_public_frontier_judge_prompt(
     """Render a pairwise LLM judge prompt for one scenario."""
     template = JUDGE_PROMPT_TEMPLATE_PATH.read_text()
     return (
-        template
-        .replace("{{scenario}}", json.dumps({
-            "id": scenario.id,
-            "label": scenario.label,
-            "description": scenario.description,
-            "tags": list(scenario.tags),
-            "rules": {
-                "top_n": scenario.rules.top_n,
-                "banned_top_ids": list(scenario.rules.banned_top_ids),
-                "banned_visible_ids": list(scenario.rules.banned_visible_ids),
-                "required_top_any_of": list(scenario.rules.required_top_any_of),
-                "required_visible_ids": list(scenario.rules.required_visible_ids),
-                "required_visible_order": [list(pair) for pair in scenario.rules.required_visible_order],
-                "required_decision_state_ids": list(scenario.rules.required_decision_state_ids),
-                "banned_decision_state_ids": list(scenario.rules.banned_decision_state_ids),
-                "forbidden_visible_pairs": [list(pair) for pair in scenario.rules.forbidden_visible_pairs],
-                "expected_airway_decision_states": scenario.rules.expected_airway_decision_states,
-            },
-        }, indent=2))
-        .replace("{{candidate_a}}", json.dumps(_candidate_summary(candidate_a_response), indent=2))
-        .replace("{{candidate_b}}", json.dumps(_candidate_summary(candidate_b_response), indent=2))
+        template.replace(
+            "{{scenario}}",
+            json.dumps(
+                {
+                    "id": scenario.id,
+                    "label": scenario.label,
+                    "description": scenario.description,
+                    "tags": list(scenario.tags),
+                    "rules": {
+                        "top_n": scenario.rules.top_n,
+                        "banned_top_ids": list(scenario.rules.banned_top_ids),
+                        "banned_visible_ids": list(scenario.rules.banned_visible_ids),
+                        "required_top_any_of": list(scenario.rules.required_top_any_of),
+                        "required_visible_ids": list(
+                            scenario.rules.required_visible_ids
+                        ),
+                        "required_visible_order": [
+                            list(pair) for pair in scenario.rules.required_visible_order
+                        ],
+                        "required_decision_state_ids": list(
+                            scenario.rules.required_decision_state_ids
+                        ),
+                        "banned_decision_state_ids": list(
+                            scenario.rules.banned_decision_state_ids
+                        ),
+                        "forbidden_visible_pairs": [
+                            list(pair)
+                            for pair in scenario.rules.forbidden_visible_pairs
+                        ],
+                        "expected_airway_decision_states": scenario.rules.expected_airway_decision_states,
+                    },
+                },
+                indent=2,
+            ),
+        )
+        .replace(
+            "{{candidate_a}}",
+            json.dumps(_candidate_summary(candidate_a_response), indent=2),
+        )
+        .replace(
+            "{{candidate_b}}",
+            json.dumps(_candidate_summary(candidate_b_response), indent=2),
+        )
     )
 
 
@@ -1023,8 +1119,12 @@ def build_pairwise_judge_packets(
 ) -> tuple[PublicFrontierJudgePacket, ...]:
     """Build pairwise judge packets comparing candidate A vs B on matching scenarios."""
     active_scenarios = scenarios or CANONICAL_PUBLIC_FRONTIER_SCENARIOS
-    candidate_a_cases = {result.scenario_id: result for result in candidate_a_report.case_results}
-    candidate_b_cases = {result.scenario_id: result for result in candidate_b_report.case_results}
+    candidate_a_cases = {
+        result.scenario_id: result for result in candidate_a_report.case_results
+    }
+    candidate_b_cases = {
+        result.scenario_id: result for result in candidate_b_report.case_results
+    }
 
     packets = []
     seen_signatures: set[tuple[Any, ...]] = set()
@@ -1115,8 +1215,12 @@ def parse_public_frontier_judge_verdicts(
                 summary=str(raw_verdict["summary"]),
                 safety_issues=tuple(raw_verdict.get("safety_issues", [])),
                 ranking_issues=tuple(raw_verdict.get("ranking_issues", [])),
-                best_aspects_a=tuple((raw_verdict.get("best_aspects") or {}).get("A", [])),
-                best_aspects_b=tuple((raw_verdict.get("best_aspects") or {}).get("B", [])),
+                best_aspects_a=tuple(
+                    (raw_verdict.get("best_aspects") or {}).get("A", [])
+                ),
+                best_aspects_b=tuple(
+                    (raw_verdict.get("best_aspects") or {}).get("B", [])
+                ),
             )
         )
     return tuple(verdicts)

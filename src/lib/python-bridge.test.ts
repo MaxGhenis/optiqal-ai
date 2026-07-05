@@ -83,6 +83,46 @@ describe("python bridge", () => {
     expect(spawnMock).toHaveBeenCalledTimes(1);
   });
 
+  it("evicts the oldest entry once the cache cap is exceeded", async () => {
+    // The cap is 500 (MAX_CACHE_ENTRIES). Fill it with 501 distinct payloads,
+    // which evicts the very first; then re-request the first and confirm it
+    // re-fetches (was evicted), while the newest is still served from cache.
+    process.env.MODEL_URL = "https://model.example/svc/model";
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: vi.fn().mockResolvedValue('{"ok":true}'),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const run = (n: number) =>
+      runPythonJson({
+        payload: { n },
+        scriptPath: "scripts/web_frontier.py",
+        remotePath: "/frontier",
+        label: "frontier",
+        parseResponse: (value: unknown) =>
+          typeof value === "object" && value !== null
+            ? (value as { ok: boolean })
+            : null,
+        cacheTtlMs: 10_000,
+        timeoutMs: 1_000,
+      });
+
+    // 0 is the oldest; 1..500 fill the cache to the cap and evict 0.
+    for (let n = 0; n <= 500; n++) {
+      await run(n);
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(501);
+
+    // 0 was evicted -> re-fetch.
+    await run(0);
+    expect(fetchMock).toHaveBeenCalledTimes(502);
+
+    // 500 is the newest -> still cached, no re-fetch.
+    await run(500);
+    expect(fetchMock).toHaveBeenCalledTimes(502);
+  });
+
   it("times out long-running processes and kills them", async () => {
     vi.useFakeTimers();
 

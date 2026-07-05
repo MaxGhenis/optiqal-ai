@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { createDefaultState, updateState, getAge } from "./state";
+import { createDefaultState, updateState } from "./state";
 import {
   computeStateHazards,
   computeStateHazardsWithUncertainty,

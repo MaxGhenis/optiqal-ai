@@ -10,7 +10,8 @@ individual's true baseline.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, Optional, Tuple
+from typing import Dict, List, Literal, Optional
+
 import numpy as np
 from scipy import stats
 
@@ -23,6 +24,7 @@ class ImputationPrior:
     Based on population statistics from NHANES/UK Biobank,
     conditional on demographics.
     """
+
     variable: str
     mean: float
     std: float
@@ -30,7 +32,9 @@ class ImputationPrior:
     lower_bound: Optional[float] = None
     upper_bound: Optional[float] = None
 
-    def sample(self, n: int = 1, rng: Optional[np.random.Generator] = None) -> np.ndarray:
+    def sample(
+        self, n: int = 1, rng: Optional[np.random.Generator] = None
+    ) -> np.ndarray:
         """Sample from the prior."""
         if rng is None:
             rng = np.random.default_rng()
@@ -38,15 +42,20 @@ class ImputationPrior:
         if self.distribution == "normal":
             samples = rng.normal(self.mean, self.std, size=n)
         elif self.distribution == "lognormal":
-            log_mean = np.log(self.mean) - 0.5 * np.log(1 + (self.std/self.mean)**2)
-            log_std = np.sqrt(np.log(1 + (self.std/self.mean)**2))
+            log_mean = np.log(self.mean) - 0.5 * np.log(1 + (self.std / self.mean) ** 2)
+            log_std = np.sqrt(np.log(1 + (self.std / self.mean) ** 2))
             samples = rng.lognormal(log_mean, log_std, size=n)
         elif self.distribution == "truncated_normal":
-            samples = rng.normal(self.mean, self.std, size=n)
-            if self.lower_bound is not None:
-                samples = np.maximum(samples, self.lower_bound)
-            if self.upper_bound is not None:
-                samples = np.minimum(samples, self.upper_bound)
+            # Proper truncation, not clamping. Clamping with np.maximum/minimum
+            # piles probability mass on the bounds and shifts the realized mean
+            # and std away from the declared prior; truncnorm resamples the tail.
+            lower = -np.inf if self.lower_bound is None else self.lower_bound
+            upper = np.inf if self.upper_bound is None else self.upper_bound
+            a = (lower - self.mean) / self.std
+            b = (upper - self.mean) / self.std
+            samples = stats.truncnorm.rvs(
+                a, b, loc=self.mean, scale=self.std, size=n, random_state=rng
+            )
 
         return samples
 
@@ -55,15 +64,18 @@ class ImputationPrior:
         if self.distribution == "normal":
             return stats.norm.pdf(x, self.mean, self.std)
         elif self.distribution == "lognormal":
-            log_mean = np.log(self.mean) - 0.5 * np.log(1 + (self.std/self.mean)**2)
-            log_std = np.sqrt(np.log(1 + (self.std/self.mean)**2))
+            log_mean = np.log(self.mean) - 0.5 * np.log(1 + (self.std / self.mean) ** 2)
+            log_std = np.sqrt(np.log(1 + (self.std / self.mean) ** 2))
             return stats.lognorm.pdf(x, s=log_std, scale=np.exp(log_mean))
         elif self.distribution == "truncated_normal":
-            if self.lower_bound is not None and x < self.lower_bound:
-                return 0.0
-            if self.upper_bound is not None and x > self.upper_bound:
-                return 0.0
-            return stats.norm.pdf(x, self.mean, self.std)
+            # Use the properly normalized truncated-normal density so pdf()
+            # integrates to 1 over the bounds and matches sample() (which draws
+            # from scipy's truncnorm). A plain norm.pdf would under-integrate.
+            lower = -np.inf if self.lower_bound is None else self.lower_bound
+            upper = np.inf if self.upper_bound is None else self.upper_bound
+            a = (lower - self.mean) / self.std
+            b = (upper - self.mean) / self.std
+            return stats.truncnorm.pdf(x, a, b, loc=self.mean, scale=self.std)
 
 
 @dataclass
@@ -74,6 +86,7 @@ class Observation:
     Can be exact (e.g., "I exercise 100 min/week") or
     categorical (e.g., "I exercise regularly").
     """
+
     variable: str
     value: Optional[float] = None  # Exact value if known
     category: Optional[str] = None  # Categorical response
@@ -109,25 +122,28 @@ class Observation:
                 "light": (30, 75),
                 "moderate": (75, 150),
                 "active": (150, 300),
-                "very_active": (300, float('inf')),
+                "very_active": (300, float("inf")),
             },
             "bmi": {
                 "underweight": (0, 18.5),
                 "normal": (18.5, 25),
                 "overweight": (25, 30),
                 "obese": (30, 40),
-                "severely_obese": (40, float('inf')),
+                "severely_obese": (40, float("inf")),
             },
             "sleep_hours": {
                 "very_short": (0, 5),
                 "short": (5, 6),
                 "normal": (6, 8),
                 "long": (8, 9),
-                "very_long": (9, float('inf')),
+                "very_long": (9, float("inf")),
             },
         }
 
-        if self.variable in category_maps and self.category in category_maps[self.variable]:
+        if (
+            self.variable in category_maps
+            and self.category in category_maps[self.variable]
+        ):
             low, high = category_maps[self.variable][self.category]
             # Return 1 if true_value in category, 0 otherwise
             # (Could smooth this with a sigmoid for soft boundaries)
@@ -143,6 +159,7 @@ class PosteriorState:
 
     Stores updated mean, std, and samples for QALY calculation.
     """
+
     variable: str
     prior_mean: float
     prior_std: float
@@ -201,7 +218,7 @@ def bayesian_update(
 
     # Compute posterior statistics
     posterior_mean = np.sum(weights * prior_samples)
-    posterior_var = np.sum(weights * (prior_samples - posterior_mean)**2)
+    posterior_var = np.sum(weights * (prior_samples - posterior_mean) ** 2)
     posterior_std = np.sqrt(posterior_var)
 
     # Resample to get posterior samples (importance resampling)
@@ -249,9 +266,7 @@ def update_state_from_observations(
     for var, prior in priors.items():
         var_obs = obs_by_var.get(var, [])
         if var_obs:
-            posteriors[var] = bayesian_update(
-                prior, var_obs, n_samples, random_state
-            )
+            posteriors[var] = bayesian_update(prior, var_obs, n_samples, random_state)
         else:
             # No observations for this variable - posterior = prior
             rng = np.random.default_rng(random_state)
@@ -321,7 +336,9 @@ def demo_bayesian_updating():
 
     # Prior: imputed exercise for average 40-year-old
     exercise_prior = DEFAULT_PRIORS["exercise_min_per_week"]
-    print(f"\nPrior (imputed): Exercise = {exercise_prior.mean:.0f} ± {exercise_prior.std:.0f} min/week")
+    print(
+        f"\nPrior (imputed): Exercise = {exercise_prior.mean:.0f} ± {exercise_prior.std:.0f} min/week"
+    )
 
     # User says: "I exercise about 150 minutes per week"
     observation = Observation(
@@ -332,15 +349,21 @@ def demo_bayesian_updating():
 
     posterior = bayesian_update(exercise_prior, [observation], random_state=42)
 
-    print(f"\nObservation: User reports ~150 min/week (±30 measurement error)")
-    print(f"\nPosterior: Exercise = {posterior.posterior_mean:.0f} ± {posterior.posterior_std:.0f} min/week")
+    print("\nObservation: User reports ~150 min/week (±30 measurement error)")
+    print(
+        f"\nPosterior: Exercise = {posterior.posterior_mean:.0f} ± {posterior.posterior_std:.0f} min/week"
+    )
     print(f"Uncertainty reduction: {posterior.uncertainty_reduction:.1%}")
 
     # Now show effect on QALY estimate
     print("\n" + "-" * 40)
     print("Effect on QALY uncertainty:")
-    print(f"  Prior 95% CI for exercise: [{exercise_prior.mean - 2*exercise_prior.std:.0f}, {exercise_prior.mean + 2*exercise_prior.std:.0f}]")
-    print(f"  Posterior 95% CI: [{posterior.posterior_mean - 2*posterior.posterior_std:.0f}, {posterior.posterior_mean + 2*posterior.posterior_std:.0f}]")
+    print(
+        f"  Prior 95% CI for exercise: [{exercise_prior.mean - 2 * exercise_prior.std:.0f}, {exercise_prior.mean + 2 * exercise_prior.std:.0f}]"
+    )
+    print(
+        f"  Posterior 95% CI: [{posterior.posterior_mean - 2 * posterior.posterior_std:.0f}, {posterior.posterior_mean + 2 * posterior.posterior_std:.0f}]"
+    )
     print("\nSharper baseline state → Sharper QALY estimates")
 
 

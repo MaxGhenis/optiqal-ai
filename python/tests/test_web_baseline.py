@@ -7,8 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-
-PYTHON_DIR = Path("/Users/maxghenis/optiqal-ai/python")
+PYTHON_DIR = Path(__file__).resolve().parent.parent
 SCRIPT_PATH = PYTHON_DIR / "scripts" / "web_baseline.py"
 
 
@@ -66,3 +65,32 @@ def test_web_baseline_activity_changes_are_monotonic_and_bounded_for_healthy_pro
     assert active_expectancy - moderate_expectancy < 4.0
     assert active_expectancy - light_expectancy < 6.0
     assert active_death_age - light_death_age < 6.0
+
+
+def test_web_baseline_point_estimate_carries_prediction_intervals():
+    """Baseline must surface intervals from the age-at-death distribution, not
+    just point estimates, so the predict UI can show uncertainty."""
+    response = run_web_baseline(
+        {
+            "profile": {
+                "age": 50,
+                "sex": "male",
+                "weight_kg": 80.0,
+                "height_cm": 178.0,
+                "smoker": False,
+                "has_diabetes": False,
+                "has_hypertension": False,
+                "activity_level": "light",
+                "sleep_hours_per_night": 7.0,
+            }
+        }
+    )
+    pe = response["point_estimate"]
+    for field, point in (
+        ("remaining_life_expectancy_ci", pe["remaining_life_expectancy"]),
+        ("remaining_qalys_ci", pe["remaining_qalys"]),
+    ):
+        ci = pe.get(field)
+        assert isinstance(ci, list) and len(ci) == 2, f"missing {field}"
+        assert ci[0] <= ci[1], f"{field} unordered: {ci}"
+        assert ci[0] <= point <= ci[1], f"{field} {ci} does not bracket point {point}"

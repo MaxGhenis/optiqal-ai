@@ -1,15 +1,13 @@
 """Tests for the intervention catalog and publication bias correction."""
 
 import pytest
-import numpy as np
 
-from optiqal.confounding import publication_bias_correct
 from optiqal.catalog import (
     CATALOG,
-    CatalogEntry,
     PUBLIC_CONDITION_DATA_PATH,
     PUBLIC_ITEM_POLICY_DATA_PATH,
     PUBLIC_LANE_DATA_PATH,
+    CatalogEntry,
     build_public_policy_spec,
     get_catalog,
     has_meaningful_public_glp1_signal,
@@ -17,11 +15,13 @@ from optiqal.catalog import (
     has_meaningful_public_statin_signal,
     is_publicly_rankable,
     public_display_category,
-    public_recommendation_lane,
     public_rankability_reason,
+    public_recommendation_lane,
     simulate_catalog,
 )
 from optiqal.combination import find_optimal_portfolio_with_costs
+from optiqal.confounding import publication_bias_correct
+from optiqal.defaults import DEFAULT_QALY_DISCOUNT_RATE
 from optiqal.profile import Profile
 from optiqal.sleep import SleepMetrics, estimate_sleep_burden
 from optiqal.stack_interactions import build_stack_interaction_penalty_fn
@@ -96,6 +96,7 @@ class TestCatalog:
         # is set it takes precedence over the caller-supplied fallback.
         entry = CATALOG["omega3_clo"]
         from dataclasses import replace as _replace
+
         entry = _replace(entry, study_quality=None)
         # With 0% shrinkage, should use raw HR
         int_no_bias = entry.to_intervention(pub_bias_shrinkage=0.0)
@@ -116,6 +117,7 @@ class TestCatalog:
         assert 0.935 < corrected < 0.945
         # Without the tier override the result would be dramatically weaker.
         from dataclasses import replace as _replace
+
         untiered = _replace(entry, study_quality=None)
         corrected_untiered = untiered.corrected_hr_observed(pub_bias_shrinkage=0.90)
         assert corrected_untiered > 0.99  # 90% shrinkage → near null
@@ -143,10 +145,19 @@ class TestBundleCostAllocation:
     def test_every_bundled_item_has_allocation(self):
         """Every ingredient tagged as bundle member should declare a share."""
         bundled_ids = (
-            "fisetin_100", "spermidine_10", "nr_300", "ubiquinol_50",
-            "lithium_1mg_orotate", "boron_3", "broccoli_seed_200", "luteolin_100",
-            "astaxanthin_12", "lutein_zeaxanthin", "lycopene_15",
-            "hyaluronic_acid_120", "ginger_400",
+            "fisetin_100",
+            "spermidine_10",
+            "nr_300",
+            "ubiquinol_50",
+            "lithium_1mg_orotate",
+            "boron_3",
+            "broccoli_seed_200",
+            "luteolin_100",
+            "astaxanthin_12",
+            "lutein_zeaxanthin",
+            "lycopene_15",
+            "hyaluronic_acid_120",
+            "ginger_400",
         )
         for item_id in bundled_ids:
             entry = CATALOG[item_id]
@@ -159,8 +170,13 @@ class TestPosteriorHrExposure:
 
     def test_posterior_hr_in_item_results(self):
         profile = Profile(
-            age=39, sex="male", bmi_category="normal", smoking_status="never",
-            has_diabetes=False, has_hypertension=False, activity_level="light",
+            age=39,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=False,
+            has_hypertension=False,
+            activity_level="light",
         )
         results = simulate_catalog(
             profile=profile,
@@ -205,8 +221,12 @@ class TestPosteriorHrExposure:
             evidence_quality="low",
         )
 
-        high_hr = high.to_intervention(pub_bias_shrinkage=0.30).mortality.hazard_ratio.mean
-        low_hr = low.to_intervention(pub_bias_shrinkage=0.30).mortality.hazard_ratio.mean
+        high_hr = high.to_intervention(
+            pub_bias_shrinkage=0.30
+        ).mortality.hazard_ratio.mean
+        low_hr = low.to_intervention(
+            pub_bias_shrinkage=0.30
+        ).mortality.hazard_ratio.mean
 
         assert low_hr > high_hr
 
@@ -217,7 +237,9 @@ class TestPosteriorHrExposure:
         assert intervention.interaction_tags == ["sedating"]
         assert intervention.interaction_rules
 
-    def test_low_evidence_sleep_adjuncts_are_shrunk_more_than_high_evidence_therapy(self):
+    def test_low_evidence_sleep_adjuncts_are_shrunk_more_than_high_evidence_therapy(
+        self,
+    ):
         sleep_estimate = estimate_sleep_burden(
             SleepMetrics(
                 duration_hours=6.5,
@@ -239,8 +261,12 @@ class TestPosteriorHrExposure:
 
         assert apap.evidence_quality == "high"
         assert mouth_tape.evidence_quality == "low"
-        assert apap.evidence_effect_multiplier() > mouth_tape.evidence_effect_multiplier()
-        assert apap.sleep_qol_annual(sleep_estimate) > mouth_tape.sleep_qol_annual(sleep_estimate)
+        assert (
+            apap.evidence_effect_multiplier() > mouth_tape.evidence_effect_multiplier()
+        )
+        assert apap.sleep_qol_annual(sleep_estimate) > mouth_tape.sleep_qol_annual(
+            sleep_estimate
+        )
 
     def test_low_dose_melatonin_harm_prior_is_small(self):
         harm = CATALOG["melatonin_300mcg"].harm_effects[0].annual_qaly_loss
@@ -269,12 +295,30 @@ class TestPosteriorHrExposure:
         assert daridorexant.exclusive_group == "insomnia_rx"
         assert lemborexant.exclusive_group == "insomnia_rx"
         assert suvorexant.exclusive_group == "insomnia_rx"
-        assert doxepin.harm_effects[0].annual_qaly_loss.params["mean"] < trazodone.harm_effects[0].annual_qaly_loss.params["mean"]
-        assert daridorexant.harm_effects[0].annual_qaly_loss.params["mean"] < trazodone.harm_effects[0].annual_qaly_loss.params["mean"]
-        assert lemborexant.harm_effects[0].annual_qaly_loss.params["mean"] < trazodone.harm_effects[0].annual_qaly_loss.params["mean"]
-        assert suvorexant.harm_effects[0].annual_qaly_loss.params["mean"] < trazodone.harm_effects[0].annual_qaly_loss.params["mean"]
-        assert daridorexant.harm_effects[0].annual_qaly_loss.params["mean"] < suvorexant.harm_effects[0].annual_qaly_loss.params["mean"]
-        assert lemborexant.harm_effects[0].annual_qaly_loss.params["mean"] < suvorexant.harm_effects[0].annual_qaly_loss.params["mean"]
+        assert (
+            doxepin.harm_effects[0].annual_qaly_loss.params["mean"]
+            < trazodone.harm_effects[0].annual_qaly_loss.params["mean"]
+        )
+        assert (
+            daridorexant.harm_effects[0].annual_qaly_loss.params["mean"]
+            < trazodone.harm_effects[0].annual_qaly_loss.params["mean"]
+        )
+        assert (
+            lemborexant.harm_effects[0].annual_qaly_loss.params["mean"]
+            < trazodone.harm_effects[0].annual_qaly_loss.params["mean"]
+        )
+        assert (
+            suvorexant.harm_effects[0].annual_qaly_loss.params["mean"]
+            < trazodone.harm_effects[0].annual_qaly_loss.params["mean"]
+        )
+        assert (
+            daridorexant.harm_effects[0].annual_qaly_loss.params["mean"]
+            < suvorexant.harm_effects[0].annual_qaly_loss.params["mean"]
+        )
+        assert (
+            lemborexant.harm_effects[0].annual_qaly_loss.params["mean"]
+            < suvorexant.harm_effects[0].annual_qaly_loss.params["mean"]
+        )
 
     def test_glycine_and_taurine_do_not_claim_mortality_benefit(self):
         glycine = CATALOG["glycine_2g"]
@@ -287,10 +331,46 @@ class TestPosteriorHrExposure:
         assert glycine.to_intervention(pub_bias_shrinkage=0.30).mortality is None
         assert taurine.to_intervention(pub_bias_shrinkage=0.30).mortality is None
 
-    def test_probiotic_candidate_is_low_evidence_gut_support_without_direct_mortality(self):
+    def test_creatine_qol_is_componentized_with_cognitive_uncertainty(self):
+        creatine = CATALOG["creatine_5g"]
+        effect_ids = {effect.id for effect in creatine.qol_effects}
+
+        assert creatine.qol_annual == 0
+        assert creatine.raw_qol_annual() > 0.005
+        assert "cognitive_resilience" in effect_ids
+        assert "strength_power_lean_mass" in effect_ids
+        assert creatine.harm_effects
+
+    def test_creatine_total_probability_includes_qol_draws(self):
+        profile = Profile(
+            age=39,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=False,
+            has_hypertension=False,
+            activity_level="light",
+        )
+
+        result = simulate_catalog(
+            profile,
+            n_simulations=4000,
+            random_state=42,
+            catalog_entries={"creatine_5g": CATALOG["creatine_5g"]},
+        )[0]
+
+        assert result["qol_effects"]
+        assert result["p_benefit"] > 0.90
+        assert result["ci_low"] < result["days"] < result["ci_high"]
+        assert result["qol_qaly"] > abs(result["harm_qaly"])
+
+    def test_probiotic_testing_is_low_evidence_gut_support_without_direct_mortality(
+        self,
+    ):
         probiotic = CATALOG["probiotic_daily"]
 
-        assert probiotic.annual_cost == 258
+        assert probiotic.category == "supplement_bought"
+        assert probiotic.annual_cost == 273
         assert probiotic.evidence_quality == "low"
         assert probiotic.benefit_tags == ["gut_support"]
         assert probiotic.has_direct_mortality_effect is False
@@ -318,7 +398,10 @@ class TestPosteriorHrExposure:
             "bpc157_cycle",
             "tb500_cycle",
         ]:
-            assert CATALOG[item_id].to_intervention(pub_bias_shrinkage=0.30).mortality is None
+            assert (
+                CATALOG[item_id].to_intervention(pub_bias_shrinkage=0.30).mortality
+                is None
+            )
 
     def test_traditional_sauna_has_stronger_qol_signal_than_infrared(self):
         traditional = CATALOG["traditional_sauna_4x_week"]
@@ -356,7 +439,9 @@ class TestPosteriorHrExposure:
         hiit_3 = CATALOG["hiit_3x_week"]
 
         assert hiit_3.log_sd > hiit_2.log_sd
-        assert hiit_3.conf_alpha / (hiit_3.conf_alpha + hiit_3.conf_beta) < hiit_2.conf_alpha / (hiit_2.conf_alpha + hiit_2.conf_beta)
+        assert hiit_3.conf_alpha / (
+            hiit_3.conf_alpha + hiit_3.conf_beta
+        ) < hiit_2.conf_alpha / (hiit_2.conf_alpha + hiit_2.conf_beta)
 
     def test_public_rankability_keeps_true_free_behavioral_items(self):
         assert is_publicly_rankable(CATALOG["hiit_2x_week"]) is True
@@ -372,21 +457,37 @@ class TestPosteriorHrExposure:
                 snore_pct=4.0,
             )
         )
-        assert is_publicly_rankable(
-            CATALOG["head_elevation_nightly"],
-            sleep_estimate=airway_sleep,
-        ) is True
-        assert public_rankability_reason(
-            CATALOG["head_elevation_nightly"],
-            sleep_estimate=airway_sleep,
-        ) is None
+        assert (
+            is_publicly_rankable(
+                CATALOG["head_elevation_nightly"],
+                sleep_estimate=airway_sleep,
+            )
+            is True
+        )
+        assert (
+            public_rankability_reason(
+                CATALOG["head_elevation_nightly"],
+                sleep_estimate=airway_sleep,
+            )
+            is None
+        )
 
-    def test_public_recommendation_lane_splits_consumer_conditional_and_personal_items(self):
+    def test_public_recommendation_lane_splits_consumer_conditional_and_personal_items(
+        self,
+    ):
         assert public_recommendation_lane(CATALOG["hiit_2x_week"]) == "consumer_public"
-        assert public_recommendation_lane(CATALOG["head_elevation_nightly"]) == "conditional_public"
+        assert (
+            public_recommendation_lane(CATALOG["head_elevation_nightly"])
+            == "conditional_public"
+        )
         assert public_recommendation_lane(CATALOG["statin_5mg"]) == "conditional_public"
-        assert public_recommendation_lane(CATALOG["metformin_500mg"]) == "conditional_public"
-        assert public_recommendation_lane(CATALOG["semaglutide"]) == "conditional_public"
+        assert (
+            public_recommendation_lane(CATALOG["metformin_500mg"])
+            == "conditional_public"
+        )
+        assert (
+            public_recommendation_lane(CATALOG["semaglutide"]) == "conditional_public"
+        )
         assert public_recommendation_lane(CATALOG["quercetin_500"]) == "personal_only"
 
     def test_public_cardiometabolic_signal_helpers_are_selective(self):
@@ -408,20 +509,38 @@ class TestPosteriorHrExposure:
             has_hypertension=True,
             activity_level="light",
         )
+        diabetes = Profile(
+            age=52,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=True,
+            has_hypertension=False,
+            activity_level="light",
+        )
 
         assert has_meaningful_public_statin_signal(healthy) is False
         assert has_meaningful_public_metformin_signal(healthy) is False
         assert has_meaningful_public_glp1_signal(healthy) is False
         assert has_meaningful_public_statin_signal(higher_risk) is True
-        assert has_meaningful_public_metformin_signal(higher_risk) is True
+        assert has_meaningful_public_metformin_signal(higher_risk) is False
         assert has_meaningful_public_glp1_signal(higher_risk) is True
+        assert has_meaningful_public_metformin_signal(diabetes) is True
 
         assert is_publicly_rankable(CATALOG["statin_5mg"], profile=healthy) is False
-        assert is_publicly_rankable(CATALOG["metformin_500mg"], profile=healthy) is False
+        assert (
+            is_publicly_rankable(CATALOG["metformin_500mg"], profile=healthy) is False
+        )
         assert is_publicly_rankable(CATALOG["semaglutide"], profile=healthy) is False
         assert is_publicly_rankable(CATALOG["statin_5mg"], profile=higher_risk) is True
-        assert is_publicly_rankable(CATALOG["metformin_500mg"], profile=higher_risk) is True
+        assert (
+            is_publicly_rankable(CATALOG["metformin_500mg"], profile=higher_risk)
+            is False
+        )
         assert is_publicly_rankable(CATALOG["semaglutide"], profile=higher_risk) is True
+        assert (
+            is_publicly_rankable(CATALOG["metformin_500mg"], profile=diabetes) is True
+        )
 
     def test_public_rankability_excludes_bundle_dependent_zero_cost_items(self):
         assert is_publicly_rankable(CATALOG["astaxanthin_12"]) is False
@@ -432,6 +551,7 @@ class TestPosteriorHrExposure:
         assert public_display_category(CATALOG["nasacort_nightly"]) == "sleep"
         assert public_display_category(CATALOG["humidifier_nightly"]) == "sleep"
         assert public_display_category(CATALOG["mouth_tape_nightly"]) == "sleep"
+        assert public_display_category(CATALOG["doxepin_3mg"]) == "sleep"
         assert public_display_category(CATALOG["statin_5mg"]) == "rx"
         assert public_display_category(CATALOG["quercetin_500"]) == "supplement"
 
@@ -447,19 +567,26 @@ class TestPosteriorHrExposure:
         assert lanes["consumer_public"]["label"] == "Broad public recommendations"
         assert lanes["personal_only"]["description"].startswith("Current-stack")
         assert items["hiit_2x_week"]["lane"] == "consumer_public"
-        assert items["apap_nightly"]["condition"] == "airway_signal"
+        assert items["apap_nightly"]["condition"] == "osa_therapy_signal"
         assert items["traditional_sauna_4x_week"]["display_category"] == "service"
 
         airway = conditions["airway_signal"]
         assert airway["evaluation_kind"] == "sleep_any_threshold"
         assert airway["score_threshold"] is None
-        assert any(rule["signal"] == "sleep_breathing_burden" for rule in airway["thresholds"])
+        assert any(
+            rule["signal"] == "sleep_breathing_burden" for rule in airway["thresholds"]
+        )
 
         cardiometabolic = conditions["cardiometabolic_signal"]
         assert cardiometabolic["evaluation_kind"] == "profile_score"
-        assert cardiometabolic["score_threshold"] == 3
-        assert any(rule["field"] == "has_diabetes" and rule["points"] == 3 for rule in cardiometabolic["score_rules"])
-        assert public_display_category(CATALOG["traditional_sauna_4x_week"]) == "service"
+        assert cardiometabolic["score_threshold"] == 4
+        assert any(
+            rule["field"] == "has_diabetes" and rule["points"] == 4
+            for rule in cardiometabolic["score_rules"]
+        )
+        assert (
+            public_display_category(CATALOG["traditional_sauna_4x_week"]) == "service"
+        )
 
     def test_sleep_access_profiles_capture_coverage_and_friction(self):
         assert CATALOG["head_elevation_nightly"].access_profile.tier == "behavioral"
@@ -470,7 +597,9 @@ class TestPosteriorHrExposure:
         assert CATALOG["mouth_tape_nightly"].access_profile.tier == "cash_pay"
         assert CATALOG["mouth_tape_nightly"].access_profile.friction == "low"
         assert CATALOG["apap_nightly"].access_profile.coverage_outlook == "likely"
-        assert CATALOG["oral_appliance_custom"].access_profile.coverage_outlook == "mixed"
+        assert (
+            CATALOG["oral_appliance_custom"].access_profile.coverage_outlook == "mixed"
+        )
         assert CATALOG["doxepin_3mg"].access_profile.tier == "generic_rx"
         assert CATALOG["daridorexant_25mg"].access_profile.tier == "brand_rx_prior_auth"
 
@@ -483,7 +612,9 @@ class TestPosteriorHrExposure:
             ("fisetin_100", "fisetin_100_unbundled"),
         ],
     )
-    def test_unbundled_variants_keep_effect_but_change_cost(self, bundled_id, unbundled_id):
+    def test_unbundled_variants_keep_effect_but_change_cost(
+        self, bundled_id, unbundled_id
+    ):
         bundled = CATALOG[bundled_id]
         unbundled = CATALOG[unbundled_id]
 
@@ -518,11 +649,18 @@ class TestPosteriorHrExposure:
             activity_level="light",
         )
 
-        assert entry.profile_effect_multiplier(lean) < entry.profile_effect_multiplier(obese_diabetic)
+        assert entry.profile_effect_multiplier(lean) < entry.profile_effect_multiplier(
+            obese_diabetic
+        )
 
         lean_intervention = entry.to_intervention(pub_bias_shrinkage=0.30, profile=lean)
-        obese_intervention = entry.to_intervention(pub_bias_shrinkage=0.30, profile=obese_diabetic)
-        assert lean_intervention.mortality.hazard_ratio.mean > obese_intervention.mortality.hazard_ratio.mean
+        obese_intervention = entry.to_intervention(
+            pub_bias_shrinkage=0.30, profile=obese_diabetic
+        )
+        assert (
+            lean_intervention.mortality.hazard_ratio.mean
+            > obese_intervention.mortality.hazard_ratio.mean
+        )
 
     def test_simulate_catalog_default_discount_matches_canonical_rate(self):
         profile = Profile(
@@ -546,7 +684,7 @@ class TestPosteriorHrExposure:
             n_simulations=2000,
             random_state=42,
             categories=["rx_current"],
-            qaly_discount_rate=0.0,
+            qaly_discount_rate=DEFAULT_QALY_DISCOUNT_RATE,
         )
 
         default_by_id = {result["id"]: result for result in default_results}
@@ -564,7 +702,7 @@ class TestPosteriorHrExposure:
             assert "top_positive_component" in default_by_id[item_id]
             assert "top_negative_component" in default_by_id[item_id]
 
-    def test_simulate_catalog_rejects_nonzero_qaly_discount(self):
+    def test_simulate_catalog_rejects_negative_qaly_discount(self):
         profile = Profile(
             age=39,
             sex="male",
@@ -575,13 +713,13 @@ class TestPosteriorHrExposure:
             activity_level="light",
         )
 
-        with pytest.raises(ValueError, match="0% QALY discounting only"):
+        with pytest.raises(ValueError, match="nonnegative"):
             simulate_catalog(
                 profile,
                 n_simulations=1000,
                 random_state=42,
                 categories=["rx_current"],
-                qaly_discount_rate=0.03,
+                qaly_discount_rate=-0.01,
             )
 
     def test_simulate_catalog_can_apply_personalized_sleep_relief(self):
@@ -673,7 +811,9 @@ class TestPosteriorHrExposure:
         assert breakdown["evidence_discount_qaly"] < 0
         assert breakdown["sleep_qol_qaly"] == pytest.approx(result["sleep_qol_qaly"])
         assert breakdown["direct_qol_qaly"] == pytest.approx(result["qol_qaly"])
-        assert breakdown["interaction_harm_qaly"] == pytest.approx(result["interaction_harm_qaly"])
+        assert breakdown["interaction_harm_qaly"] == pytest.approx(
+            result["interaction_harm_qaly"]
+        )
         assert result["top_negative_component"] in {
             "direct_harm_qaly",
             "interaction_harm_qaly",
@@ -838,13 +978,31 @@ class TestPosteriorHrExposure:
         )
         by_id = {result["id"]: result for result in results}
 
-        assert by_id["nasacort_nightly"]["airway_effect_multiplier"] > by_id["nac_1200"]["airway_effect_multiplier"]
-        assert by_id["nasal_strips_nightly"]["airway_effect_multiplier"] > by_id["nac_1200"]["airway_effect_multiplier"]
+        assert (
+            by_id["nasacort_nightly"]["airway_effect_multiplier"]
+            > by_id["nac_1200"]["airway_effect_multiplier"]
+        )
+        assert (
+            by_id["nasal_strips_nightly"]["airway_effect_multiplier"]
+            > by_id["nac_1200"]["airway_effect_multiplier"]
+        )
         assert by_id["humidifier_nightly"]["sleep_qol_qaly"] > 0.0
-        assert by_id["humidifier_nightly"]["sleep_qol_qaly"] < by_id["nasal_strips_nightly"]["sleep_qol_qaly"]
-        assert by_id["mouth_tape_nightly"]["sleep_qol_qaly"] > by_id["humidifier_nightly"]["sleep_qol_qaly"]
-        assert by_id["mouth_tape_nightly"]["sleep_qol_qaly"] < by_id["nasal_strips_nightly"]["sleep_qol_qaly"]
-        assert by_id["nasacort_nightly"]["sleep_qol_qaly"] > by_id["nac_1200"]["sleep_qol_qaly"]
+        assert (
+            by_id["humidifier_nightly"]["sleep_qol_qaly"]
+            < by_id["nasal_strips_nightly"]["sleep_qol_qaly"]
+        )
+        assert (
+            by_id["mouth_tape_nightly"]["sleep_qol_qaly"]
+            > by_id["humidifier_nightly"]["sleep_qol_qaly"]
+        )
+        assert (
+            by_id["mouth_tape_nightly"]["sleep_qol_qaly"]
+            < by_id["nasal_strips_nightly"]["sleep_qol_qaly"]
+        )
+        assert (
+            by_id["nasacort_nightly"]["sleep_qol_qaly"]
+            > by_id["nac_1200"]["sleep_qol_qaly"]
+        )
 
     def test_pap_and_oral_appliance_outperform_weaker_airway_aids(self):
         profile = Profile(
@@ -886,11 +1044,22 @@ class TestPosteriorHrExposure:
         )
         by_id = {result["id"]: result for result in results}
 
-        assert by_id["apap_nightly"]["sleep_qol_qaly"] > by_id["oral_appliance_custom"]["sleep_qol_qaly"]
-        assert by_id["oral_appliance_custom"]["sleep_qol_qaly"] > by_id["nasal_strips_nightly"]["sleep_qol_qaly"]
-        assert by_id["apap_nightly"]["total_qaly"] > by_id["oral_appliance_custom"]["total_qaly"]
+        assert (
+            by_id["apap_nightly"]["sleep_qol_qaly"]
+            > by_id["oral_appliance_custom"]["sleep_qol_qaly"]
+        )
+        assert (
+            by_id["oral_appliance_custom"]["sleep_qol_qaly"]
+            > by_id["nasal_strips_nightly"]["sleep_qol_qaly"]
+        )
+        assert (
+            by_id["apap_nightly"]["total_qaly"]
+            > by_id["oral_appliance_custom"]["total_qaly"]
+        )
 
-    def test_trazodone_alternatives_offer_cleaner_tradeoffs_in_sleep_maintenance_phenotype(self):
+    def test_trazodone_alternatives_offer_cleaner_tradeoffs_in_sleep_maintenance_phenotype(
+        self,
+    ):
         profile = Profile(
             age=39,
             sex="male",
@@ -932,14 +1101,22 @@ class TestPosteriorHrExposure:
         )
         by_id = {result["id"]: result for result in results}
 
-        assert by_id["daridorexant_25mg"]["direct_harm_qaly"] > by_id["trazodone_50mg"]["direct_harm_qaly"]
+        assert (
+            by_id["daridorexant_25mg"]["direct_harm_qaly"]
+            > by_id["trazodone_50mg"]["direct_harm_qaly"]
+        )
         assert by_id["daridorexant_25mg"]["p_harm"] < by_id["trazodone_50mg"]["p_harm"]
         assert by_id["lemborexant_5mg"]["p_harm"] < by_id["trazodone_50mg"]["p_harm"]
         assert by_id["suvorexant_10mg"]["p_harm"] < by_id["trazodone_50mg"]["p_harm"]
         assert by_id["daridorexant_25mg"]["p_harm"] < by_id["suvorexant_10mg"]["p_harm"]
         assert by_id["lemborexant_5mg"]["p_harm"] < by_id["suvorexant_10mg"]["p_harm"]
-        assert by_id["doxepin_3mg"]["direct_harm_qaly"] > by_id["trazodone_50mg"]["direct_harm_qaly"]
-        assert by_id["doxepin_3mg"]["annual_cost"] < by_id["trazodone_50mg"]["annual_cost"]
+        assert (
+            by_id["doxepin_3mg"]["direct_harm_qaly"]
+            > by_id["trazodone_50mg"]["direct_harm_qaly"]
+        )
+        assert (
+            by_id["doxepin_3mg"]["annual_cost"] < by_id["trazodone_50mg"]["annual_cost"]
+        )
 
     def test_gray_market_peptides_have_negative_or_near_zero_qol_signal(self):
         assert CATALOG["bpc157_cycle"].qol_annual <= 0.00005
@@ -970,7 +1147,10 @@ class TestCostAwarePortfolio:
     def test_selects_best_value_first(self, sample_data):
         qalys, costs = sample_data
         result = find_optimal_portfolio_with_costs(
-            qalys, costs, wtp=200_000, horizon_years=40,
+            qalys,
+            costs,
+            wtp=200_000,
+            horizon_years=40,
         )
         assert len(result) > 0
         assert result[0]["added_intervention"] == "a"  # Highest QALY
@@ -979,18 +1159,27 @@ class TestCostAwarePortfolio:
         qalys, costs = sample_data
         # Very low WTP should exclude expensive items
         result = find_optimal_portfolio_with_costs(
-            qalys, costs, wtp=1_000, horizon_years=40,
+            qalys,
+            costs,
+            wtp=1_000,
+            horizon_years=40,
         )
         # Should select fewer items when WTP is low
         result_high = find_optimal_portfolio_with_costs(
-            qalys, costs, wtp=200_000, horizon_years=40,
+            qalys,
+            costs,
+            wtp=200_000,
+            horizon_years=40,
         )
         assert len(result) <= len(result_high)
 
     def test_respects_exclude(self, sample_data):
         qalys, costs = sample_data
         result = find_optimal_portfolio_with_costs(
-            qalys, costs, wtp=200_000, horizon_years=40,
+            qalys,
+            costs,
+            wtp=200_000,
+            horizon_years=40,
             exclude=["a"],
         )
         selected = {step["added_intervention"] for step in result}
@@ -999,7 +1188,10 @@ class TestCostAwarePortfolio:
     def test_diminishing_returns_applied(self, sample_data):
         qalys, costs = sample_data
         result = find_optimal_portfolio_with_costs(
-            qalys, costs, wtp=200_000, horizon_years=40,
+            qalys,
+            costs,
+            wtp=200_000,
+            horizon_years=40,
         )
         if len(result) >= 2:
             assert result[0]["marginal_qaly"] == pytest.approx(qalys["a"])
@@ -1008,7 +1200,10 @@ class TestCostAwarePortfolio:
     def test_output_structure(self, sample_data):
         qalys, costs = sample_data
         result = find_optimal_portfolio_with_costs(
-            qalys, costs, wtp=200_000, horizon_years=40,
+            qalys,
+            costs,
+            wtp=200_000,
+            horizon_years=40,
         )
         assert len(result) > 0
         step = result[0]
@@ -1134,3 +1329,43 @@ class TestCostAwarePortfolio:
         )
 
         assert [step["added_intervention"] for step in result] == ["a"]
+
+
+def test_public_rx_display_names_have_no_dose_or_brand():
+    """Public prescription names must not embed dose or brand.
+
+    Surfacing 'rosuvastatin 5mg' or '(semaglutide)' to a consumer is a
+    prescribing detail; the public tool should name the drug class only and
+    badge it as prescription. Route parentheticals (e.g. '(topical)') are kept.
+    """
+    import re
+
+    from optiqal.catalog import (
+        get_catalog,
+        public_display_category,
+        public_display_name,
+    )
+
+    dose = re.compile(r"\b\d+(\.\d+)?\s*(mg|mcg|g|iu|ug)\b", re.I)
+    routes = {
+        "topical",
+        "oral",
+        "sublingual",
+        "nasal",
+        "inhaled",
+        "transdermal",
+        "subcutaneous",
+    }
+    brand_paren = re.compile(r"\(([^)]*)\)")
+
+    cat = get_catalog()
+    entries = cat.values() if isinstance(cat, dict) else cat
+    rx = [e for e in entries if public_display_category(e) == "rx"]
+    assert rx, "expected some rx items in the catalog"
+    for e in rx:
+        name = public_display_name(e)
+        assert not dose.search(name), f"{e.id}: public name {name!r} still has a dose"
+        for inner in brand_paren.findall(name):
+            assert inner.strip().lower() in routes, (
+                f"{e.id}: public name {name!r} still exposes a brand/molecule {inner!r}"
+            )

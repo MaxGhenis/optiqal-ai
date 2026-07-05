@@ -77,7 +77,7 @@ describe("CALIBRATED_PRIORS", () => {
   });
 
   it("should have valid mean causal fractions", () => {
-    for (const [category, prior] of Object.entries(CALIBRATED_PRIORS)) {
+    for (const prior of Object.values(CALIBRATED_PRIORS)) {
       const expectedMean = prior.alpha / (prior.alpha + prior.beta);
       expect(prior.mean).toBeCloseTo(expectedMean, 2);
       expect(prior.mean).toBeGreaterThan(0);

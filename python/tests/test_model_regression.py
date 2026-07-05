@@ -6,8 +6,8 @@ import json
 from pathlib import Path
 
 from optiqal import (
-    AnalysisConfig,
     CATALOG,
+    AnalysisConfig,
     Profile,
     analyze,
     build_public_sleep_decision_specs,
@@ -15,14 +15,13 @@ from optiqal import (
     evaluate_decision_states,
     serialize_decision_state_evaluations,
 )
-from optiqal.web_api import build_baseline_response, build_frontier_response
 from optiqal.sleep import (
     SleepMetrics,
     SleepStudyResult,
     apply_sleep_study,
     estimate_sleep_burden,
 )
-
+from optiqal.web_api import build_baseline_response, build_frontier_response
 
 FIXTURES = json.loads(
     (Path(__file__).parent / "fixtures" / "model_regression.json").read_text()
@@ -95,10 +94,7 @@ def canonical_confirmed_mild_osa_estimate():
 
 
 def subset_entries():
-    return {
-        item_id: CATALOG[item_id]
-        for item_id in SUBSET_IDS
-    }
+    return {item_id: CATALOG[item_id] for item_id in SUBSET_IDS}
 
 
 def run_subset_analysis(sleep_estimate):
@@ -125,11 +121,26 @@ def test_confirmed_mild_osa_reweights_airway_choices_directionally():
     wearable_by_id = wearable.item_results_by_id
     confirmed_by_id = confirmed.item_results_by_id
 
-    assert wearable_by_id["daridorexant_25mg"]["total_qaly"] > wearable_by_id["apap_nightly"]["total_qaly"]
-    assert confirmed_by_id["apap_nightly"]["total_qaly"] > confirmed_by_id["daridorexant_25mg"]["total_qaly"]
-    assert confirmed_by_id["apap_nightly"]["total_qaly"] > wearable_by_id["apap_nightly"]["total_qaly"] * 5
-    assert confirmed_by_id["oral_appliance_custom"]["total_qaly"] > wearable_by_id["oral_appliance_custom"]["total_qaly"] * 5
-    assert confirmed_by_id["nasacort_nightly"]["total_qaly"] > wearable_by_id["nasacort_nightly"]["total_qaly"] * 4
+    assert (
+        wearable_by_id["daridorexant_25mg"]["total_qaly"]
+        > wearable_by_id["apap_nightly"]["total_qaly"]
+    )
+    assert (
+        confirmed_by_id["apap_nightly"]["total_qaly"]
+        > confirmed_by_id["daridorexant_25mg"]["total_qaly"]
+    )
+    assert (
+        confirmed_by_id["apap_nightly"]["total_qaly"]
+        > wearable_by_id["apap_nightly"]["total_qaly"] * 5
+    )
+    assert (
+        confirmed_by_id["oral_appliance_custom"]["total_qaly"]
+        > wearable_by_id["oral_appliance_custom"]["total_qaly"] * 5
+    )
+    assert (
+        confirmed_by_id["nasacort_nightly"]["total_qaly"]
+        > wearable_by_id["nasacort_nightly"]["total_qaly"] * 4
+    )
 
 
 def test_canonical_sleep_subset_matches_golden_ranges():
@@ -183,8 +194,8 @@ def test_public_sleep_decision_states_match_golden_ranges():
         entries,
         analysis.config.profile,
         analysis.config.qaly_discount_rate,
-        single_qalys,
-        analysis.config.sleep_overlap_multipliers,
+        item_qalys=single_qalys,
+        benefit_tag_multipliers=analysis.config.sleep_overlap_multipliers,
     )
     serialized = serialize_decision_state_evaluations(
         evaluate_decision_states(
@@ -194,7 +205,9 @@ def test_public_sleep_decision_states_match_golden_ranges():
             cost_values=cost_values,
             horizon_years=analysis.config.horizon_years,
             stack_interaction_penalty_fn=stack_penalty_fn,
-            total_cost_value_fn=lambda item_ids: sum(cost_values[item_id] for item_id in item_ids),
+            total_cost_value_fn=lambda item_ids: sum(
+                cost_values[item_id] for item_id in item_ids
+            ),
             exclusive_groups=exclusive_groups,
         ),
         item_name_by_id={item_id: entry.name for item_id, entry in entries.items()},
@@ -206,8 +219,7 @@ def test_public_sleep_decision_states_match_golden_ranges():
 
     for state_id, options in fixture["ranges"].items():
         actual_by_id = {
-            option["id"]: option
-            for option in serialized[state_id]["options"]
+            option["id"]: option for option in serialized[state_id]["options"]
         }
         for option_id, field_ranges in options.items():
             for field, bounds in field_ranges.items():
@@ -241,7 +253,9 @@ def test_web_baseline_activity_monotonicity_holds_across_profile_matrix():
                         }
                     }
                 )
-                expected_death_ages.append(response["point_estimate"]["expected_death_age"])
+                expected_death_ages.append(
+                    response["point_estimate"]["expected_death_age"]
+                )
 
             assert expected_death_ages == sorted(expected_death_ages), (
                 f"activity monotonicity failed for age={age}, sex={sex}: "
@@ -328,12 +342,12 @@ def test_public_sleep_pathway_requires_meaningful_airway_signal():
             "n_simulations": 500,
         }
     )
-    assert airway_weighted_sleep["sleep_estimate"]["component_burdens"]["breathing"] > 0.0
+    assert (
+        airway_weighted_sleep["sleep_estimate"]["component_burdens"]["breathing"] > 0.0
+    )
     assert [state["id"] for state in airway_weighted_sleep["decision_states"]] == [
         "conservative_airway_support",
         "primary_osa_therapy_choice",
-        "rx_after_apap_if_needed",
-        "rx_after_oral_appliance_if_needed",
     ]
 
     support_only_sleep = build_frontier_response(
@@ -414,18 +428,12 @@ def test_healthy_young_female_public_frontier_excludes_condition_specific_generi
     }
     assert set(frontier_ids).isdisjoint(banned_ids)
 
-    items_by_id = {item["id"]: item for item in response["items"]}
-    assert "clinician-mediated" in items_by_id["aspirin_81mg"]["rankability_reason"]
-    assert "indication-specific personal medication" in items_by_id["finasteride_1.25mg"]["rankability_reason"]
-    assert "indication- and population-specific" in items_by_id["tadalafil_2.5mg"]["rankability_reason"]
-    assert "deficiency risk" in items_by_id["vitamin_d_2000"]["rankability_reason"]
-    assert "meaningful metabolic-risk signal" in items_by_id["metformin_500mg"]["rankability_reason"]
-    assert "meaningful cardiometabolic risk signal" in items_by_id["statin_5mg"]["rankability_reason"]
-    assert "personal current-stack item" in items_by_id["vitamin_k2"]["rankability_reason"]
-    assert "not yet curated as a broad public recommendation" in items_by_id["quercetin_500"]["rankability_reason"]
+    exposed_item_ids = {item["id"] for item in response["items"]}
+    assert exposed_item_ids.isdisjoint(banned_ids)
+    assert all(item["pricing_status"] != "unpriced" for item in response["items"])
 
 
-def test_airway_triggered_public_sleep_pathway_keeps_contextual_rx_options():
+def test_airway_triggered_public_sleep_pathway_hides_contextual_rx_scores():
     response = build_frontier_response(
         {
             "profile": {
@@ -451,21 +459,30 @@ def test_airway_triggered_public_sleep_pathway_keeps_contextual_rx_options():
         }
     )
 
-    choice_states = {state["id"]: state for state in response["decision_states"] if state["kind"] == "choice"}
-    assert "rx_after_apap_if_needed" in choice_states
+    state_ids = {state["id"] for state in response["decision_states"]}
+    assert "primary_osa_therapy_choice" in state_ids
+    assert "rx_after_apap_if_needed" not in state_ids
+    assert "rx_after_oral_appliance_if_needed" not in state_ids
 
-    option_ids = {option["id"] for option in choice_states["rx_after_apap_if_needed"]["options"]}
-    assert {
-        "no_insomnia_rx",
-        "trazodone_50mg",
-        "doxepin_3mg",
-        "daridorexant_25mg",
-        "lemborexant_5mg",
-        "suvorexant_10mg",
-    }.issubset(option_ids)
+    exposed_option_item_ids = {
+        item_id
+        for state in response["decision_states"]
+        if state["kind"] == "choice"
+        for option in state["options"]
+        for item_id in option["added_item_ids"]
+    }
+    assert exposed_option_item_ids.isdisjoint(
+        {
+            "trazodone_50mg",
+            "doxepin_3mg",
+            "daridorexant_25mg",
+            "lemborexant_5mg",
+            "suvorexant_10mg",
+        }
+    )
 
 
-def test_higher_risk_public_profile_can_surface_statin_and_metformin():
+def test_higher_risk_public_profile_can_surface_statin_and_glp1_without_metformin():
     response = build_frontier_response(
         {
             "profile": {
@@ -485,18 +502,14 @@ def test_higher_risk_public_profile_can_surface_statin_and_metformin():
 
     frontier_ids = [step["added_intervention"] for step in response["frontier"]]
     assert "statin_5mg" in frontier_ids
-    # The frontier for this profile should surface semaglutide as the
-    # strongest cardiometabolic lever post-calibration (overweight + HTN +
-    # smoker). Metformin used to surface here but now competes with statin
-    # and semaglutide in the same cardiometabolic_support cluster; it is
-    # eligible (conditional_public lane) but no longer makes the greedy
-    # cut after the tiered pub-bias and cluster penalty changes.
     assert "semaglutide" in frontier_ids
+    assert "metformin_500mg" not in frontier_ids
 
     items_by_id = {item["id"]: item for item in response["items"]}
     assert items_by_id["statin_5mg"]["rankability_reason"] is None
     assert items_by_id["statin_5mg"]["public_lane"] == "conditional_public"
-    assert items_by_id["metformin_500mg"]["public_lane"] == "conditional_public"
+    assert items_by_id["semaglutide"]["rankability_reason"] is None
+    assert "metformin_500mg" not in items_by_id
 
 
 def test_obesity_and_diabetes_profile_can_surface_semaglutide():

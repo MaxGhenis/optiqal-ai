@@ -7,6 +7,7 @@ Based on whatnut methodology.
 
 from dataclasses import dataclass
 from typing import Literal, Optional
+
 import numpy as np
 from scipy import stats
 
@@ -329,7 +330,7 @@ def hr_to_lognormal_params(hr: float, log_sd: float) -> dict:
     if log_sd < 0:
         raise ValueError(f"log_sd must be non-negative, got {log_sd}")
     return {
-        "log_mean": float(np.log(hr) - (log_sd ** 2) / 2.0),
+        "log_mean": float(np.log(hr) - (log_sd**2) / 2.0),
         "log_sd": float(log_sd),
     }
 

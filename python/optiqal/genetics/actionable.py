@@ -17,10 +17,26 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from .parser import RawGenotype, genotype_at
+from .parser import (
+    RawGenotype,
+    genotype_at,
+    strand_ambiguous_genotype,
+)
 
 _DATA_DIR = Path(__file__).parent / "data"
 _ACTIONABLE: Optional[dict] = None
+
+# Appended to every user-facing significance string. Consumer-chip genotype
+# results are screening signals, not diagnoses: they can be wrong (probe
+# error, strand/mapping issues, copy-number blind spots) and population risk
+# figures do not predict any one person's outcome. Keep this non-prescriptive
+# and steer to a qualified clinician / genetic counselor for confirmation.
+_CAVEAT = (
+    "This is informational, not a diagnosis; consumer-chip results can be "
+    "wrong and population risk figures don't predict any individual's "
+    "outcome. Confirm with clinical-grade testing and discuss with a "
+    "clinician or genetic counselor before acting on it."
+)
 
 
 def _load_actionable() -> dict:
@@ -51,13 +67,45 @@ def _zygosity_at(
     calls: Dict[str, RawGenotype],
     rsid: str,
     variant_allele: str,
+    ref_allele: Optional[str] = None,
 ) -> Optional[str]:
     g = genotype_at(calls, rsid)
     if g is None:
         return None
+
+    # Palindromic-SNP strand guard. For an A/T or C/G locus a call lacking
+    # strand annotation cannot be oriented when homozygous: a reverse-strand
+    # ref/ref read is identical to a forward-strand alt/alt read, so plain
+    # containment counting would silently invert the call. Treat such reads
+    # as uncallable. (Heterozygotes carry both alleles and are orientation-
+    # invariant, so they remain callable.)
+    if strand_ambiguous_genotype(g, ref_allele, variant_allele):
+        return None
+
+    variant_symbols = {variant_allele.upper()}
+    if variant_allele == "-":
+        variant_symbols.add("D")
+    if ref_allele == "-":
+        variant_symbols.add("I")
+
+    # For single-nucleotide loci (single-base ref AND alt), require every
+    # observed allele to be one of {ref, alt}; an allele outside that set is
+    # a strand/mapping inconsistency we can't score for containment. Indel
+    # loci (``-`` / multi-base alleles, reported as I/D tokens) are exempt.
+    if (
+        ref_allele
+        and len(ref_allele) == 1
+        and len(variant_allele) == 1
+        and variant_allele != "-"
+        and ref_allele != "-"
+    ):
+        allowed = {variant_allele.upper(), ref_allele.upper()}
+        if any(ch not in allowed for ch in g):
+            return None
+
     if len(g) == 1:
-        return "homozygous" if g == variant_allele else "absent"
-    count = sum(1 for ch in g if ch == variant_allele)
+        return "homozygous" if g in variant_symbols else "absent"
+    count = sum(1 for ch in g if ch in variant_symbols)
     return ("absent", "heterozygous", "homozygous")[count]
 
 
@@ -74,7 +122,7 @@ def call_hfe(calls: Dict[str, RawGenotype]) -> List[ActionableFinding]:
     c282y_zyg: Optional[str] = None
     h63d_zyg: Optional[str] = None
     for v in spec["variants"]:
-        zyg = _zygosity_at(calls, v["rsid"], v["variant_allele"])
+        zyg = _zygosity_at(calls, v["rsid"], v["variant_allele"], v.get("ref_allele"))
         if zyg is None:
             continue
         if v["amino_acid"] == "C282Y":
@@ -85,23 +133,25 @@ def call_hfe(calls: Dict[str, RawGenotype]) -> List[ActionableFinding]:
     if c282y_zyg is None and h63d_zyg is None:
         return results
 
-    # Combined interpretation.
+    # Combined interpretation. Phrasing is descriptive, not prescriptive:
+    # it characterizes the genotype's typical association and defers any
+    # testing/management decision to a clinician via the shared caveat.
     if c282y_zyg == "homozygous":
-        sig = "High-penetrance genotype for hereditary hemochromatosis. Recommend ferritin + transferrin saturation screening; typical follow-up protocol applies."
+        sig = "Highest-penetrance HFE genotype for hereditary hemochromatosis. In carriers this is the genotype most associated with iron overload, though many homozygotes never develop clinical disease; iron studies (e.g. ferritin and transferrin saturation) are a common topic to raise with a clinician."
     elif c282y_zyg == "heterozygous" and h63d_zyg in ("heterozygous", "homozygous"):
-        sig = "Compound heterozygous (C282Y/H63D). Modestly elevated iron-overload risk; baseline ferritin worth checking."
+        sig = "Compound heterozygous (C282Y/H63D). Associated with modestly elevated iron-overload risk on average; a baseline ferritin is something to consider discussing."
     elif c282y_zyg == "heterozygous":
-        sig = "C282Y carrier only — typically asymptomatic. Relevant for family planning (offspring risk if partner also carries)."
+        sig = "C282Y carrier only — typically asymptomatic. Mainly relevant for family planning, since offspring risk rises if a partner also carries an HFE variant."
     elif h63d_zyg == "homozygous":
-        sig = "H63D homozygous. Mildly elevated iron risk; ferritin check reasonable but unlikely to be clinically significant alone."
+        sig = "H63D homozygous. Associated with only mildly elevated iron risk and seldom clinically significant on its own."
     else:
-        sig = "No pathogenic HFE genotype detected."
+        sig = "No pathogenic HFE genotype detected on this panel."
 
     results.append(
         ActionableFinding(
             locus="HFE (hemochromatosis)",
             zygosity=f"C282Y {c282y_zyg or 'not-called'}, H63D {h63d_zyg or 'not-called'}",
-            clinical_significance=sig,
+            clinical_significance=f"{sig} {_CAVEAT}",
         )
     )
     return results
@@ -128,21 +178,21 @@ def call_apoe(calls: Dict[str, RawGenotype]) -> List[ActionableFinding]:
         return []
 
     if haplotype == "e4/e4":
-        sig = "Homozygous ε4 — highest genetic risk category for late-onset Alzheimer's (roughly 10-15× baseline). Modifiable risk factors (sleep, exercise, vascular health, DHA, lipid optimization) still explain the bulk of variance."
+        sig = "Homozygous ε4 — the highest-risk APOE category for late-onset Alzheimer's, with population-average relative risk roughly 10-15× the ε3/ε3 baseline. This is an average across carriers, not a personal forecast; modifiable factors (sleep, exercise, vascular health, DHA, lipid management) still account for much of the variance."
     elif "e4" in haplotype:
-        sig = "One ε4 allele — ~3× baseline AD risk. Moderate effect size; doesn't change the optimization stack meaningfully given existing sleep + exercise + lipid focus."
+        sig = "One ε4 allele — population-average AD risk around ~3× the ε3/ε3 baseline. A moderate average effect that doesn't, on its own, dictate changes to a sleep/exercise/lipid-focused routine."
     elif haplotype == "e2/e2":
-        sig = "Homozygous ε2 — protective against AD, but ε2/ε2 carries its own type-III hyperlipoproteinemia risk worth monitoring."
+        sig = "Homozygous ε2 — associated on average with lower AD risk, but ε2/ε2 carries its own type-III hyperlipoproteinemia risk that can be worth monitoring."
     elif "e2" in haplotype:
-        sig = "One ε2 allele — modest AD protection."
+        sig = "One ε2 allele — associated with modest average AD protection."
     else:
-        sig = "ε3/ε3 (reference). Baseline AD risk."
+        sig = "ε3/ε3 (reference) — population-baseline AD risk."
 
     return [
         ActionableFinding(
             locus="APOE",
             zygosity=haplotype,
-            clinical_significance=sig,
+            clinical_significance=f"{sig} {_CAVEAT}",
         )
     ]
 
@@ -159,7 +209,7 @@ def call_ashkenazi_brca(calls: Dict[str, RawGenotype]) -> List[ActionableFinding
     results: List[ActionableFinding] = []
     any_called = False
     for v in spec["variants"]:
-        zyg = _zygosity_at(calls, v["rsid"], v["variant_allele"])
+        zyg = _zygosity_at(calls, v["rsid"], v["variant_allele"], v.get("ref_allele"))
         if zyg is None:
             continue
         any_called = True
@@ -167,8 +217,9 @@ def call_ashkenazi_brca(calls: Dict[str, RawGenotype]) -> List[ActionableFinding
             continue
         sig = (
             f"Pathogenic {v['gene']} {v['mutation']} {zyg}. "
-            f"Warrants genetic counseling consultation; screening cadence and risk-reducing discussion are standard of care. "
-            f"{v['notes']}"
+            f"Genetic counseling can help interpret what this means for "
+            f"screening and risk-reduction options in your situation. "
+            f"{v['notes']} {_CAVEAT}"
         )
         results.append(
             ActionableFinding(
@@ -187,8 +238,10 @@ def call_ashkenazi_brca(calls: Dict[str, RawGenotype]) -> List[ActionableFinding
                 clinical_significance=(
                     "All three Ashkenazi founder mutations absent. This rules out "
                     "the common founder variants but does NOT exclude rarer "
-                    "pathogenic BRCA1/2 or other hereditary-cancer variants. For "
-                    "comprehensive coverage use a clinical panel (Color, Invitae)."
+                    "pathogenic BRCA1/2 or other hereditary-cancer variants. A "
+                    "clinical-grade panel (e.g. Color, Invitae) gives more "
+                    "comprehensive coverage, and a genetic counselor can advise "
+                    "whether that's worthwhile given family history. " + _CAVEAT
                 ),
             )
         )

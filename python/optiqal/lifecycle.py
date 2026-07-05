@@ -5,10 +5,11 @@ CDC life tables, pathway decomposition, and survival curve integration.
 Based on whatnut methodology.
 """
 
-from dataclasses import dataclass
-from typing import Literal, Optional
 import json
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal, Optional
+
 import numpy as np
 
 # CDC National Vital Statistics Life Tables (2021)
@@ -86,7 +87,7 @@ QUALITY_WEIGHTS = {
     65: 0.865,  # MEPS 60-70: 0.865
     75: 0.847,  # MEPS 70-80: 0.847
     85: 0.792,  # MEPS 80+: 0.792
-    95: 0.75,   # Extrapolated
+    95: 0.75,  # Extrapolated
 }
 
 # Within-age-group quality weight standard deviation (MEPS 2019-2022)
@@ -96,12 +97,12 @@ QUALITY_WEIGHT_STD = 0.117
 # Condition-specific quality decrements (MEPS 2019-2022)
 # These are subtracted from the base quality weight when condition is present
 CONDITION_DECREMENTS = {
-    "diabetes": 0.092,       # EQ-5D 0.809 vs 0.901 without
-    "hypertension": 0.081,   # EQ-5D 0.838 vs 0.920 without
+    "diabetes": 0.092,  # EQ-5D 0.809 vs 0.901 without
+    "hypertension": 0.081,  # EQ-5D 0.838 vs 0.920 without
     "heart_disease": 0.108,  # EQ-5D 0.787 vs 0.895 without
-    "stroke": 0.133,         # EQ-5D 0.762 vs 0.895 without
-    "cancer": 0.050,         # EQ-5D 0.845 vs 0.895 without
-    "arthritis": 0.108,      # EQ-5D 0.813 vs 0.921 without
+    "stroke": 0.133,  # EQ-5D 0.762 vs 0.895 without
+    "cancer": 0.050,  # EQ-5D 0.845 vs 0.895 without
+    "arthritis": 0.108,  # EQ-5D 0.813 vs 0.921 without
 }
 
 
@@ -305,7 +306,11 @@ class LifecycleModel:
         # Cache precomputed baseline if available
         # Only use precomputed if no mortality adjustment (default population)
         self._precomputed_baseline_qalys = None
-        if use_precomputed and discount_rate == 0.03 and baseline_mortality_multiplier == 1.0:
+        if (
+            use_precomputed
+            and discount_rate == 0.03
+            and baseline_mortality_multiplier == 1.0
+        ):
             self._precomputed_baseline_qalys = get_precomputed_baseline_qalys(
                 start_age, sex
             )
@@ -344,7 +349,10 @@ class LifecycleModel:
             for year in range(self.max_age - self.start_age):
                 current_age = self.start_age + year
                 # Apply mortality multiplier for risk factors (BMI, smoking, diabetes)
-                base_qx = get_mortality_rate(current_age, self.sex) * self.baseline_mortality_multiplier
+                base_qx = (
+                    get_mortality_rate(current_age, self.sex)
+                    * self.baseline_mortality_multiplier
+                )
                 # Cap at 1.0 (can't have >100% mortality probability)
                 base_qx = min(base_qx, 0.99)
                 quality = get_quality_weight(current_age)
@@ -373,7 +381,10 @@ class LifecycleModel:
         for year in range(self.max_age - self.start_age):
             current_age = self.start_age + year
             # Apply mortality multiplier for risk factors
-            base_qx = get_mortality_rate(current_age, self.sex) * self.baseline_mortality_multiplier
+            base_qx = (
+                get_mortality_rate(current_age, self.sex)
+                * self.baseline_mortality_multiplier
+            )
             base_qx = min(base_qx, 0.99)
             cause_frac = get_cause_fraction(current_age)
             quality = get_quality_weight(current_age)

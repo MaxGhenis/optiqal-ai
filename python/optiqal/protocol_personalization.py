@@ -4,18 +4,19 @@ from __future__ import annotations
 
 from typing import Any
 
+from .profile import Profile
 from .protocol_ground_up import (
-    DEFAULT_PROTOCOL_CONTEXT,
     ProtocolContext,
     apply_spec_to_catalog_entry,
     build_additional_specs,
     build_specs,
     load_baseline,
-    load_protocol_items as _load_protocol_items,
-    resolve_stack_spec,
     resolve_protocol_context,
+    resolve_stack_spec,
 )
-from .profile import Profile
+from .protocol_ground_up import (
+    load_protocol_items as _load_protocol_items,
+)
 from .sleep import AirwayContributorEstimate, SleepBurdenEstimate
 
 
@@ -25,8 +26,13 @@ def load_protocol_baseline(context: ProtocolContext | None = None) -> dict[str, 
 
 
 def load_protocol_context() -> ProtocolContext:
-    """Load the canonical personalized protocol context."""
-    return DEFAULT_PROTOCOL_CONTEXT
+    """Load the canonical personalized protocol context.
+
+    Routes through resolve_protocol_context so OPTIQAL_HEALTH_DB /
+    OPTIQAL_PROTOCOL_JSON overrides apply here too (e.g. CI fixtures), instead
+    of always returning the personal default.
+    """
+    return resolve_protocol_context()
 
 
 def load_protocol_items(context: ProtocolContext | None = None) -> list[dict[str, Any]]:
@@ -87,6 +93,8 @@ def protocol_metadata_from_specs(
                 "qol_years": resolved.qol_years,
                 "sleep_component_relief": dict(resolved.sleep_component_relief),
                 "airway_target_weights": dict(resolved.airway_target_weights),
+                "apply_profile_effect_rules": resolved.apply_profile_effect_rules,
+                "model_details": resolved.model_details,
             },
             "rationale": resolved.rationale,
             "personalization": resolved.personalization,
@@ -113,12 +121,22 @@ def protocol_sleep_estimate_from_baseline(
         mortality_signal=float(derived.get("sleep_mortality_signal", 0.0)),
         airway=(
             AirwayContributorEstimate(
-                upper_airway_probability=float(airway.get("upper_airway_probability", 0.0)),
-                nasal_inflammation_probability=float(airway.get("nasal_inflammation_probability", 0.0)),
+                upper_airway_probability=float(
+                    airway.get("upper_airway_probability", 0.0)
+                ),
+                nasal_inflammation_probability=float(
+                    airway.get("nasal_inflammation_probability", 0.0)
+                ),
                 mucus_probability=float(airway.get("mucus_probability", 0.0)),
                 response_signal=float(derived.get("airway_response_signal", 0.0)),
             )
             if airway
             else None
         ),
+        component_utility_weight_ids={
+            k: str(v)
+            for k, v in (
+                derived.get("sleep_component_utility_weight_ids") or {}
+            ).items()
+        },
     )

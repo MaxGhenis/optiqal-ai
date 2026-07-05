@@ -10,7 +10,13 @@ import sys
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
+
+if TYPE_CHECKING:
+    # pandas is imported lazily inside functions so the validation CLI can
+    # print install guidance instead of crashing when it is absent.
+    import pandas as pd
+
 
 @dataclass(frozen=True)
 class PanUkbPhenotype:
@@ -190,9 +196,7 @@ def render_download_instructions(
     return "\n".join(lines)
 
 
-def generate_wget_script(
-    paths: PanUkbPaths, keys: Sequence[str] | None = None
-) -> str:
+def generate_wget_script(paths: PanUkbPaths, keys: Sequence[str] | None = None) -> str:
     phenotypes = _selected_phenotypes(keys)
     lines = [
         "#!/bin/bash",
@@ -292,8 +296,7 @@ def extract_instruments(
 
     instruments = dataframe[dataframe["pval_EUR"] < p_threshold].copy()
     print(
-        f"Found {len(instruments):,} genome-wide significant SNPs "
-        f"(p < {p_threshold})"
+        f"Found {len(instruments):,} genome-wide significant SNPs (p < {p_threshold})"
     )
 
     instruments["SNP"] = (
@@ -310,6 +313,7 @@ def extract_instruments(
 
 def clump_local(instruments: pd.DataFrame, kb: int = CLUMP_KB) -> pd.DataFrame:
     import numpy as np
+    import pandas as pd
 
     print(f"Clumping with {kb}kb window...")
 
@@ -374,9 +378,7 @@ def harmonize_data(
         outcome["se_out"] = outcome["se_meta_hq"]
         outcome["pval_out"] = 10 ** (-outcome["neglog10_pval_meta_hq"])
         outcome["af_out"] = (
-            outcome["af_controls_EUR"]
-            if "af_controls_EUR" in outcome.columns
-            else 0.5
+            outcome["af_controls_EUR"] if "af_controls_EUR" in outcome.columns else 0.5
         )
         print("  Using meta-analysis (HQ) results for binary outcome")
     elif "beta_EUR" in outcome.columns:
@@ -417,9 +419,8 @@ def harmonize_data(
         & (merged["alt_exp"] == merged["ref_out"])
     )
     matched = merged.loc[merged["beta_out"].notna() & allele_match].copy()
-    matched["needs_flip"] = (
-        (matched["ref_exp"] == matched["alt_out"])
-        & (matched["alt_exp"] == matched["ref_out"])
+    matched["needs_flip"] = (matched["ref_exp"] == matched["alt_out"]) & (
+        matched["alt_exp"] == matched["ref_out"]
     )
     matched["allele_match_rank"] = matched["needs_flip"].astype(int)
     matched = matched.sort_values(["SNP", "allele_match_rank"]).drop_duplicates(
@@ -518,8 +519,7 @@ def run_mr(
 
     wald_ratio = beta_out / beta_exp
     wald_se = np.sqrt(
-        (se_out**2 / beta_exp**2)
-        + ((beta_out**2 * se_exp**2) / beta_exp**4)
+        (se_out**2 / beta_exp**2) + ((beta_out**2 * se_exp**2) / beta_exp**4)
     )
 
     results: list[dict[str, float | int | str]] = []
@@ -582,9 +582,7 @@ def run_mr(
             egger_beta = coef[1]
             egger_se = se_coef[1]
             egger_pval = 2 * stats.norm.sf(np.abs(egger_beta / egger_se))
-            intercept_pval = 2 * stats.norm.sf(
-                np.abs(egger_intercept / se_coef[0])
-            )
+            intercept_pval = 2 * stats.norm.sf(np.abs(egger_intercept / se_coef[0]))
 
             results.append(
                 {
@@ -614,12 +612,10 @@ def run_mr(
 
 def render_validation_summary(results_summary: pd.DataFrame) -> str:
     ivw_t2dm = results_summary[
-        (results_summary["method"] == "IVW")
-        & (results_summary["outcome"] == "T2DM")
+        (results_summary["method"] == "IVW") & (results_summary["outcome"] == "T2DM")
     ].iloc[0]
     ivw_mi = results_summary[
-        (results_summary["method"] == "IVW")
-        & (results_summary["outcome"] == "MI")
+        (results_summary["method"] == "IVW") & (results_summary["outcome"] == "MI")
     ].iloc[0]
 
     model_t2dm_hr = 1.75
@@ -666,6 +662,8 @@ def run_pan_ukb_mr_analysis(
     *,
     chunksize: int = 1_000_000,
 ) -> pd.DataFrame:
+    import pandas as pd
+
     paths.results_dir.mkdir(parents=True, exist_ok=True)
 
     print("=" * 60)

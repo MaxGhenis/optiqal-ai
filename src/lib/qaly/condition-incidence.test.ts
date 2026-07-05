@@ -73,7 +73,7 @@ describe("Condition Decrements", () => {
   });
 
   it("all decrements are negative", () => {
-    for (const [condition, data] of Object.entries(CONDITION_DECREMENTS)) {
+    for (const data of Object.values(CONDITION_DECREMENTS)) {
       expect(data.decrement).toBeLessThan(0);
     }
   });
@@ -86,7 +86,7 @@ describe("Condition Decrements", () => {
   });
 
   it("decrements have reasonable magnitudes (0.02 to 0.20)", () => {
-    for (const [condition, data] of Object.entries(CONDITION_DECREMENTS)) {
+    for (const data of Object.values(CONDITION_DECREMENTS)) {
       expect(Math.abs(data.decrement)).toBeGreaterThanOrEqual(0.02);
       expect(Math.abs(data.decrement)).toBeLessThanOrEqual(0.20);
     }

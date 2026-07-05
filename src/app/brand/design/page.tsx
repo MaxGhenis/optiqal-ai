@@ -78,7 +78,7 @@ export default function DesignPage() {
           Clinical-Organic <span className="gradient-text">Futurism</span>
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl leading-relaxed">
-          Optiqal's visual language balances medical precision with organic
+          Optiqal&apos;s visual language balances medical precision with organic
           warmth. Dark, sophisticated backgrounds paired with vibrant cyan and
           coral accents create an aesthetic that feels both clinical and
           approachable.
@@ -348,7 +348,7 @@ export default function DesignPage() {
         <h2 className="font-serif text-2xl font-medium mb-6">Spacing</h2>
         <div className="p-6 rounded-xl bg-card/50 border border-border/50">
           <p className="text-muted-foreground mb-4">
-            Use Tailwind's default spacing scale. Common patterns:
+            Use Tailwind&apos;s default spacing scale. Common patterns:
           </p>
           <ul className="space-y-2 text-sm">
             <li className="flex items-center gap-3">

@@ -1,17 +1,49 @@
 """Tests for intervention combination module."""
 
-import pytest
 import sys
-sys.path.insert(0, 'python')
+
+import pytest
+
+sys.path.insert(0, "python")
 
 from optiqal.combination import (
-    get_overlap_factor,
+    combine_intervention_effects,
     estimate_combined_qaly_from_singles,
     find_optimal_portfolio_from_qalys,
     find_optimal_portfolio_with_costs,
+    get_overlap_factor,
     rank_interventions_by_marginal_cost_per_qaly,
-    OVERLAP_MATRIX,
+    simulate_combined_qaly,
 )
+from optiqal.intervention import Distribution, Intervention, MortalityEffect
+from optiqal.profile import Profile
+
+
+def _point_intervention(id_: str, hr: float) -> Intervention:
+    """Minimal intervention carrying a point all-cause mortality HR."""
+    return Intervention(
+        id=id_,
+        name=id_,
+        category="lifestyle",
+        description="",
+        keywords=[],
+        mechanisms=[],
+        mortality=MortalityEffect(
+            hazard_ratio=Distribution(type="point", params={"value": hr})
+        ),
+    )
+
+
+def _profile() -> Profile:
+    return Profile(
+        age=40,
+        sex="male",
+        bmi_category="normal",
+        smoking_status="never",
+        has_diabetes=False,
+        has_hypertension=False,
+        activity_level="light",
+    )
 
 
 class TestOverlapFactors:
@@ -56,16 +88,14 @@ class TestCombinedQalyEstimation:
     def test_single_intervention_unchanged(self, sample_qalys):
         """Single intervention returns exact value."""
         result = estimate_combined_qaly_from_singles(
-            sample_qalys,
-            ["mediterranean_diet"]
+            sample_qalys, ["mediterranean_diet"]
         )
         assert result == pytest.approx(0.50, rel=0.01)
 
     def test_non_overlapping_near_additive(self, sample_qalys):
         """Non-overlapping interventions are additive."""
         result = estimate_combined_qaly_from_singles(
-            sample_qalys,
-            ["mediterranean_diet", "meditation_daily"]
+            sample_qalys, ["mediterranean_diet", "meditation_daily"]
         )
         simple_sum = 0.50 + 0.10
         assert result == pytest.approx(simple_sum)
@@ -73,8 +103,7 @@ class TestCombinedQalyEstimation:
     def test_overlapping_reduced(self, sample_qalys):
         """Overlapping interventions are reduced."""
         result = estimate_combined_qaly_from_singles(
-            sample_qalys,
-            ["walking_30min_daily", "daily_exercise_moderate"]
+            sample_qalys, ["walking_30min_daily", "daily_exercise_moderate"]
         )
         simple_sum = 0.15 + 0.35
         # Should be significantly less due to 0.4 overlap
@@ -84,13 +113,11 @@ class TestCombinedQalyEstimation:
         """Order affects which intervention gets overlap penalty - higher value first is better."""
         # Walking first, exercise second: exercise (higher) gets penalty
         walking_first = estimate_combined_qaly_from_singles(
-            sample_qalys,
-            ["walking_30min_daily", "daily_exercise_moderate"]
+            sample_qalys, ["walking_30min_daily", "daily_exercise_moderate"]
         )
         # Exercise first, walking second: walking (lower) gets penalty
         exercise_first = estimate_combined_qaly_from_singles(
-            sample_qalys,
-            ["daily_exercise_moderate", "walking_30min_daily"]
+            sample_qalys, ["daily_exercise_moderate", "walking_30min_daily"]
         )
         # Exercise first is better because the penalty is on the smaller value
         assert exercise_first > walking_first
@@ -100,14 +127,15 @@ class TestCombinedQalyEstimation:
         with_overlap = estimate_combined_qaly_from_singles(
             sample_qalys,
             ["walking_30min_daily", "daily_exercise_moderate"],
-            apply_overlap=True
+            apply_overlap=True,
         )
         without_overlap = estimate_combined_qaly_from_singles(
             sample_qalys,
             ["walking_30min_daily", "daily_exercise_moderate"],
-            apply_overlap=False
+            apply_overlap=False,
         )
         assert without_overlap > with_overlap
+
 
 class TestOptimalPortfolio:
     """Test optimal portfolio selection."""
@@ -137,8 +165,7 @@ class TestOptimalPortfolio:
     def test_respects_exclusions(self, sample_qalys):
         """Excluded interventions are not selected."""
         portfolio = find_optimal_portfolio_from_qalys(
-            sample_qalys,
-            exclude=["mediterranean_diet"]
+            sample_qalys, exclude=["mediterranean_diet"]
         )
         for step in portfolio:
             assert step["added_intervention"] != "mediterranean_diet"
@@ -164,7 +191,9 @@ class TestOptimalPortfolio:
         positions = {step["added_intervention"]: step["step"] for step in portfolio}
 
         # Exercise should come before walking (higher raw QALY, no prior overlap)
-        assert positions.get("daily_exercise_moderate", 99) < positions.get("walking_30min_daily", 99)
+        assert positions.get("daily_exercise_moderate", 99) < positions.get(
+            "walking_30min_daily", 99
+        )
 
 
 class TestMarginalCostEffectivenessRanking:
@@ -246,7 +275,13 @@ class TestMarginalCostEffectivenessRanking:
 
     def test_preselected_stack_uses_max_additions_not_total_size(self):
         ranking = rank_interventions_by_marginal_cost_per_qaly(
-            single_qalys={"base1": 0.01, "base2": 0.01, "base3": 0.01, "a": 0.05, "b": 0.02},
+            single_qalys={
+                "base1": 0.01,
+                "base2": 0.01,
+                "base3": 0.01,
+                "a": 0.05,
+                "b": 0.02,
+            },
             annual_costs={"base1": 10, "base2": 10, "base3": 10, "a": 50, "b": 20},
             cost_values={"base1": 10, "base2": 10, "base3": 10, "a": 50, "b": 20},
             preselected=["base1", "base2", "base3"],
@@ -254,13 +289,25 @@ class TestMarginalCostEffectivenessRanking:
         )
 
         assert [step["added_intervention"] for step in ranking] == ["b", "a"]
-        assert ranking[-1]["selected_interventions"] == ["base1", "base2", "base3", "b", "a"]
+        assert ranking[-1]["selected_interventions"] == [
+            "base1",
+            "base2",
+            "base3",
+            "b",
+            "a",
+        ]
 
 
 class TestCostAwarePortfolioWithPreselectedState:
     def test_preselected_stack_uses_max_additions_not_total_size(self):
         portfolio = find_optimal_portfolio_with_costs(
-            single_qalys={"base1": 0.01, "base2": 0.01, "base3": 0.01, "a": 0.05, "b": 0.02},
+            single_qalys={
+                "base1": 0.01,
+                "base2": 0.01,
+                "base3": 0.01,
+                "a": 0.05,
+                "b": 0.02,
+            },
             annual_costs={"base1": 10, "base2": 10, "base3": 10, "a": 50, "b": 20},
             cost_values={"base1": 10, "base2": 10, "base3": 10, "a": 50, "b": 20},
             wtp=10_000,
@@ -269,7 +316,13 @@ class TestCostAwarePortfolioWithPreselectedState:
         )
 
         assert [step["added_intervention"] for step in portfolio] == ["a", "b"]
-        assert portfolio[-1]["selected_interventions"] == ["base1", "base2", "base3", "a", "b"]
+        assert portfolio[-1]["selected_interventions"] == [
+            "base1",
+            "base2",
+            "base3",
+            "a",
+            "b",
+        ]
 
 
 class TestPortfolioQalyCeiling:
@@ -315,6 +368,7 @@ class TestPortfolioQalyCeiling:
     def test_ceiling_marginal_value_declines(self):
         """Each added item contributes less QALY under saturation."""
         from optiqal.combination import _saturate_total_qaly
+
         # Starting from 0, adding 1.0 raw adds ~0.63 saturated at ceiling 1.
         delta_first = _saturate_total_qaly(1.0, 1.0) - _saturate_total_qaly(0.0, 1.0)
         # Adding a second raw QALY on top adds much less.
@@ -323,6 +377,147 @@ class TestPortfolioQalyCeiling:
         # At saturation, marginal contribution is near zero.
         delta_tenth = _saturate_total_qaly(10.0, 1.0) - _saturate_total_qaly(9.0, 1.0)
         assert delta_tenth < 1e-3
+
+
+def test_portfolio_combines_mortality_multiplicatively_not_additively():
+    """Mortality QALYs must combine on the hazard scale (one joint survival
+    integration), not by summing per-item QALYs, which double-counts the shared
+    baseline survival and overstates a stack's total.
+    """
+    item_hrs = {"a": 0.7, "b": 0.7}
+    item_qol = {"a": 0.0, "b": 0.0}
+
+    # Toy deterministic integrator: monotone and sub-additive in (1 - HR), as a
+    # real survival integral is. Joint HR 0.49 < additive (0.7 + 0.7 effect).
+    def mort_fn(combined_hr: float) -> float:
+        return 10.0 * (1.0 - combined_hr)
+
+    single = {"a": mort_fn(0.7), "b": mort_fn(0.7)}  # 3.0 each; additive sum 6.0
+
+    result = find_optimal_portfolio_with_costs(
+        single,
+        {"a": 0.0, "b": 0.0},
+        wtp=100_000,
+        horizon_years=40,
+        item_mortality_hrs=item_hrs,
+        item_qol_qalys=item_qol,
+        mortality_qaly_fn=mort_fn,
+    )
+
+    selected = {step["added_intervention"] for step in result}
+    assert selected == {"a", "b"}
+    final_total = result[-1]["total_base_qaly"]
+    assert final_total == pytest.approx(mort_fn(0.7 * 0.7))  # joint HR 0.49 -> 5.1
+    assert final_total < single["a"] + single["b"]  # strictly below additive 6.0
+
+
+class TestCombineInterventionEffects:
+    """combine_intervention_effects / simulate_combined_qaly used to crash on
+    every real Intervention (they referenced intervention.hazard_ratio_mean and
+    .cause_pathways, which do not exist — the HR is on intervention.mortality).
+    These guard the corrected attribute access."""
+
+    def test_combine_runs_and_combines_protective_hrs(self):
+        ivs = [
+            _point_intervention("exercise", 0.85),
+            _point_intervention("diet", 0.90),
+        ]
+        combined = combine_intervention_effects(ivs, _profile())
+        # Joint HR is below either single HR but no lower than the 0.10 floor.
+        assert combined.combined_hr < 0.85
+        assert combined.combined_hr >= 0.10
+        assert set(combined.individual_hrs) == {"exercise", "diet"}
+
+    def test_combine_handles_no_mortality_intervention(self):
+        ivs = [
+            _point_intervention("exercise", 0.85),
+            Intervention(
+                id="neutral",
+                name="neutral",
+                category="lifestyle",
+                description="",
+                keywords=[],
+                mechanisms=[],
+                mortality=None,
+            ),
+        ]
+        combined = combine_intervention_effects(ivs, _profile())
+        # The mortality-free item contributes a neutral 1.0, so the joint HR
+        # equals the single protective HR.
+        assert combined.individual_hrs["neutral"] == pytest.approx(1.0)
+        assert combined.combined_hr == pytest.approx(0.85, abs=1e-6)
+
+    def test_simulate_combined_qaly_runs_end_to_end(self):
+        ivs = [
+            _point_intervention("exercise", 0.85),
+            _point_intervention("diet", 0.90),
+        ]
+        result = simulate_combined_qaly(ivs, _profile(), n_simulations=200)
+        # Two protective interventions should yield a positive expected gain.
+        assert result.mean > 0
+        assert result.life_years_gained > 0
+
+    def test_single_intervention_matches_standard_sim(self):
+        iv = _point_intervention("exercise", 0.85)
+        combined = simulate_combined_qaly([iv], _profile(), n_simulations=200)
+        assert combined.mean > 0
+
+    def test_combined_qaly_does_not_double_apply_profile_modifier(self):
+        """combine_intervention_effects bakes each item's profile effect-
+        modifier into combined_hr; simulate_combined_qaly must NOT let
+        simulate_qaly_profile re-apply it. Uses category 'exercise' (modifier
+        1.20 on a sedentary profile) so the double-application is visible —
+        earlier tests used 'lifestyle' (modifier 1.0), where the bug was a
+        no-op."""
+        from copy import deepcopy
+
+        from optiqal.simulate import simulate_qaly_profile
+
+        prof = Profile(
+            age=40,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=False,
+            has_hypertension=False,
+            activity_level="sedentary",
+        )
+        a = _point_intervention("ex1", 0.85)
+        a.category = "exercise"
+        b = _point_intervention("ex2", 0.90)
+        b.category = "exercise"
+
+        combined = combine_intervention_effects([a, b], prof)
+
+        # Rebuild the same synthetic combined intervention the function uses,
+        # then simulate it applying the modifier exactly once vs. twice. Point
+        # HRs with no confounding prior make these deterministic.
+        synth = deepcopy(a)
+        synth.mortality = MortalityEffect(
+            hazard_ratio=Distribution(
+                type="point", params={"value": combined.combined_hr}
+            )
+        )
+        once = simulate_qaly_profile(
+            synth,
+            prof,
+            n_simulations=100,
+            apply_confounding=False,
+            apply_intervention_modifier=False,
+        )
+        twice = simulate_qaly_profile(
+            synth,
+            prof,
+            n_simulations=100,
+            apply_confounding=False,
+            apply_intervention_modifier=True,
+        )
+        # The exercise modifier is non-unity here, so once != twice.
+        assert abs(once.mean - twice.mean) > 1e-4
+
+        result = simulate_combined_qaly([a, b], prof, n_simulations=100)
+        # simulate_combined_qaly must match the single-application result.
+        assert result.mean == pytest.approx(once.mean, rel=1e-9)
 
 
 if __name__ == "__main__":

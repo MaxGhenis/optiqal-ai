@@ -22,8 +22,10 @@ alone.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, Mapping, Optional
+
+from .reference_case import PUBLIC_HEALTH_UTILITY_WEIGHTS
 
 
 def _clamp(value: float, lo: float = 0.0, hi: float = 1.0) -> float:
@@ -78,15 +80,42 @@ class SleepBurdenEstimate:
     annual_qaly_loss: float
     mortality_signal: float
     airway: Optional[AirwayContributorEstimate] = None
+    component_utility_weight_ids: Dict[str, str] = field(default_factory=dict)
 
+
+INSOMNIA_UTILITY_WEIGHT_ID = "insomnia_disability_weight_europe_2015"
+SLEEP_APNOEA_UTILITY_WEIGHT_ID = "sleep_apnoea_disability_weight_europe_2015"
+
+NON_BREATHING_SLEEP_COMPONENT_SHARES = {
+    "duration": 0.2500,
+    "continuity": 0.1667,
+    "quality": 0.2083,
+    "regularity": 0.1250,
+    "daytime": 0.2500,
+}
+
+SLEEP_COMPONENT_UTILITY_WEIGHT_IDS = {
+    "duration": INSOMNIA_UTILITY_WEIGHT_ID,
+    "continuity": INSOMNIA_UTILITY_WEIGHT_ID,
+    "quality": INSOMNIA_UTILITY_WEIGHT_ID,
+    "regularity": INSOMNIA_UTILITY_WEIGHT_ID,
+    "daytime": INSOMNIA_UTILITY_WEIGHT_ID,
+    "breathing": SLEEP_APNOEA_UTILITY_WEIGHT_ID,
+}
+
+_INSOMNIA_DECREMENT = PUBLIC_HEALTH_UTILITY_WEIGHTS[
+    INSOMNIA_UTILITY_WEIGHT_ID
+].utility_decrement
+_SLEEP_APNOEA_DECREMENT = PUBLIC_HEALTH_UTILITY_WEIGHTS[
+    SLEEP_APNOEA_UTILITY_WEIGHT_ID
+].utility_decrement
 
 COMPONENT_MAX_ANNUAL_QALY_LOSS = {
-    "duration": 0.0060,
-    "continuity": 0.0040,
-    "quality": 0.0050,
-    "regularity": 0.0030,
-    "daytime": 0.0060,
-    "breathing": 0.0200,
+    **{
+        component: _INSOMNIA_DECREMENT * share
+        for component, share in NON_BREATHING_SLEEP_COMPONENT_SHARES.items()
+    },
+    "breathing": _SLEEP_APNOEA_DECREMENT,
 }
 
 # Mortality is only supported well enough to use a subset of sleep components.
@@ -128,7 +157,9 @@ def _duration_burden(duration_hours: Optional[float]) -> float:
     return 0.0
 
 
-def _continuity_burden(waso_min: Optional[float], latency_min: Optional[float]) -> float:
+def _continuity_burden(
+    waso_min: Optional[float], latency_min: Optional[float]
+) -> float:
     waso = _clamp(((waso_min or 0.0) - 20.0) / 40.0)
     latency = _clamp(((latency_min or 0.0) - 20.0) / 30.0)
     return _clamp(0.7 * waso + 0.3 * latency)
@@ -149,7 +180,9 @@ def _regularity_burden(
     return _clamp(0.7 * routine + 0.3 * jetlag)
 
 
-def _daytime_burden(recovery_score: Optional[float], sleep_debt_min: Optional[float]) -> float:
+def _daytime_burden(
+    recovery_score: Optional[float], sleep_debt_min: Optional[float]
+) -> float:
     recovery = _clamp((65.0 - (recovery_score or 65.0)) / 20.0)
     debt = _clamp(((sleep_debt_min or 0.0) - 30.0) / 150.0)
     return _clamp(0.8 * recovery + 0.2 * debt)
@@ -174,12 +207,16 @@ def estimate_airway_response_signal(
     if pre is None or post is None:
         return 0.0
 
-    breathing = _clamp(((post.breathing_score or 0.0) - (pre.breathing_score or 0.0)) / 0.20)
+    breathing = _clamp(
+        ((post.breathing_score or 0.0) - (pre.breathing_score or 0.0)) / 0.20
+    )
     oxygen = _clamp(((post.spo2 or 0.0) - (pre.spo2 or 0.0)) / 1.0)
     snore = _clamp(((pre.snore_pct or 0.0) - (post.snore_pct or 0.0)) / 5.0)
     latency = _clamp(((pre.latency_min or 0.0) - (post.latency_min or 0.0)) / 20.0)
     waso = _clamp(((pre.waso_min or 0.0) - (post.waso_min or 0.0)) / 20.0)
-    quality = _clamp(((post.sleep_quality_score or 0.0) - (pre.sleep_quality_score or 0.0)) / 20.0)
+    quality = _clamp(
+        ((post.sleep_quality_score or 0.0) - (pre.sleep_quality_score or 0.0)) / 20.0
+    )
 
     return _clamp(
         0.25 * breathing
@@ -200,21 +237,11 @@ def _estimate_airway_contributors(
     snore_signal = _clamp(((metrics.snore_pct or 0.0) - 5.0) / 15.0)
 
     upper_airway = _clamp(
-        0.08
-        + 0.45 * breathing_burden
-        + 0.10 * snore_signal
-        + 0.35 * response_signal
+        0.08 + 0.45 * breathing_burden + 0.10 * snore_signal + 0.35 * response_signal
     )
-    nasal_inflammation = _clamp(
-        0.05
-        + 0.30 * breathing_burden
-        + 0.45 * response_signal
-    )
+    nasal_inflammation = _clamp(0.05 + 0.30 * breathing_burden + 0.45 * response_signal)
     mucus = _clamp(
-        0.02
-        + 0.12 * breathing_burden
-        + 0.08 * snore_signal
-        + 0.18 * response_signal
+        0.02 + 0.12 * breathing_burden + 0.08 * snore_signal + 0.18 * response_signal
     )
 
     return AirwayContributorEstimate(
@@ -231,9 +258,13 @@ def estimate_sleep_burden(metrics: SleepMetrics) -> SleepBurdenEstimate:
         "duration": _duration_burden(metrics.duration_hours),
         "continuity": _continuity_burden(metrics.waso_min, metrics.latency_min),
         "quality": _quality_burden(metrics.sleep_quality_score),
-        "regularity": _regularity_burden(metrics.routine_score, metrics.social_jetlag_min),
+        "regularity": _regularity_burden(
+            metrics.routine_score, metrics.social_jetlag_min
+        ),
         "daytime": _daytime_burden(metrics.recovery_score, metrics.sleep_debt_min),
-        "breathing": _breathing_burden(metrics.breathing_score, metrics.spo2, metrics.snore_pct),
+        "breathing": _breathing_burden(
+            metrics.breathing_score, metrics.spo2, metrics.snore_pct
+        ),
     }
     losses = {
         component: burden * COMPONENT_MAX_ANNUAL_QALY_LOSS[component]
@@ -252,6 +283,7 @@ def estimate_sleep_burden(metrics: SleepMetrics) -> SleepBurdenEstimate:
         annual_qaly_loss=sum(losses.values()),
         mortality_signal=mortality_signal,
         airway=airway,
+        component_utility_weight_ids=dict(SLEEP_COMPONENT_UTILITY_WEIGHT_IDS),
     )
 
 
@@ -275,7 +307,7 @@ def _study_breathing_burden(study: SleepStudyResult) -> float:
     if study.used_nasal_steroid or study.used_nasal_strips:
         underestimation_multiplier += 0.05
 
-    burden = (severity_core + 0.06 * mean_oxygen_signal + 0.10 * nadir_oxygen_signal)
+    burden = severity_core + 0.06 * mean_oxygen_signal + 0.10 * nadir_oxygen_signal
     return _clamp(burden * underestimation_multiplier)
 
 
@@ -295,7 +327,9 @@ def apply_sleep_study(
         float(burdens.get("breathing", 0.0)),
         0.25 * float(burdens.get("breathing", 0.0)) + 0.75 * study_breathing_burden,
     )
-    losses["breathing"] = burdens["breathing"] * COMPONENT_MAX_ANNUAL_QALY_LOSS["breathing"]
+    losses["breathing"] = (
+        burdens["breathing"] * COMPONENT_MAX_ANNUAL_QALY_LOSS["breathing"]
+    )
 
     mortality_signal = _clamp(
         sum(
@@ -314,8 +348,8 @@ def apply_sleep_study(
         + int(study.mixed_apneas or 0),
     )
     obstructive_fraction = (
-        (int(study.obstructive_apneas or 0) + int(study.hypopneas or 0)) / total_events
-    )
+        int(study.obstructive_apneas or 0) + int(study.hypopneas or 0)
+    ) / total_events
     severity_fraction = _clamp(study.rei / 15.0)
     upper_airway_probability = _clamp(
         0.40
@@ -330,11 +364,7 @@ def apply_sleep_study(
         + (0.15 if study.used_nasal_steroid else 0.0)
         + (0.08 if study.used_nasal_strips else 0.0)
     )
-    mucus_probability = _clamp(
-        0.03
-        + 0.08 * response_signal
-        + 0.05 * severity_fraction
-    )
+    mucus_probability = _clamp(0.03 + 0.08 * response_signal + 0.05 * severity_fraction)
 
     return SleepBurdenEstimate(
         component_burdens=burdens,
@@ -347,7 +377,47 @@ def apply_sleep_study(
             mucus_probability=mucus_probability,
             response_signal=response_signal,
         ),
+        component_utility_weight_ids=(
+            dict(estimate.component_utility_weight_ids)
+            if estimate.component_utility_weight_ids
+            else dict(SLEEP_COMPONENT_UTILITY_WEIGHT_IDS)
+        ),
     )
+
+
+def sleep_utility_lineage(
+    estimate: SleepBurdenEstimate,
+    component_filter: Mapping[str, float] | None = None,
+) -> Dict[str, dict[str, object]]:
+    """Return source utility weights for sleep components used in a QALY estimate."""
+    lineage: Dict[str, dict[str, object]] = {}
+    component_ids = (
+        estimate.component_utility_weight_ids
+        if estimate.component_utility_weight_ids
+        else SLEEP_COMPONENT_UTILITY_WEIGHT_IDS
+    )
+    for component, weight_id in component_ids.items():
+        if (
+            component_filter is not None
+            and float(component_filter.get(component, 0.0)) <= 0
+        ):
+            continue
+        weight = PUBLIC_HEALTH_UTILITY_WEIGHTS[weight_id]
+        annual_loss = float(estimate.component_losses.get(component, 0.0))
+        lineage[component] = {
+            "utility_weight_id": weight.id,
+            "label": weight.label,
+            "instrument": weight.instrument,
+            "reference_case_status": weight.reference_case_status,
+            "utility_decrement": weight.utility_decrement,
+            "source_url": weight.source_url,
+            "citation": weight.citation,
+            "component_annual_loss": round(annual_loss, 6),
+            "component_burden": round(
+                float(estimate.component_burdens.get(component, 0.0)), 6
+            ),
+        }
+    return lineage
 
 
 def estimate_sleep_relief_annual_qaly(
@@ -412,13 +482,17 @@ def estimate_sleep_mortality_relief_fraction(
     for component, weight in MORTALITY_COMPONENT_WEIGHTS.items():
         burden = float(estimate.component_burdens.get(component, 0.0))
         denominator += weight * burden
-        numerator += weight * burden * _clamp(float(component_relief.get(component, 0.0)))
+        numerator += (
+            weight * burden * _clamp(float(component_relief.get(component, 0.0)))
+        )
     if denominator <= 0:
         return 0.0
     return _clamp(numerator / denominator)
 
 
-def sleep_baseline_mortality_multiplier(estimate: Optional[SleepBurdenEstimate]) -> float:
+def sleep_baseline_mortality_multiplier(
+    estimate: Optional[SleepBurdenEstimate],
+) -> float:
     """Translate the latent sleep mortality signal into a modest baseline hazard multiplier."""
     if estimate is None:
         return 1.0
@@ -439,7 +513,9 @@ def sleep_intervention_mortality_hr_multiplier(
     if estimate is None or not component_relief:
         return 1.0
     baseline_multiplier = sleep_baseline_mortality_multiplier(estimate)
-    relief_fraction = estimate_sleep_mortality_relief_fraction(estimate, component_relief)
+    relief_fraction = estimate_sleep_mortality_relief_fraction(
+        estimate, component_relief
+    )
     if baseline_multiplier <= 1.0 or relief_fraction <= 0:
         return 1.0
     return float(math.exp(-math.log(baseline_multiplier) * relief_fraction))

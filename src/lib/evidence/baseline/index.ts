@@ -5,14 +5,8 @@
  * based on life tables and quality weights.
  */
 
-import {
-  getRemainingLifeExpectancy,
-  getLifeExpectancy,
-} from "./life-tables";
-import {
-  getAgeQualityWeight,
-  getQualityWeightWithConditions,
-} from "./quality-weights";
+import { getRemainingLifeExpectancy } from "./life-tables";
+import { getAgeQualityWeight } from "./quality-weights";
 import { getCalibrationFactor } from "./calibration";
 import type { UserProfile } from "@/types";
 
@@ -259,9 +253,6 @@ export function calculateBaselineQALYs(profile: UserProfile): BaselineProjection
   for (let chartAge = age; chartAge <= maxAge; chartAge += 5) {
     // Survival probability decreases as we approach expected death age
     // Using a sigmoid-like decay centered around expected death
-    const yearsFromNow = chartAge - age;
-    const yearsToExpectedDeath = expectedDeathAge - age;
-
     // Gompertz-inspired survival: S(t) = exp(-exp(a + b*t))
     // Simplified: probability drops steeply around expected death age
     let survivalProbability: number;

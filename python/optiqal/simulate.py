@@ -7,17 +7,34 @@ Fast QALY estimation without full MCMC.
 from collections import Counter
 from dataclasses import dataclass
 from typing import Iterable, Literal, Optional, Union
+
 import numpy as np
 
+from .confounding import adjust_hr
 from .defaults import (
     DEFAULT_COST_DISCOUNT_RATE,
     DEFAULT_QALY_DISCOUNT_RATE,
     validate_qaly_discount_rate,
 )
-from .intervention import HarmEffect, InteractionRule, Intervention
-from .lifecycle import LifecycleModel, PathwayHRs, get_mortality_rate, get_quality_weight, get_cause_fraction, QUALITY_WEIGHT_STD
-from .confounding import adjust_hr
-from .profile import Profile, get_baseline_mortality_multiplier, get_intervention_modifier
+from .intervention import (
+    HarmEffect,
+    InteractionRule,
+    Intervention,
+    allocate_interaction_rule,
+)
+from .lifecycle import (
+    QUALITY_WEIGHT_STD,
+    LifecycleModel,
+    PathwayHRs,
+    get_cause_fraction,
+    get_mortality_rate,
+    get_quality_weight,
+)
+from .profile import (
+    Profile,
+    get_baseline_mortality_multiplier,
+    get_intervention_modifier,
+)
 
 
 @dataclass
@@ -39,6 +56,9 @@ class SimulationResult:
 
     # Life years
     life_years_gained: float
+
+    # 80% interval (p10, p90) of the net-QALY draws, for surfacing uncertainty.
+    ci80: tuple = (0.0, 0.0)
 
     # Posterior decision metrics
     prob_negative: float = 0.0
@@ -136,8 +156,18 @@ def _build_simulation_result(
         median=float(np.median(qaly_gains)),
         mean=float(np.mean(qaly_gains)),
         std=float(np.std(qaly_gains)),
-        ci95=(float(np.percentile(qaly_gains, 2.5)), float(np.percentile(qaly_gains, 97.5))),
-        ci50=(float(np.percentile(qaly_gains, 25)), float(np.percentile(qaly_gains, 75))),
+        ci95=(
+            float(np.percentile(qaly_gains, 2.5)),
+            float(np.percentile(qaly_gains, 97.5)),
+        ),
+        ci80=(
+            float(np.percentile(qaly_gains, 10)),
+            float(np.percentile(qaly_gains, 90)),
+        ),
+        ci50=(
+            float(np.percentile(qaly_gains, 25)),
+            float(np.percentile(qaly_gains, 75)),
+        ),
         prob_positive=metrics["prob_positive"],
         prob_negative=metrics["prob_negative"],
         prob_more_than_one_year=metrics["prob_more_than_one_year"],
@@ -243,19 +273,114 @@ def effective_qol_factor_for_years(
     return factor
 
 
-def _simulate_policy_from_pathways(
+def mortality_qaly_for_combined_hr(
+    profile: Profile,
+    combined_hr: float,
+    discount_rate: float = DEFAULT_QALY_DISCOUNT_RATE,
+    baseline_hazard_multiplier: float = 1.0,
+    max_age: int = 100,
+) -> float:
+    """Deterministic mortality QALY gain from a flat all-cause hazard ratio.
+
+    This is a *relative* integrator used only for combining a stack: applying a
+    single all-cause HR flat to baseline mortality and integrating QALYs once.
+    Its absolute level does NOT equal the Monte Carlo per-item ``mort_qaly``
+    (the MC mean averages QALY over the whole HR distribution and quality-weight
+    draws, which is convex in HR). To stay consistent with the per-item sim,
+    callers should NOT pass the raw posterior HR; instead derive each item's
+    effective HR with :func:`effective_hr_for_mortality_qaly` (which inverts this
+    function against the item's own sim ``mort_qaly``), combine those effective
+    HRs multiplicatively, and integrate once here. That makes a single-item
+    "stack" reproduce its sim value exactly while correctly avoiding the
+    shared-survival double-count of summing per-item QALYs across a stack.
+    """
+    discount_rate = validate_qaly_discount_rate(discount_rate)
+    n_years = max_age - profile.age
+    if n_years <= 0:
+        return 0.0
+
+    baseline_mortality_multiplier = get_baseline_mortality_multiplier(profile)
+    ages = profile.age + np.arange(n_years)
+    base_qx = np.minimum(
+        np.array([get_mortality_rate(int(a), profile.sex) for a in ages])
+        * baseline_mortality_multiplier
+        * float(max(baseline_hazard_multiplier, 0.0)),
+        0.99,
+    )
+    quality = np.array([get_quality_weight(int(a)) for a in ages])
+    discount = (1.0 / (1.0 + discount_rate)) ** np.arange(n_years)
+
+    def _qaly(multiplier: float) -> float:
+        policy_qx = np.minimum(base_qx * multiplier, 0.99)
+        survival = np.cumprod(1 - policy_qx)
+        survival = np.concatenate([[1.0], survival[:-1]])
+        return float(np.sum(survival * quality * discount))
+
+    return _qaly(combined_hr) - _qaly(1.0)
+
+
+def effective_hr_for_mortality_qaly(
+    profile: Profile,
+    mortality_qaly: float,
+    discount_rate: float = DEFAULT_QALY_DISCOUNT_RATE,
+    baseline_hazard_multiplier: float = 1.0,
+    max_age: int = 100,
+) -> float:
+    """Invert :func:`mortality_qaly_for_combined_hr` for a single item.
+
+    Returns the flat all-cause HR whose deterministic integral reproduces the
+    item's Monte Carlo ``mortality_qaly``. Combining these effective HRs
+    multiplicatively (then integrating once) gives a stack total that reproduces
+    each item alone and is correctly sub-additive across items. Items with no
+    mortality benefit (``mortality_qaly <= 0``) map to HR 1.0.
+    """
+    if mortality_qaly <= 0:
+        return 1.0
+
+    def gain(hr: float) -> float:
+        return mortality_qaly_for_combined_hr(
+            profile,
+            hr,
+            discount_rate=discount_rate,
+            baseline_hazard_multiplier=baseline_hazard_multiplier,
+            max_age=max_age,
+        )
+
+    # gain is monotone decreasing in hr (lower hr -> larger gain). Bracket and
+    # bisect; clamp to the achievable range so an out-of-range target is capped.
+    lo, hi = 1e-3, 1.0
+    max_gain = gain(lo)
+    if mortality_qaly >= max_gain:
+        return lo
+    for _ in range(60):
+        mid = 0.5 * (lo + hi)
+        if gain(mid) >= mortality_qaly:
+            lo = mid
+        else:
+            hi = mid
+    return 0.5 * (lo + hi)
+
+
+def _simulate_reversible_policy(
     base_qx: np.ndarray,
-    cause_fracs: np.ndarray,
-    pathway_hrs: np.ndarray,
+    policy_hr: np.ndarray,
     continuation_curve: np.ndarray,
     quality: np.ndarray,
     qaly_discount: np.ndarray,
     cost_discount: np.ndarray,
     baseline_qalys_total: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray, float, float, np.ndarray, np.ndarray]:
-    """Simulate a reversible intervention under an adherence policy."""
-    pathway_excess = np.einsum("yk,sk->sy", cause_fracs, pathway_hrs - 1.0)
-    policy_multiplier = 1.0 + continuation_curve[None, :] * pathway_excess
+    """Simulate a reversible intervention under an adherence policy.
+
+    The all-cause hazard ratio ``policy_hr`` (one per simulation) is applied
+    flat to baseline mortality, modulated by ``continuation_curve`` so the
+    integrated survival effect exactly matches the sampled HR. The cause-
+    specific pathway exponents are used only for the *reported* cvd/cancer/other
+    decomposition (see below), never for this survival integration — applying
+    them here attenuated every effect toward the null in an age-dependent way.
+    """
+    excess = (policy_hr - 1.0)[:, None]  # (n_simulations, 1)
+    policy_multiplier = 1.0 + continuation_curve[None, :] * excess
     policy_qx = np.minimum(base_qx[None, :] * policy_multiplier, 0.99)
 
     policy_survival = np.cumprod(1 - policy_qx, axis=1)
@@ -288,6 +413,22 @@ def _simulate_policy_from_pathways(
     )
 
 
+def _active_years_curve(n_years: int, active_years: Optional[float]) -> np.ndarray:
+    """Return an annual exposure curve with a possible fractional final year."""
+    if active_years is None:
+        return np.ones(n_years)
+    active_years = float(active_years)
+    if active_years <= 0:
+        return np.zeros(n_years)
+    curve = np.zeros(n_years)
+    full_years = min(int(np.floor(active_years)), n_years)
+    curve[:full_years] = 1.0
+    remainder = active_years - full_years
+    if remainder > 0 and full_years < n_years:
+        curve[full_years] = remainder
+    return curve
+
+
 def _sample_distribution(
     dist,
     n_simulations: int,
@@ -313,8 +454,10 @@ def _triggered_interaction_rules(
     for rule in intervention.interaction_rules:
         threshold = rule.minimum_matches or len(rule.requires_tags)
         matches = sum(tag_counts[tag] for tag in rule.requires_tags)
-        if matches >= threshold and all(tag_counts[tag] > 0 for tag in rule.requires_tags):
-            triggered.append(rule)
+        if matches >= threshold and all(
+            tag_counts[tag] > 0 for tag in rule.requires_tags
+        ):
+            triggered.append(allocate_interaction_rule(rule, matches))
 
     return triggered
 
@@ -361,7 +504,9 @@ def _simulate_harm_draws(
                 None,
             )
             annual_event_prob = np.clip(
-                policy_survival * continuation_curve[None, :] * event_probability[:, None],
+                policy_survival
+                * continuation_curve[None, :]
+                * event_probability[:, None],
                 0,
                 1,
             )
@@ -390,6 +535,7 @@ def simulate_qaly_profile_vectorized(
     active_interaction_tags: Optional[Iterable[str]] = None,
     baseline_hazard_multiplier: float = 1.0,
     global_intervention_hr_multiplier: float = 1.0,
+    active_years: Optional[float] = None,
     apply_confounding: bool = True,
     random_state: Optional[int] = None,
     return_qaly_gains: bool = False,
@@ -400,12 +546,14 @@ def simulate_qaly_profile_vectorized(
     Uses NumPy broadcasting to process all simulations at once.
 
     Args:
-        discount_rate: Discount rate for QALYs (default 0%).
-        cost_discount_rate: Discount rate for costs (default 5% — opportunity
-            cost of investing in equities instead).
+        discount_rate: Discount rate for QALYs (default 3% reference-case rate).
+        cost_discount_rate: Discount rate for costs (default 3% reference-case rate).
         annual_persistence: Probability of renewing the intervention each year
             after the current year. Used to compute continuation-adjusted and
             one-year-only policy views for reversible interventions.
+        active_years: Optional hard active-duration window for the primary policy.
+            When provided, benefits, harms, and costs are only applied over this
+            many years, with a prorated final year.
         return_qaly_gains: When true, also return the simulated net QALY draws.
     """
     discount_rate = validate_qaly_discount_rate(discount_rate)
@@ -413,18 +561,32 @@ def simulate_qaly_profile_vectorized(
 
     # Profile adjustments
     baseline_mortality_multiplier = get_baseline_mortality_multiplier(profile)
-    intervention_effect_modifier = get_intervention_modifier(profile, intervention.category)
+    intervention_effect_modifier = get_intervention_modifier(
+        profile, intervention.category
+    )
 
     # Pre-compute year arrays (static for all simulations)
     max_age = 100
     n_years = max_age - profile.age
+    if n_years <= 0:
+        # Profile age is at or beyond the modeled horizon, so there are no
+        # remaining life-years to simulate. Return a null result instead of
+        # crashing on empty/negative-length arrays below.
+        zero = _zero_result(
+            n_simulations,
+            discount_rate=discount_rate,
+            cost_discount_rate=cost_discount_rate,
+        )
+        return (zero, np.zeros(n_simulations)) if return_qaly_gains else zero
     years = np.arange(n_years)
     ages = profile.age + years
 
     # Base mortality rates, quality weights, discounts, cause fractions
     base_qx = np.array([get_mortality_rate(int(a), profile.sex) for a in ages])
     base_qx = np.minimum(
-        base_qx * baseline_mortality_multiplier * float(max(baseline_hazard_multiplier, 0.0)),
+        base_qx
+        * baseline_mortality_multiplier
+        * float(max(baseline_hazard_multiplier, 0.0)),
         0.99,
     )
     base_quality = np.array([get_quality_weight(int(a)) for a in ages])
@@ -432,23 +594,34 @@ def simulate_qaly_profile_vectorized(
     cost_discount = (1 / (1 + cost_discount_rate)) ** years
 
     # Cause fractions (n_years, 3)
-    cause_fracs = np.array([[get_cause_fraction(int(a))[k] for k in ['cvd', 'cancer', 'other']] for a in ages])
+    cause_fracs = np.array(
+        [
+            [get_cause_fraction(int(a))[k] for k in ["cvd", "cancer", "other"]]
+            for a in ages
+        ]
+    )
 
     # Sample quality weight offsets (MEPS calibration: within-age σ=0.117)
     # Each simulation gets a person-specific offset that persists across years
-    quality_offsets = rng.normal(0, QUALITY_WEIGHT_STD, n_simulations)  # (n_simulations,)
+    quality_offsets = rng.normal(
+        0, QUALITY_WEIGHT_STD, n_simulations
+    )  # (n_simulations,)
     # Quality weights vary by simulation: (n_simulations, n_years)
     quality = np.clip(base_quality[None, :] + quality_offsets[:, None], 0.1, 1.0)
 
     # Sample HRs and causal fractions (n_simulations,)
     if intervention.mortality is not None:
-        hr_samples = intervention.mortality.hazard_ratio.sample(n_simulations, random_state)
+        hr_samples = intervention.mortality.hazard_ratio.sample(
+            n_simulations, random_state
+        )
 
         if intervention_effect_modifier != 1.0:
             hr_samples = np.exp(np.log(hr_samples) * intervention_effect_modifier)
 
         if apply_confounding and intervention.confounding_prior is not None:
-            causal_samples = intervention.confounding_prior.sample(n_simulations, random_state)
+            causal_samples = intervention.confounding_prior.sample(
+                n_simulations, random_state
+            )
             causal_fraction_mean = intervention.confounding_prior.mean
             causal_fraction_ci = intervention.confounding_prior.ci(0.95)
         else:
@@ -457,25 +630,26 @@ def simulate_qaly_profile_vectorized(
             causal_fraction_ci = None
 
         # Adjust HRs for confounding: log(adjusted_hr) = causal_fraction * log(observed_hr)
+        # Adjust HRs for confounding: log(adjusted_hr) = causal_fraction * log(observed_hr).
+        # This all-cause HR is applied flat to mortality (see _simulate_reversible_policy);
+        # the 1.3/0.8/0.6 pathway exponents below feed only the reported decomposition.
         adjusted_hrs = np.exp(causal_samples * np.log(hr_samples))  # (n_simulations,)
-        log_hr = np.log(adjusted_hrs)  # (n_simulations,)
         if global_intervention_hr_multiplier != 1.0:
-            adjusted_hrs = np.clip(adjusted_hrs * global_intervention_hr_multiplier, 1e-6, None)
-            log_hr = np.log(adjusted_hrs)
-        pathway_hrs = np.stack([
-            np.exp(log_hr * 1.3),  # CVD
-            np.exp(log_hr * 0.8),  # Cancer
-            np.exp(log_hr * 0.6),  # Other
-        ], axis=1)  # (n_simulations, 3)
+            adjusted_hrs = np.clip(
+                adjusted_hrs * global_intervention_hr_multiplier, 1e-6, None
+            )
     else:
-        adjusted_hrs = np.full(n_simulations, max(global_intervention_hr_multiplier, 1e-6))
+        adjusted_hrs = np.full(
+            n_simulations, max(global_intervention_hr_multiplier, 1e-6)
+        )
         causal_fraction_mean = None
         causal_fraction_ci = None
-        pathway_hrs = np.repeat(adjusted_hrs[:, None], 3, axis=1)
 
     # Baseline survival (deterministic, same for all simulations)
     baseline_survival = np.cumprod(1 - base_qx)
-    baseline_survival = np.concatenate([[1.0], baseline_survival[:-1]])  # Shift for start-of-year
+    baseline_survival = np.concatenate(
+        [[1.0], baseline_survival[:-1]]
+    )  # Shift for start-of-year
     baseline_life_years = np.sum(baseline_survival)
 
     # Baseline QALYs now vary by simulation due to quality weight heterogeneity
@@ -483,9 +657,9 @@ def simulate_qaly_profile_vectorized(
     baseline_qalys_per_year = baseline_survival[None, :] * quality * discount[None, :]
     baseline_qalys_total = np.sum(baseline_qalys_per_year, axis=1)  # (n_simulations,)
 
-    full_curve = np.ones(n_years)
+    full_curve = _active_years_curve(n_years, active_years)
     persistence = float(np.clip(annual_persistence, 0.0, 1.0))
-    continuation_curve = persistence ** years
+    continuation_curve = full_curve * (persistence**years)
     one_year_curve = np.zeros(n_years)
     one_year_curve[0] = 1.0
 
@@ -496,17 +670,14 @@ def simulate_qaly_profile_vectorized(
         expected_qol_factor,
         full_survival,
         full_qol_weights,
-    ) = (
-        _simulate_policy_from_pathways(
-            base_qx,
-            cause_fracs,
-            pathway_hrs,
-            full_curve,
-            quality,
-            discount,
-            cost_discount,
-            baseline_qalys_total,
-        )
+    ) = _simulate_reversible_policy(
+        base_qx,
+        adjusted_hrs,
+        full_curve,
+        quality,
+        discount,
+        cost_discount,
+        baseline_qalys_total,
     )
     life_years_gained = intervention_life_years - baseline_life_years
 
@@ -517,17 +688,14 @@ def simulate_qaly_profile_vectorized(
         continuation_qol_factor,
         continuation_survival,
         _continuation_qol_weights,
-    ) = (
-        _simulate_policy_from_pathways(
-            base_qx,
-            cause_fracs,
-            pathway_hrs,
-            continuation_curve,
-            quality,
-            discount,
-            cost_discount,
-            baseline_qalys_total,
-        )
+    ) = _simulate_reversible_policy(
+        base_qx,
+        adjusted_hrs,
+        continuation_curve,
+        quality,
+        discount,
+        cost_discount,
+        baseline_qalys_total,
     )
     continuation_life_years_gained = continuation_life_years - baseline_life_years
 
@@ -538,17 +706,14 @@ def simulate_qaly_profile_vectorized(
         one_year_qol_factor,
         one_year_survival,
         _one_year_qol_weights,
-    ) = (
-        _simulate_policy_from_pathways(
-            base_qx,
-            cause_fracs,
-            pathway_hrs,
-            one_year_curve,
-            quality,
-            discount,
-            cost_discount,
-            baseline_qalys_total,
-        )
+    ) = _simulate_reversible_policy(
+        base_qx,
+        adjusted_hrs,
+        one_year_curve,
+        quality,
+        discount,
+        cost_discount,
+        baseline_qalys_total,
     )
     one_year_life_years_gained = one_year_life_years - baseline_life_years
 
@@ -570,36 +735,44 @@ def simulate_qaly_profile_vectorized(
     )
     qaly_gains = qaly_gains + direct_harm_draws + interaction_harm_draws
 
-    continuation_qaly_gains = continuation_qaly_gains + _simulate_harm_draws(
-        intervention.harm_model,
-        continuation_survival,
-        continuation_curve,
-        discount,
-        rng,
-        n_simulations,
-    ) + _simulate_harm_draws(
-        _triggered_interaction_rules(intervention, active_interaction_tags),
-        continuation_survival,
-        continuation_curve,
-        discount,
-        rng,
-        n_simulations,
+    continuation_qaly_gains = (
+        continuation_qaly_gains
+        + _simulate_harm_draws(
+            intervention.harm_model,
+            continuation_survival,
+            continuation_curve,
+            discount,
+            rng,
+            n_simulations,
+        )
+        + _simulate_harm_draws(
+            _triggered_interaction_rules(intervention, active_interaction_tags),
+            continuation_survival,
+            continuation_curve,
+            discount,
+            rng,
+            n_simulations,
+        )
     )
 
-    one_year_qaly_gains = one_year_qaly_gains + _simulate_harm_draws(
-        intervention.harm_model,
-        one_year_survival,
-        one_year_curve,
-        discount,
-        rng,
-        n_simulations,
-    ) + _simulate_harm_draws(
-        _triggered_interaction_rules(intervention, active_interaction_tags),
-        one_year_survival,
-        one_year_curve,
-        discount,
-        rng,
-        n_simulations,
+    one_year_qaly_gains = (
+        one_year_qaly_gains
+        + _simulate_harm_draws(
+            intervention.harm_model,
+            one_year_survival,
+            one_year_curve,
+            discount,
+            rng,
+            n_simulations,
+        )
+        + _simulate_harm_draws(
+            _triggered_interaction_rules(intervention, active_interaction_tags),
+            one_year_survival,
+            one_year_curve,
+            discount,
+            rng,
+            n_simulations,
+        )
     )
 
     # Pathway contributions (approximate - using median HR)
@@ -680,7 +853,7 @@ def simulate_qaly(
         age: Starting age
         sex: Biological sex for life table lookup
         n_simulations: Number of Monte Carlo iterations
-        discount_rate: Annual discount rate (default 0%)
+        discount_rate: Annual discount rate (default 3% reference-case rate)
         apply_confounding: Whether to apply confounding adjustment
         random_state: Random seed for reproducibility
 
@@ -696,7 +869,9 @@ def simulate_qaly(
 
     # Sample causal fractions if applying confounding
     if apply_confounding and intervention.confounding_prior is not None:
-        causal_samples = intervention.confounding_prior.sample(n_simulations, random_state)
+        causal_samples = intervention.confounding_prior.sample(
+            n_simulations, random_state
+        )
         causal_fraction_mean = intervention.confounding_prior.mean
         causal_fraction_ci = intervention.confounding_prior.ci(0.95)
     else:
@@ -716,9 +891,6 @@ def simulate_qaly(
         sex=sex,
         discount_rate=discount_rate,
     )
-
-    # Base HR for pathway distribution
-    base_hr = intervention.mortality.hazard_ratio.mean
 
     for i in range(n_simulations):
         # Sample HR and causal fraction
@@ -765,6 +937,7 @@ def simulate_qaly_profile(
     discount_rate: float = DEFAULT_QALY_DISCOUNT_RATE,
     apply_confounding: bool = True,
     random_state: Optional[int] = None,
+    apply_intervention_modifier: bool = True,
 ) -> SimulationResult:
     """
     Run Monte Carlo simulation for a specific demographic profile.
@@ -777,7 +950,7 @@ def simulate_qaly_profile(
         intervention: Intervention to simulate
         profile: Demographic profile (age, sex, BMI, smoking, diabetes)
         n_simulations: Number of Monte Carlo iterations
-        discount_rate: Annual discount rate (default 0%)
+        discount_rate: Annual discount rate (default 3% reference-case rate)
         apply_confounding: Whether to apply confounding adjustment
         random_state: Random seed for reproducibility
 
@@ -790,7 +963,14 @@ def simulate_qaly_profile(
 
     # Get profile-specific adjustments
     baseline_mortality_multiplier = get_baseline_mortality_multiplier(profile)
-    intervention_effect_modifier = get_intervention_modifier(profile, intervention.category)
+    # Callers that have already baked the profile modifier into the HR (e.g. the
+    # combined-intervention path) pass apply_intervention_modifier=False to avoid
+    # double-counting it.
+    intervention_effect_modifier = (
+        get_intervention_modifier(profile, intervention.category)
+        if apply_intervention_modifier
+        else 1.0
+    )
 
     # Sample from distributions
     hr_samples = intervention.mortality.hazard_ratio.sample(n_simulations, random_state)
@@ -804,7 +984,9 @@ def simulate_qaly_profile(
 
     # Sample causal fractions if applying confounding
     if apply_confounding and intervention.confounding_prior is not None:
-        causal_samples = intervention.confounding_prior.sample(n_simulations, random_state)
+        causal_samples = intervention.confounding_prior.sample(
+            n_simulations, random_state
+        )
         causal_fraction_mean = intervention.confounding_prior.mean
         causal_fraction_ci = intervention.confounding_prior.ci(0.95)
     else:

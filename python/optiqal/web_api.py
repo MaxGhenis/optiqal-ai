@@ -5,38 +5,53 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, Literal, Optional
 
-from optiqal import (
-    AnalysisConfig,
+# Import from defining submodules, never the optiqal package root: this module
+# is itself imported during package __init__, so a root import would create a
+# cycle that only resolves for some __init__ import orders.
+from optiqal.analyzer import AnalysisConfig, analyze
+from optiqal.catalog import (
     PublicPolicy,
-    Profile,
-    analyze,
     build_public_policy_spec,
-    build_public_sleep_decision_sequence,
-    build_public_sleep_decision_specs,
-    build_stack_interaction_penalty_fn,
-    evaluate_decision_states,
     get_catalog,
     has_meaningful_public_airway_signal,
     has_meaningful_public_nasal_dryness_signal,
     has_meaningful_public_osa_therapy_signal,
     is_publicly_rankable,
     public_display_category,
-    public_recommendation_lane,
+    public_display_name,
     public_rankability_reason,
-    rank_interventions_by_marginal_cost_per_qaly,
-    serialize_decision_sequence,
-    serialize_decision_state_evaluations,
+    public_recommendation_lane,
 )
-from optiqal.lifecycle import CONDITION_DECREMENTS, get_mortality_rate, get_quality_weight
+from optiqal.combination import rank_interventions_by_marginal_cost_per_qaly
+from optiqal.decision_states import (
+    build_public_sleep_decision_sequence,
+    build_public_sleep_decision_specs,
+    evaluate_decision_states,
+)
+from optiqal.defaults import DEFAULT_QALY_DISCOUNT_RATE
+from optiqal.lifecycle import (
+    CONDITION_DECREMENTS,
+    get_mortality_rate,
+    get_quality_weight,
+)
 from optiqal.profile import (
     ACTIVITY_MORTALITY_RR,
     BMI_MORTALITY_RR,
     DIABETES_MORTALITY_RR,
     HYPERTENSION_MORTALITY_RR,
     SMOKING_MORTALITY_RR,
+    Profile,
 )
-from optiqal.sleep import SleepMetrics, estimate_sleep_burden, sleep_baseline_mortality_multiplier
-
+from optiqal.report import (
+    serialize_decision_sequence,
+    serialize_decision_state_evaluations,
+)
+from optiqal.sleep import (
+    SleepMetrics,
+    estimate_sleep_burden,
+    sleep_baseline_mortality_multiplier,
+)
+from optiqal.stack_interactions import build_stack_interaction_penalty_fn
 
 Sex = Literal["male", "female"]
 
@@ -76,6 +91,30 @@ def _clean_float(value: Any) -> Optional[float]:
     return number
 
 
+def _bounded_number(value: Any, *, name: str, low: float, high: float) -> float:
+    """Coerce ``value`` to a float and require it within [low, high].
+
+    Defence-in-depth: the TypeScript contract validates these bounds first, but
+    the FastAPI engine can be reached directly, where an out-of-range age drives
+    an effectively unbounded life-table loop and a zero height divides by zero.
+    """
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{name} must be a number")
+    if math.isnan(number) or math.isinf(number) or not (low <= number <= high):
+        raise ValueError(f"{name} must be between {low} and {high}")
+    return number
+
+
+def _bounded_simulations(value: Any, *, default: int = 5000, cap: int = 20000) -> int:
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(1, min(cap, number))
+
+
 def _bmi_category(weight_kg: float, height_cm: float) -> str:
     bmi = weight_kg / ((height_cm / 100.0) ** 2)
     if bmi < 25:
@@ -97,7 +136,8 @@ def _build_sleep_metrics(
     payload: Dict[str, Any], fallback_duration: Optional[float] = None
 ) -> Optional[SleepMetrics]:
     fields = {
-        "duration_hours": _clean_float(payload.get("duration_hours")) or fallback_duration,
+        "duration_hours": _clean_float(payload.get("duration_hours"))
+        or fallback_duration,
         "recovery_score": _clean_float(payload.get("recovery_score")),
         "sleep_quality_score": _clean_float(payload.get("sleep_quality_score")),
         "waso_min": _clean_float(payload.get("waso_min")),
@@ -142,8 +182,19 @@ def _calculate_projection(
     survival = 1.0
     remaining_life_expectancy = 0.0
     remaining_qalys = 0.0
+    # Discounted QALYs accrued while alive (NOT survival-weighted): the lifetime
+    # QALYs realized by someone who dies in a given year. Used for the interval.
+    realized_qalys = 0.0
     current_quality_weight = max(0.0, get_quality_weight(age) - quality_decrement)
     curve: list[dict[str, float]] = []
+
+    # Age-at-death prediction interval, captured as cumulative survival decays.
+    # When survival first falls to <= t, ~(1 - t) of the cohort has died by this
+    # age, so that year is the (1 - t) percentile of age at death.
+    death_targets = {"p10": 0.90, "p50": 0.50, "p90": 0.10}
+    le_at: dict[str, float] = {}
+    qalys_at: dict[str, float] = {}
+    last_year = 0
 
     for year in range(max(0, MAX_AGE - age + 1)):
         current_age = age + year
@@ -154,6 +205,12 @@ def _calculate_projection(
 
         remaining_life_expectancy += survival
         remaining_qalys += expected_qaly
+        realized_qalys += quality_weight * discount
+
+        for key, threshold in death_targets.items():
+            if key not in le_at and survival <= threshold:
+                le_at[key] = float(year)
+                qalys_at[key] = float(realized_qalys)
 
         if year == 0 or current_age % 5 == 0 or survival < 0.02:
             curve.append(
@@ -165,9 +222,15 @@ def _calculate_projection(
                 }
             )
 
+        last_year = year
         survival *= 1.0 - base_qx
         if survival < 0.001:
             break
+
+    # Percentiles not reached within the horizon clamp to the horizon end.
+    for key in death_targets:
+        le_at.setdefault(key, float(last_year))
+        qalys_at.setdefault(key, float(realized_qalys))
 
     return {
         "remaining_life_expectancy": remaining_life_expectancy,
@@ -175,6 +238,9 @@ def _calculate_projection(
         "remaining_qalys": remaining_qalys,
         "current_quality_weight": current_quality_weight,
         "curve": curve,
+        "remaining_life_expectancy_ci": [le_at["p10"], le_at["p90"]],
+        "expected_death_age_ci": [age + le_at["p10"], age + le_at["p90"]],
+        "remaining_qalys_ci": [qalys_at["p10"], qalys_at["p90"]],
     }
 
 
@@ -201,9 +267,12 @@ def _average_curves(curves: list[list[dict[str, float]]]) -> list[dict[str, floa
         result.append(
             {
                 "age": float(age),
-                "survival_probability": sum(bucket["survival_probability"]) / len(bucket["survival_probability"]),
-                "quality_weight": sum(bucket["quality_weight"]) / len(bucket["quality_weight"]),
-                "expected_qaly": sum(bucket["expected_qaly"]) / len(bucket["expected_qaly"]),
+                "survival_probability": sum(bucket["survival_probability"])
+                / len(bucket["survival_probability"]),
+                "quality_weight": sum(bucket["quality_weight"])
+                / len(bucket["quality_weight"]),
+                "expected_qaly": sum(bucket["expected_qaly"])
+                / len(bucket["expected_qaly"]),
             }
         )
     return result
@@ -213,10 +282,14 @@ def build_baseline_response(payload: Dict[str, Any]) -> dict[str, Any]:
     profile_payload = payload.get("profile") or {}
     sleep_payload = payload.get("sleep_metrics") or {}
 
-    age = int(profile_payload["age"])
+    age = int(_bounded_number(profile_payload["age"], name="age", low=0, high=120))
     sex_value = str(profile_payload.get("sex", "male"))
-    weight_kg = float(profile_payload["weight_kg"])
-    height_cm = float(profile_payload["height_cm"])
+    weight_kg = _bounded_number(
+        profile_payload["weight_kg"], name="weight_kg", low=20, high=500
+    )
+    height_cm = _bounded_number(
+        profile_payload["height_cm"], name="height_cm", low=50, high=275
+    )
     smoker = bool(profile_payload.get("smoker"))
     has_diabetes = bool(profile_payload.get("has_diabetes"))
     has_hypertension = bool(profile_payload.get("has_hypertension"))
@@ -225,7 +298,9 @@ def build_baseline_response(payload: Dict[str, Any]) -> dict[str, Any]:
 
     bmi_category = _bmi_category(weight_kg, height_cm)
     sleep_metrics = _build_sleep_metrics(sleep_payload, sleep_hours)
-    sleep_estimate = estimate_sleep_burden(sleep_metrics) if sleep_metrics is not None else None
+    sleep_estimate = (
+        estimate_sleep_burden(sleep_metrics) if sleep_metrics is not None else None
+    )
     sleep_multiplier = sleep_baseline_mortality_multiplier(sleep_estimate)
 
     lifestyle_multiplier = (
@@ -233,11 +308,12 @@ def build_baseline_response(payload: Dict[str, Any]) -> dict[str, Any]:
         * float(SMOKING_MORTALITY_RR["current" if smoker else "never"])
         * float(ACTIVITY_MORTALITY_RR[activity_level])
     )
-    condition_multiplier = (
-        (float(DIABETES_MORTALITY_RR) if has_diabetes else 1.0)
-        * (float(HYPERTENSION_MORTALITY_RR) if has_hypertension else 1.0)
+    condition_multiplier = (float(DIABETES_MORTALITY_RR) if has_diabetes else 1.0) * (
+        float(HYPERTENSION_MORTALITY_RR) if has_hypertension else 1.0
     )
-    raw_multiplier = lifestyle_multiplier * condition_multiplier * float(sleep_multiplier)
+    raw_multiplier = (
+        lifestyle_multiplier * condition_multiplier * float(sleep_multiplier)
+    )
 
     projections = []
     curves = []
@@ -250,8 +326,10 @@ def build_baseline_response(payload: Dict[str, Any]) -> dict[str, Any]:
             age=age,
             sex=sex,
             mortality_multiplier=calibrated_multiplier,
-            quality_decrement=_condition_quality_decrement(has_diabetes, has_hypertension),
-            discount_rate=0.0,
+            quality_decrement=_condition_quality_decrement(
+                has_diabetes, has_hypertension
+            ),
+            discount_rate=DEFAULT_QALY_DISCOUNT_RATE,
         )
         projections.append(projection)
         curves.append(projection["curve"])
@@ -261,7 +339,7 @@ def build_baseline_response(payload: Dict[str, Any]) -> dict[str, Any]:
     result = {
         "meta": {
             "model": "canonical_python_baseline",
-            "qaly_discount_rate": 0.0,
+            "qaly_discount_rate": DEFAULT_QALY_DISCOUNT_RATE,
             "explicit_inputs_only": True,
             "profile": {
                 "age": age,
@@ -275,29 +353,91 @@ def build_baseline_response(payload: Dict[str, Any]) -> dict[str, Any]:
         },
         "point_estimate": {
             "remaining_life_expectancy": round(
-                float(sum(p["remaining_life_expectancy"] for p in projections) / len(projections)),
+                float(
+                    sum(p["remaining_life_expectancy"] for p in projections)
+                    / len(projections)
+                ),
                 1,
             ),
             "expected_death_age": round(
-                float(sum(p["expected_death_age"] for p in projections) / len(projections)),
+                float(
+                    sum(p["expected_death_age"] for p in projections) / len(projections)
+                ),
                 1,
             ),
             "remaining_qalys": round(
-                float(sum(p["remaining_qalys"] for p in projections) / len(projections)),
+                float(
+                    sum(p["remaining_qalys"] for p in projections) / len(projections)
+                ),
                 1,
             ),
             "current_quality_weight": round(
-                float(sum(p["current_quality_weight"] for p in projections) / len(projections)),
+                float(
+                    sum(p["current_quality_weight"] for p in projections)
+                    / len(projections)
+                ),
                 3,
             ),
+            "remaining_life_expectancy_ci": [
+                round(
+                    float(
+                        sum(p["remaining_life_expectancy_ci"][0] for p in projections)
+                        / len(projections)
+                    ),
+                    1,
+                ),
+                round(
+                    float(
+                        sum(p["remaining_life_expectancy_ci"][1] for p in projections)
+                        / len(projections)
+                    ),
+                    1,
+                ),
+            ],
+            "expected_death_age_ci": [
+                round(
+                    float(
+                        sum(p["expected_death_age_ci"][0] for p in projections)
+                        / len(projections)
+                    ),
+                    1,
+                ),
+                round(
+                    float(
+                        sum(p["expected_death_age_ci"][1] for p in projections)
+                        / len(projections)
+                    ),
+                    1,
+                ),
+            ],
+            "remaining_qalys_ci": [
+                round(
+                    float(
+                        sum(p["remaining_qalys_ci"][0] for p in projections)
+                        / len(projections)
+                    ),
+                    1,
+                ),
+                round(
+                    float(
+                        sum(p["remaining_qalys_ci"][1] for p in projections)
+                        / len(projections)
+                    ),
+                    1,
+                ),
+            ],
         },
         "risk": {
             "lifestyle_multiplier": round(float(lifestyle_multiplier), 4),
             "condition_multiplier": round(float(condition_multiplier), 4),
             "sleep_multiplier": round(float(sleep_multiplier), 4),
             "raw_multiplier": round(float(raw_multiplier), 4),
-            "calibration_factor": round(float(sum(calibration_factors) / len(calibration_factors)), 4),
-            "calibrated_multiplier": round(float(sum(calibrated_multipliers) / len(calibrated_multipliers)), 4),
+            "calibration_factor": round(
+                float(sum(calibration_factors) / len(calibration_factors)), 4
+            ),
+            "calibrated_multiplier": round(
+                float(sum(calibrated_multipliers) / len(calibrated_multipliers)), 4
+            ),
         },
         "survival_curve": [
             {
@@ -360,7 +500,9 @@ def _access_rank(access: Dict[str, Any]) -> tuple[int, int]:
     )
 
 
-def _option_access_payload(item_ids: list[str], entries: Dict[str, Any]) -> Dict[str, Any]:
+def _option_access_payload(
+    item_ids: list[str], entries: Dict[str, Any]
+) -> Dict[str, Any]:
     if not item_ids:
         return {
             "tier": "none",
@@ -384,27 +526,55 @@ def _option_access_payload(item_ids: list[str], entries: Dict[str, Any]) -> Dict
         "tier": item_accesses[0]["tier"] if len(item_accesses) == 1 else "multiple",
         "coverage_outlook": worst_coverage,
         "friction": worst_friction,
-        "notes": notes[0] if len(notes) == 1 else "Mixed access burden across added items.",
+        "notes": notes[0]
+        if len(notes) == 1
+        else "Mixed access burden across added items.",
         "item_accesses": item_accesses,
     }
 
 
+def _decision_spec_item_ids(spec: Any) -> list[str]:
+    item_ids = list(getattr(spec, "base_item_ids", []))
+    for option in getattr(spec, "options", []) or []:
+        item_ids.extend(option.added_item_ids)
+    return item_ids
+
+
+def _decision_sequence_step_is_public(step: Any, public_state_ids: set[str]) -> bool:
+    referenced_state_ids = [
+        getattr(step, "state_id", None),
+        getattr(step, "preferred_state_id", None),
+        getattr(step, "alternative_state_id", None),
+    ]
+    return all(
+        state_id in public_state_ids
+        for state_id in referenced_state_ids
+        if state_id is not None
+    )
+
+
 def _best_biology_option_id(options: list[Dict[str, Any]]) -> Optional[str]:
     candidates = [
-        option for option in options
+        option
+        for option in options
         if option["marginal_qaly"] > 0 and option["added_item_ids"]
     ]
     if not candidates:
         return None
     return max(
         candidates,
-        key=lambda option: (option["marginal_qaly"], -option["access_rank"][0], -option["access_rank"][1]),
+        key=lambda option: (
+            option["marginal_qaly"],
+            -option["access_rank"][0],
+            -option["access_rank"][1],
+        ),
     )["id"]
 
 
 def _best_access_option_id(options: list[Dict[str, Any]]) -> Optional[str]:
     candidates = [
-        option for option in options
+        option
+        for option in options
         if option["marginal_qaly"] > 0 and option["added_item_ids"]
     ]
     if not candidates:
@@ -440,14 +610,18 @@ def build_frontier_response_with_policy(
     profile_payload = payload.get("profile") or {}
     sleep_payload = payload.get("sleep_metrics") or {}
 
-    weight_kg = float(profile_payload["weight_kg"])
-    height_cm = float(profile_payload["height_cm"])
+    weight_kg = _bounded_number(
+        profile_payload["weight_kg"], name="weight_kg", low=20, high=500
+    )
+    height_cm = _bounded_number(
+        profile_payload["height_cm"], name="height_cm", low=50, high=275
+    )
     sex = profile_payload.get("sex", "male")
     if sex not in ("male", "female"):
         sex = "male"
 
     profile = Profile(
-        age=int(profile_payload["age"]),
+        age=int(_bounded_number(profile_payload["age"], name="age", low=0, high=120)),
         sex=sex,
         bmi_category=_bmi_category(weight_kg, height_cm),
         smoking_status="current" if bool(profile_payload.get("smoker")) else "never",
@@ -462,7 +636,7 @@ def build_frontier_response_with_policy(
         if duration_hours is not None:
             sleep_metrics = SleepMetrics(duration_hours=duration_hours)
 
-    n_simulations = int(payload.get("n_simulations", 5000))
+    n_simulations = _bounded_simulations(payload.get("n_simulations", 5000))
     categories = payload.get("categories")
 
     config = AnalysisConfig(
@@ -507,6 +681,40 @@ def build_frontier_response_with_policy(
         for item_id, entry in entries.items()
         if entry.exclusive_group and item_id in rankable_ids
     }
+    # Hazard-aware stacking: mortality combines multiplicatively (one joint
+    # survival integration); non-mortality (QoL/harm) QALYs add across items.
+    # Each item's effective HR is inverted from its own sim mort_qaly so a
+    # single-item stack reproduces the sim exactly (raw posterior HR does not —
+    # the MC mean is convex over the HR/quality draws).
+    from .simulate import (
+        effective_hr_for_mortality_qaly,
+        mortality_qaly_for_combined_hr,
+    )
+
+    item_mortality_hrs = {
+        item_id: effective_hr_for_mortality_qaly(
+            config.profile,
+            result["mort_qaly"],
+            discount_rate=config.qaly_discount_rate,
+            baseline_hazard_multiplier=config.sleep_baseline_hazard_multiplier,
+        )
+        for item_id, result in analysis.item_results_by_id.items()
+        if item_id in rankable_ids
+    }
+    item_qol_qalys = {
+        item_id: result["total_qaly"] - result["mort_qaly"]
+        for item_id, result in analysis.item_results_by_id.items()
+        if item_id in rankable_ids
+    }
+
+    def _stack_mortality_qaly(combined_hr: float) -> float:
+        return mortality_qaly_for_combined_hr(
+            config.profile,
+            combined_hr,
+            discount_rate=config.qaly_discount_rate,
+            baseline_hazard_multiplier=config.sleep_baseline_hazard_multiplier,
+        )
+
     stack_penalty_fn = build_stack_interaction_penalty_fn(
         catalog_entries=entries,
         profile=config.profile,
@@ -521,6 +729,9 @@ def build_frontier_response_with_policy(
         horizon_years=config.horizon_years,
         stack_interaction_penalty_fn=stack_penalty_fn,
         exclusive_groups=exclusive_groups,
+        item_mortality_hrs=item_mortality_hrs,
+        item_qol_qalys=item_qol_qalys,
+        mortality_qaly_fn=_stack_mortality_qaly,
     )
 
     selected_ids = set(frontier[-1]["selected_interventions"]) if frontier else set()
@@ -534,66 +745,100 @@ def build_frontier_response_with_policy(
             sleep_estimate=config.sleep_estimate,
             policy=public_policy,
         )
-        items.append({
-            "id": raw["id"],
-            "name": entry.name,
-            "category": entry.category,
-            "display_category": public_display_category(entry, public_policy),
-            "public_lane": public_recommendation_lane(entry, policy=public_policy),
-            "annual_cost": None if unpriced else round(float(raw["annual_cost"]), 2),
-            "total_cost": round(float(raw["total_cost"]), 2),
-            "cost_per_qaly": None if unpriced else _round_or_none(raw["cost_per_qaly"], 0),
-            "total_qaly": round(float(raw["total_qaly"]), 4),
-            "days": round(float(raw["days"]), 1),
-            "p_benefit": round(float(raw["p_benefit"]), 2),
-            "p_harm": round(float(raw["p_harm"]), 2),
-            "mort_qaly": round(float(raw["mort_qaly"]), 4),
-            "harm_qaly": round(float(raw["harm_qaly"]), 4),
-            "qol_qaly": round(float(raw["qol_qaly"]), 4),
-            "sleep_qol_qaly": round(float(raw["sleep_qol_qaly"]), 4),
-            "profile_effect_multiplier": round(float(raw.get("profile_effect_multiplier", 1.0)), 4),
-            "airway_effect_multiplier": round(float(raw.get("airway_effect_multiplier", 1.0)), 4),
-            "sleep_mortality_hr_multiplier": round(float(raw.get("sleep_mortality_hr_multiplier", 1.0)), 6),
-            "sleep_mortality_relief_fraction": round(float(raw.get("sleep_mortality_relief_fraction", 0.0)), 4),
-            "interaction_tags": list(entry.interaction_tags),
-            "benefit_tags": list(entry.benefit_tags),
-            "notes": entry.notes,
-            "sources": list(entry.sources),
-            "selected_in_frontier": raw["id"] in selected_ids,
-            "pricing_status": "unpriced" if unpriced else ("free" if raw["annual_cost"] <= 0 else "priced"),
-            "rankability_reason": public_rankability_reason(
-                entry,
-                profile=config.profile,
-                sleep_estimate=config.sleep_estimate,
-                policy=public_policy,
-            ),
-            "access": _access_payload(entry),
-        })
+        _raw_ci = raw.get("net_qaly_ci", [0.0, 0.0])
+        _net_qaly_ci = [round(float(_raw_ci[0]), 4), round(float(_raw_ci[1]), 4)]
+        items.append(
+            {
+                "id": raw["id"],
+                "name": public_display_name(entry, public_policy),
+                "category": entry.category,
+                "display_category": public_display_category(entry, public_policy),
+                "public_lane": public_recommendation_lane(entry, policy=public_policy),
+                "annual_cost": None
+                if unpriced
+                else round(float(raw["annual_cost"]), 2),
+                "total_cost": round(float(raw["total_cost"]), 2),
+                "cost_per_qaly": None
+                if unpriced
+                else _round_or_none(raw["cost_per_qaly"], 0),
+                "total_qaly": round(float(raw["total_qaly"]), 4),
+                "days": round(float(raw["days"]), 1),
+                "p_benefit": round(float(raw["p_benefit"]), 2),
+                "p_harm": round(float(raw["p_harm"]), 2),
+                "net_qaly_ci": _net_qaly_ci,
+                "net_days_ci": [
+                    round(_net_qaly_ci[0] * 365.25, 1),
+                    round(_net_qaly_ci[1] * 365.25, 1),
+                ],
+                "mort_qaly": round(float(raw["mort_qaly"]), 4),
+                "harm_qaly": round(float(raw["harm_qaly"]), 4),
+                "qol_qaly": round(float(raw["qol_qaly"]), 4),
+                "sleep_qol_qaly": round(float(raw["sleep_qol_qaly"]), 4),
+                "profile_effect_multiplier": round(
+                    float(raw.get("profile_effect_multiplier", 1.0)), 4
+                ),
+                "airway_effect_multiplier": round(
+                    float(raw.get("airway_effect_multiplier", 1.0)), 4
+                ),
+                "sleep_mortality_hr_multiplier": round(
+                    float(raw.get("sleep_mortality_hr_multiplier", 1.0)), 6
+                ),
+                "sleep_mortality_relief_fraction": round(
+                    float(raw.get("sleep_mortality_relief_fraction", 0.0)), 4
+                ),
+                "interaction_tags": list(entry.interaction_tags),
+                "benefit_tags": list(entry.benefit_tags),
+                "notes": entry.notes,
+                "sources": list(entry.sources),
+                "selected_in_frontier": raw["id"] in selected_ids,
+                "pricing_status": "unpriced"
+                if unpriced
+                else ("free" if raw["annual_cost"] <= 0 else "priced"),
+                "rankability_reason": public_rankability_reason(
+                    entry,
+                    profile=config.profile,
+                    sleep_estimate=config.sleep_estimate,
+                    policy=public_policy,
+                ),
+                "access": _access_payload(entry),
+            }
+        )
 
     items.sort(key=_sort_items)
     items_by_id = {item["id"]: item for item in items}
+    public_items = [item for item in items if item["pricing_status"] != "unpriced"]
 
     frontier_rows = []
     for step in frontier:
         item_id = step["added_intervention"]
         item = items_by_id[item_id]
-        frontier_rows.append({
-            "step": step["step"],
-            "added_intervention": item_id,
-            "added_name": item["name"],
-            "marginal_qaly": round(float(step["marginal_qaly"]), 4),
-            "marginal_days": round(float(step["marginal_qaly"]) * 365.25, 1),
-            "marginal_cost_per_qaly": _round_or_none(step["marginal_cost_per_qaly"], 0),
-            "marginal_cost_value": round(float(step["marginal_cost_value"]), 2),
-            "marginal_interaction_qaly": round(float(step["marginal_interaction_qaly"]), 4),
-            "total_qaly": round(float(step["total_qaly"]), 4),
-            "total_days": round(float(step["total_qaly"]) * 365.25, 1),
-            "interaction_penalty_qaly": round(float(step["interaction_penalty_qaly"]), 4),
-            "interaction_penalty_days": round(float(step["interaction_penalty_qaly"]) * 365.25, 1),
-            "total_cost_value": round(float(step["total_cost_value"]), 2),
-            "total_annual_cost": round(float(step["total_annual_cost"]), 2),
-            "selected_interventions": list(step["selected_interventions"]),
-        })
+        frontier_rows.append(
+            {
+                "step": step["step"],
+                "added_intervention": item_id,
+                "added_name": item["name"],
+                "marginal_qaly": round(float(step["marginal_qaly"]), 4),
+                "marginal_days": round(float(step["marginal_qaly"]) * 365.25, 1),
+                "marginal_cost_per_qaly": _round_or_none(
+                    step["marginal_cost_per_qaly"], 0
+                ),
+                "marginal_cost_value": round(float(step["marginal_cost_value"]), 2),
+                "marginal_interaction_qaly": round(
+                    float(step["marginal_interaction_qaly"]), 4
+                ),
+                "total_qaly": round(float(step["total_qaly"]), 4),
+                "total_days": round(float(step["total_qaly"]) * 365.25, 1),
+                "interaction_penalty_qaly": round(
+                    float(step["interaction_penalty_qaly"]), 4
+                ),
+                "interaction_penalty_days": round(
+                    float(step["interaction_penalty_qaly"]) * 365.25, 1
+                ),
+                "total_cost_value": round(float(step["total_cost_value"]), 2),
+                "total_annual_cost": round(float(step["total_annual_cost"]), 2),
+                "selected_interventions": list(step["selected_interventions"]),
+            }
+        )
 
     def option_item_summary(item_id: str) -> Dict[str, Any]:
         item = items_by_id[item_id]
@@ -610,7 +855,9 @@ def build_frontier_response_with_policy(
 
     decision_states = []
     decision_sequence = []
-    support_signal = has_meaningful_public_airway_signal(config.sleep_estimate, policy=public_policy)
+    support_signal = has_meaningful_public_airway_signal(
+        config.sleep_estimate, policy=public_policy
+    )
     humidifier_signal = has_meaningful_public_nasal_dryness_signal(
         config.sleep_estimate,
         policy=public_policy,
@@ -627,6 +874,15 @@ def build_frontier_response_with_policy(
             include_therapy=therapy_signal,
             include_humidifier=humidifier_signal,
         )
+        rankable_id_set = set(rankable_ids)
+        decision_specs = [
+            spec
+            for spec in decision_specs
+            if all(
+                item_id in rankable_id_set for item_id in _decision_spec_item_ids(spec)
+            )
+        ]
+        public_decision_state_ids = {spec.id for spec in decision_specs}
         decision_item_ids: list[str] = []
         seen_decision_ids: set[str] = set()
         for spec in decision_specs:
@@ -669,7 +925,9 @@ def build_frontier_response_with_policy(
             cost_values=decision_cost_values,
             horizon_years=config.horizon_years,
             stack_interaction_penalty_fn=stack_penalty_fn,
-            total_cost_value_fn=lambda ids: sum(decision_cost_values[item_id] for item_id in ids),
+            total_cost_value_fn=lambda ids: sum(
+                decision_cost_values[item_id] for item_id in ids
+            ),
             exclusive_groups=decision_exclusive_groups,
         )
         serialized_states = serialize_decision_state_evaluations(
@@ -686,43 +944,55 @@ def build_frontier_response_with_policy(
                 option_rows = []
                 for option in serialized_state["options"]:
                     access = _option_access_payload(option["added_item_ids"], entries)
-                    option_rows.append({
-                        **option,
-                        "access": access,
-                        "access_rank": _access_rank(access),
-                    })
+                    option_rows.append(
+                        {
+                            **option,
+                            "access": access,
+                            "access_rank": _access_rank(access),
+                        }
+                    )
 
                 best_biology_option_id = _best_biology_option_id(option_rows)
                 best_access_option_id = _best_access_option_id(option_rows)
                 for option in option_rows:
                     option.pop("access_rank", None)
 
-                decision_states.append({
+                decision_states.append(
+                    {
+                        "id": state_id,
+                        "kind": "choice",
+                        "label": serialized_state["label"],
+                        "description": serialized_state["description"],
+                        "baseline": serialized_state["baseline"],
+                        "best_biology_option_id": best_biology_option_id,
+                        "best_access_option_id": best_access_option_id,
+                        "options": option_rows,
+                    }
+                )
+                continue
+
+            decision_states.append(
+                {
                     "id": state_id,
-                    "kind": "choice",
+                    "kind": "frontier",
                     "label": serialized_state["label"],
                     "description": serialized_state["description"],
                     "baseline": serialized_state["baseline"],
-                    "best_biology_option_id": best_biology_option_id,
-                    "best_access_option_id": best_access_option_id,
-                    "options": option_rows,
-                })
-                continue
-
-            decision_states.append({
-                "id": state_id,
-                "kind": "frontier",
-                "label": serialized_state["label"],
-                "description": serialized_state["description"],
-                "baseline": serialized_state["baseline"],
-                "steps": serialized_state["steps"],
-            })
+                    "steps": serialized_state["steps"],
+                }
+            )
 
         decision_sequence = serialize_decision_sequence(
-            build_public_sleep_decision_sequence(include_therapy=therapy_signal)
+            [
+                step
+                for step in build_public_sleep_decision_sequence(
+                    include_therapy=therapy_signal
+                )
+                if _decision_sequence_step_is_public(step, public_decision_state_ids)
+            ]
         )
 
-    positive_items = sum(1 for item in items if item["total_qaly"] > 0)
+    positive_items = sum(1 for item in public_items if item["total_qaly"] > 0)
     payload_out = {
         "meta": {
             "selection_mode": "ordered_by_marginal_cost_per_qaly",
@@ -745,7 +1015,7 @@ def build_frontier_response_with_policy(
         "sleep_estimate": None,
         "public_policy": build_public_policy_spec(entries, policy=public_policy),
         "frontier": frontier_rows,
-        "items": items,
+        "items": public_items,
         "decision_states": decision_states,
         "decision_sequence": decision_sequence,
     }
@@ -764,10 +1034,21 @@ def build_frontier_response_with_policy(
             },
             "airway": (
                 {
-                    "upper_airway_probability": round(float(config.sleep_estimate.airway.upper_airway_probability), 3),
-                    "nasal_inflammation_probability": round(float(config.sleep_estimate.airway.nasal_inflammation_probability), 3),
-                    "mucus_probability": round(float(config.sleep_estimate.airway.mucus_probability), 3),
-                    "response_signal": round(float(config.sleep_estimate.airway.response_signal), 3),
+                    "upper_airway_probability": round(
+                        float(config.sleep_estimate.airway.upper_airway_probability), 3
+                    ),
+                    "nasal_inflammation_probability": round(
+                        float(
+                            config.sleep_estimate.airway.nasal_inflammation_probability
+                        ),
+                        3,
+                    ),
+                    "mucus_probability": round(
+                        float(config.sleep_estimate.airway.mucus_probability), 3
+                    ),
+                    "response_signal": round(
+                        float(config.sleep_estimate.airway.response_signal), 3
+                    ),
                 }
                 if config.sleep_estimate.airway is not None
                 else None

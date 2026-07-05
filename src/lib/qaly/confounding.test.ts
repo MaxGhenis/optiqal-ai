@@ -23,7 +23,7 @@ describe("CONFOUNDING_BY_CATEGORY", () => {
   });
 
   it("should have valid Beta priors (alpha, beta > 0)", () => {
-    for (const [category, config] of Object.entries(CONFOUNDING_BY_CATEGORY)) {
+    for (const config of Object.values(CONFOUNDING_BY_CATEGORY)) {
       expect(config.causalFraction.alpha).toBeGreaterThan(0);
       expect(config.causalFraction.beta).toBeGreaterThan(0);
     }
@@ -199,7 +199,7 @@ describe("getConfoundingConfig", () => {
   });
 
   it("should fall back to 'other' for unknown category", () => {
-    const unknown = getConfoundingConfig("unknown_category" as any);
+    const unknown = getConfoundingConfig("unknown_category");
     expect(unknown.causalFraction.alpha).toBe(CONFOUNDING_BY_CATEGORY.other.causalFraction.alpha);
   });
 });

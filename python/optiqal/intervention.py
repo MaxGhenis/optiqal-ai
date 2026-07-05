@@ -4,12 +4,12 @@ Intervention Definition Module
 Reads YAML intervention definitions (shared with TypeScript package).
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Union
-import yaml
+
 import numpy as np
-from scipy import stats
+import yaml
 
 from .confounding import ConfoundingPrior, get_confounding_prior
 
@@ -83,7 +83,9 @@ class Distribution:
         if dist_type == "normal":
             return cls(type="normal", params={"mean": args[0], "sd": args[1]})
         elif dist_type == "lognormal":
-            return cls(type="lognormal", params={"log_mean": args[0], "log_sd": args[1]})
+            return cls(
+                type="lognormal", params={"log_mean": args[0], "log_sd": args[1]}
+            )
         elif dist_type == "beta":
             return cls(type="beta", params={"alpha": args[0], "beta": args[1]})
         elif dist_type == "uniform":
@@ -103,7 +105,7 @@ class Distribution:
             hr = float(self.params["hr"])
             if hr <= 0:
                 raise ValueError(f"hr must be positive, got {hr}")
-            log_mean = float(np.log(hr) - (log_sd ** 2) / 2.0)
+            log_mean = float(np.log(hr) - (log_sd**2) / 2.0)
         else:
             log_mean = float(self.params["log_mean"])
         return log_mean, log_sd
@@ -142,7 +144,7 @@ class Distribution:
             if "hr" in self.params:
                 return float(self.params["hr"])
             mu, sigma = float(self.params["log_mean"]), float(self.params["log_sd"])
-            return float(np.exp(mu + sigma ** 2 / 2))
+            return float(np.exp(mu + sigma**2 / 2))
         elif self.type == "beta":
             a, b = self.params["alpha"], self.params["beta"]
             return a / (a + b)
@@ -192,12 +194,50 @@ class InteractionRule:
     id: str
     requires_tags: List[str]
     minimum_matches: Optional[int] = None
+    allocation: Literal["per_item", "split_across_matches"] = "per_item"
     description: Optional[str] = None
     annual_qaly_loss: Optional[Distribution] = None
     event_probability: Optional[Distribution] = None
     event_qaly_loss: Optional[Distribution] = None
     max_events: int = 1
     source: Optional[str] = None
+
+
+def scale_distribution(
+    distribution: Optional[Distribution],
+    factor: float,
+) -> Optional[Distribution]:
+    """Scale a harm-magnitude or event-probability distribution."""
+    if distribution is None or factor == 1.0:
+        return distribution
+    params = dict(distribution.params)
+    if distribution.type == "point":
+        params["value"] *= factor
+    elif distribution.type == "normal":
+        params["mean"] *= factor
+        params["sd"] *= abs(factor)
+    elif distribution.type == "uniform":
+        low = params["min"] * factor
+        high = params["max"] * factor
+        params["min"], params["max"] = min(low, high), max(low, high)
+    else:
+        raise ValueError(f"Cannot scale {distribution.type} distribution")
+    return Distribution(type=distribution.type, params=params)
+
+
+def allocate_interaction_rule(
+    rule: InteractionRule,
+    matches: int,
+) -> InteractionRule:
+    """Allocate shared stack-level harm across matched contributors."""
+    if rule.allocation != "split_across_matches" or matches <= 1:
+        return rule
+    share = 1.0 / matches
+    return replace(
+        rule,
+        annual_qaly_loss=scale_distribution(rule.annual_qaly_loss, share),
+        event_probability=scale_distribution(rule.event_probability, share),
+    )
 
 
 @dataclass
@@ -328,6 +368,7 @@ class Intervention:
                         id=rule_data["id"],
                         requires_tags=rule_data["requires_tags"],
                         minimum_matches=rule_data.get("minimum_matches"),
+                        allocation=rule_data.get("allocation", "per_item"),
                         description=rule_data.get("description"),
                         annual_qaly_loss=(
                             Distribution.from_dict(rule_data["annual_qaly_loss"])

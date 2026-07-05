@@ -28,7 +28,7 @@ const faqs = [
   {
     question: "How is my data handled?",
     answer:
-      "All calculations happen in your browser. We do not collect, store, or transmit your personal health information. See our Privacy Policy for complete details on our data practices.",
+      "The profile you enter is sent to our server, which runs the analysis engine to compute your estimates (the computation may use an external model service we operate for that purpose). We do not keep a database of user profiles, and your inputs are processed only to return your results rather than stored long-term. You can also save your profile to your browser's local storage for convenience. See our Privacy Policy for complete details.",
   },
   {
     question: "What lifestyle factors are included?",
@@ -38,25 +38,32 @@ const faqs = [
   {
     question: "Can I trust these numbers for my personal decisions?",
     answer:
-      "Yes, within the uncertainty bounds we show. The predictions are personalized to your profile using rigorous statistical methods. The prediction intervals tell you how certain we are—use the range, not just the point estimate. For major health decisions, combine our predictions with advice from your doctor.",
+      "Treat them as statistical estimates, not clinical recommendations. Use the prediction interval rather than the point estimate—the range tells you how uncertain the underlying research is for someone with your profile. They can inform a conversation with your doctor, who knows your full medical history, but they should not replace it.",
   },
 ];
 
 function FAQItem({
+  index,
   question,
   answer,
   isOpen,
   onToggle,
 }: {
+  index: number;
   question: string;
   answer: string;
   isOpen: boolean;
   onToggle: () => void;
 }) {
+  const panelId = `faq-panel-${index}`;
+  const buttonId = `faq-button-${index}`;
   return (
     <div className="border-b border-border">
       <button
+        id={buttonId}
         onClick={onToggle}
+        aria-expanded={isOpen}
+        aria-controls={panelId}
         className="w-full flex items-center justify-between py-4 text-left hover:text-primary transition-colors"
       >
         <span className="text-lg font-medium">{question}</span>
@@ -66,12 +73,19 @@ function FAQItem({
           }`}
         />
       </button>
+      {/* Animate height via grid-rows so long answers are never clipped
+          (the previous fixed max-h-48 hid the bottom of longer answers). */}
       <div
-        className={`overflow-hidden transition-all duration-200 ${
-          isOpen ? "max-h-48 pb-4" : "max-h-0"
+        id={panelId}
+        role="region"
+        aria-labelledby={buttonId}
+        className={`grid transition-all duration-200 ${
+          isOpen ? "grid-rows-[1fr] pb-4" : "grid-rows-[0fr]"
         }`}
       >
-        <p className="text-muted-foreground leading-relaxed">{answer}</p>
+        <div className="overflow-hidden">
+          <p className="text-muted-foreground leading-relaxed">{answer}</p>
+        </div>
       </div>
     </div>
   );
@@ -97,6 +111,7 @@ export default function FAQPage() {
           {faqs.map((faq, index) => (
             <FAQItem
               key={index}
+              index={index}
               question={faq.question}
               answer={faq.answer}
               isOpen={openIndex === index}

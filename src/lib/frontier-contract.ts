@@ -28,7 +28,8 @@ import {
   parseMetaProfile,
   parseNumberRecord,
   parseOptionalArray,
-  parseOptionalFiniteNumber,
+  parseOptionalConfidenceInterval,
+  parseOptionalBoundedNumber,
   parseString,
   parseStringArray,
 } from "@/lib/contract-validation";
@@ -350,6 +351,8 @@ function parseFrontierItem(value: unknown): FrontierItem | null {
   const totalCost = parseFiniteNumber(value.total_cost);
   const costPerQaly = parseNullableFiniteNumber(value.cost_per_qaly);
   const totalQaly = parseFiniteNumber(value.total_qaly);
+  const netQalyCi = parseOptionalConfidenceInterval(value.net_qaly_ci);
+  const netDaysCi = parseOptionalConfidenceInterval(value.net_days_ci);
   const days = parseFiniteNumber(value.days);
   const pBenefit = parseFiniteNumber(value.p_benefit);
   const pHarm = parseFiniteNumber(value.p_harm);
@@ -385,6 +388,8 @@ function parseFrontierItem(value: unknown): FrontierItem | null {
     totalCost === null ||
     costPerQaly === INVALID ||
     totalQaly === null ||
+    netQalyCi === INVALID ||
+    netDaysCi === INVALID ||
     days === null ||
     pBenefit === null ||
     pHarm === null ||
@@ -418,6 +423,8 @@ function parseFrontierItem(value: unknown): FrontierItem | null {
     total_cost: totalCost,
     cost_per_qaly: costPerQaly,
     total_qaly: totalQaly,
+    ...(netQalyCi !== undefined ? { net_qaly_ci: netQalyCi } : {}),
+    ...(netDaysCi !== undefined ? { net_days_ci: netDaysCi } : {}),
     days,
     p_benefit: pBenefit,
     p_harm: pHarm,
@@ -762,7 +769,9 @@ export function parseFrontierRequest(value: unknown): FrontierRequest | null {
 
   const profile = parseAnalysisProfileInput(value.profile);
   const sleepMetrics = parseAnalysisSleepInput(value.sleep_metrics);
-  const nSimulations = parseOptionalFiniteNumber(value.n_simulations);
+  // Bound simulation count: an unbounded value lets a single request make the
+  // engine allocate/iterate arbitrarily large arrays (CPU/memory exhaustion).
+  const nSimulations = parseOptionalBoundedNumber(value.n_simulations, 1, 20000);
 
   if (profile === null || sleepMetrics === INVALID || nSimulations === INVALID) {
     return null;

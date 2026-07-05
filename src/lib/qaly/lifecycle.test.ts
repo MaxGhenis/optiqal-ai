@@ -13,12 +13,10 @@ import {
   CDC_LIFE_TABLE,
   getSurvivalProbability,
   getAnnualMortalityRate,
-  CAUSE_FRACTIONS,
   getCauseFraction,
   applyDiscount,
   getDiscountedQALY,
   calculateLifecycleQALYs,
-  type LifecycleResult,
 } from "./lifecycle";
 
 describe("CDC Life Tables", () => {

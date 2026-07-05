@@ -18,8 +18,8 @@ from optiqal.public_frontier_benchmark import (
     benchmark_report_from_dict,
     benchmark_report_to_dict,
     build_blank_judge_verdict_template,
-    build_public_frontier_benchmark_scenarios,
     build_pairwise_judge_packets,
+    build_public_frontier_benchmark_scenarios,
     compute_hybrid_public_frontier_score,
     compute_pairwise_judge_score,
     evaluate_public_frontier_case,
@@ -40,7 +40,9 @@ def test_default_public_frontier_benchmark_passes_canonical_canaries():
 
 
 def test_generated_stratified_cases_cover_expected_strata():
-    generated = generate_stratified_public_frontier_scenarios(seed=7, cases_per_stratum=2)
+    generated = generate_stratified_public_frontier_scenarios(
+        seed=7, cases_per_stratum=2
+    )
 
     assert len(generated) == 28
     tags = {tag for scenario in generated for tag in scenario.tags}
@@ -61,7 +63,9 @@ def test_generated_stratified_cases_cover_expected_strata():
 
 
 def test_generated_metabolic_strata_respect_intended_bmi_bands():
-    generated = generate_stratified_public_frontier_scenarios(seed=42, cases_per_stratum=8)
+    generated = generate_stratified_public_frontier_scenarios(
+        seed=42, cases_per_stratum=8
+    )
 
     for scenario in generated:
         profile = scenario.payload["profile"]
@@ -74,19 +78,29 @@ def test_generated_metabolic_strata_respect_intended_bmi_bands():
             assert bmi >= 35
         if "older_obesity_public" in scenario.tags:
             assert 30 <= bmi < 35
-        if "older_smoker_public" in scenario.tags or "older_hypertension_public" in scenario.tags:
+        if (
+            "older_smoker_public" in scenario.tags
+            or "older_hypertension_public" in scenario.tags
+        ):
             assert bmi < 25
-        if "lean_diabetes_younger_public" in scenario.tags or "lean_diabetes_older_public" in scenario.tags:
+        if (
+            "lean_diabetes_younger_public" in scenario.tags
+            or "lean_diabetes_older_public" in scenario.tags
+        ):
             assert bmi < 25
 
 
 def test_generated_support_only_sleep_strata_match_policy_semantics():
-    generated = generate_stratified_public_frontier_scenarios(seed=43, cases_per_stratum=8)
+    generated = generate_stratified_public_frontier_scenarios(
+        seed=43, cases_per_stratum=8
+    )
 
     for scenario in generated:
         if "nasal_support_only_sleep" not in scenario.tags:
             continue
-        estimate = estimate_sleep_burden(SleepMetrics(**scenario.payload["sleep_metrics"]))
+        estimate = estimate_sleep_burden(
+            SleepMetrics(**scenario.payload["sleep_metrics"])
+        )
         assert has_meaningful_public_airway_signal(estimate)
         assert not has_meaningful_public_osa_therapy_signal(estimate)
         assert not has_meaningful_public_nasal_dryness_signal(estimate)
@@ -128,8 +142,13 @@ def test_benchmark_report_round_trips_for_pairwise_review():
     )
 
     assert round_tripped.score == report.score
-    assert round_tripped.case_results[0].scenario_id == report.case_results[0].scenario_id
-    assert round_tripped.case_results[0].response["meta"]["profile"] == report.case_results[0].response["meta"]["profile"]
+    assert (
+        round_tripped.case_results[0].scenario_id == report.case_results[0].scenario_id
+    )
+    assert (
+        round_tripped.case_results[0].response["meta"]["profile"]
+        == report.case_results[0].response["meta"]["profile"]
+    )
 
 
 def test_pairwise_packets_and_hybrid_score_work_with_offline_verdicts():
@@ -164,16 +183,22 @@ def test_pairwise_packets_and_hybrid_score_work_with_offline_verdicts():
     judge_score = compute_pairwise_judge_score(verdicts)
 
     assert 0.7 < judge_score < 0.9
-    assert compute_hybrid_public_frontier_score(
-        hard_score=1.0,
-        judge_score=judge_score,
-        judge_weight=0.2,
-    ) > 0.9
-    assert compute_hybrid_public_frontier_score(
-        hard_score=0.8,
-        judge_score=judge_score,
-        judge_weight=0.2,
-    ) == 0.8
+    assert (
+        compute_hybrid_public_frontier_score(
+            hard_score=1.0,
+            judge_score=judge_score,
+            judge_weight=0.2,
+        )
+        > 0.9
+    )
+    assert (
+        compute_hybrid_public_frontier_score(
+            hard_score=0.8,
+            judge_score=judge_score,
+            judge_weight=0.2,
+        )
+        == 0.8
+    )
 
 
 def test_pairwise_packet_modes_focus_on_changed_representative_cases(tmp_path):
@@ -183,12 +208,17 @@ def test_pairwise_packet_modes_focus_on_changed_representative_cases(tmp_path):
         seed_count=1,
     )
     candidate_path = tmp_path / "candidate-policy.json"
-    candidate_path.write_text(json.dumps({
-        "conditions": {
-            "metabolic_signal": {"profile_score_threshold": 4},
-            "glp1_signal": {"profile_score_threshold": 4},
-        },
-    }, indent=2))
+    candidate_path.write_text(
+        json.dumps(
+            {
+                "conditions": {
+                    "metabolic_signal": {"profile_score_threshold": 4},
+                    "glp1_signal": {"profile_score_threshold": 4},
+                },
+            },
+            indent=2,
+        )
+    )
 
     incumbent = run_public_frontier_benchmark(scenarios)
     candidate = run_public_frontier_benchmark(
@@ -196,7 +226,9 @@ def test_pairwise_packet_modes_focus_on_changed_representative_cases(tmp_path):
         public_policy=load_public_policy_override(candidate_path),
     )
 
-    all_packets = build_pairwise_judge_packets(candidate, incumbent, scenarios=scenarios)
+    all_packets = build_pairwise_judge_packets(
+        candidate, incumbent, scenarios=scenarios
+    )
     changed_packets = build_pairwise_judge_packets(
         candidate,
         incumbent,
@@ -213,8 +245,12 @@ def test_pairwise_packet_modes_focus_on_changed_representative_cases(tmp_path):
     assert len(all_packets) == len(scenarios)
     assert len(changed_packets) < len(all_packets)
     assert len(unique_packets) < len(changed_packets)
-    assert any(packet.scenario_id == "high_risk_58m_public" for packet in unique_packets)
-    assert any(packet.scenario_id == "obesity_glp1_52f_public" for packet in unique_packets)
+    assert any(
+        packet.scenario_id == "high_risk_58m_public" for packet in unique_packets
+    )
+    assert any(
+        packet.scenario_id == "obesity_glp1_52f_public" for packet in unique_packets
+    )
 
 
 def test_blank_judge_verdict_template_matches_packets():
@@ -230,32 +266,42 @@ def test_blank_judge_verdict_template_matches_packets():
 
 def test_candidate_policy_override_changes_benchmark_outcome(tmp_path):
     candidate_path = tmp_path / "candidate-policy.json"
-    candidate_path.write_text(json.dumps({
-        "items": {
-            "hiit_2x_week": {"public_lane": "personal_only"},
-            "strength_maintenance": {"public_lane": "personal_only"},
-        }
-    }, indent=2))
+    candidate_path.write_text(
+        json.dumps(
+            {
+                "items": {
+                    "hiit_2x_week": {"public_lane": "personal_only"},
+                    "strength_maintenance": {"public_lane": "personal_only"},
+                }
+            },
+            indent=2,
+        )
+    )
 
     report = run_public_frontier_benchmark(
         public_policy=load_public_policy_override(candidate_path)
     )
     healthy_case = next(
-        case for case in report.case_results
-        if case.scenario_id == "healthy_35f_public"
+        case for case in report.case_results if case.scenario_id == "healthy_35f_public"
     )
 
     assert report.score < 1.0
     assert not healthy_case.passed
-    assert any(failure.rule == "required_top_any_of" for failure in healthy_case.failures)
+    assert any(
+        failure.rule == "required_top_any_of" for failure in healthy_case.failures
+    )
 
 
 def test_repo_candidate_template_surfaces_glp1_for_severe_obesity_without_metformin_or_statin():
     candidate_policy = load_public_policy_override(
-        Path("/Users/maxghenis/optiqal-ai/python/optiqal/data/public_policy_candidate_template.json")
+        Path(__file__).resolve().parent.parent
+        / "optiqal"
+        / "data"
+        / "public_policy_candidate_template.json"
     )
     scenario = next(
-        case for case in CANONICAL_PUBLIC_FRONTIER_SCENARIOS
+        case
+        for case in CANONICAL_PUBLIC_FRONTIER_SCENARIOS
         if case.id == "severe_obesity_52f_public"
     )
 
@@ -272,7 +318,8 @@ def test_repo_candidate_template_surfaces_glp1_for_severe_obesity_without_metfor
 
 def test_default_policy_surfaces_glp1_for_older_obesity_without_metformin():
     scenario = next(
-        case for case in CANONICAL_PUBLIC_FRONTIER_SCENARIOS
+        case
+        for case in CANONICAL_PUBLIC_FRONTIER_SCENARIOS
         if case.id == "older_obesity_66m_public"
     )
 
@@ -285,21 +332,27 @@ def test_default_policy_surfaces_glp1_for_older_obesity_without_metformin():
 
 def test_default_policy_surfaces_statin_for_older_smoking_and_hypertension_canaries():
     older_smoker = next(
-        case for case in CANONICAL_PUBLIC_FRONTIER_SCENARIOS
+        case
+        for case in CANONICAL_PUBLIC_FRONTIER_SCENARIOS
         if case.id == "older_smoker_58f_public"
     )
     older_hypertension = next(
-        case for case in CANONICAL_PUBLIC_FRONTIER_SCENARIOS
+        case
+        for case in CANONICAL_PUBLIC_FRONTIER_SCENARIOS
         if case.id == "older_hypertension_58f_public"
     )
 
     smoker_frontier = [
         item["added_intervention"]
-        for item in build_frontier_response_with_policy(older_smoker.payload)["frontier"]
+        for item in build_frontier_response_with_policy(older_smoker.payload)[
+            "frontier"
+        ]
     ]
     hypertension_frontier = [
         item["added_intervention"]
-        for item in build_frontier_response_with_policy(older_hypertension.payload)["frontier"]
+        for item in build_frontier_response_with_policy(older_hypertension.payload)[
+            "frontier"
+        ]
     ]
 
     assert "statin_5mg" in smoker_frontier
@@ -312,11 +365,16 @@ def test_default_policy_surfaces_statin_for_older_smoking_and_hypertension_canar
 
 def test_candidate_policy_can_fix_non_diabetic_metformin_leakage(tmp_path):
     candidate_path = tmp_path / "candidate-policy.json"
-    candidate_path.write_text(json.dumps({
-        "conditions": {
-            "metabolic_signal": {"profile_score_threshold": 5},
-        },
-    }, indent=2))
+    candidate_path.write_text(
+        json.dumps(
+            {
+                "conditions": {
+                    "metabolic_signal": {"profile_score_threshold": 5},
+                },
+            },
+            indent=2,
+        )
+    )
 
     incumbent = run_public_frontier_benchmark()
     improved = run_public_frontier_benchmark(
@@ -331,20 +389,55 @@ def test_candidate_policy_can_fix_non_diabetic_metformin_leakage(tmp_path):
 
 def test_lowering_glp1_threshold_reintroduces_lean_diabetes_leakage(tmp_path):
     candidate_path = tmp_path / "candidate-policy.json"
-    candidate_path.write_text(json.dumps({
-        "conditions": {
-            "glp1_signal": {
-                "profile_score_threshold": 4,
-                "profile_rules": [
-                    {"field": "has_diabetes", "operator": "eq", "value": True, "points": 4, "label": "Has diabetes"},
-                    {"field": "bmi_category", "operator": "eq", "value": "overweight", "points": 1, "label": "BMI in overweight range"},
-                    {"field": "bmi_category", "operator": "in", "value": ["obese", "severely_obese"], "points": 3, "label": "BMI in obese range"},
-                    {"field": "has_hypertension", "operator": "eq", "value": True, "points": 1, "label": "Has hypertension"},
-                    {"field": "age", "operator": "gte", "value": 50, "points": 1, "label": "Age 50+"},
-                ],
+    candidate_path.write_text(
+        json.dumps(
+            {
+                "conditions": {
+                    "glp1_signal": {
+                        "profile_score_threshold": 4,
+                        "profile_rules": [
+                            {
+                                "field": "has_diabetes",
+                                "operator": "eq",
+                                "value": True,
+                                "points": 4,
+                                "label": "Has diabetes",
+                            },
+                            {
+                                "field": "bmi_category",
+                                "operator": "eq",
+                                "value": "overweight",
+                                "points": 1,
+                                "label": "BMI in overweight range",
+                            },
+                            {
+                                "field": "bmi_category",
+                                "operator": "in",
+                                "value": ["obese", "severely_obese"],
+                                "points": 3,
+                                "label": "BMI in obese range",
+                            },
+                            {
+                                "field": "has_hypertension",
+                                "operator": "eq",
+                                "value": True,
+                                "points": 1,
+                                "label": "Has hypertension",
+                            },
+                            {
+                                "field": "age",
+                                "operator": "gte",
+                                "value": 50,
+                                "points": 1,
+                                "label": "Age 50+",
+                            },
+                        ],
+                    },
+                },
             },
-        },
-    }, indent=2))
+            indent=2,
+        )
+    )
 
     incumbent = run_public_frontier_benchmark()
     worsened = run_public_frontier_benchmark(
@@ -354,48 +447,160 @@ def test_lowering_glp1_threshold_reintroduces_lean_diabetes_leakage(tmp_path):
 
     assert worsened.score < incumbent.score
     assert not by_id["lean_diabetes_45m_public"].passed
-    assert any(failure.rule == "banned_visible_ids" for failure in by_id["lean_diabetes_45m_public"].failures)
+    assert any(
+        failure.rule == "banned_visible_ids"
+        for failure in by_id["lean_diabetes_45m_public"].failures
+    )
     assert not by_id["lean_diabetes_52m_public"].passed
 
 
-def test_candidate_policy_can_restore_metformin_for_younger_lean_diabetes_without_glp1(tmp_path):
+def test_candidate_policy_can_restore_metformin_for_younger_lean_diabetes_without_glp1(
+    tmp_path,
+):
     candidate_path = tmp_path / "candidate-policy.json"
-    candidate_path.write_text(json.dumps({
-        "conditions": {
-            "cardiometabolic_signal": {
-                "profile_score_threshold": 4,
-                "profile_rules": [
-                    {"field": "age", "operator": "gte", "value": 60, "points": 2, "label": "Age 60+"},
-                    {"field": "age", "operator": "gte", "value": 50, "points": 1, "label": "Age 50+"},
-                    {"field": "bmi_category", "operator": "eq", "value": "overweight", "points": 1, "label": "BMI in overweight range"},
-                    {"field": "bmi_category", "operator": "in", "value": ["obese", "severely_obese"], "points": 2, "label": "BMI in obese range"},
-                    {"field": "smoking_status", "operator": "eq", "value": "current", "points": 2, "label": "Current smoker"},
-                    {"field": "has_hypertension", "operator": "eq", "value": True, "points": 2, "label": "Has hypertension"},
-                    {"field": "has_diabetes", "operator": "eq", "value": True, "points": 4, "label": "Has diabetes"},
-                ],
+    candidate_path.write_text(
+        json.dumps(
+            {
+                "conditions": {
+                    "cardiometabolic_signal": {
+                        "profile_score_threshold": 4,
+                        "profile_rules": [
+                            {
+                                "field": "age",
+                                "operator": "gte",
+                                "value": 60,
+                                "points": 2,
+                                "label": "Age 60+",
+                            },
+                            {
+                                "field": "age",
+                                "operator": "gte",
+                                "value": 50,
+                                "points": 1,
+                                "label": "Age 50+",
+                            },
+                            {
+                                "field": "bmi_category",
+                                "operator": "eq",
+                                "value": "overweight",
+                                "points": 1,
+                                "label": "BMI in overweight range",
+                            },
+                            {
+                                "field": "bmi_category",
+                                "operator": "in",
+                                "value": ["obese", "severely_obese"],
+                                "points": 2,
+                                "label": "BMI in obese range",
+                            },
+                            {
+                                "field": "smoking_status",
+                                "operator": "eq",
+                                "value": "current",
+                                "points": 2,
+                                "label": "Current smoker",
+                            },
+                            {
+                                "field": "has_hypertension",
+                                "operator": "eq",
+                                "value": True,
+                                "points": 2,
+                                "label": "Has hypertension",
+                            },
+                            {
+                                "field": "has_diabetes",
+                                "operator": "eq",
+                                "value": True,
+                                "points": 4,
+                                "label": "Has diabetes",
+                            },
+                        ],
+                    },
+                    "metabolic_signal": {
+                        "profile_score_threshold": 5,
+                        "profile_rules": [
+                            {
+                                "field": "has_diabetes",
+                                "operator": "eq",
+                                "value": True,
+                                "points": 5,
+                                "label": "Has diabetes",
+                            },
+                            {
+                                "field": "bmi_category",
+                                "operator": "eq",
+                                "value": "overweight",
+                                "points": 1,
+                                "label": "BMI in overweight range",
+                            },
+                            {
+                                "field": "bmi_category",
+                                "operator": "in",
+                                "value": ["obese", "severely_obese"],
+                                "points": 2,
+                                "label": "BMI in obese range",
+                            },
+                            {
+                                "field": "has_hypertension",
+                                "operator": "eq",
+                                "value": True,
+                                "points": 1,
+                                "label": "Has hypertension",
+                            },
+                            {
+                                "field": "age",
+                                "operator": "gte",
+                                "value": 50,
+                                "points": 1,
+                                "label": "Age 50+",
+                            },
+                        ],
+                    },
+                    "glp1_signal": {
+                        "profile_score_threshold": 5,
+                        "profile_rules": [
+                            {
+                                "field": "has_diabetes",
+                                "operator": "eq",
+                                "value": True,
+                                "points": 3,
+                                "label": "Has diabetes",
+                            },
+                            {
+                                "field": "bmi_category",
+                                "operator": "eq",
+                                "value": "overweight",
+                                "points": 1,
+                                "label": "BMI in overweight range",
+                            },
+                            {
+                                "field": "bmi_category",
+                                "operator": "in",
+                                "value": ["obese", "severely_obese"],
+                                "points": 3,
+                                "label": "BMI in obese range",
+                            },
+                            {
+                                "field": "has_hypertension",
+                                "operator": "eq",
+                                "value": True,
+                                "points": 1,
+                                "label": "Has hypertension",
+                            },
+                            {
+                                "field": "age",
+                                "operator": "gte",
+                                "value": 50,
+                                "points": 1,
+                                "label": "Age 50+",
+                            },
+                        ],
+                    },
+                },
             },
-            "metabolic_signal": {
-                "profile_score_threshold": 5,
-                "profile_rules": [
-                    {"field": "has_diabetes", "operator": "eq", "value": True, "points": 5, "label": "Has diabetes"},
-                    {"field": "bmi_category", "operator": "eq", "value": "overweight", "points": 1, "label": "BMI in overweight range"},
-                    {"field": "bmi_category", "operator": "in", "value": ["obese", "severely_obese"], "points": 2, "label": "BMI in obese range"},
-                    {"field": "has_hypertension", "operator": "eq", "value": True, "points": 1, "label": "Has hypertension"},
-                    {"field": "age", "operator": "gte", "value": 50, "points": 1, "label": "Age 50+"},
-                ],
-            },
-            "glp1_signal": {
-                "profile_score_threshold": 5,
-                "profile_rules": [
-                    {"field": "has_diabetes", "operator": "eq", "value": True, "points": 3, "label": "Has diabetes"},
-                    {"field": "bmi_category", "operator": "eq", "value": "overweight", "points": 1, "label": "BMI in overweight range"},
-                    {"field": "bmi_category", "operator": "in", "value": ["obese", "severely_obese"], "points": 3, "label": "BMI in obese range"},
-                    {"field": "has_hypertension", "operator": "eq", "value": True, "points": 1, "label": "Has hypertension"},
-                    {"field": "age", "operator": "gte", "value": 50, "points": 1, "label": "Age 50+"},
-                ],
-            },
-        },
-    }, indent=2))
+            indent=2,
+        )
+    )
 
     improved = run_public_frontier_benchmark(
         public_policy=load_public_policy_override(candidate_path)
@@ -403,27 +608,32 @@ def test_candidate_policy_can_restore_metformin_for_younger_lean_diabetes_withou
     by_id = {case.scenario_id: case for case in improved.case_results}
 
     assert by_id["lean_diabetes_45m_public"].passed
-    assert {"metformin_500mg", "statin_5mg"}.issubset(by_id["lean_diabetes_45m_public"].top_ids[:5])
-    assert by_id["lean_diabetes_45m_public"].frontier_ids.index("metformin_500mg") < by_id["lean_diabetes_45m_public"].frontier_ids.index("statin_5mg")
+    assert {"metformin_500mg", "statin_5mg"}.issubset(
+        by_id["lean_diabetes_45m_public"].top_ids[:5]
+    )
+    assert by_id["lean_diabetes_45m_public"].frontier_ids.index(
+        "metformin_500mg"
+    ) < by_id["lean_diabetes_45m_public"].frontier_ids.index("statin_5mg")
     assert by_id["lean_diabetes_52m_public"].passed
     assert by_id["glp1_52f_diabetes_obesity"].passed
 
 
 def test_default_policy_supports_nasal_sleep_cases_without_full_osa_escalation():
     by_id = {
-        case.scenario_id: case
-        for case in run_public_frontier_benchmark().case_results
+        case.scenario_id: case for case in run_public_frontier_benchmark().case_results
     }
 
     nasal_case = by_id["nasal_support_only_sleep_39m"]
     assert nasal_case.passed
-    assert {"head_elevation_nightly", "nasacort_nightly"}.issubset(nasal_case.top_ids[:5])
-    assert nasal_case.frontier_ids.index("head_elevation_nightly") < nasal_case.frontier_ids.index(
-        "nasal_strips_nightly"
+    assert {"head_elevation_nightly", "nasacort_nightly"}.issubset(
+        nasal_case.top_ids[:5]
     )
-    assert nasal_case.frontier_ids.index("nasacort_nightly") < nasal_case.frontier_ids.index(
-        "nasal_strips_nightly"
-    )
+    assert nasal_case.frontier_ids.index(
+        "head_elevation_nightly"
+    ) < nasal_case.frontier_ids.index("nasal_strips_nightly")
+    assert nasal_case.frontier_ids.index(
+        "nasacort_nightly"
+    ) < nasal_case.frontier_ids.index("nasal_strips_nightly")
     assert "humidifier_nightly" not in nasal_case.frontier_ids
     assert "mouth_tape_nightly" not in nasal_case.frontier_ids
     assert nasal_case.airway_decision_states_present

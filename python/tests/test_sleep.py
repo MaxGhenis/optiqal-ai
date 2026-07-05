@@ -1,6 +1,11 @@
 """Tests for the sleep phenotype and burden model."""
 
+import pytest
+
+from optiqal.reference_case import PUBLIC_HEALTH_UTILITY_WEIGHTS
 from optiqal.sleep import (
+    COMPONENT_MAX_ANNUAL_QALY_LOSS,
+    NON_BREATHING_SLEEP_COMPONENT_SHARES,
     SleepMetrics,
     SleepStudyResult,
     apply_sleep_study,
@@ -14,7 +19,25 @@ from optiqal.sleep import (
     sleep_component_overlap_multipliers,
     sleep_intervention_mortality_hr_multiplier,
     sleep_support_overlap_multiplier,
+    sleep_utility_lineage,
 )
+
+
+def test_sleep_component_losses_are_public_health_utility_anchored():
+    insomnia = PUBLIC_HEALTH_UTILITY_WEIGHTS["insomnia_disability_weight_europe_2015"]
+    sleep_apnoea = PUBLIC_HEALTH_UTILITY_WEIGHTS[
+        "sleep_apnoea_disability_weight_europe_2015"
+    ]
+
+    non_breathing_total = sum(
+        COMPONENT_MAX_ANNUAL_QALY_LOSS[component]
+        for component in NON_BREATHING_SLEEP_COMPONENT_SHARES
+    )
+
+    assert non_breathing_total == pytest.approx(insomnia.utility_decrement)
+    assert COMPONENT_MAX_ANNUAL_QALY_LOSS["breathing"] == pytest.approx(
+        sleep_apnoea.utility_decrement
+    )
 
 
 def test_good_sleep_has_low_burden():
@@ -35,6 +58,14 @@ def test_good_sleep_has_low_burden():
 
     assert estimate.annual_qaly_loss < 0.003
     assert estimate.component_losses["breathing"] < 0.001
+    assert (
+        estimate.component_utility_weight_ids["duration"]
+        == "insomnia_disability_weight_europe_2015"
+    )
+    assert (
+        estimate.component_utility_weight_ids["breathing"]
+        == "sleep_apnoea_disability_weight_europe_2015"
+    )
     assert sleep_support_overlap_multiplier(estimate) > 0.9
 
 
@@ -163,8 +194,14 @@ def test_positive_home_sleep_study_raises_breathing_burden_and_airway_probabilit
         ),
     )
 
-    assert updated.component_burdens["breathing"] > wearable_estimate.component_burdens["breathing"] + 0.1
-    assert updated.component_losses["breathing"] > wearable_estimate.component_losses["breathing"]
+    assert (
+        updated.component_burdens["breathing"]
+        > wearable_estimate.component_burdens["breathing"] + 0.1
+    )
+    assert (
+        updated.component_losses["breathing"]
+        > wearable_estimate.component_losses["breathing"]
+    )
     assert updated.mortality_signal > wearable_estimate.mortality_signal
     assert updated.airway is not None
     assert updated.airway.upper_airway_probability > 0.55
@@ -193,9 +230,15 @@ def test_sleep_mortality_translation_is_modest_and_component_specific():
 
     assert 1.0 < baseline_multiplier < 1.15
     assert estimate_sleep_mortality_relief_fraction(estimate, duration_only_relief) > 0
-    assert estimate_sleep_mortality_relief_fraction(estimate, quality_only_relief) == 0.0
-    assert sleep_intervention_mortality_hr_multiplier(estimate, duration_only_relief) < 1.0
-    assert sleep_intervention_mortality_hr_multiplier(estimate, quality_only_relief) == 1.0
+    assert (
+        estimate_sleep_mortality_relief_fraction(estimate, quality_only_relief) == 0.0
+    )
+    assert (
+        sleep_intervention_mortality_hr_multiplier(estimate, duration_only_relief) < 1.0
+    )
+    assert (
+        sleep_intervention_mortality_hr_multiplier(estimate, quality_only_relief) == 1.0
+    )
 
 
 def test_component_relief_only_gets_credit_for_targeted_burdens():
@@ -254,7 +297,9 @@ def test_component_overlap_multiplier_tracks_component_specific_need():
     multipliers = sleep_component_overlap_multipliers(estimate)
 
     assert 0.95 < multipliers["sleep_continuity_support"] <= 1.0
-    assert multipliers["sleep_regularity_support"] < multipliers["sleep_quality_support"]
+    assert (
+        multipliers["sleep_regularity_support"] < multipliers["sleep_quality_support"]
+    )
     assert multipliers["sleep_duration_support"] < 1.0
     assert multipliers["sleep_breathing_support"] < 1.0
 
@@ -316,9 +361,17 @@ def test_airway_contributor_probabilities_rise_with_response_signal():
 
     assert no_response.airway is not None
     assert strong_response.airway is not None
-    assert strong_response.airway.upper_airway_probability > no_response.airway.upper_airway_probability
-    assert strong_response.airway.nasal_inflammation_probability > no_response.airway.nasal_inflammation_probability
-    assert strong_response.airway.mucus_probability > no_response.airway.mucus_probability
+    assert (
+        strong_response.airway.upper_airway_probability
+        > no_response.airway.upper_airway_probability
+    )
+    assert (
+        strong_response.airway.nasal_inflammation_probability
+        > no_response.airway.nasal_inflammation_probability
+    )
+    assert (
+        strong_response.airway.mucus_probability > no_response.airway.mucus_probability
+    )
 
 
 def test_airway_target_multiplier_is_lower_for_mucus_than_upper_airway():
@@ -363,8 +416,40 @@ def test_effective_sleep_component_relief_scales_by_airway_target():
     )
 
     base = {"breathing": 0.20}
-    upper_scaled = effective_sleep_component_relief(estimate, base, {"upper_airway": 1.0})
+    upper_scaled = effective_sleep_component_relief(
+        estimate, base, {"upper_airway": 1.0}
+    )
     mucus_scaled = effective_sleep_component_relief(estimate, base, {"mucus": 1.0})
 
     assert upper_scaled["breathing"] > mucus_scaled["breathing"]
     assert upper_scaled["breathing"] <= 0.20
+
+
+def test_sleep_utility_lineage_reports_component_sources():
+    estimate = estimate_sleep_burden(
+        SleepMetrics(
+            duration_hours=6.4,
+            recovery_score=52.0,
+            sleep_quality_score=76.0,
+            waso_min=18.0,
+            routine_score=68.0,
+            social_jetlag_min=55.0,
+            latency_min=23.0,
+            breathing_score=0.25,
+            spo2=93.5,
+            snore_pct=16.0,
+        )
+    )
+
+    lineage = sleep_utility_lineage(estimate, {"duration": 0.2, "breathing": 0.3})
+
+    assert set(lineage) == {"duration", "breathing"}
+    assert (
+        lineage["duration"]["utility_weight_id"]
+        == "insomnia_disability_weight_europe_2015"
+    )
+    assert (
+        lineage["breathing"]["utility_weight_id"]
+        == "sleep_apnoea_disability_weight_europe_2015"
+    )
+    assert lineage["breathing"]["reference_case_status"] == "fallback"

@@ -26,8 +26,7 @@
  */
 
 import type { PersonState, Behaviors } from "./state";
-import { updateState, getAge } from "./state";
-import { compareStates, identifyStateChanges } from "./state-diff";
+import { compareStates } from "./state-diff";
 import {
   imputeFullState,
   createTypicalStateWithBehavior,
@@ -259,23 +258,23 @@ function propagateCausalEffect(
   // Map simple name to full path
   const fullPath = DOWNSTREAM_PATH_MAP[effect.downstream] || effect.downstream;
 
-  // Apply to downstream variable
+  // Apply to downstream variable by walking the dotted path dynamically.
   const parts = fullPath.split(".");
-  let current: any = state;
-  let beforeCurrent: any = baseline;
+  let current = state as unknown as Record<string, unknown>;
+  let beforeCurrent = baseline as unknown as Record<string, unknown>;
 
   // Navigate to the target (all but last part)
   for (let i = 0; i < parts.length - 1; i++) {
     if (current[parts[i]] === undefined) {
       return null; // Path doesn't exist
     }
-    current = current[parts[i]];
-    beforeCurrent = beforeCurrent[parts[i]];
+    current = current[parts[i]] as Record<string, unknown>;
+    beforeCurrent = beforeCurrent[parts[i]] as Record<string, unknown>;
   }
 
   const finalKey = parts[parts.length - 1];
-  const before = beforeCurrent[finalKey] ?? 0;
-  const after = (current[finalKey] ?? 0) + scaledEffect;
+  const before = (beforeCurrent[finalKey] as number) ?? 0;
+  const after = ((current[finalKey] as number) ?? 0) + scaledEffect;
 
   current[finalKey] = after;
 

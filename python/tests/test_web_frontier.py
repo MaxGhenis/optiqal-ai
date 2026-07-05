@@ -7,8 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-
-PYTHON_DIR = Path("/Users/maxghenis/optiqal-ai/python")
+PYTHON_DIR = Path(__file__).resolve().parent.parent
 SCRIPT_PATH = PYTHON_DIR / "scripts" / "web_frontier.py"
 
 
@@ -49,16 +48,32 @@ def test_web_frontier_emits_branching_sleep_sequence_and_states():
 
     response = run_web_frontier(payload)
 
-    assert any(lane["id"] == "consumer_public" for lane in response["public_policy"]["lanes"])
-    assert any(condition["id"] == "airway_signal" for condition in response["public_policy"]["conditions"])
-    assert any(condition["id"] == "osa_therapy_signal" for condition in response["public_policy"]["conditions"])
-    assert any(condition["id"] == "nasal_dryness_signal" for condition in response["public_policy"]["conditions"])
+    assert any(
+        lane["id"] == "consumer_public" for lane in response["public_policy"]["lanes"]
+    )
+    assert any(
+        condition["id"] == "airway_signal"
+        for condition in response["public_policy"]["conditions"]
+    )
+    assert any(
+        condition["id"] == "osa_therapy_signal"
+        for condition in response["public_policy"]["conditions"]
+    )
+    assert any(
+        condition["id"] == "nasal_dryness_signal"
+        for condition in response["public_policy"]["conditions"]
+    )
     airway_condition = next(
-        condition for condition in response["public_policy"]["conditions"] if condition["id"] == "airway_signal"
+        condition
+        for condition in response["public_policy"]["conditions"]
+        if condition["id"] == "airway_signal"
     )
     assert airway_condition["evaluation_kind"] == "sleep_any_threshold"
     assert airway_condition["score_threshold"] is None
-    assert any(rule["signal"] == "sleep_breathing_burden" for rule in airway_condition["thresholds"])
+    assert any(
+        rule["signal"] == "sleep_breathing_burden"
+        for rule in airway_condition["thresholds"]
+    )
     policy_items = {item["id"]: item for item in response["public_policy"]["items"]}
     assert policy_items["apap_nightly"]["lane"] == "conditional_public"
     assert policy_items["apap_nightly"]["condition"] == "osa_therapy_signal"
@@ -66,25 +81,38 @@ def test_web_frontier_emits_branching_sleep_sequence_and_states():
     assert policy_items["mouth_tape_nightly"]["lane"] == "personal_only"
     assert policy_items["hiit_2x_week"]["lane"] == "consumer_public"
 
-    assert response["decision_sequence"][-1] == {
-        "step": 3,
-        "id": "rx_after_apap_if_needed",
-        "label": "Only compare insomnia Rx options after primary airway treatment if sleep maintenance is still a problem.",
-        "preferred_state_id": "rx_after_apap_if_needed",
-        "alternative_state_id": "rx_after_oral_appliance_if_needed",
-    }
+    assert [step["id"] for step in response["decision_sequence"]] == [
+        "conservative_airway_support",
+        "primary_osa_therapy_choice",
+    ]
 
     state_ids = [state["id"] for state in response["decision_states"]]
     assert state_ids == [
         "conservative_airway_support",
         "primary_osa_therapy_choice",
-        "rx_after_apap_if_needed",
-        "rx_after_oral_appliance_if_needed",
     ]
+    assert "rx_after_apap_if_needed" not in state_ids
+    assert "rx_after_oral_appliance_if_needed" not in state_ids
 
     branching_state = response["decision_states"][-1]
     assert branching_state["kind"] == "choice"
     assert branching_state["best_biology_option_id"] is not None
+    exposed_option_item_ids = {
+        item_id
+        for state in response["decision_states"]
+        if state["kind"] == "choice"
+        for option in state["options"]
+        for item_id in option["added_item_ids"]
+    }
+    assert exposed_option_item_ids.isdisjoint(
+        {
+            "trazodone_50mg",
+            "doxepin_3mg",
+            "daridorexant_25mg",
+            "lemborexant_5mg",
+            "suvorexant_10mg",
+        }
+    )
 
 
 def test_web_frontier_can_emit_support_only_sleep_pathway():
@@ -112,8 +140,12 @@ def test_web_frontier_can_emit_support_only_sleep_pathway():
 
     response = run_web_frontier(payload)
 
-    assert [step["id"] for step in response["decision_sequence"]] == ["conservative_airway_support"]
-    assert [state["id"] for state in response["decision_states"]] == ["conservative_airway_support"]
+    assert [step["id"] for step in response["decision_sequence"]] == [
+        "conservative_airway_support"
+    ]
+    assert [state["id"] for state in response["decision_states"]] == [
+        "conservative_airway_support"
+    ]
     frontier_ids = [step["added_intervention"] for step in response["frontier"]]
     assert "head_elevation_nightly" in frontier_ids
     assert "nasacort_nightly" in frontier_ids
@@ -149,7 +181,118 @@ def test_web_frontier_can_offer_humidifier_when_nasal_dryness_signal_is_strong()
     response = run_web_frontier(payload)
 
     support_state = next(
-        state for state in response["decision_states"] if state["id"] == "conservative_airway_support"
+        state
+        for state in response["decision_states"]
+        if state["id"] == "conservative_airway_support"
     )
     option_ids = {option["id"] for option in support_state["options"]}
     assert "humidifier_nightly" in option_ids
+
+
+def test_frontier_ranker_receives_hazard_aware_combination(monkeypatch):
+    """The deployed /frontier path must pass the multiplicative-hazard combiner
+    to the ranker (not silently fall back to additive QALY summing).
+    """
+    import optiqal.web_api as web_api
+
+    captured: dict = {}
+    original = web_api.rank_interventions_by_marginal_cost_per_qaly
+
+    def spy(*args, **kwargs):
+        captured.update(kwargs)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(web_api, "rank_interventions_by_marginal_cost_per_qaly", spy)
+
+    web_api.build_frontier_response(
+        {
+            "profile": {
+                "age": 58,
+                "sex": "male",
+                "weight_kg": 104.0,
+                "height_cm": 172.0,
+                "smoker": False,
+                "has_diabetes": False,
+                "has_hypertension": True,
+                "activity_level": "sedentary",
+                "sleep_hours_per_night": 6.5,
+            },
+            "n_simulations": 400,
+        }
+    )
+
+    assert captured.get("item_mortality_hrs"), "ranker did not receive item HRs"
+    fn = captured.get("mortality_qaly_fn")
+    assert fn is not None, "ranker did not receive a mortality_qaly_fn"
+    # The combiner integrates a joint hazard once, so two HR-0.7 effects yield
+    # strictly less than twice one HR-0.7 effect (no shared-survival double-count).
+    assert fn(0.7 * 0.7) < 2 * fn(0.7)
+
+
+def test_web_frontier_items_carry_confidence_intervals():
+    """Every ranked item must expose an 80% interval that brackets its point.
+
+    The engine runs Monte Carlo draws but historically collapsed them to a
+    single number; the UI cannot show uncertainty without these fields.
+
+    Uses a higher-risk profile so the frontier surfaces mortality-bearing items
+    (e.g. a statin) whose draws have genuine spread — that is where a real
+    interval must appear. (For a healthy young profile the frontier only surfaces
+    tiny-effect lifestyle items whose modelled effect is near-deterministic, so a
+    degenerate interval there is correct, not a placeholder — manufacturing width
+    would be fake uncertainty.)
+    """
+    payload = {
+        "profile": {
+            "age": 58,
+            "sex": "male",
+            "weight_kg": 95.0,
+            "height_cm": 175.0,
+            "smoker": True,
+            "has_diabetes": False,
+            "has_hypertension": True,
+            "activity_level": "light",
+            "sleep_hours_per_night": 7.0,
+        },
+        "n_simulations": 800,
+    }
+
+    response = run_web_frontier(payload)
+    items = response["items"]
+    assert items, "expected ranked items"
+
+    for item in items:
+        qaly_ci = item.get("net_qaly_ci")
+        days_ci = item.get("net_days_ci")
+        assert isinstance(qaly_ci, list) and len(qaly_ci) == 2, (
+            f"{item['id']} missing net_qaly_ci"
+        )
+        assert isinstance(days_ci, list) and len(days_ci) == 2, (
+            f"{item['id']} missing net_days_ci"
+        )
+        assert qaly_ci[0] <= qaly_ci[1], (
+            f"{item['id']} net_qaly_ci unordered: {qaly_ci}"
+        )
+        assert days_ci[0] <= days_ci[1], (
+            f"{item['id']} net_days_ci unordered: {days_ci}"
+        )
+        # days interval is the QALY interval rescaled to days
+        assert days_ci[0] == round(qaly_ci[0] * 365.25, 1)
+        assert days_ci[1] == round(qaly_ci[1] * 365.25, 1)
+        # The interval is the p10/p90 of the net-QALY draws and total_qaly is
+        # their mean, so it must bracket the point for every item (degenerate
+        # [x, x] brackets x trivially; a [0, 0] placeholder for a non-zero point
+        # would fail here).
+        assert qaly_ci[0] <= item["total_qaly"] <= qaly_ci[1], (
+            f"{item['id']} net_qaly_ci {qaly_ci} does not bracket "
+            f"total_qaly {item['total_qaly']}"
+        )
+
+    # The mortality-bearing items must carry a genuinely non-degenerate interval
+    # (this is what would regress to [0, 0] if the producer stopped emitting real
+    # draws). For this profile that includes the statin/GLP-1 lane.
+    mortality_items = [it for it in items if abs(it.get("mort_qaly", 0.0)) > 1e-3]
+    assert mortality_items, "expected at least one mortality-bearing ranked item"
+    assert any(it["net_qaly_ci"][0] < it["net_qaly_ci"][1] for it in mortality_items), (
+        "mortality-bearing items have degenerate net_qaly_ci — producer not emitting real draws"
+    )

@@ -23,7 +23,7 @@ export default function NotFound() {
           <div className="space-y-2">
             <h1 className="font-serif text-3xl font-medium">Page not found</h1>
             <p className="text-muted-foreground">
-              The page you're looking for doesn't exist. Explore how lifestyle
+              The page you&apos;re looking for doesn&apos;t exist. Explore how lifestyle
               factors affect your healthspan instead.
             </p>
           </div>

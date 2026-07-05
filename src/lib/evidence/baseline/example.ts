@@ -10,7 +10,6 @@ import {
   getPrecomputedLifeExpectancy,
   getPrecomputedRemainingQALYs,
   getPrecomputedQualityWeight,
-  type PrecomputedBaselines,
 } from "./precomputed";
 import { getRemainingLifeExpectancy } from "./life-tables";
 import { getAgeQualityWeight } from "./quality-weights";
@@ -118,12 +117,11 @@ export async function exampleBatchProcessing() {
   console.log(`  Per profile: ${(duration1 / profiles.length).toFixed(3)}ms`);
   console.log(`  Throughput: ${(profiles.length / duration1 * 1000).toFixed(0)} profiles/second`);
 
-  // Without precomputed
+  // Without precomputed (timed for comparison; result intentionally discarded)
   const start2 = performance.now();
-  const results2 = profiles.map((p) => ({
-    lifeExp: getRemainingLifeExpectancy(p.age, p.sex),
-    qalys: null, // Would need to calculate manually
-  }));
+  profiles.forEach((p) => {
+    getRemainingLifeExpectancy(p.age, p.sex);
+  });
   const duration2 = performance.now() - start2;
 
   console.log(`\nProcessed ${profiles.length} profiles without precomputed:`);

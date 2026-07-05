@@ -13,7 +13,6 @@ from .lifecycle import get_mortality_rate
 from .profile import Profile, get_baseline_mortality_multiplier
 from .sleep import SLEEP_COMPONENT_BENEFIT_TAGS
 
-
 SLEEP_COMPONENT_RETENTION = (1.0, 0.55, 0.30, 0.15)
 # Steeper within-cluster retention schedules reflect that supplements hitting the
 # same biological pathway largely compete for the same upstream substrate or the
@@ -73,6 +72,57 @@ def _baseline_survival(profile: Profile) -> np.ndarray:
     return np.concatenate([[1.0], survival[:-1]])
 
 
+def _active_years_curve(n_years: int, active_years: Optional[float]) -> np.ndarray:
+    """Return an annual exposure curve with a possible fractional final year."""
+    if active_years is None:
+        return np.ones(n_years)
+    active_years = float(active_years)
+    if active_years <= 0:
+        return np.zeros(n_years)
+    curve = np.zeros(n_years)
+    full_years = min(int(np.floor(active_years)), n_years)
+    curve[:full_years] = 1.0
+    remainder = active_years - full_years
+    if remainder > 0 and full_years < n_years:
+        curve[full_years] = remainder
+    return curve
+
+
+def _discounted_exposure_factor(
+    exposure_weights: np.ndarray,
+    active_years: Optional[float],
+) -> float:
+    """Return discounted exposure over an active duration."""
+    return float(
+        np.sum(
+            exposure_weights * _active_years_curve(len(exposure_weights), active_years),
+        )
+    )
+
+
+def _rule_active_years(
+    rule,
+    item_ids: List[str],
+    catalog_entries: Dict[str, CatalogEntry],
+    item_active_years: Optional[Dict[str, float]],
+    fallback_active_years: Optional[float],
+) -> Optional[float]:
+    """Duration while enough tagged contributors remain active for a rule."""
+    if not item_active_years or len(rule.requires_tags) != 1:
+        return fallback_active_years
+    tag = rule.requires_tags[0]
+    years = [
+        float(item_active_years[item_id])
+        for item_id in item_ids
+        if item_id in item_active_years
+        and tag in getattr(catalog_entries.get(item_id), "interaction_tags", [])
+    ]
+    threshold = rule.minimum_matches or len(rule.requires_tags)
+    if len(years) < threshold:
+        return fallback_active_years
+    return sorted(years, reverse=True)[threshold - 1]
+
+
 def _get_triggered_rules(
     item_ids: List[str],
     catalog_entries: Dict[str, CatalogEntry],
@@ -95,7 +145,9 @@ def _get_triggered_rules(
     for rule in unique_rules.values():
         threshold = rule.minimum_matches or len(rule.requires_tags)
         matches = sum(tag_counts[tag] for tag in rule.requires_tags)
-        if matches >= threshold and all(tag_counts[tag] > 0 for tag in rule.requires_tags):
+        if matches >= threshold and all(
+            tag_counts[tag] > 0 for tag in rule.requires_tags
+        ):
             triggered.append(rule)
 
     return tag_counts, triggered
@@ -105,6 +157,8 @@ def _expected_benefit_overlap_qaly(
     item_ids: List[str],
     catalog_entries: Dict[str, CatalogEntry],
     item_qalys: Optional[Dict[str, float]] = None,
+    exposure_weights: Optional[np.ndarray] = None,
+    item_active_years: Optional[Dict[str, float]] = None,
     benefit_tag_multipliers: Optional[Dict[str, float]] = None,
 ) -> Tuple[float, List[dict]]:
     """Return overlap penalty for positive benefits sharing the same domain."""
@@ -122,31 +176,92 @@ def _expected_benefit_overlap_qaly(
         for tag in entry.benefit_tags:
             groups[tag].append((item_id, qaly))
 
-    item_penalties: Dict[str, tuple[float, str, float]] = {}
+    item_penalties: Dict[str, tuple[float, str, float, bool]] = {}
     tag_counts: Dict[str, int] = {}
     for tag, members in groups.items():
         if len(members) < 2:
             continue
         tag_counts[tag] = len(members)
-        for rank, (item_id, qaly) in enumerate(sorted(members, key=lambda m: (-m[1], m[0]))):
+        penalty_multiplier = float(
+            max(0.0, (benefit_tag_multipliers or {}).get(tag, 1.0))
+        )
+        time_aware = (
+            exposure_weights is not None
+            and item_active_years is not None
+            and all(item_id in item_active_years for item_id, _ in members)
+        )
+        if time_aware:
+            annual_rates: Dict[str, float] = {}
+            active_curves: Dict[str, np.ndarray] = {}
+            for item_id, qaly in members:
+                exposure = _discounted_exposure_factor(
+                    exposure_weights,
+                    item_active_years[item_id],
+                )
+                if exposure <= 0:
+                    continue
+                annual_rates[item_id] = qaly / exposure
+                active_curves[item_id] = _active_years_curve(
+                    len(exposure_weights),
+                    item_active_years[item_id],
+                )
+
+            penalties_by_item: Dict[str, float] = defaultdict(float)
+            retained_weighted_by_item: Dict[str, float] = defaultdict(float)
+            base_weight_by_item: Dict[str, float] = defaultdict(float)
+            for year, exposure_weight in enumerate(exposure_weights):
+                active_members = [
+                    (item_id, annual_rate, active_curves[item_id][year])
+                    for item_id, annual_rate in annual_rates.items()
+                    if active_curves[item_id][year] > 0
+                ]
+                if len(active_members) < 2:
+                    continue
+                for rank, (item_id, annual_rate, active_fraction) in enumerate(
+                    sorted(active_members, key=lambda m: (-m[1], m[0]))
+                ):
+                    retained = _retained_fraction(tag, rank)
+                    base = annual_rate * float(exposure_weight) * float(active_fraction)
+                    penalty = base * (1.0 - retained) * penalty_multiplier
+                    if penalty <= 0:
+                        continue
+                    penalties_by_item[item_id] += penalty
+                    retained_weighted_by_item[item_id] += retained * base
+                    base_weight_by_item[item_id] += base
+
+            for item_id, penalty in penalties_by_item.items():
+                retained = (
+                    retained_weighted_by_item[item_id] / base_weight_by_item[item_id]
+                    if base_weight_by_item[item_id] > 0
+                    else 1.0
+                )
+                current = item_penalties.get(item_id)
+                if current is None or penalty > current[0]:
+                    item_penalties[item_id] = (penalty, tag, retained, True)
+            continue
+
+        for rank, (item_id, qaly) in enumerate(
+            sorted(members, key=lambda m: (-m[1], m[0]))
+        ):
             retained = _retained_fraction(tag, rank)
-            penalty_multiplier = float(max(0.0, (benefit_tag_multipliers or {}).get(tag, 1.0)))
             penalty = qaly * (1.0 - retained) * penalty_multiplier
             current = item_penalties.get(item_id)
             if current is None or penalty > current[0]:
-                item_penalties[item_id] = (penalty, tag, retained)
+                item_penalties[item_id] = (penalty, tag, retained, False)
 
     penalty_by_tag: Dict[str, float] = defaultdict(float)
     items_by_tag: Dict[str, List[str]] = defaultdict(list)
     retained_by_tag: Dict[str, List[float]] = defaultdict(list)
+    time_aware_by_tag: Dict[str, bool] = defaultdict(bool)
     total_penalty = 0.0
-    for item_id, (penalty, tag, retained) in item_penalties.items():
+    for item_id, (penalty, tag, retained, time_aware) in item_penalties.items():
         if penalty <= 0:
             continue
         total_penalty -= penalty
         penalty_by_tag[tag] += penalty
         items_by_tag[tag].append(item_id)
         retained_by_tag[tag].append(retained)
+        time_aware_by_tag[tag] = time_aware_by_tag[tag] or time_aware
 
     details = [
         {
@@ -157,6 +272,7 @@ def _expected_benefit_overlap_qaly(
             "penalty_qaly": -penalty_by_tag[tag],
             "item_ids": sorted(items_by_tag[tag]),
             "retained_fractions": sorted(retained_by_tag[tag], reverse=True),
+            "time_aware": time_aware_by_tag[tag],
         }
         for tag in sorted(penalty_by_tag)
     ]
@@ -168,6 +284,8 @@ def expected_stack_interaction_qaly(
     catalog_entries: Dict[str, CatalogEntry],
     profile: Profile,
     qaly_discount_rate: float = DEFAULT_QALY_DISCOUNT_RATE,
+    active_years: Optional[float] = None,
+    item_active_years: Optional[Dict[str, float]] = None,
     extra_tags: Optional[Iterable[str]] = None,
     item_qalys: Optional[Dict[str, float]] = None,
     benefit_tag_multipliers: Optional[Dict[str, float]] = None,
@@ -181,13 +299,23 @@ def expected_stack_interaction_qaly(
     qaly_discount_rate = validate_qaly_discount_rate(qaly_discount_rate)
     survival = _baseline_survival(profile)
     discount = (1 / (1 + qaly_discount_rate)) ** np.arange(len(survival))
-    exposure_factor = float(np.sum(survival * discount))
 
-    tag_counts, triggered_rules = _get_triggered_rules(item_ids, catalog_entries, extra_tags)
+    tag_counts, triggered_rules = _get_triggered_rules(
+        item_ids, catalog_entries, extra_tags
+    )
     total_penalty = 0.0
     details: List[dict] = []
 
     for rule in triggered_rules:
+        rule_years = _rule_active_years(
+            rule,
+            item_ids,
+            catalog_entries,
+            item_active_years,
+            active_years,
+        )
+        exposure_curve = _active_years_curve(len(survival), rule_years)
+        exposure_factor = float(np.sum(survival * discount * exposure_curve))
         penalty = 0.0
         if rule.annual_qaly_loss is not None:
             penalty -= rule.annual_qaly_loss.mean * exposure_factor
@@ -199,21 +327,30 @@ def expected_stack_interaction_qaly(
                 penalty -= lifetime_prob * rule.event_qaly_loss.mean
             else:
                 expected_events = float(np.sum(annual_event_prob))
-                penalty -= min(expected_events, rule.max_events) * rule.event_qaly_loss.mean
+                penalty -= (
+                    min(expected_events, rule.max_events) * rule.event_qaly_loss.mean
+                )
 
         total_penalty += penalty
-        details.append({
-            "id": rule.id,
-            "description": rule.description,
-            "requires_tags": list(rule.requires_tags),
-            "matched_tag_count": int(sum(tag_counts[tag] for tag in rule.requires_tags)),
-            "penalty_qaly": penalty,
-        })
+        details.append(
+            {
+                "id": rule.id,
+                "description": rule.description,
+                "requires_tags": list(rule.requires_tags),
+                "matched_tag_count": int(
+                    sum(tag_counts[tag] for tag in rule.requires_tags)
+                ),
+                "active_years": rule_years,
+                "penalty_qaly": penalty,
+            }
+        )
 
     overlap_penalty, overlap_details = _expected_benefit_overlap_qaly(
         item_ids=item_ids,
         catalog_entries=catalog_entries,
         item_qalys=item_qalys,
+        exposure_weights=survival * discount,
+        item_active_years=item_active_years,
         benefit_tag_multipliers=benefit_tag_multipliers,
     )
     total_penalty += overlap_penalty
@@ -227,6 +364,9 @@ def build_stack_interaction_penalty_fn(
     catalog_entries: Dict[str, CatalogEntry],
     profile: Profile,
     qaly_discount_rate: float = DEFAULT_QALY_DISCOUNT_RATE,
+    *,
+    active_years: Optional[float] = None,
+    item_active_years: Optional[Dict[str, float]] = None,
     extra_tags: Optional[Iterable[str]] = None,
     item_qalys: Optional[Dict[str, float]] = None,
     benefit_tag_multipliers: Optional[Dict[str, float]] = None,
@@ -239,6 +379,8 @@ def build_stack_interaction_penalty_fn(
             catalog_entries=catalog_entries,
             profile=profile,
             qaly_discount_rate=qaly_discount_rate,
+            active_years=active_years,
+            item_active_years=item_active_years,
             extra_tags=extra_tags,
             item_qalys=item_qalys,
             benefit_tag_multipliers=benefit_tag_multipliers,

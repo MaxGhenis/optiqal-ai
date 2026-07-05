@@ -1,17 +1,19 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import subprocess
 import sys
 import textwrap
+from pathlib import Path
 
 import pandas as pd
 import pytest
 
+from optiqal.validation import pan_ukb
 from optiqal.validation.pan_ukb import (
     _weighted_median_bootstrap_se,
     build_pan_ukb_paths,
+    clump_local,
     generate_wget_script,
     get_default_pan_ukb_data_dir,
     harmonize_data,
@@ -132,6 +134,55 @@ def test_harmonize_data_recovers_flipped_outcome_alleles() -> None:
     assert flipped["af_out"] == pytest.approx(0.3)
 
 
+def test_clump_local_imports_pandas_in_lazy_analysis_path() -> None:
+    instruments = pd.DataFrame(
+        [
+            {"chr": 1, "pos": 100, "pval_EUR": 1e-9},
+            {"chr": 1, "pos": 200, "pval_EUR": 1e-8},
+            {"chr": 1, "pos": 30_000, "pval_EUR": 1e-7},
+        ]
+    )
+
+    clumped = clump_local(instruments, kb=1)
+
+    assert len(clumped) == 2
+    assert list(clumped["pos"]) == [100, 30_000]
+
+
+def test_run_pan_ukb_analysis_concat_import_is_lazy_safe(
+    monkeypatch, tmp_path: Path
+) -> None:
+    paths = build_pan_ukb_paths(tmp_path / "pan-ukb")
+    dummy = pd.DataFrame({"chr": [1], "pos": [100], "pval_EUR": [1e-9]})
+
+    def fake_run_mr(_harmonized: pd.DataFrame) -> pd.DataFrame:
+        return pd.DataFrame(
+            [
+                {
+                    "method": "IVW",
+                    "beta": 0.1,
+                    "se": 0.02,
+                    "OR": 1.1,
+                    "OR_lci": 1.05,
+                    "OR_uci": 1.15,
+                    "pval": 0.001,
+                    "nsnp": 1,
+                }
+            ]
+        )
+
+    monkeypatch.setattr(pan_ukb, "read_panukb", lambda *args, **kwargs: dummy)
+    monkeypatch.setattr(pan_ukb, "extract_instruments", lambda dataframe: dataframe)
+    monkeypatch.setattr(pan_ukb, "clump_local", lambda dataframe: dataframe)
+    monkeypatch.setattr(pan_ukb, "harmonize_data", lambda instruments, outcome: dummy)
+    monkeypatch.setattr(pan_ukb, "run_mr", fake_run_mr)
+
+    results = pan_ukb.run_pan_ukb_mr_analysis(paths, chunksize=10)
+
+    assert list(results["outcome"]) == ["T2DM", "MI"]
+    assert (paths.results_dir / "mr_results.csv").exists()
+
+
 def test_run_mr_inflates_uncertainty_when_exposure_se_increases() -> None:
     low_uncertainty = pd.DataFrame(
         {
@@ -190,19 +241,34 @@ def test_harmonize_data_drops_palindromic_by_default() -> None:
     outcome = pd.DataFrame(
         [
             {
-                "chr": 1, "pos": 100, "ref": "A", "alt": "G",
-                "beta_EUR": 0.05, "se_EUR": 0.01,
-                "neglog10_pval_EUR": 5.0, "af_EUR": 0.2,
+                "chr": 1,
+                "pos": 100,
+                "ref": "A",
+                "alt": "G",
+                "beta_EUR": 0.05,
+                "se_EUR": 0.01,
+                "neglog10_pval_EUR": 5.0,
+                "af_EUR": 0.2,
             },
             {
-                "chr": 2, "pos": 300, "ref": "A", "alt": "T",
-                "beta_EUR": 0.04, "se_EUR": 0.01,
-                "neglog10_pval_EUR": 4.0, "af_EUR": 0.3,
+                "chr": 2,
+                "pos": 300,
+                "ref": "A",
+                "alt": "T",
+                "beta_EUR": 0.04,
+                "se_EUR": 0.01,
+                "neglog10_pval_EUR": 4.0,
+                "af_EUR": 0.3,
             },
             {
-                "chr": 3, "pos": 500, "ref": "C", "alt": "G",
-                "beta_EUR": 0.03, "se_EUR": 0.01,
-                "neglog10_pval_EUR": 3.0, "af_EUR": 0.4,
+                "chr": 3,
+                "pos": 500,
+                "ref": "C",
+                "alt": "G",
+                "beta_EUR": 0.03,
+                "se_EUR": 0.01,
+                "neglog10_pval_EUR": 3.0,
+                "af_EUR": 0.4,
             },
         ]
     )

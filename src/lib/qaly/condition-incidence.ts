@@ -210,7 +210,7 @@ export function diabetesIncidence(rf: RiskFactors): number {
 
   const ageGroup =
     rf.age < 45 ? "18-44" : rf.age < 65 ? "45-64" : "65+";
-  let baseRate = baseRateByAge[ageGroup] / 1000;
+  const baseRate = baseRateByAge[ageGroup] / 1000;
 
   // BMI adjustment (relative risk)
   // Source: Guh 2009 meta-analysis, updated via Pan-UKB MR validation

@@ -43,6 +43,10 @@ def _load_cpic() -> dict:
 
 
 def _activity_score_phenotype(gene_spec: dict, activity_score: float) -> Phenotype:
+    # Ranges are contiguous with shared inclusive endpoints, ordered low->high.
+    # Returning the FIRST match means the lower band owns each shared boundary
+    # (e.g. AS=1.0 -> intermediate, AS=2.25 -> normal per the CPIC 2019
+    # consensus). This keeps the bands gap-free over the achievable lattice.
     for r in gene_spec["ranges"]:
         if r["min"] <= activity_score <= r["max"]:
             return r["phenotype"]  # type: ignore[return-value]
@@ -81,7 +85,9 @@ def diplotype_to_phenotype(diplotype: Diplotype) -> Phenotype:
 
     if gene_spec["mode"] == "function_pair":
         return _function_pair_phenotype(
-            gene_spec, diplotype.allele1, diplotype.allele2,
+            gene_spec,
+            diplotype.allele1,
+            diplotype.allele2,
         )
 
     return "unknown"
@@ -92,7 +98,9 @@ def phenotype_label(gene: str, phenotype: Phenotype) -> str:
     cpic = _load_cpic()
     gene_spec = cpic.get(gene, {})
     if gene_spec.get("mode") == "function_pair":
-        return gene_spec.get("pair_labels", {}).get(phenotype, phenotype.replace("_", " ").title())
+        return gene_spec.get("pair_labels", {}).get(
+            phenotype, phenotype.replace("_", " ").title()
+        )
     for r in gene_spec.get("ranges", []):
         if r["phenotype"] == phenotype:
             return r["label"]

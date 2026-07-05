@@ -3,15 +3,15 @@
 import pytest
 
 from optiqal import (
-    Profile,
+    BUNDLES,
+    CATALOG,
     AnalysisConfig,
     AnalysisResult,
     Decision,
+    Profile,
     analyze,
     format_full_report,
     serialize_item_results,
-    CATALOG,
-    BUNDLES,
 )
 from optiqal.catalog import CatalogEntry
 from optiqal.intervention import Distribution, InteractionRule
@@ -22,9 +22,13 @@ from optiqal.sleep import SleepMetrics
 def config():
     return AnalysisConfig(
         profile=Profile(
-            age=39, sex="male", bmi_category="normal",
-            smoking_status="never", has_diabetes=False,
-            has_hypertension=False, activity_level="light",
+            age=39,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=False,
+            has_hypertension=False,
+            activity_level="light",
         ),
         n_simulations=5_000,  # Fewer for speed in tests
     )
@@ -32,29 +36,53 @@ def config():
 
 class TestAnalyze:
     def test_qaly_discount_default_matches_app(self, config):
-        assert config.qaly_discount_rate == pytest.approx(0.0)
+        assert config.qaly_discount_rate == pytest.approx(0.03)
 
     def test_analysis_config_has_no_complexity_penalty(self, config):
         assert not hasattr(config, "complexity_cost_per_item")
         assert not hasattr(config, "complexity_free_slots")
 
-    def test_nonzero_qaly_discount_rejected(self):
-        with pytest.raises(ValueError, match="0% QALY discounting only"):
+    def test_qaly_discount_sensitivity_rate_allowed(self):
+        config = AnalysisConfig(
+            profile=Profile(
+                age=39,
+                sex="male",
+                bmi_category="normal",
+                smoking_status="never",
+                has_diabetes=False,
+                has_hypertension=False,
+                activity_level="light",
+            ),
+            qaly_discount_rate=0.015,
+        )
+
+        assert config.qaly_discount_rate == pytest.approx(0.015)
+
+    def test_negative_qaly_discount_rejected(self):
+        with pytest.raises(ValueError, match="nonnegative"):
             AnalysisConfig(
                 profile=Profile(
-                    age=39, sex="male", bmi_category="normal",
-                    smoking_status="never", has_diabetes=False,
-                    has_hypertension=False, activity_level="light",
+                    age=39,
+                    sex="male",
+                    bmi_category="normal",
+                    smoking_status="never",
+                    has_diabetes=False,
+                    has_hypertension=False,
+                    activity_level="light",
                 ),
-                qaly_discount_rate=0.03,
+                qaly_discount_rate=-0.01,
             )
 
     def test_analysis_config_derives_sleep_estimate_from_metrics(self):
         config = AnalysisConfig(
             profile=Profile(
-                age=39, sex="male", bmi_category="normal",
-                smoking_status="never", has_diabetes=False,
-                has_hypertension=False, activity_level="light",
+                age=39,
+                sex="male",
+                bmi_category="normal",
+                smoking_status="never",
+                has_diabetes=False,
+                has_hypertension=False,
+                activity_level="light",
             ),
             sleep_metrics=SleepMetrics(
                 duration_hours=6.4,
@@ -253,7 +281,8 @@ class TestDecisions:
             config,
             decisions=[
                 Decision(
-                    "adjust", "melatonin_300mcg",
+                    "adjust",
+                    "melatonin_300mcg",
                     "ADJUST: Melatonin 1.5mg→300mcg",
                     override_hr=0.998,
                     override_cost=0,

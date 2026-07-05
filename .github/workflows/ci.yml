@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: Python tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # uv resolves Python from python/.python-version (3.13 — a mature
+      # prebuilt; pinning 3.14 in setup-uv hung the runner for ~19 min).
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Run tests
+        # --all-extras pulls pytest/pandas (declared as extras); uv re-syncs on
+        # each `uv run`, so extras must be requested here. Run serially:
+        # pytest-xdist (-n auto) hung at worker startup on the 2-core GitHub
+        # runner (xdist stays installed for fast local `pytest -n auto`).
+        #
+        # The AutoAgent/Harbor sidecar tests are excluded: they exercise an
+        # experimental external agent harness (autoagent/), spawn slow
+        # subprocesses (~13 min on their own — they alone blew the timeout), and
+        # need a sidecar runtime absent on a stock runner (agent.py exits
+        # non-zero in CI). They still run locally. Engine, API, frontend, and
+        # genetics suites all run here (385 passed in ~4 min).
+        run: >-
+          uv run --all-extras pytest -q
+          --ignore=tests/test_public_frontier_harbor_task.py
+          --ignore=tests/test_public_frontier_autoagent_harness.py
+          --ignore=tests/test_public_frontier_autoagent_bootstrap.py
+
+      - name: Lint
+        run: uv run --all-extras ruff check
+
+      - name: Format check
+        run: uv run --all-extras ruff format --check
+
+  web:
+    name: Web tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Type-check
+        run: bun run typecheck
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Run tests
+        run: bun run test
+
+  e2e:
+    name: End-to-end tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build
+        run: bun run build
+
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+
+      # playwright.config.ts starts `next start` against the build above.
+      - name: Run e2e tests
+        run: bun run test:e2e

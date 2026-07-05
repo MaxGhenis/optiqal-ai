@@ -41,18 +41,17 @@ export default function PrivacyPage() {
               weight, and lifestyle factors. This data is:
             </p>
             <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-4">
-              <li>Processed locally in your browser for calculations</li>
+              <li>
+                Sent to our server, which runs the analysis engine to compute your estimates.
+                The computation may be performed by an external model service we operate or
+                contract for that purpose.
+              </li>
               <li>Optionally saved to your browser&apos;s local storage for convenience</li>
-              <li>Not transmitted to our servers unless you explicitly choose to share results</li>
+              <li>
+                Processed only to generate your results and not stored in a profile database or
+                retained beyond what is needed to return your estimates
+              </li>
             </ul>
-
-            <h3 className="text-lg font-medium mt-4 mb-2">Sharing Feature</h3>
-            <p className="text-muted-foreground leading-relaxed">
-              If you use the sharing feature to create a shareable link, your profile data is
-              encoded in the URL. This data is not stored on our servers; the URL contains all
-              the information needed to reproduce your results. Anyone with the link can view
-              the shared results.
-            </p>
 
             <h3 className="text-lg font-medium mt-4 mb-2">Analytics</h3>
             <p className="text-muted-foreground leading-relaxed">
@@ -71,7 +70,6 @@ export default function PrivacyPage() {
             <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-4">
               <li>Calculate and display your personalized estimates</li>
               <li>Save your preferences for future visits (if you choose)</li>
-              <li>Generate shareable links (if you use the sharing feature)</li>
               <li>Improve the Service based on aggregate usage patterns</li>
             </ul>
           </section>
@@ -84,8 +82,11 @@ export default function PrivacyPage() {
               be cleared through your browser settings.
             </p>
             <p className="text-muted-foreground leading-relaxed mt-3">
-              <strong className="text-foreground">No Server-Side Storage:</strong> We do not maintain
-              a database of user profiles. Your health information is not stored on our servers.
+              <strong className="text-foreground">Server-Side Processing:</strong> To produce your
+              estimates, the profile you enter is sent to our analysis engine running on the server
+              (and may pass to an external model service we use for the computation). We do not
+              maintain a database of user profiles, and your health information is processed only to
+              return your results rather than retained for long-term storage.
             </p>
           </section>
 
