@@ -49,3 +49,22 @@ def test_default_priors_sample_within_bounds():
             assert samples.min() >= prior.lower_bound - 1e-9
         if prior.upper_bound is not None:
             assert samples.max() <= prior.upper_bound + 1e-9
+
+
+def test_truncated_normal_pdf_is_normalized_and_matches_sampler():
+    from scipy import integrate
+
+    prior = ImputationPrior(
+        variable="bmi",
+        mean=27.0,
+        std=5.0,
+        distribution="truncated_normal",
+        lower_bound=15.0,
+        upper_bound=60.0,
+    )
+    # Density integrates to 1 over the bounds (a plain norm.pdf would not).
+    area, _ = integrate.quad(prior.pdf, 15.0, 60.0)
+    assert area == pytest.approx(1.0, abs=1e-3)
+    # Zero outside the bounds.
+    assert prior.pdf(10.0) == 0.0
+    assert prior.pdf(65.0) == 0.0

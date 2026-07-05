@@ -64,11 +64,14 @@ class ImputationPrior:
             log_std = np.sqrt(np.log(1 + (self.std/self.mean)**2))
             return stats.lognorm.pdf(x, s=log_std, scale=np.exp(log_mean))
         elif self.distribution == "truncated_normal":
-            if self.lower_bound is not None and x < self.lower_bound:
-                return 0.0
-            if self.upper_bound is not None and x > self.upper_bound:
-                return 0.0
-            return stats.norm.pdf(x, self.mean, self.std)
+            # Use the properly normalized truncated-normal density so pdf()
+            # integrates to 1 over the bounds and matches sample() (which draws
+            # from scipy's truncnorm). A plain norm.pdf would under-integrate.
+            lower = -np.inf if self.lower_bound is None else self.lower_bound
+            upper = np.inf if self.upper_bound is None else self.upper_bound
+            a = (lower - self.mean) / self.std
+            b = (upper - self.mean) / self.std
+            return stats.truncnorm.pdf(x, a, b, loc=self.mean, scale=self.std)
 
 
 @dataclass

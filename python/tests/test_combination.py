@@ -439,6 +439,56 @@ class TestCombineInterventionEffects:
         combined = simulate_combined_qaly([iv], _profile(), n_simulations=200)
         assert combined.mean > 0
 
+    def test_combined_qaly_does_not_double_apply_profile_modifier(self):
+        """combine_intervention_effects bakes each item's profile effect-
+        modifier into combined_hr; simulate_combined_qaly must NOT let
+        simulate_qaly_profile re-apply it. Uses category 'exercise' (modifier
+        1.20 on a sedentary profile) so the double-application is visible —
+        earlier tests used 'lifestyle' (modifier 1.0), where the bug was a
+        no-op."""
+        from copy import deepcopy
+        from optiqal.simulate import simulate_qaly_profile
+
+        prof = Profile(
+            age=40,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=False,
+            has_hypertension=False,
+            activity_level="sedentary",
+        )
+        a = _point_intervention("ex1", 0.85)
+        a.category = "exercise"
+        b = _point_intervention("ex2", 0.90)
+        b.category = "exercise"
+
+        combined = combine_intervention_effects([a, b], prof)
+
+        # Rebuild the same synthetic combined intervention the function uses,
+        # then simulate it applying the modifier exactly once vs. twice. Point
+        # HRs with no confounding prior make these deterministic.
+        synth = deepcopy(a)
+        synth.mortality = MortalityEffect(
+            hazard_ratio=Distribution(
+                type="point", params={"value": combined.combined_hr}
+            )
+        )
+        once = simulate_qaly_profile(
+            synth, prof, n_simulations=100, apply_confounding=False,
+            apply_intervention_modifier=False,
+        )
+        twice = simulate_qaly_profile(
+            synth, prof, n_simulations=100, apply_confounding=False,
+            apply_intervention_modifier=True,
+        )
+        # The exercise modifier is non-unity here, so once != twice.
+        assert abs(once.mean - twice.mean) > 1e-4
+
+        result = simulate_combined_qaly([a, b], prof, n_simulations=100)
+        # simulate_combined_qaly must match the single-application result.
+        assert result.mean == pytest.approx(once.mean, rel=1e-9)
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

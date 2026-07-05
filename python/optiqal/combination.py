@@ -234,14 +234,17 @@ def simulate_combined_qaly(
         hazard_ratio=Distribution(type="point", params={"value": combined.combined_hr})
     )
 
-    # Run simulation with combined intervention
-    # Note: profile modifiers already applied in combine_intervention_effects,
-    # so we pass a neutral profile or skip modifier application
+    # Run simulation with combined intervention. combine_intervention_effects
+    # already baked each intervention's profile effect-modifier into
+    # combined_hr, so we skip modifier application here to avoid double-counting
+    # it (and to avoid applying interventions[0]'s category modifier to the
+    # whole stack). The profile is still needed for baseline mortality.
     return simulate_qaly_profile(
         combined_intervention,
         profile,
         n_simulations=n_simulations,
         discount_rate=discount_rate,
+        apply_intervention_modifier=False,
     )
 
 

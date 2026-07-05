@@ -890,6 +890,7 @@ def simulate_qaly_profile(
     discount_rate: float = DEFAULT_QALY_DISCOUNT_RATE,
     apply_confounding: bool = True,
     random_state: Optional[int] = None,
+    apply_intervention_modifier: bool = True,
 ) -> SimulationResult:
     """
     Run Monte Carlo simulation for a specific demographic profile.
@@ -915,7 +916,14 @@ def simulate_qaly_profile(
 
     # Get profile-specific adjustments
     baseline_mortality_multiplier = get_baseline_mortality_multiplier(profile)
-    intervention_effect_modifier = get_intervention_modifier(profile, intervention.category)
+    # Callers that have already baked the profile modifier into the HR (e.g. the
+    # combined-intervention path) pass apply_intervention_modifier=False to avoid
+    # double-counting it.
+    intervention_effect_modifier = (
+        get_intervention_modifier(profile, intervention.category)
+        if apply_intervention_modifier
+        else 1.0
+    )
 
     # Sample from distributions
     hr_samples = intervention.mortality.hazard_ratio.sample(n_simulations, random_state)

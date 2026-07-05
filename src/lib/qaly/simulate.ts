@@ -774,8 +774,12 @@ export function simulateQALYImpactRigorous(
 
     // Paired unadjusted draw (causalFraction = 1) reusing the same sampled
     // HR multiplier and quality change, so the confounding comparison is a real
-    // simulated difference rather than an algebraic rescaling.
-    if (confoundingConfig) {
+    // simulated difference rather than an algebraic rescaling. Gated on
+    // effect.mortality to match where unadjustedResults is consumed below —
+    // otherwise a quality-only intervention would compute these draws and
+    // discard them. (These draws consume no RNG, so gating them does not change
+    // the adjusted results.)
+    if (confoundingConfig && effect.mortality) {
       const unadjustedPathwayHRs: PathwayHRs = {
         cvd: adjustHazardRatio(basePathwayHRs.cvd * hrMultiplier, 1.0),
         cancer: adjustHazardRatio(basePathwayHRs.cancer * hrMultiplier, 1.0),
