@@ -20,7 +20,6 @@ from typing import Dict, List, Optional
 from .parser import (
     RawGenotype,
     genotype_at,
-    is_palindromic_snp,
     strand_ambiguous_genotype,
 )
 

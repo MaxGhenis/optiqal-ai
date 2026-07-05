@@ -5,15 +5,13 @@ Ties together catalog simulation, portfolio optimization, bundle analysis,
 and decision evaluation into a single `analyze()` call.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable, Dict, List, Literal, Optional
 
-import numpy as np
-
+from .bundles import recommend_bundles
 from .catalog import CATALOG, CatalogEntry, get_catalog, simulate_catalog
 from .combination import find_optimal_portfolio_with_costs
-from .bundles import recommend_bundles
-from .confounding import ConfoundingPrior, hr_to_lognormal_params, publication_bias_correct
+from .confounding import ConfoundingPrior, publication_bias_correct
 from .defaults import (
     DEFAULT_COST_DISCOUNT_RATE,
     DEFAULT_QALY_DISCOUNT_RATE,
@@ -140,7 +138,9 @@ def _simulate_one(
 ) -> dict:
     """Simulate a single intervention (used for decisions with overrides)."""
     intervention = Intervention(
-        id=name, name=name, category="diet",
+        id=name,
+        name=name,
+        category="diet",
         mortality=MortalityEffect(
             hazard_ratio=Distribution(
                 type="lognormal",
@@ -150,7 +150,8 @@ def _simulate_one(
         confounding_prior=ConfoundingPrior(alpha=conf_a, beta=conf_b),
     )
     r = simulate_qaly_profile_vectorized(
-        intervention, config.profile,
+        intervention,
+        config.profile,
         n_simulations=config.n_simulations,
         discount_rate=config.qaly_discount_rate,
         cost_discount_rate=config.cost_discount_rate,
@@ -173,12 +174,16 @@ def _simulate_one(
     # Survival-weighted discounted cost
     total_cost = annual_cost * r.expected_discounted_cost_factor
     net_value = total_qaly * config.wtp - total_cost
-    cost_per_qaly = total_cost / total_qaly if total_qaly > 0 and annual_cost > 0 else None
+    cost_per_qaly = (
+        total_cost / total_qaly if total_qaly > 0 and annual_cost > 0 else None
+    )
 
     return {
         "name": name,
         "mort_qaly": mort_qaly,
-        "posterior_hr": float(r.posterior_hr_mean) if r.posterior_hr_mean is not None else 1.0,
+        "posterior_hr": float(r.posterior_hr_mean)
+        if r.posterior_hr_mean is not None
+        else 1.0,
         "harm_qaly": harm_qaly,
         "direct_harm_qaly": r.expected_harm_qalys,
         "interaction_harm_qaly": r.expected_interaction_harm_qalys,
@@ -229,17 +234,33 @@ def evaluate_decisions(
             if entry is None:
                 raise ValueError(f"Unknown catalog item: {d.item_id}")
             if d.override_hr is None:
-                hr = entry.corrected_hr_observed(config.pub_bias_shrinkage, config.profile)
+                hr = entry.corrected_hr_observed(
+                    config.pub_bias_shrinkage, config.profile
+                )
             else:
                 hr = publication_bias_correct(d.override_hr, config.pub_bias_shrinkage)
             cost = d.override_cost if d.override_cost is not None else entry.annual_cost
-            qol = d.override_qol if d.override_qol is not None else entry.effective_qol_annual()
+            qol = (
+                d.override_qol
+                if d.override_qol is not None
+                else entry.effective_qol_annual()
+            )
             sleep_qol = entry.sleep_qol_annual(config.sleep_estimate)
-            sleep_mortality_hr_multiplier = entry.sleep_mortality_hr_multiplier(config.sleep_estimate)
+            sleep_mortality_hr_multiplier = entry.sleep_mortality_hr_multiplier(
+                config.sleep_estimate
+            )
             r = _simulate_one(
-                d.label, hr, entry.log_sd,
-                entry.conf_alpha, entry.conf_beta,
-                cost, qol, entry.qol_years, sleep_qol, sleep_mortality_hr_multiplier, config,
+                d.label,
+                hr,
+                entry.log_sd,
+                entry.conf_alpha,
+                entry.conf_beta,
+                cost,
+                qol,
+                entry.qol_years,
+                sleep_qol,
+                sleep_mortality_hr_multiplier,
+                config,
             )
 
         elif d.type == "drop":
@@ -248,14 +269,19 @@ def evaluate_decisions(
             # Dropping = you LOSE the item's benefit and GAIN cost savings
             hr = entry.corrected_hr_observed(config.pub_bias_shrinkage, config.profile)
             sleep_qol = entry.sleep_qol_annual(config.sleep_estimate)
-            sleep_mortality_hr_multiplier = entry.sleep_mortality_hr_multiplier(config.sleep_estimate)
+            sleep_mortality_hr_multiplier = entry.sleep_mortality_hr_multiplier(
+                config.sleep_estimate
+            )
             r = _simulate_one(
-                d.label, hr, entry.log_sd,
-                entry.conf_alpha, entry.conf_beta,
+                d.label,
+                hr,
+                entry.log_sd,
+                entry.conf_alpha,
+                entry.conf_beta,
                 -entry.annual_cost,  # Savings
-                -entry.effective_qol_annual(),   # Lose QoL benefit
+                -entry.effective_qol_annual(),  # Lose QoL benefit
                 entry.qol_years,
-                -sleep_qol,          # Lose sleep-related QoL benefit
+                -sleep_qol,  # Lose sleep-related QoL benefit
                 sleep_mortality_hr_multiplier,
                 config,
             )
@@ -266,17 +292,29 @@ def evaluate_decisions(
                 raise ValueError(f"Unknown catalog item: {d.item_id}")
             hr_raw = d.override_hr if d.override_hr is not None else entry.hr_observed
             if d.override_hr is None:
-                hr = entry.corrected_hr_observed(config.pub_bias_shrinkage, config.profile)
+                hr = entry.corrected_hr_observed(
+                    config.pub_bias_shrinkage, config.profile
+                )
             else:
                 hr = publication_bias_correct(hr_raw, config.pub_bias_shrinkage)
             cost = d.override_cost if d.override_cost is not None else 0
             qol = d.override_qol if d.override_qol is not None else 0
             sleep_qol = entry.sleep_qol_annual(config.sleep_estimate)
-            sleep_mortality_hr_multiplier = entry.sleep_mortality_hr_multiplier(config.sleep_estimate)
+            sleep_mortality_hr_multiplier = entry.sleep_mortality_hr_multiplier(
+                config.sleep_estimate
+            )
             r = _simulate_one(
-                d.label, hr, entry.log_sd,
-                entry.conf_alpha, entry.conf_beta,
-                cost, qol, entry.qol_years, sleep_qol, sleep_mortality_hr_multiplier, config,
+                d.label,
+                hr,
+                entry.log_sd,
+                entry.conf_alpha,
+                entry.conf_beta,
+                cost,
+                qol,
+                entry.qol_years,
+                sleep_qol,
+                sleep_mortality_hr_multiplier,
+                config,
             )
 
         r["decision_type"] = d.type
@@ -326,7 +364,9 @@ def analyze(
     if catalog_entries is not None:
         entries = catalog_entries
         if config.categories is not None:
-            entries = {k: v for k, v in entries.items() if v.category in config.categories}
+            entries = {
+                k: v for k, v in entries.items() if v.category in config.categories
+            }
     else:
         entries = get_catalog(config.categories)
 
@@ -376,6 +416,7 @@ def analyze(
             discount_rate=config.qaly_discount_rate,
             baseline_hazard_multiplier=config.sleep_baseline_hazard_multiplier,
         )
+
     penalty_fn = stack_interaction_penalty_fn or build_stack_interaction_penalty_fn(
         catalog_entries=entries,
         profile=config.profile,

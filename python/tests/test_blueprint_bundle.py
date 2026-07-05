@@ -51,6 +51,7 @@ def _results_by_id(results) -> dict:
     """Index simulate_catalog's list-of-dicts output by item id."""
     return {row["id"]: row for row in results}
 
+
 # The 11 actives in the Blueprint Longevity Mix, mapped to catalog ids.
 # 5 ids are newly added; 6 reuse pre-existing catalog entries.
 MIX_INGREDIENT_IDS = (
@@ -118,9 +119,7 @@ def test_bundle_cost_shares_sum_to_retail_price():
     """The Mix ingredients' bundle_cost_share sums to ~$537/yr."""
     catalog = get_catalog()
     total = sum(
-        catalog[i].bundle_cost_share
-        for i in MIX_INGREDIENT_IDS
-        if i in catalog
+        catalog[i].bundle_cost_share for i in MIX_INGREDIENT_IDS if i in catalog
     )
     assert total == pytest.approx(MIX_ANNUAL_PRICE, abs=5.0), (
         f"Mix bundle cost-share total is {total}, expected ~{MIX_ANNUAL_PRICE}"
@@ -130,14 +129,9 @@ def test_bundle_cost_shares_sum_to_retail_price():
 def test_bundle_membership_count():
     """Exactly the 11 Mix actives belong to the Blueprint bundle."""
     catalog = get_catalog()
-    members = {
-        eid
-        for eid, e in catalog.items()
-        if e.bundle_id == BLUEPRINT_BUNDLE_ID
-    }
+    members = {eid for eid, e in catalog.items() if e.bundle_id == BLUEPRINT_BUNDLE_ID}
     assert members == set(MIX_INGREDIENT_IDS), (
-        f"Blueprint bundle members {members} != expected "
-        f"{set(MIX_INGREDIENT_IDS)}"
+        f"Blueprint bundle members {members} != expected {set(MIX_INGREDIENT_IDS)}"
     )
 
 
@@ -233,9 +227,7 @@ def test_caakg_is_animal_mechanism_tier_near_null():
 
 def test_simulate_catalog_returns_mix_items_with_ci():
     """simulate_catalog still runs and returns Mix items with net_qaly_ci."""
-    results = simulate_catalog(
-        _canonical_profile(), n_simulations=600, random_state=7
-    )
+    results = simulate_catalog(_canonical_profile(), n_simulations=600, random_state=7)
     assert isinstance(results, list) and results
     by_id = _results_by_id(results)
     for ingredient_id in MIX_INGREDIENT_IDS:
@@ -270,9 +262,7 @@ def test_simulate_catalog_bundle_cost_scales_with_share():
     discounted cost-year factor, the ratio of their reported costs should equal
     the ratio of their bundle shares.
     """
-    results = simulate_catalog(
-        _canonical_profile(), n_simulations=400, random_state=11
-    )
+    results = simulate_catalog(_canonical_profile(), n_simulations=400, random_state=11)
     by_id = _results_by_id(results)
     caakg = get_entry("caakg_2000")
     lysine = get_entry("l_lysine_1000")

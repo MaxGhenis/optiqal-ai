@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from optiqal.bayesian_updating import ImputationPrior, DEFAULT_PRIORS
+from optiqal.bayesian_updating import DEFAULT_PRIORS, ImputationPrior
 
 
 def test_truncated_normal_respects_bounds():

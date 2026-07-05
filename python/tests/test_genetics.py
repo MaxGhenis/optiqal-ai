@@ -42,11 +42,14 @@ def _write_23andme(tmp_path: Path, genotypes: dict[str, tuple[str, int, str]]) -
 
 class TestParser:
     def test_parse_23andme_basic(self, tmp_path):
-        p = _write_23andme(tmp_path, {
-            "rs4477212": ("1", 82154, "AA"),
-            "rs3094315": ("1", 752566, "AG"),
-            "i5000001": ("1", 900000, "CC"),
-        })
+        p = _write_23andme(
+            tmp_path,
+            {
+                "rs4477212": ("1", 82154, "AA"),
+                "rs3094315": ("1", 752566, "AG"),
+                "i5000001": ("1", 900000, "CC"),
+            },
+        )
         calls = parse_23andme(p)
         assert len(calls) == 3
         assert calls["rs4477212"].genotype == "AA"
@@ -54,10 +57,13 @@ class TestParser:
         assert calls["rs3094315"].position == 752566
 
     def test_parser_handles_no_calls(self, tmp_path):
-        p = _write_23andme(tmp_path, {
-            "rs1": ("1", 100, "--"),
-            "rs2": ("1", 200, "AA"),
-        })
+        p = _write_23andme(
+            tmp_path,
+            {
+                "rs1": ("1", 100, "--"),
+                "rs2": ("1", 200, "AA"),
+            },
+        )
         calls = parse_23andme(p)
         assert calls["rs1"].is_no_call
         assert not calls["rs2"].is_no_call
@@ -116,8 +122,7 @@ class TestParser:
             )
             zf.writestr(
                 "phased_genome_sample.txt",
-                "rs4477212\t1\t82154\tA\tA\n"
-                "rs3094315\t1\t752566\tA\tG\n",
+                "rs4477212\t1\t82154\tA\tA\nrs3094315\t1\t752566\tA\tG\n",
             )
         calls = detect_and_parse(p)
         assert calls["rs4477212"].genotype == "AA"
@@ -137,12 +142,15 @@ class TestParser:
 
 class TestCyp2d6:
     def test_reference_diplotype(self, tmp_path):
-        p = _write_23andme(tmp_path, {
-            "rs3892097": ("22", 42128945, "GG"),  # *4 absent
-            "rs1065852": ("22", 42130692, "CC"),  # *10 absent
-            "rs28371706": ("22", 42127941, "CC"),  # *17 absent
-            "rs28371725": ("22", 42129770, "GG"),  # *41 absent
-        })
+        p = _write_23andme(
+            tmp_path,
+            {
+                "rs3892097": ("22", 42128945, "GG"),  # *4 absent
+                "rs1065852": ("22", 42130692, "CC"),  # *10 absent
+                "rs28371706": ("22", 42127941, "CC"),  # *17 absent
+                "rs28371725": ("22", 42129770, "GG"),  # *41 absent
+            },
+        )
         calls = parse_23andme(p)
         dp = call_cyp2d6(calls)
         assert dp.diplotype == "*1/*1"
@@ -150,12 +158,15 @@ class TestCyp2d6:
         assert diplotype_to_phenotype(dp) == "normal_metabolizer"
 
     def test_heterozygous_star4(self, tmp_path):
-        p = _write_23andme(tmp_path, {
-            "rs3892097": ("22", 42128945, "GA"),  # *4/*1
-            "rs1065852": ("22", 42130692, "CC"),
-            "rs28371706": ("22", 42127941, "CC"),
-            "rs28371725": ("22", 42129770, "GG"),
-        })
+        p = _write_23andme(
+            tmp_path,
+            {
+                "rs3892097": ("22", 42128945, "GA"),  # *4/*1
+                "rs1065852": ("22", 42130692, "CC"),
+                "rs28371706": ("22", 42127941, "CC"),
+                "rs28371725": ("22", 42129770, "GG"),
+            },
+        )
         dp = call_cyp2d6(parse_23andme(p))
         assert "*4" in (dp.allele1, dp.allele2)
         # Activity score = 1.0 (*4 = 0, *1 = 1.0)
@@ -163,21 +174,27 @@ class TestCyp2d6:
         assert diplotype_to_phenotype(dp) == "intermediate_metabolizer"
 
     def test_homozygous_star4_poor_metabolizer(self, tmp_path):
-        p = _write_23andme(tmp_path, {
-            "rs3892097": ("22", 42128945, "AA"),  # *4/*4
-            "rs1065852": ("22", 42130692, "CC"),
-            "rs28371706": ("22", 42127941, "CC"),
-            "rs28371725": ("22", 42129770, "GG"),
-        })
+        p = _write_23andme(
+            tmp_path,
+            {
+                "rs3892097": ("22", 42128945, "AA"),  # *4/*4
+                "rs1065852": ("22", 42130692, "CC"),
+                "rs28371706": ("22", 42127941, "CC"),
+                "rs28371725": ("22", 42129770, "GG"),
+            },
+        )
         dp = call_cyp2d6(parse_23andme(p))
         assert dp.allele1 == "*4" and dp.allele2 == "*4"
         assert dp.activity_score == 0.0
         assert diplotype_to_phenotype(dp) == "poor_metabolizer"
 
     def test_missing_defining_variants_is_unknown_not_reference(self, tmp_path):
-        p = _write_23andme(tmp_path, {
-            "rs1": ("22", 1, "GG"),
-        })
+        p = _write_23andme(
+            tmp_path,
+            {
+                "rs1": ("22", 1, "GG"),
+            },
+        )
         dp = call_cyp2d6(parse_23andme(p))
         assert dp.diplotype == "unknown/unknown"
         assert dp.activity_score is None
@@ -193,11 +210,14 @@ class TestCyp2d6ActivityScoreBands:
     """
 
     def _pheno_for_score(self, score):
-        from optiqal.genetics.pgx import Diplotype
         from optiqal.genetics.cpic import diplotype_to_phenotype
+        from optiqal.genetics.pgx import Diplotype
 
         dp = Diplotype(
-            gene="CYP2D6", allele1="*1", allele2="*1", activity_score=score,
+            gene="CYP2D6",
+            allele1="*1",
+            allele2="*1",
+            activity_score=score,
         )
         return diplotype_to_phenotype(dp)
 
@@ -228,49 +248,64 @@ class TestCyp2d6ActivityScoreBands:
 
 class TestCyp2c19:
     def test_reference_normal(self, tmp_path):
-        p = _write_23andme(tmp_path, {
-            "rs4244285": ("10", 96541616, "GG"),
-            "rs4986893": ("10", 96540410, "GG"),
-            "rs12248560": ("10", 96522463, "CC"),
-        })
+        p = _write_23andme(
+            tmp_path,
+            {
+                "rs4244285": ("10", 96541616, "GG"),
+                "rs4986893": ("10", 96540410, "GG"),
+                "rs12248560": ("10", 96522463, "CC"),
+            },
+        )
         dp = call_cyp2c19(parse_23andme(p))
         assert dp.diplotype == "*1/*1"
         assert diplotype_to_phenotype(dp) == "normal_metabolizer"
 
     def test_star2_hetero_is_im(self, tmp_path):
-        p = _write_23andme(tmp_path, {
-            "rs4244285": ("10", 96541616, "GA"),  # *2/*1
-            "rs4986893": ("10", 96540410, "GG"),
-            "rs12248560": ("10", 96522463, "CC"),
-        })
+        p = _write_23andme(
+            tmp_path,
+            {
+                "rs4244285": ("10", 96541616, "GA"),  # *2/*1
+                "rs4986893": ("10", 96540410, "GG"),
+                "rs12248560": ("10", 96522463, "CC"),
+            },
+        )
         dp = call_cyp2c19(parse_23andme(p))
         assert "*2" in (dp.allele1, dp.allele2)
         assert diplotype_to_phenotype(dp) == "intermediate_metabolizer"
 
     def test_star17_homo_is_um(self, tmp_path):
-        p = _write_23andme(tmp_path, {
-            "rs4244285": ("10", 96541616, "GG"),
-            "rs4986893": ("10", 96540410, "GG"),
-            "rs12248560": ("10", 96522463, "TT"),  # *17/*17
-        })
+        p = _write_23andme(
+            tmp_path,
+            {
+                "rs4244285": ("10", 96541616, "GG"),
+                "rs4986893": ("10", 96540410, "GG"),
+                "rs12248560": ("10", 96522463, "TT"),  # *17/*17
+            },
+        )
         dp = call_cyp2c19(parse_23andme(p))
         assert dp.allele1 == "*17" and dp.allele2 == "*17"
         assert diplotype_to_phenotype(dp) == "ultrarapid_metabolizer"
 
     def test_star2_homo_is_pm(self, tmp_path):
-        p = _write_23andme(tmp_path, {
-            "rs4244285": ("10", 96541616, "AA"),  # *2/*2
-            "rs4986893": ("10", 96540410, "GG"),
-            "rs12248560": ("10", 96522463, "CC"),
-        })
+        p = _write_23andme(
+            tmp_path,
+            {
+                "rs4244285": ("10", 96541616, "AA"),  # *2/*2
+                "rs4986893": ("10", 96540410, "GG"),
+                "rs12248560": ("10", 96522463, "CC"),
+            },
+        )
         dp = call_cyp2c19(parse_23andme(p))
         assert dp.allele1 == "*2" and dp.allele2 == "*2"
         assert diplotype_to_phenotype(dp) == "poor_metabolizer"
 
     def test_partial_missing_without_variant_is_unknown(self, tmp_path):
-        p = _write_23andme(tmp_path, {
-            "rs12248560": ("10", 96522463, "CC"),  # *17 absent
-        })
+        p = _write_23andme(
+            tmp_path,
+            {
+                "rs12248560": ("10", 96522463, "CC"),  # *17 absent
+            },
+        )
         dp = call_cyp2c19(parse_23andme(p))
         assert dp.diplotype == "unknown/unknown"
         assert diplotype_to_phenotype(dp) == "unknown"
@@ -278,10 +313,13 @@ class TestCyp2c19:
 
 class TestActionable:
     def test_hfe_c282y_homozygous_flagged(self, tmp_path):
-        p = _write_23andme(tmp_path, {
-            "rs1800562": ("6", 26093141, "AA"),  # C282Y/C282Y
-            "rs1799945": ("6", 26091179, "CC"),
-        })
+        p = _write_23andme(
+            tmp_path,
+            {
+                "rs1800562": ("6", 26093141, "AA"),  # C282Y/C282Y
+                "rs1799945": ("6", 26091179, "CC"),
+            },
+        )
         findings = call_hfe(parse_23andme(p))
         assert len(findings) == 1
         # Highest-penetrance C282Y/C282Y branch is flagged (wording softened
@@ -292,47 +330,62 @@ class TestActionable:
         assert "not a diagnosis" in findings[0].clinical_significance.lower()
 
     def test_hfe_wild_type(self, tmp_path):
-        p = _write_23andme(tmp_path, {
-            "rs1800562": ("6", 26093141, "GG"),
-            "rs1799945": ("6", 26091179, "CC"),
-        })
+        p = _write_23andme(
+            tmp_path,
+            {
+                "rs1800562": ("6", 26093141, "GG"),
+                "rs1799945": ("6", 26091179, "CC"),
+            },
+        )
         findings = call_hfe(parse_23andme(p))
         assert len(findings) == 1
         assert "No pathogenic" in findings[0].clinical_significance
 
     def test_apoe_e3_e4(self, tmp_path):
-        p = _write_23andme(tmp_path, {
-            "rs429358": ("19", 45411941, "CT"),
-            "rs7412": ("19", 45412079, "CC"),
-        })
+        p = _write_23andme(
+            tmp_path,
+            {
+                "rs429358": ("19", 45411941, "CT"),
+                "rs7412": ("19", 45412079, "CC"),
+            },
+        )
         findings = call_apoe(parse_23andme(p))
         assert len(findings) == 1
         assert findings[0].zygosity == "e3/e4"
 
     def test_apoe_e3_e3_reference(self, tmp_path):
-        p = _write_23andme(tmp_path, {
-            "rs429358": ("19", 45411941, "TT"),
-            "rs7412": ("19", 45412079, "CC"),
-        })
+        p = _write_23andme(
+            tmp_path,
+            {
+                "rs429358": ("19", 45411941, "TT"),
+                "rs7412": ("19", 45412079, "CC"),
+            },
+        )
         findings = call_apoe(parse_23andme(p))
         assert findings[0].zygosity == "e3/e3"
 
     def test_brca_ashkenazi_negative_panel(self, tmp_path):
-        p = _write_23andme(tmp_path, {
-            "rs80357914": ("17", 41276046, "AG"),  # BRCA1 185delAG ref
-            "rs80357906": ("17", 41244936, "--"),
-            "rs80359550": ("13", 32914438, "TT"),  # BRCA2 6174delT ref
-        })
+        p = _write_23andme(
+            tmp_path,
+            {
+                "rs80357914": ("17", 41276046, "AG"),  # BRCA1 185delAG ref
+                "rs80357906": ("17", 41244936, "--"),
+                "rs80359550": ("13", 32914438, "TT"),  # BRCA2 6174delT ref
+            },
+        )
         findings = call_ashkenazi_brca(parse_23andme(p))
         assert len(findings) == 1
         assert findings[0].zygosity == "absent"
 
     def test_brca_ashkenazi_detects_23andme_deletion_indel(self, tmp_path):
-        p = _write_23andme(tmp_path, {
-            "rs80357914": ("17", 41276046, "DI"),  # BRCA1 185delAG carrier
-            "rs80357906": ("17", 41244936, "--"),
-            "rs80359550": ("13", 32914438, "TT"),
-        })
+        p = _write_23andme(
+            tmp_path,
+            {
+                "rs80357914": ("17", 41276046, "DI"),  # BRCA1 185delAG carrier
+                "rs80357906": ("17", 41244936, "--"),
+                "rs80359550": ("13", 32914438, "TT"),
+            },
+        )
 
         findings = call_ashkenazi_brca(parse_23andme(p))
 
@@ -341,11 +394,14 @@ class TestActionable:
         ]
 
     def test_brca_ashkenazi_detects_23andme_insertion_indel(self, tmp_path):
-        p = _write_23andme(tmp_path, {
-            "rs80357914": ("17", 41276046, "AG"),
-            "rs80357906": ("17", 41244936, "DI"),  # BRCA1 5382insC carrier
-            "rs80359550": ("13", 32914438, "TT"),
-        })
+        p = _write_23andme(
+            tmp_path,
+            {
+                "rs80357914": ("17", 41276046, "AG"),
+                "rs80357906": ("17", 41244936, "DI"),  # BRCA1 5382insC carrier
+                "rs80359550": ("13", 32914438, "TT"),
+            },
+        )
 
         findings = call_ashkenazi_brca(parse_23andme(p))
 
@@ -387,45 +443,95 @@ class TestNonPrescriptivePhrasing:
     def _all_findings(self, tmp_path):
         findings = []
         # HFE C282Y homozygous (high-penetrance branch).
-        findings += call_hfe(parse_23andme(_write_23andme(self._dir(tmp_path, "a"), {
-            "rs1800562": ("6", 26093141, "AA"),
-            "rs1799945": ("6", 26091179, "CG"),  # H63D het (callable palindrome)
-        })))
+        findings += call_hfe(
+            parse_23andme(
+                _write_23andme(
+                    self._dir(tmp_path, "a"),
+                    {
+                        "rs1800562": ("6", 26093141, "AA"),
+                        "rs1799945": (
+                            "6",
+                            26091179,
+                            "CG",
+                        ),  # H63D het (callable palindrome)
+                    },
+                )
+            )
+        )
         # HFE C282Y het + H63D het (compound-het branch).
-        findings += call_hfe(parse_23andme(_write_23andme(self._dir(tmp_path, "b"), {
-            "rs1800562": ("6", 26093141, "GA"),
-            "rs1799945": ("6", 26091179, "CG"),
-        })))
+        findings += call_hfe(
+            parse_23andme(
+                _write_23andme(
+                    self._dir(tmp_path, "b"),
+                    {
+                        "rs1800562": ("6", 26093141, "GA"),
+                        "rs1799945": ("6", 26091179, "CG"),
+                    },
+                )
+            )
+        )
         # HFE C282Y carrier only.
-        findings += call_hfe(parse_23andme(_write_23andme(self._dir(tmp_path, "c"), {
-            "rs1800562": ("6", 26093141, "GA"),
-        })))
+        findings += call_hfe(
+            parse_23andme(
+                _write_23andme(
+                    self._dir(tmp_path, "c"),
+                    {
+                        "rs1800562": ("6", 26093141, "GA"),
+                    },
+                )
+            )
+        )
         # HFE H63D homozygous — exercised via a heterozygous-callable read is
         # not possible (homozygous palindromes are uncallable), so cover the
         # wild-type "no pathogenic genotype" branch instead.
-        findings += call_hfe(parse_23andme(_write_23andme(self._dir(tmp_path, "d"), {
-            "rs1800562": ("6", 26093141, "GG"),
-        })))
+        findings += call_hfe(
+            parse_23andme(
+                _write_23andme(
+                    self._dir(tmp_path, "d"),
+                    {
+                        "rs1800562": ("6", 26093141, "GG"),
+                    },
+                )
+            )
+        )
         # APOE e4/e4, e3/e4, e3/e3.
         for gt in ("CC", "CT", "TT"):
-            findings += call_apoe(parse_23andme(_write_23andme(
-                self._dir(tmp_path, f"e_{gt}"), {
-                    "rs429358": ("19", 45411941, gt),
-                    "rs7412": ("19", 45412079, "CC"),
-                })))
+            findings += call_apoe(
+                parse_23andme(
+                    _write_23andme(
+                        self._dir(tmp_path, f"e_{gt}"),
+                        {
+                            "rs429358": ("19", 45411941, gt),
+                            "rs7412": ("19", 45412079, "CC"),
+                        },
+                    )
+                )
+            )
         # BRCA carrier (BRCA1 185delAG) and the all-absent panel summary.
-        findings += call_ashkenazi_brca(parse_23andme(_write_23andme(
-            self._dir(tmp_path, "f"), {
-                "rs80357914": ("17", 41276046, "DI"),
-                "rs80357906": ("17", 41244936, "--"),
-                "rs80359550": ("13", 32914438, "TT"),
-            })))
-        findings += call_ashkenazi_brca(parse_23andme(_write_23andme(
-            self._dir(tmp_path, "g"), {
-                "rs80357914": ("17", 41276046, "AG"),
-                "rs80357906": ("17", 41244936, "--"),
-                "rs80359550": ("13", 32914438, "TT"),
-            })))
+        findings += call_ashkenazi_brca(
+            parse_23andme(
+                _write_23andme(
+                    self._dir(tmp_path, "f"),
+                    {
+                        "rs80357914": ("17", 41276046, "DI"),
+                        "rs80357906": ("17", 41244936, "--"),
+                        "rs80359550": ("13", 32914438, "TT"),
+                    },
+                )
+            )
+        )
+        findings += call_ashkenazi_brca(
+            parse_23andme(
+                _write_23andme(
+                    self._dir(tmp_path, "g"),
+                    {
+                        "rs80357914": ("17", 41276046, "AG"),
+                        "rs80357906": ("17", 41244936, "--"),
+                        "rs80359550": ("13", 32914438, "TT"),
+                    },
+                )
+            )
+        )
         return findings
 
     def test_every_finding_has_caveat_and_no_prescriptive_verbs(self, tmp_path):
@@ -446,12 +552,18 @@ class TestNonPrescriptivePhrasing:
     def test_brca_penetrance_not_presented_as_individual_prediction(self, tmp_path):
         # The ~70%/~40% founder-mutation penetrance figures, when shown, must
         # be framed as population averages in carriers, not the user's risk.
-        carrier = call_ashkenazi_brca(parse_23andme(_write_23andme(
-            self._dir(tmp_path, "h"), {
-                "rs80357914": ("17", 41276046, "DI"),
-                "rs80357906": ("17", 41244936, "--"),
-                "rs80359550": ("13", 32914438, "TT"),
-            })))
+        carrier = call_ashkenazi_brca(
+            parse_23andme(
+                _write_23andme(
+                    self._dir(tmp_path, "h"),
+                    {
+                        "rs80357914": ("17", 41276046, "DI"),
+                        "rs80357906": ("17", 41244936, "--"),
+                        "rs80359550": ("13", 32914438, "TT"),
+                    },
+                )
+            )
+        )
         assert len(carrier) == 1
         sig = carrier[0].clinical_significance.lower()
         if "70%" in sig or "40%" in sig:
@@ -515,10 +627,13 @@ class TestPalindromicStrandGuard:
         # C282Y is plain wild-type. The buggy code reported H63D homozygous
         # (mildly elevated iron risk). The guard must instead leave H63D
         # not-called and report no pathogenic genotype.
-        p = _write_23andme(tmp_path, {
-            "rs1800562": ("6", 26093141, "GG"),  # C282Y absent
-            "rs1799945": ("6", 26091179, "GG"),  # palindromic homozygous read
-        })
+        p = _write_23andme(
+            tmp_path,
+            {
+                "rs1800562": ("6", 26093141, "GG"),  # C282Y absent
+                "rs1799945": ("6", 26091179, "GG"),  # palindromic homozygous read
+            },
+        )
         findings = call_hfe(parse_23andme(p))
         assert len(findings) == 1
         f = findings[0]
@@ -529,23 +644,26 @@ class TestPalindromicStrandGuard:
 
 class TestGeneticProfile:
     def test_build_from_file(self, tmp_path):
-        p = _write_23andme(tmp_path, {
-            # CYP2D6 reference
-            "rs3892097": ("22", 42128945, "GG"),
-            "rs1065852": ("22", 42130692, "CC"),
-            "rs28371706": ("22", 42127941, "CC"),
-            "rs28371725": ("22", 42129770, "GG"),
-            # CYP2C19 reference
-            "rs4244285": ("10", 96541616, "GG"),
-            "rs4986893": ("10", 96540410, "GG"),
-            "rs12248560": ("10", 96522463, "CC"),
-            # HFE wild-type
-            "rs1800562": ("6", 26093141, "GG"),
-            "rs1799945": ("6", 26091179, "CC"),
-            # APOE e3/e3
-            "rs429358": ("19", 45411941, "TT"),
-            "rs7412": ("19", 45412079, "CC"),
-        })
+        p = _write_23andme(
+            tmp_path,
+            {
+                # CYP2D6 reference
+                "rs3892097": ("22", 42128945, "GG"),
+                "rs1065852": ("22", 42130692, "CC"),
+                "rs28371706": ("22", 42127941, "CC"),
+                "rs28371725": ("22", 42129770, "GG"),
+                # CYP2C19 reference
+                "rs4244285": ("10", 96541616, "GG"),
+                "rs4986893": ("10", 96540410, "GG"),
+                "rs12248560": ("10", 96522463, "CC"),
+                # HFE wild-type
+                "rs1800562": ("6", 26093141, "GG"),
+                "rs1799945": ("6", 26091179, "CC"),
+                # APOE e3/e3
+                "rs429358": ("19", 45411941, "TT"),
+                "rs7412": ("19", 45412079, "CC"),
+            },
+        )
         gp = build_genetic_profile(p, run_ashkenazi_brca=False)
         assert gp.phenotypes["CYP2D6"] == "normal_metabolizer"
         assert gp.phenotypes["CYP2C19"] == "normal_metabolizer"
@@ -554,21 +672,25 @@ class TestGeneticProfile:
         assert not gp.has_actionable("BRCA")
 
     def test_raw_genotypes_not_retained(self, tmp_path):
-        p = _write_23andme(tmp_path, {
-            "rs3892097": ("22", 42128945, "AA"),  # CYP2D6 *4/*4
-            "rs1065852": ("22", 42130692, "CC"),
-            "rs28371706": ("22", 42127941, "CC"),
-            "rs28371725": ("22", 42129770, "GG"),
-            "rs4244285": ("10", 96541616, "GG"),
-            "rs4986893": ("10", 96540410, "GG"),
-            "rs12248560": ("10", 96522463, "CC"),
-            "rs429358": ("19", 45411941, "TT"),
-            "rs7412": ("19", 45412079, "CC"),
-        })
+        p = _write_23andme(
+            tmp_path,
+            {
+                "rs3892097": ("22", 42128945, "AA"),  # CYP2D6 *4/*4
+                "rs1065852": ("22", 42130692, "CC"),
+                "rs28371706": ("22", 42127941, "CC"),
+                "rs28371725": ("22", 42129770, "GG"),
+                "rs4244285": ("10", 96541616, "GG"),
+                "rs4986893": ("10", 96540410, "GG"),
+                "rs12248560": ("10", 96522463, "CC"),
+                "rs429358": ("19", 45411941, "TT"),
+                "rs7412": ("19", 45412079, "CC"),
+            },
+        )
         gp = build_genetic_profile(p, run_ashkenazi_brca=False)
         # Privacy check: GeneticProfile fields should contain no raw
         # {rsid: genotype} mapping.
         import dataclasses
+
         field_names = {f.name for f in dataclasses.fields(gp)}
         assert "raw_genotypes" not in field_names
         assert "calls" not in field_names
@@ -593,16 +715,26 @@ class TestGeneticEffectRule:
         from optiqal.profile import Profile
 
         base_profile = Profile(
-            age=39, sex="male", bmi_category="normal", smoking_status="never",
-            has_diabetes=False, has_hypertension=False, activity_level="light",
+            age=39,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=False,
+            has_hypertension=False,
+            activity_level="light",
         )
         trazodone = CATALOG["trazodone_50mg"]
 
         base_mult = trazodone.profile_effect_multiplier(base_profile)
 
         um_profile = Profile(
-            age=39, sex="male", bmi_category="normal", smoking_status="never",
-            has_diabetes=False, has_hypertension=False, activity_level="light",
+            age=39,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=False,
+            has_hypertension=False,
+            activity_level="light",
             genetic_profile=GeneticProfile(
                 phenotypes={"CYP2D6": "ultrarapid_metabolizer"},
             ),
@@ -619,12 +751,22 @@ class TestGeneticEffectRule:
         # finasteride has no genetic rules
         fin = CATALOG["finasteride_1.25mg"]
         p_no = Profile(
-            age=39, sex="male", bmi_category="normal", smoking_status="never",
-            has_diabetes=False, has_hypertension=False, activity_level="light",
+            age=39,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=False,
+            has_hypertension=False,
+            activity_level="light",
         )
         p_with_pgx = Profile(
-            age=39, sex="male", bmi_category="normal", smoking_status="never",
-            has_diabetes=False, has_hypertension=False, activity_level="light",
+            age=39,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=False,
+            has_hypertension=False,
+            activity_level="light",
             genetic_profile=GeneticProfile(
                 phenotypes={"CYP2D6": "poor_metabolizer"},
             ),
@@ -637,19 +779,23 @@ class TestGeneticEffectRule:
 class TestReport:
     def test_renders_markdown(self, tmp_path):
         from optiqal.genetics.reports import render_markdown_report
-        p = _write_23andme(tmp_path, {
-            "rs3892097": ("22", 42128945, "AA"),  # CYP2D6 *4/*4 → PM
-            "rs1065852": ("22", 42130692, "CC"),
-            "rs28371706": ("22", 42127941, "CC"),
-            "rs28371725": ("22", 42129770, "GG"),
-            "rs4244285": ("10", 96541616, "GG"),
-            "rs4986893": ("10", 96540410, "GG"),
-            "rs12248560": ("10", 96522463, "CC"),
-            "rs1800562": ("6", 26093141, "GG"),
-            "rs1799945": ("6", 26091179, "CC"),
-            "rs429358": ("19", 45411941, "TC"),
-            "rs7412": ("19", 45412079, "CC"),
-        })
+
+        p = _write_23andme(
+            tmp_path,
+            {
+                "rs3892097": ("22", 42128945, "AA"),  # CYP2D6 *4/*4 → PM
+                "rs1065852": ("22", 42130692, "CC"),
+                "rs28371706": ("22", 42127941, "CC"),
+                "rs28371725": ("22", 42129770, "GG"),
+                "rs4244285": ("10", 96541616, "GG"),
+                "rs4986893": ("10", 96540410, "GG"),
+                "rs12248560": ("10", 96522463, "CC"),
+                "rs1800562": ("6", 26093141, "GG"),
+                "rs1799945": ("6", 26091179, "CC"),
+                "rs429358": ("19", 45411941, "TC"),
+                "rs7412": ("19", 45412079, "CC"),
+            },
+        )
         gp = build_genetic_profile(p, run_ashkenazi_brca=False)
         report = render_markdown_report(gp)
         assert "Input summary" in report

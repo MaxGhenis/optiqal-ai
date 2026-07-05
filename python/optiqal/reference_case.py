@@ -10,7 +10,6 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Literal, Mapping
 
-
 UtilityInstrument = Literal[
     "eq_5d",
     "sf_6d",
@@ -131,13 +130,21 @@ class UtilityWeight:
 
     def __post_init__(self) -> None:
         if not 0 <= self.value <= 1:
-            raise ValueError(f"Utility weight {self.id} must be in [0, 1], got {self.value}")
+            raise ValueError(
+                f"Utility weight {self.id} must be in [0, 1], got {self.value}"
+            )
         if self.lower is not None and not 0 <= self.lower <= 1:
             raise ValueError(f"Utility weight {self.id} lower bound must be in [0, 1]")
         if self.upper is not None and not 0 <= self.upper <= 1:
             raise ValueError(f"Utility weight {self.id} upper bound must be in [0, 1]")
-        if self.lower is not None and self.upper is not None and self.lower > self.upper:
-            raise ValueError(f"Utility weight {self.id} lower bound cannot exceed upper bound")
+        if (
+            self.lower is not None
+            and self.upper is not None
+            and self.lower > self.upper
+        ):
+            raise ValueError(
+                f"Utility weight {self.id} lower bound cannot exceed upper bound"
+            )
 
     @property
     def utility_decrement(self) -> float:
@@ -481,19 +488,21 @@ def morbidity_qaly_breakdown(
         weight = utility_weights[effect.utility_weight_id]
         qaly = morbidity_qaly(effect, utility_weights, reference_case=reference_case)
         total += qaly
-        rows.append({
-            "effect_id": effect.id,
-            "utility_weight_id": effect.utility_weight_id,
-            "label": weight.label,
-            "instrument": weight.instrument,
-            "reference_case_status": weight.reference_case_status,
-            "probability": effect.probability,
-            "duration_years": effect.duration_years,
-            "severity_multiplier": effect.severity_multiplier,
-            "direction": effect.direction,
-            "qaly": round(qaly, 6),
-            "source_url": weight.source_url,
-        })
+        rows.append(
+            {
+                "effect_id": effect.id,
+                "utility_weight_id": effect.utility_weight_id,
+                "label": weight.label,
+                "instrument": weight.instrument,
+                "reference_case_status": weight.reference_case_status,
+                "probability": effect.probability,
+                "duration_years": effect.duration_years,
+                "severity_multiplier": effect.severity_multiplier,
+                "direction": effect.direction,
+                "qaly": round(qaly, 6),
+                "source_url": weight.source_url,
+            }
+        )
     return {
         "reference_case": reference_case.id,
         "total_qaly": round(total, 6),

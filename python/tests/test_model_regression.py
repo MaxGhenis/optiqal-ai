@@ -6,8 +6,8 @@ import json
 from pathlib import Path
 
 from optiqal import (
-    AnalysisConfig,
     CATALOG,
+    AnalysisConfig,
     Profile,
     analyze,
     build_public_sleep_decision_specs,
@@ -15,14 +15,13 @@ from optiqal import (
     evaluate_decision_states,
     serialize_decision_state_evaluations,
 )
-from optiqal.web_api import build_baseline_response, build_frontier_response
 from optiqal.sleep import (
     SleepMetrics,
     SleepStudyResult,
     apply_sleep_study,
     estimate_sleep_burden,
 )
-
+from optiqal.web_api import build_baseline_response, build_frontier_response
 
 FIXTURES = json.loads(
     (Path(__file__).parent / "fixtures" / "model_regression.json").read_text()
@@ -95,10 +94,7 @@ def canonical_confirmed_mild_osa_estimate():
 
 
 def subset_entries():
-    return {
-        item_id: CATALOG[item_id]
-        for item_id in SUBSET_IDS
-    }
+    return {item_id: CATALOG[item_id] for item_id in SUBSET_IDS}
 
 
 def run_subset_analysis(sleep_estimate):
@@ -125,11 +121,26 @@ def test_confirmed_mild_osa_reweights_airway_choices_directionally():
     wearable_by_id = wearable.item_results_by_id
     confirmed_by_id = confirmed.item_results_by_id
 
-    assert wearable_by_id["daridorexant_25mg"]["total_qaly"] > wearable_by_id["apap_nightly"]["total_qaly"]
-    assert confirmed_by_id["apap_nightly"]["total_qaly"] > confirmed_by_id["daridorexant_25mg"]["total_qaly"]
-    assert confirmed_by_id["apap_nightly"]["total_qaly"] > wearable_by_id["apap_nightly"]["total_qaly"] * 5
-    assert confirmed_by_id["oral_appliance_custom"]["total_qaly"] > wearable_by_id["oral_appliance_custom"]["total_qaly"] * 5
-    assert confirmed_by_id["nasacort_nightly"]["total_qaly"] > wearable_by_id["nasacort_nightly"]["total_qaly"] * 4
+    assert (
+        wearable_by_id["daridorexant_25mg"]["total_qaly"]
+        > wearable_by_id["apap_nightly"]["total_qaly"]
+    )
+    assert (
+        confirmed_by_id["apap_nightly"]["total_qaly"]
+        > confirmed_by_id["daridorexant_25mg"]["total_qaly"]
+    )
+    assert (
+        confirmed_by_id["apap_nightly"]["total_qaly"]
+        > wearable_by_id["apap_nightly"]["total_qaly"] * 5
+    )
+    assert (
+        confirmed_by_id["oral_appliance_custom"]["total_qaly"]
+        > wearable_by_id["oral_appliance_custom"]["total_qaly"] * 5
+    )
+    assert (
+        confirmed_by_id["nasacort_nightly"]["total_qaly"]
+        > wearable_by_id["nasacort_nightly"]["total_qaly"] * 4
+    )
 
 
 def test_canonical_sleep_subset_matches_golden_ranges():
@@ -194,7 +205,9 @@ def test_public_sleep_decision_states_match_golden_ranges():
             cost_values=cost_values,
             horizon_years=analysis.config.horizon_years,
             stack_interaction_penalty_fn=stack_penalty_fn,
-            total_cost_value_fn=lambda item_ids: sum(cost_values[item_id] for item_id in item_ids),
+            total_cost_value_fn=lambda item_ids: sum(
+                cost_values[item_id] for item_id in item_ids
+            ),
             exclusive_groups=exclusive_groups,
         ),
         item_name_by_id={item_id: entry.name for item_id, entry in entries.items()},
@@ -206,8 +219,7 @@ def test_public_sleep_decision_states_match_golden_ranges():
 
     for state_id, options in fixture["ranges"].items():
         actual_by_id = {
-            option["id"]: option
-            for option in serialized[state_id]["options"]
+            option["id"]: option for option in serialized[state_id]["options"]
         }
         for option_id, field_ranges in options.items():
             for field, bounds in field_ranges.items():
@@ -241,7 +253,9 @@ def test_web_baseline_activity_monotonicity_holds_across_profile_matrix():
                         }
                     }
                 )
-                expected_death_ages.append(response["point_estimate"]["expected_death_age"])
+                expected_death_ages.append(
+                    response["point_estimate"]["expected_death_age"]
+                )
 
             assert expected_death_ages == sorted(expected_death_ages), (
                 f"activity monotonicity failed for age={age}, sex={sex}: "
@@ -328,7 +342,9 @@ def test_public_sleep_pathway_requires_meaningful_airway_signal():
             "n_simulations": 500,
         }
     )
-    assert airway_weighted_sleep["sleep_estimate"]["component_burdens"]["breathing"] > 0.0
+    assert (
+        airway_weighted_sleep["sleep_estimate"]["component_burdens"]["breathing"] > 0.0
+    )
     assert [state["id"] for state in airway_weighted_sleep["decision_states"]] == [
         "conservative_airway_support",
         "primary_osa_therapy_choice",
@@ -455,13 +471,15 @@ def test_airway_triggered_public_sleep_pathway_hides_contextual_rx_scores():
         for option in state["options"]
         for item_id in option["added_item_ids"]
     }
-    assert exposed_option_item_ids.isdisjoint({
-        "trazodone_50mg",
-        "doxepin_3mg",
-        "daridorexant_25mg",
-        "lemborexant_5mg",
-        "suvorexant_10mg",
-    })
+    assert exposed_option_item_ids.isdisjoint(
+        {
+            "trazodone_50mg",
+            "doxepin_3mg",
+            "daridorexant_25mg",
+            "lemborexant_5mg",
+            "suvorexant_10mg",
+        }
+    )
 
 
 def test_higher_risk_public_profile_can_surface_statin_and_glp1_without_metformin():

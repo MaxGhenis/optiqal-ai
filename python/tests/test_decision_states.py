@@ -1,12 +1,12 @@
 """Tests for stateful and sequence-aware decision helpers."""
 
 from optiqal.decision_states import (
-    build_public_sleep_decision_sequence,
-    build_public_sleep_decision_specs,
     ChoiceOptionSpec,
     ChoiceStateSpec,
     DecisionSequenceStepSpec,
     FrontierStateSpec,
+    build_public_sleep_decision_sequence,
+    build_public_sleep_decision_specs,
     evaluate_choice_set,
     evaluate_decision_states,
     summarize_stack_from_qalys,
@@ -81,7 +81,9 @@ def test_evaluate_decision_states_supports_declarative_frontier_and_choice_specs
                 base_item_ids=["base"],
                 options=[
                     ChoiceOptionSpec(id="none", label="No add-on", added_item_ids=[]),
-                    ChoiceOptionSpec(id="good", label="Good option", added_item_ids=["good"]),
+                    ChoiceOptionSpec(
+                        id="good", label="Good option", added_item_ids=["good"]
+                    ),
                 ],
             ),
         ],
@@ -165,12 +167,18 @@ def test_public_sleep_helpers_can_build_support_only_specs():
 
 
 def test_public_sleep_helpers_can_include_humidifier_in_support_only_specs():
-    specs = build_public_sleep_decision_specs(include_therapy=False, include_humidifier=True)
+    specs = build_public_sleep_decision_specs(
+        include_therapy=False, include_humidifier=True
+    )
 
     support_state = specs[0]
     option_ids = [option.id for option in support_state.options]
     assert "humidifier_nightly" in option_ids
-    combined_option = next(option for option in support_state.options if option.id == "combined_airway_support")
+    combined_option = next(
+        option
+        for option in support_state.options
+        if option.id == "combined_airway_support"
+    )
     assert combined_option.added_item_ids == [
         "head_elevation_nightly",
         "nasal_strips_nightly",

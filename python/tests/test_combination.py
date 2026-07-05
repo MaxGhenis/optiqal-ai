@@ -1,20 +1,21 @@
 """Tests for intervention combination module."""
 
-import pytest
 import sys
-sys.path.insert(0, 'python')
+
+import pytest
+
+sys.path.insert(0, "python")
 
 from optiqal.combination import (
-    get_overlap_factor,
+    combine_intervention_effects,
     estimate_combined_qaly_from_singles,
     find_optimal_portfolio_from_qalys,
     find_optimal_portfolio_with_costs,
+    get_overlap_factor,
     rank_interventions_by_marginal_cost_per_qaly,
-    combine_intervention_effects,
     simulate_combined_qaly,
-    OVERLAP_MATRIX,
 )
-from optiqal.intervention import Intervention, MortalityEffect, Distribution
+from optiqal.intervention import Distribution, Intervention, MortalityEffect
 from optiqal.profile import Profile
 
 
@@ -87,16 +88,14 @@ class TestCombinedQalyEstimation:
     def test_single_intervention_unchanged(self, sample_qalys):
         """Single intervention returns exact value."""
         result = estimate_combined_qaly_from_singles(
-            sample_qalys,
-            ["mediterranean_diet"]
+            sample_qalys, ["mediterranean_diet"]
         )
         assert result == pytest.approx(0.50, rel=0.01)
 
     def test_non_overlapping_near_additive(self, sample_qalys):
         """Non-overlapping interventions are additive."""
         result = estimate_combined_qaly_from_singles(
-            sample_qalys,
-            ["mediterranean_diet", "meditation_daily"]
+            sample_qalys, ["mediterranean_diet", "meditation_daily"]
         )
         simple_sum = 0.50 + 0.10
         assert result == pytest.approx(simple_sum)
@@ -104,8 +103,7 @@ class TestCombinedQalyEstimation:
     def test_overlapping_reduced(self, sample_qalys):
         """Overlapping interventions are reduced."""
         result = estimate_combined_qaly_from_singles(
-            sample_qalys,
-            ["walking_30min_daily", "daily_exercise_moderate"]
+            sample_qalys, ["walking_30min_daily", "daily_exercise_moderate"]
         )
         simple_sum = 0.15 + 0.35
         # Should be significantly less due to 0.4 overlap
@@ -115,13 +113,11 @@ class TestCombinedQalyEstimation:
         """Order affects which intervention gets overlap penalty - higher value first is better."""
         # Walking first, exercise second: exercise (higher) gets penalty
         walking_first = estimate_combined_qaly_from_singles(
-            sample_qalys,
-            ["walking_30min_daily", "daily_exercise_moderate"]
+            sample_qalys, ["walking_30min_daily", "daily_exercise_moderate"]
         )
         # Exercise first, walking second: walking (lower) gets penalty
         exercise_first = estimate_combined_qaly_from_singles(
-            sample_qalys,
-            ["daily_exercise_moderate", "walking_30min_daily"]
+            sample_qalys, ["daily_exercise_moderate", "walking_30min_daily"]
         )
         # Exercise first is better because the penalty is on the smaller value
         assert exercise_first > walking_first
@@ -131,14 +127,15 @@ class TestCombinedQalyEstimation:
         with_overlap = estimate_combined_qaly_from_singles(
             sample_qalys,
             ["walking_30min_daily", "daily_exercise_moderate"],
-            apply_overlap=True
+            apply_overlap=True,
         )
         without_overlap = estimate_combined_qaly_from_singles(
             sample_qalys,
             ["walking_30min_daily", "daily_exercise_moderate"],
-            apply_overlap=False
+            apply_overlap=False,
         )
         assert without_overlap > with_overlap
+
 
 class TestOptimalPortfolio:
     """Test optimal portfolio selection."""
@@ -168,8 +165,7 @@ class TestOptimalPortfolio:
     def test_respects_exclusions(self, sample_qalys):
         """Excluded interventions are not selected."""
         portfolio = find_optimal_portfolio_from_qalys(
-            sample_qalys,
-            exclude=["mediterranean_diet"]
+            sample_qalys, exclude=["mediterranean_diet"]
         )
         for step in portfolio:
             assert step["added_intervention"] != "mediterranean_diet"
@@ -195,7 +191,9 @@ class TestOptimalPortfolio:
         positions = {step["added_intervention"]: step["step"] for step in portfolio}
 
         # Exercise should come before walking (higher raw QALY, no prior overlap)
-        assert positions.get("daily_exercise_moderate", 99) < positions.get("walking_30min_daily", 99)
+        assert positions.get("daily_exercise_moderate", 99) < positions.get(
+            "walking_30min_daily", 99
+        )
 
 
 class TestMarginalCostEffectivenessRanking:
@@ -277,7 +275,13 @@ class TestMarginalCostEffectivenessRanking:
 
     def test_preselected_stack_uses_max_additions_not_total_size(self):
         ranking = rank_interventions_by_marginal_cost_per_qaly(
-            single_qalys={"base1": 0.01, "base2": 0.01, "base3": 0.01, "a": 0.05, "b": 0.02},
+            single_qalys={
+                "base1": 0.01,
+                "base2": 0.01,
+                "base3": 0.01,
+                "a": 0.05,
+                "b": 0.02,
+            },
             annual_costs={"base1": 10, "base2": 10, "base3": 10, "a": 50, "b": 20},
             cost_values={"base1": 10, "base2": 10, "base3": 10, "a": 50, "b": 20},
             preselected=["base1", "base2", "base3"],
@@ -285,13 +289,25 @@ class TestMarginalCostEffectivenessRanking:
         )
 
         assert [step["added_intervention"] for step in ranking] == ["b", "a"]
-        assert ranking[-1]["selected_interventions"] == ["base1", "base2", "base3", "b", "a"]
+        assert ranking[-1]["selected_interventions"] == [
+            "base1",
+            "base2",
+            "base3",
+            "b",
+            "a",
+        ]
 
 
 class TestCostAwarePortfolioWithPreselectedState:
     def test_preselected_stack_uses_max_additions_not_total_size(self):
         portfolio = find_optimal_portfolio_with_costs(
-            single_qalys={"base1": 0.01, "base2": 0.01, "base3": 0.01, "a": 0.05, "b": 0.02},
+            single_qalys={
+                "base1": 0.01,
+                "base2": 0.01,
+                "base3": 0.01,
+                "a": 0.05,
+                "b": 0.02,
+            },
             annual_costs={"base1": 10, "base2": 10, "base3": 10, "a": 50, "b": 20},
             cost_values={"base1": 10, "base2": 10, "base3": 10, "a": 50, "b": 20},
             wtp=10_000,
@@ -300,7 +316,13 @@ class TestCostAwarePortfolioWithPreselectedState:
         )
 
         assert [step["added_intervention"] for step in portfolio] == ["a", "b"]
-        assert portfolio[-1]["selected_interventions"] == ["base1", "base2", "base3", "a", "b"]
+        assert portfolio[-1]["selected_interventions"] == [
+            "base1",
+            "base2",
+            "base3",
+            "a",
+            "b",
+        ]
 
 
 class TestPortfolioQalyCeiling:
@@ -346,6 +368,7 @@ class TestPortfolioQalyCeiling:
     def test_ceiling_marginal_value_declines(self):
         """Each added item contributes less QALY under saturation."""
         from optiqal.combination import _saturate_total_qaly
+
         # Starting from 0, adding 1.0 raw adds ~0.63 saturated at ceiling 1.
         delta_first = _saturate_total_qaly(1.0, 1.0) - _saturate_total_qaly(0.0, 1.0)
         # Adding a second raw QALY on top adds much less.
@@ -447,6 +470,7 @@ class TestCombineInterventionEffects:
         earlier tests used 'lifestyle' (modifier 1.0), where the bug was a
         no-op."""
         from copy import deepcopy
+
         from optiqal.simulate import simulate_qaly_profile
 
         prof = Profile(
@@ -475,11 +499,17 @@ class TestCombineInterventionEffects:
             )
         )
         once = simulate_qaly_profile(
-            synth, prof, n_simulations=100, apply_confounding=False,
+            synth,
+            prof,
+            n_simulations=100,
+            apply_confounding=False,
             apply_intervention_modifier=False,
         )
         twice = simulate_qaly_profile(
-            synth, prof, n_simulations=100, apply_confounding=False,
+            synth,
+            prof,
+            n_simulations=100,
+            apply_confounding=False,
             apply_intervention_modifier=True,
         )
         # The exercise modifier is non-unity here, so once != twice.

@@ -8,10 +8,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
-BOOTSTRAP = ROOT / "autoagent" / "public-frontier-policy" / "bootstrap_autoagent_workspace.py"
-PREFLIGHT = ROOT / "autoagent" / "public-frontier-policy" / "check_autoagent_workspace.py"
+BOOTSTRAP = (
+    ROOT / "autoagent" / "public-frontier-policy" / "bootstrap_autoagent_workspace.py"
+)
+PREFLIGHT = (
+    ROOT / "autoagent" / "public-frontier-policy" / "check_autoagent_workspace.py"
+)
 
 
 def test_autoagent_workspace_bootstrap_exports_expected_files(tmp_path: Path) -> None:
@@ -29,18 +32,9 @@ def test_autoagent_workspace_bootstrap_exports_expected_files(tmp_path: Path) ->
 
     assert (workspace / "agent.py").exists()
     assert (workspace / "program.md").exists()
+    assert (workspace / "tasks" / "public-frontier-policy" / "task.toml").exists()
     assert (
-        workspace
-        / "tasks"
-        / "public-frontier-policy"
-        / "task.toml"
-    ).exists()
-    assert (
-        workspace
-        / "tasks"
-        / "public-frontier-policy"
-        / "files"
-        / "agent.py"
+        workspace / "tasks" / "public-frontier-policy" / "files" / "agent.py"
     ).exists()
 
     env = dict(os.environ)
@@ -61,7 +55,9 @@ def test_autoagent_workspace_bootstrap_exports_expected_files(tmp_path: Path) ->
     assert "comparison" in payload
 
 
-def test_bootstrap_does_not_overwrite_existing_root_harness_by_default(tmp_path: Path) -> None:
+def test_bootstrap_does_not_overwrite_existing_root_harness_by_default(
+    tmp_path: Path,
+) -> None:
     workspace = tmp_path / "autoagent-workspace"
     workspace.mkdir()
     (workspace / "agent.py").write_text("class AutoAgent:\n    pass\n")
@@ -80,16 +76,14 @@ def test_bootstrap_does_not_overwrite_existing_root_harness_by_default(tmp_path:
 
     assert (workspace / "agent.py").read_text() == "class AutoAgent:\n    pass\n"
     assert (workspace / "program.md").read_text() == "upstream program\n"
-    assert (
-        workspace / "tasks" / "public-frontier-policy" / "task.toml"
-    ).exists()
+    assert (workspace / "tasks" / "public-frontier-policy" / "task.toml").exists()
 
 
 def test_preflight_fails_without_provider_env(tmp_path: Path) -> None:
     workspace = tmp_path / "autoagent-workspace"
     workspace.mkdir()
     (workspace / "agent.py").write_text(
-        "from agents import Runner\nMODEL = \"gpt-5\"\nclass AutoAgent:\n    pass\n"
+        'from agents import Runner\nMODEL = "gpt-5"\nclass AutoAgent:\n    pass\n'
     )
     task_dir = workspace / "tasks" / "public-frontier-policy"
     task_dir.mkdir(parents=True)
@@ -156,7 +150,10 @@ def test_preflight_fails_when_docker_helper_missing_from_path(tmp_path: Path) ->
     )
 
     assert result.returncode == 1
-    assert "Missing Docker credential helper(s): docker-credential-osxkeychain" in result.stdout
+    assert (
+        "Missing Docker credential helper(s): docker-credential-osxkeychain"
+        in result.stdout
+    )
 
 
 def test_preflight_fails_when_judge_verdict_bundle_is_missing(tmp_path: Path) -> None:

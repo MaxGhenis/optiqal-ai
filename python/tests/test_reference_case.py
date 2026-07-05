@@ -4,8 +4,8 @@ import pytest
 
 from optiqal.reference_case import (
     DEFAULT_REFERENCE_CASE,
-    MorbidityEffect,
     PUBLIC_HEALTH_UTILITY_WEIGHTS,
+    MorbidityEffect,
     UtilityWeight,
     discounted_years,
     get_public_health_utility_weight,
@@ -78,7 +78,9 @@ def test_morbidity_qaly_signs_for_caused_and_avoided_health_states():
         direction="avoid",
     )
 
-    expected = 0.5 * 0.2 * discounted_years(2, DEFAULT_REFERENCE_CASE.health_discount_rate)
+    expected = (
+        0.5 * 0.2 * discounted_years(2, DEFAULT_REFERENCE_CASE.health_discount_rate)
+    )
     assert morbidity_qaly(caused, weights) == pytest.approx(-expected)
     assert morbidity_qaly(avoided, weights) == pytest.approx(expected)
 
@@ -117,7 +119,9 @@ def test_utility_reference_case_status_flags_personal_utility():
 
 
 def test_public_health_utility_weights_have_uncertainty_and_lineage():
-    insomnia = get_public_health_utility_weight("insomnia_disability_weight_europe_2015")
+    insomnia = get_public_health_utility_weight(
+        "insomnia_disability_weight_europe_2015"
+    )
     sleep_apnoea = PUBLIC_HEALTH_UTILITY_WEIGHTS[
         "sleep_apnoea_disability_weight_europe_2015"
     ]

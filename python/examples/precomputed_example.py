@@ -7,9 +7,9 @@ lifecycle QALY calculations by replacing ~70 interpolations per simulation
 with O(1) lookups.
 """
 
+import sys
 import time
 from pathlib import Path
-import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -40,10 +40,10 @@ def benchmark_precomputed_vs_interpolation():
 
     start = time.time()
     for _ in range(n_simulations):
-        result = model_fast.calculate(pathway_hrs)
+        model_fast.calculate(pathway_hrs)
     fast_duration = time.time() - start
 
-    print(f"\nWith Precomputed Baselines (fast path):")
+    print("\nWith Precomputed Baselines (fast path):")
     print(f"  {n_simulations} simulations in {fast_duration:.3f}s")
     print(f"  {n_simulations / fast_duration:.1f} simulations/second")
     print(f"  {fast_duration / n_simulations * 1000:.2f} ms/simulation")
@@ -53,10 +53,10 @@ def benchmark_precomputed_vs_interpolation():
 
     start = time.time()
     for _ in range(n_simulations):
-        result = model_slow.calculate(pathway_hrs)
+        model_slow.calculate(pathway_hrs)
     slow_duration = time.time() - start
 
-    print(f"\nWithout Precomputed Baselines (interpolation):")
+    print("\nWithout Precomputed Baselines (interpolation):")
     print(f"  {n_simulations} simulations in {slow_duration:.3f}s")
     print(f"  {n_simulations / slow_duration:.1f} simulations/second")
     print(f"  {slow_duration / n_simulations * 1000:.2f} ms/simulation")
@@ -73,7 +73,6 @@ def demonstrate_precomputed_lookups():
     print("=" * 70)
 
     ages = [0, 20, 40, 60, 80]
-    sexes = ["male", "female"]
 
     print("\nLife Expectancy (remaining years):")
     print(f"{'Age':<6} {'Male':>10} {'Female':>10}")
@@ -112,16 +111,16 @@ def demonstrate_intervention_calculation():
     statin = model.calculate(PathwayHRs(cvd=0.75, cancer=1.0, other=1.0))
 
     print(f"\nProfile: {age}-year-old {sex}")
-    print(f"\nBaseline (no intervention):")
+    print("\nBaseline (no intervention):")
     print(f"  Remaining QALYs: {baseline.baseline_qalys:.2f}")
     print(f"  Life years: {baseline.life_years_gained + baseline.baseline_qalys:.1f}")
 
-    print(f"\nWith statin (25% CVD risk reduction):")
+    print("\nWith statin (25% CVD risk reduction):")
     print(f"  Remaining QALYs: {statin.intervention_qalys:.2f}")
     print(f"  QALY gain: {statin.qaly_gain:.3f}")
     print(f"  Life years gained: {statin.life_years_gained:.2f}")
 
-    print(f"\nPathway contributions to QALY gain:")
+    print("\nPathway contributions to QALY gain:")
     print(f"  CVD: {statin.pathway_contributions['cvd']:.3f}")
     print(f"  Cancer: {statin.pathway_contributions['cancer']:.3f}")
     print(f"  Other: {statin.pathway_contributions['other']:.3f}")

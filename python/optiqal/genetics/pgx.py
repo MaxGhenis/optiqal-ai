@@ -108,9 +108,12 @@ def _call_gene(
         # Prefer calling no-function alleles first so PM/IM classifications
         # take priority over normal when variant copies overlap.
         key=lambda kv: (
-            0 if kv[1]["function"] == "none"
-            else 1 if kv[1]["function"] == "decreased"
-            else 2 if kv[1]["function"] == "increased"
+            0
+            if kv[1]["function"] == "none"
+            else 1
+            if kv[1]["function"] == "decreased"
+            else 2
+            if kv[1]["function"] == "increased"
             else 3
         ),
     )
@@ -177,11 +180,10 @@ def _call_gene(
     # Activity score when applicable.
     activity_score = None
     if gene == "CYP2D6":
-        score_lookup = {a: spec["activity_score"]
-                        for a, spec in gene_spec["star_alleles"].items()}
-        activity_score = (
-            score_lookup.get(allele1, 1.0) + score_lookup.get(allele2, 1.0)
-        )
+        score_lookup = {
+            a: spec["activity_score"] for a, spec in gene_spec["star_alleles"].items()
+        }
+        activity_score = score_lookup.get(allele1, 1.0) + score_lookup.get(allele2, 1.0)
 
     return Diplotype(
         gene=gene,

@@ -11,17 +11,18 @@ import pytest
 import optiqal.protocol_ground_up as protocol_ground_up
 from optiqal.catalog import CATALOG
 from optiqal.genetics import GeneticProfile
+from optiqal.profile import Profile
 from optiqal.protocol_ground_up import (
     PROFILE,
     StackSpec,
     apply_joint_fall_pathway,
-    build_glp1_phenotype_model,
     build_additional_specs,
     build_current_stack_drop_table,
     build_decision_rankings,
+    build_glp1_phenotype_model,
     build_protocol_optimizers,
-    build_state_marginal_decision_table,
     build_specs,
+    build_state_marginal_decision_table,
     cost_per_qaly,
     current_stack_interaction_tags,
     discount_factor,
@@ -41,7 +42,6 @@ from optiqal.protocol_ground_up import (
     resolve_stack_spec,
     simulate_structured_qaly,
 )
-from optiqal.profile import Profile
 from optiqal.protocol_personalization import (
     apply_protocol_spec,
     build_protocol_specs,
@@ -113,9 +113,15 @@ def test_reference_case_payload_uses_current_reference_discounting():
 
     assert payload["base"]["health_discount_rate"] == pytest.approx(0.03)
     assert payload["base"]["reporting_standard"] == "CHEERS 2022"
-    assert payload["current_protocol_model"]["health_discount_rate"] == pytest.approx(0.03)
-    assert payload["current_protocol_model"]["cost_discount_rate"] == pytest.approx(0.03)
-    assert payload["current_protocol_model"]["discounting_matches_reference_case"] is True
+    assert payload["current_protocol_model"]["health_discount_rate"] == pytest.approx(
+        0.03
+    )
+    assert payload["current_protocol_model"]["cost_discount_rate"] == pytest.approx(
+        0.03
+    )
+    assert (
+        payload["current_protocol_model"]["discounting_matches_reference_case"] is True
+    )
     assert payload["current_protocol_model"]["is_formal_reference_case"] is False
     assert (
         payload["current_protocol_model"]["reference_case_alignment"]
@@ -588,9 +594,10 @@ def test_estimate_item_applies_active_stack_interaction_harms():
     )
 
     assert stacked["direct_harm_qaly"] < alone["direct_harm_qaly"]
-    assert "sedation_stack" in stacked["qaly_lineage"]["components"]["direct_harm"][
-        "utility_lineage"
-    ]
+    assert (
+        "sedation_stack"
+        in stacked["qaly_lineage"]["components"]["direct_harm"]["utility_lineage"]
+    )
 
 
 def test_stack_interaction_harm_is_allocated_across_matching_tags():
@@ -620,9 +627,10 @@ def test_stack_interaction_harm_is_allocated_across_matching_tags():
 
     assert one_other_sedative["direct_harm_qaly"] < 0
     assert several_other_sedatives["direct_harm_qaly"] < 0
-    assert several_other_sedatives["direct_harm_qaly"] > one_other_sedative[
-        "direct_harm_qaly"
-    ]
+    assert (
+        several_other_sedatives["direct_harm_qaly"]
+        > one_other_sedative["direct_harm_qaly"]
+    )
 
 
 def test_protocol_state_counts_shared_stack_effects_once():
@@ -769,10 +777,7 @@ def test_latent_protocol_draws_preserve_item_marginal_distribution():
     specs = build_specs(baseline)
     specs.update(build_additional_specs(baseline))
     context = protocol_ground_up.resolve_protocol_context(None)
-    item = next(
-        item for item in load_protocol_items()
-        if item["id"] == "glycine_2g"
-    )
+    item = next(item for item in load_protocol_items() if item["id"] == "glycine_2g")
     estimate = estimate_item(
         item,
         specs["glycine_2g"],
@@ -851,10 +856,7 @@ def test_protocol_optimizer_enforces_exclusive_cardio_group():
         )
         for item_id in item_ids
     }
-    protocol_items = [
-        {"id": item_id, "status": "watching"}
-        for item_id in item_ids
-    ]
+    protocol_items = [{"id": item_id, "status": "watching"} for item_id in item_ids]
 
     result = optimize_protocol_state(
         protocol_items,
@@ -961,9 +963,10 @@ def test_protocol_optimizer_payload_has_net_and_qaly_views():
     )
 
     assert set(result) == {"net_benefit", "qaly"}
-    assert result["qaly"]["recommended_state"]["total_qaly"] >= result[
-        "net_benefit"
-    ]["recommended_state"]["total_qaly"]
+    assert (
+        result["qaly"]["recommended_state"]["total_qaly"]
+        >= result["net_benefit"]["recommended_state"]["total_qaly"]
+    )
 
 
 def test_estimate_item_samples_qol_overlay_uncertainty(monkeypatch):
@@ -1093,7 +1096,10 @@ def test_decision_rankings_split_actionable_items():
 
     assert rankings["free_positive_actions"][0]["id"] == "free_exercise"
     assert rankings["actionable_by_cost_per_qaly"][0]["id"] == "better_supplement"
-    assert rankings["supplement_candidates_by_cost_per_qaly"][0]["id"] == "better_supplement"
+    assert (
+        rankings["supplement_candidates_by_cost_per_qaly"][0]["id"]
+        == "better_supplement"
+    )
     assert rankings["negative_actionable"][0]["id"] == "bad_candidate"
     assert "current" not in {
         item["id"] for item in rankings["actionable_by_total_qaly"]
@@ -1113,7 +1119,9 @@ def test_current_stack_drop_table_uses_drop_sign_convention():
             "p_harm": 0.8,
             "cost_per_qaly": None,
             "reference_case_status": "fallback_utility_lineage",
-            "qaly_lineage": {"issues": ["direct_harm_uses_fallback_disability_weights"]},
+            "qaly_lineage": {
+                "issues": ["direct_harm_uses_fallback_disability_weights"]
+            },
         },
         {
             "id": "good_current",
@@ -1167,7 +1175,10 @@ def test_humidifier_stays_positive_but_below_stronger_airway_aids():
     specs = build_specs(baseline)
 
     assert specs["humidifier_nightly"].qol_annual > 0.0
-    assert specs["humidifier_nightly"].qol_annual < specs["nasal_strips_nightly"].qol_annual
+    assert (
+        specs["humidifier_nightly"].qol_annual
+        < specs["nasal_strips_nightly"].qol_annual
+    )
     assert specs["humidifier_nightly"].qol_annual < specs["nasacort_nightly"].qol_annual
 
 
@@ -1175,8 +1186,13 @@ def test_mouth_tape_lands_between_humidifier_and_nasal_strips():
     baseline = load_baseline()
     specs = build_specs(baseline)
 
-    assert specs["mouth_tape_nightly"].qol_annual > specs["humidifier_nightly"].qol_annual
-    assert specs["mouth_tape_nightly"].qol_annual < specs["nasal_strips_nightly"].qol_annual
+    assert (
+        specs["mouth_tape_nightly"].qol_annual > specs["humidifier_nightly"].qol_annual
+    )
+    assert (
+        specs["mouth_tape_nightly"].qol_annual
+        < specs["nasal_strips_nightly"].qol_annual
+    )
 
 
 def test_sleep_specs_reuse_catalog_sleep_and_airway_fields():
@@ -1193,7 +1209,9 @@ def test_sleep_specs_reuse_catalog_sleep_and_airway_fields():
         "head_elevation_nightly",
     ]:
         resolved = resolve_stack_spec(specs[item_id], CATALOG[item_id])
-        assert resolved.sleep_component_relief == CATALOG[item_id].sleep_component_relief
+        assert (
+            resolved.sleep_component_relief == CATALOG[item_id].sleep_component_relief
+        )
         assert resolved.airway_target_weights == CATALOG[item_id].airway_target_weights
 
     additional_specs = build_additional_specs(baseline)
@@ -1206,7 +1224,9 @@ def test_sleep_specs_reuse_catalog_sleep_and_airway_fields():
         "suvorexant_10mg",
     ]:
         resolved = resolve_stack_spec(additional_specs[item_id], CATALOG[item_id])
-        assert resolved.sleep_component_relief == CATALOG[item_id].sleep_component_relief
+        assert (
+            resolved.sleep_component_relief == CATALOG[item_id].sleep_component_relief
+        )
         assert resolved.airway_target_weights == CATALOG[item_id].airway_target_weights
 
 
@@ -1225,8 +1245,14 @@ def test_sleep_specs_can_stay_sparse_and_inherit_catalog_defaults():
     assert resolved.log_sd == CATALOG["nasacort_nightly"].log_sd
     assert resolved.conf_alpha == CATALOG["nasacort_nightly"].conf_alpha
     assert resolved.conf_beta == CATALOG["nasacort_nightly"].conf_beta
-    assert resolved.sleep_component_relief == CATALOG["nasacort_nightly"].sleep_component_relief
-    assert resolved.airway_target_weights == CATALOG["nasacort_nightly"].airway_target_weights
+    assert (
+        resolved.sleep_component_relief
+        == CATALOG["nasacort_nightly"].sleep_component_relief
+    )
+    assert (
+        resolved.airway_target_weights
+        == CATALOG["nasacort_nightly"].airway_target_weights
+    )
 
 
 def test_apply_protocol_spec_uses_specs_directly_without_metadata_roundtrip():
@@ -1241,7 +1267,9 @@ def test_apply_protocol_spec_uses_specs_directly_without_metadata_roundtrip():
         annual_cost=123.0,
     )
 
-    resolved = resolve_stack_spec(specs["nasacort_nightly"], CATALOG["nasacort_nightly"])
+    resolved = resolve_stack_spec(
+        specs["nasacort_nightly"], CATALOG["nasacort_nightly"]
+    )
 
     assert personalized.hr_observed == resolved.observed_hr
     assert personalized.qol_annual == resolved.qol_annual

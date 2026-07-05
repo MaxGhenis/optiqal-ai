@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import subprocess
 import sys
 import textwrap
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -149,7 +149,9 @@ def test_clump_local_imports_pandas_in_lazy_analysis_path() -> None:
     assert list(clumped["pos"]) == [100, 30_000]
 
 
-def test_run_pan_ukb_analysis_concat_import_is_lazy_safe(monkeypatch, tmp_path: Path) -> None:
+def test_run_pan_ukb_analysis_concat_import_is_lazy_safe(
+    monkeypatch, tmp_path: Path
+) -> None:
     paths = build_pan_ukb_paths(tmp_path / "pan-ukb")
     dummy = pd.DataFrame({"chr": [1], "pos": [100], "pval_EUR": [1e-9]})
 
@@ -239,19 +241,34 @@ def test_harmonize_data_drops_palindromic_by_default() -> None:
     outcome = pd.DataFrame(
         [
             {
-                "chr": 1, "pos": 100, "ref": "A", "alt": "G",
-                "beta_EUR": 0.05, "se_EUR": 0.01,
-                "neglog10_pval_EUR": 5.0, "af_EUR": 0.2,
+                "chr": 1,
+                "pos": 100,
+                "ref": "A",
+                "alt": "G",
+                "beta_EUR": 0.05,
+                "se_EUR": 0.01,
+                "neglog10_pval_EUR": 5.0,
+                "af_EUR": 0.2,
             },
             {
-                "chr": 2, "pos": 300, "ref": "A", "alt": "T",
-                "beta_EUR": 0.04, "se_EUR": 0.01,
-                "neglog10_pval_EUR": 4.0, "af_EUR": 0.3,
+                "chr": 2,
+                "pos": 300,
+                "ref": "A",
+                "alt": "T",
+                "beta_EUR": 0.04,
+                "se_EUR": 0.01,
+                "neglog10_pval_EUR": 4.0,
+                "af_EUR": 0.3,
             },
             {
-                "chr": 3, "pos": 500, "ref": "C", "alt": "G",
-                "beta_EUR": 0.03, "se_EUR": 0.01,
-                "neglog10_pval_EUR": 3.0, "af_EUR": 0.4,
+                "chr": 3,
+                "pos": 500,
+                "ref": "C",
+                "alt": "G",
+                "beta_EUR": 0.03,
+                "se_EUR": 0.01,
+                "neglog10_pval_EUR": 3.0,
+                "af_EUR": 0.4,
             },
         ]
     )

@@ -10,5 +10,7 @@ def validate_qaly_discount_rate(rate: float) -> float:
     if rate < 0:
         raise ValueError("QALY discount rate must be nonnegative.")
     if rate > 0.10:
-        raise ValueError("QALY discount rate above 10% is outside supported sensitivity bounds.")
+        raise ValueError(
+            "QALY discount rate above 10% is outside supported sensitivity bounds."
+        )
     return rate

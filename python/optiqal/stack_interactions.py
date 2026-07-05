@@ -13,7 +13,6 @@ from .lifecycle import get_mortality_rate
 from .profile import Profile, get_baseline_mortality_multiplier
 from .sleep import SLEEP_COMPONENT_BENEFIT_TAGS
 
-
 SLEEP_COMPONENT_RETENTION = (1.0, 0.55, 0.30, 0.15)
 # Steeper within-cluster retention schedules reflect that supplements hitting the
 # same biological pathway largely compete for the same upstream substrate or the
@@ -96,8 +95,7 @@ def _discounted_exposure_factor(
     """Return discounted exposure over an active duration."""
     return float(
         np.sum(
-            exposure_weights
-            * _active_years_curve(len(exposure_weights), active_years),
+            exposure_weights * _active_years_curve(len(exposure_weights), active_years),
         )
     )
 
@@ -147,7 +145,9 @@ def _get_triggered_rules(
     for rule in unique_rules.values():
         threshold = rule.minimum_matches or len(rule.requires_tags)
         matches = sum(tag_counts[tag] for tag in rule.requires_tags)
-        if matches >= threshold and all(tag_counts[tag] > 0 for tag in rule.requires_tags):
+        if matches >= threshold and all(
+            tag_counts[tag] > 0 for tag in rule.requires_tags
+        ):
             triggered.append(rule)
 
     return tag_counts, triggered
@@ -182,7 +182,9 @@ def _expected_benefit_overlap_qaly(
         if len(members) < 2:
             continue
         tag_counts[tag] = len(members)
-        penalty_multiplier = float(max(0.0, (benefit_tag_multipliers or {}).get(tag, 1.0)))
+        penalty_multiplier = float(
+            max(0.0, (benefit_tag_multipliers or {}).get(tag, 1.0))
+        )
         time_aware = (
             exposure_weights is not None
             and item_active_years is not None
@@ -238,7 +240,9 @@ def _expected_benefit_overlap_qaly(
                     item_penalties[item_id] = (penalty, tag, retained, True)
             continue
 
-        for rank, (item_id, qaly) in enumerate(sorted(members, key=lambda m: (-m[1], m[0]))):
+        for rank, (item_id, qaly) in enumerate(
+            sorted(members, key=lambda m: (-m[1], m[0]))
+        ):
             retained = _retained_fraction(tag, rank)
             penalty = qaly * (1.0 - retained) * penalty_multiplier
             current = item_penalties.get(item_id)
@@ -296,7 +300,9 @@ def expected_stack_interaction_qaly(
     survival = _baseline_survival(profile)
     discount = (1 / (1 + qaly_discount_rate)) ** np.arange(len(survival))
 
-    tag_counts, triggered_rules = _get_triggered_rules(item_ids, catalog_entries, extra_tags)
+    tag_counts, triggered_rules = _get_triggered_rules(
+        item_ids, catalog_entries, extra_tags
+    )
     total_penalty = 0.0
     details: List[dict] = []
 
@@ -321,17 +327,23 @@ def expected_stack_interaction_qaly(
                 penalty -= lifetime_prob * rule.event_qaly_loss.mean
             else:
                 expected_events = float(np.sum(annual_event_prob))
-                penalty -= min(expected_events, rule.max_events) * rule.event_qaly_loss.mean
+                penalty -= (
+                    min(expected_events, rule.max_events) * rule.event_qaly_loss.mean
+                )
 
         total_penalty += penalty
-        details.append({
-            "id": rule.id,
-            "description": rule.description,
-            "requires_tags": list(rule.requires_tags),
-            "matched_tag_count": int(sum(tag_counts[tag] for tag in rule.requires_tags)),
-            "active_years": rule_years,
-            "penalty_qaly": penalty,
-        })
+        details.append(
+            {
+                "id": rule.id,
+                "description": rule.description,
+                "requires_tags": list(rule.requires_tags),
+                "matched_tag_count": int(
+                    sum(tag_counts[tag] for tag in rule.requires_tags)
+                ),
+                "active_years": rule_years,
+                "penalty_qaly": penalty,
+            }
+        )
 
     overlap_penalty, overlap_details = _expected_benefit_overlap_qaly(
         item_ids=item_ids,

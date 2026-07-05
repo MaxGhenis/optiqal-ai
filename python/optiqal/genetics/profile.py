@@ -80,9 +80,7 @@ def build_genetic_profile(
         "CYP2D6": call_cyp2d6(calls),
         "CYP2C19": call_cyp2c19(calls),
     }
-    phenotypes = {
-        gene: diplotype_to_phenotype(dp) for gene, dp in diplotypes.items()
-    }
+    phenotypes = {gene: diplotype_to_phenotype(dp) for gene, dp in diplotypes.items()}
     findings: List[ActionableFinding] = []
     findings.extend(call_hfe(calls))
     findings.extend(call_apoe(calls))

@@ -6,13 +6,16 @@ Uses multiplicative hazard ratio model with overlap corrections.
 """
 
 from dataclasses import dataclass
-from typing import Callable, List, Tuple, Dict, Optional
+from typing import Callable, Dict, List, Optional, Tuple
+
 import numpy as np
 
-from .intervention import Intervention, MortalityEffect, Distribution
-from .profile import Profile, get_baseline_mortality_multiplier, get_intervention_modifier
-from .simulate import simulate_qaly_profile, SimulationResult
-
+from .intervention import Distribution, Intervention, MortalityEffect
+from .profile import (
+    Profile,
+    get_intervention_modifier,
+)
+from .simulate import SimulationResult, simulate_qaly_profile
 
 # =============================================================================
 # INTERVENTION OVERLAP MATRIX
@@ -24,21 +27,24 @@ from .simulate import simulate_qaly_profile, SimulationResult
 
 OVERLAP_MATRIX: Dict[Tuple[str, str], float] = {
     # Exercise interventions overlap substantially
-    ("walking_30min_daily", "daily_exercise_moderate"): 0.4,  # Walking is subset of moderate exercise
+    (
+        "walking_30min_daily",
+        "daily_exercise_moderate",
+    ): 0.4,  # Walking is subset of moderate exercise
     ("daily_exercise_moderate", "walking_30min_daily"): 0.4,
     ("walking_30min_daily", "strength_training"): 0.8,  # Different mechanisms
     ("strength_training", "walking_30min_daily"): 0.8,
-    ("daily_exercise_moderate", "strength_training"): 0.7,  # Some overlap in fitness benefits
+    (
+        "daily_exercise_moderate",
+        "strength_training",
+    ): 0.7,  # Some overlap in fitness benefits
     ("strength_training", "daily_exercise_moderate"): 0.7,
-
     # Diet overlaps
     ("mediterranean_diet", "fish_oil_supplement"): 0.5,  # Mediterranean includes fish
     ("fish_oil_supplement", "mediterranean_diet"): 0.5,
-
     # Stress/mental health overlaps
     ("meditation_daily", "sleep_8_hours"): 0.8,  # Both affect stress, some overlap
     ("sleep_8_hours", "meditation_daily"): 0.8,
-
     # Exercise affects sleep
     ("daily_exercise_moderate", "sleep_8_hours"): 0.85,
     ("sleep_8_hours", "daily_exercise_moderate"): 0.85,
@@ -175,6 +181,7 @@ def combine_intervention_effects(
 # COMBINED QALY SIMULATION
 # =============================================================================
 
+
 def simulate_combined_qaly(
     interventions: List[Intervention],
     profile: Profile,
@@ -224,6 +231,7 @@ def simulate_combined_qaly(
     # For combined interventions, we need to create a modified copy
     # that uses the combined HR
     from copy import deepcopy
+
     combined_intervention = deepcopy(base_intervention)
     combined_intervention.id = "+".join(i.id for i in interventions)
     combined_intervention.name = " + ".join(i.name for i in interventions)
@@ -251,6 +259,7 @@ def simulate_combined_qaly(
 # =============================================================================
 # QUICK COMBINATION ESTIMATE
 # =============================================================================
+
 
 def estimate_combined_qaly_from_singles(
     single_qalys: Dict[str, float],
@@ -304,6 +313,7 @@ def estimate_combined_qaly_from_singles(
 # OPTIMAL PORTFOLIO SELECTION
 # =============================================================================
 
+
 def find_optimal_portfolio(
     interventions: List[Intervention],
     profile: Profile,
@@ -345,13 +355,17 @@ def find_optimal_portfolio(
 
         # Find best next intervention
         best_id = None
-        best_marginal = -float('inf')
+        best_marginal = -float("inf")
         best_total = 0.0
 
-        current_total = estimate_combined_qaly_from_singles(
-            precomputed_qalys,
-            selected,
-        ) if selected else 0.0
+        current_total = (
+            estimate_combined_qaly_from_singles(
+                precomputed_qalys,
+                selected,
+            )
+            if selected
+            else 0.0
+        )
 
         for int_id in available:
             candidate = selected + [int_id]
@@ -450,7 +464,9 @@ def find_optimal_portfolio_with_costs(
         List of dicts with step, added_intervention, marginal_qaly,
         marginal_net_value, total_qaly, total_cost, interaction_penalty_qaly
     """
-    preselected = [item_id for item_id in (preselected or []) if item_id in single_qalys]
+    preselected = [
+        item_id for item_id in (preselected or []) if item_id in single_qalys
+    ]
     exclude = set(exclude or []) | set(preselected)
     available = set(single_qalys.keys()) - exclude
     cost_values = cost_values or {
@@ -501,7 +517,7 @@ def find_optimal_portfolio_with_costs(
 
     while available and len(portfolio_path) < max_interventions:
         best_id = None
-        best_marginal_net = -float('inf')
+        best_marginal_net = -float("inf")
         best_marginal_qaly = 0.0
         best_total_qaly = 0.0
         best_total_raw_qaly = 0.0
@@ -509,8 +525,12 @@ def find_optimal_portfolio_with_costs(
         best_marginal_interaction = 0.0
         best_total_cost_value = 0.0
         best_marginal_cost_value = 0.0
-        current_raw_total_qaly = _base_total_qaly(selected) + _interaction_penalty(selected)
-        current_total_qaly = _saturate_total_qaly(current_raw_total_qaly, portfolio_qaly_ceiling)
+        current_raw_total_qaly = _base_total_qaly(selected) + _interaction_penalty(
+            selected
+        )
+        current_total_qaly = _saturate_total_qaly(
+            current_raw_total_qaly, portfolio_qaly_ceiling
+        )
         current_interaction_penalty = _interaction_penalty(selected)
         current_total_cost_value = _total_cost_value(selected)
 
@@ -518,9 +538,12 @@ def find_optimal_portfolio_with_costs(
             candidate_selected = selected + [int_id]
             candidate_base_total_qaly = _base_total_qaly(candidate_selected)
             candidate_interaction_penalty = _interaction_penalty(candidate_selected)
-            candidate_raw_total_qaly = candidate_base_total_qaly + candidate_interaction_penalty
+            candidate_raw_total_qaly = (
+                candidate_base_total_qaly + candidate_interaction_penalty
+            )
             candidate_total_qaly = _saturate_total_qaly(
-                candidate_raw_total_qaly, portfolio_qaly_ceiling,
+                candidate_raw_total_qaly,
+                portfolio_qaly_ceiling,
             )
             marginal_qaly = candidate_total_qaly - current_total_qaly
 
@@ -535,7 +558,9 @@ def find_optimal_portfolio_with_costs(
                 best_total_qaly = candidate_total_qaly
                 best_total_raw_qaly = candidate_raw_total_qaly
                 best_interaction_penalty = candidate_interaction_penalty
-                best_marginal_interaction = candidate_interaction_penalty - current_interaction_penalty
+                best_marginal_interaction = (
+                    candidate_interaction_penalty - current_interaction_penalty
+                )
                 best_total_cost_value = candidate_total_cost_value
                 best_marginal_cost_value = marginal_cost_value
 
@@ -545,23 +570,25 @@ def find_optimal_portfolio_with_costs(
         selected.append(best_id)
         available.remove(best_id)
 
-        portfolio_path.append({
-            "step": len(portfolio_path) + 1,
-            "added_intervention": best_id,
-            "marginal_qaly": best_marginal_qaly,
-            "marginal_net_value": best_marginal_net,
-            "marginal_interaction_qaly": best_marginal_interaction,
-            "interaction_penalty_qaly": best_interaction_penalty,
-            "total_qaly": best_total_qaly,
-            "total_raw_qaly": best_total_raw_qaly,
-            "portfolio_qaly_ceiling": portfolio_qaly_ceiling,
-            "total_base_qaly": _base_total_qaly(selected),
-            "marginal_cost_value": best_marginal_cost_value,
-            "total_cost_value": best_total_cost_value,
-            "total_annual_cost": _total_annual_cost(selected),
-            "preselected_interventions": preselected.copy(),
-            "selected_interventions": selected.copy(),
-        })
+        portfolio_path.append(
+            {
+                "step": len(portfolio_path) + 1,
+                "added_intervention": best_id,
+                "marginal_qaly": best_marginal_qaly,
+                "marginal_net_value": best_marginal_net,
+                "marginal_interaction_qaly": best_marginal_interaction,
+                "interaction_penalty_qaly": best_interaction_penalty,
+                "total_qaly": best_total_qaly,
+                "total_raw_qaly": best_total_raw_qaly,
+                "portfolio_qaly_ceiling": portfolio_qaly_ceiling,
+                "total_base_qaly": _base_total_qaly(selected),
+                "marginal_cost_value": best_marginal_cost_value,
+                "total_cost_value": best_total_cost_value,
+                "total_annual_cost": _total_annual_cost(selected),
+                "preselected_interventions": preselected.copy(),
+                "selected_interventions": selected.copy(),
+            }
+        )
 
     return portfolio_path
 
@@ -595,7 +622,9 @@ def rank_interventions_by_marginal_cost_per_qaly(
     product pricing. Stop when no remaining intervention has positive marginal
     QALY.
     """
-    preselected = [item_id for item_id in (preselected or []) if item_id in single_qalys]
+    preselected = [
+        item_id for item_id in (preselected or []) if item_id in single_qalys
+    ]
     exclude = set(exclude or []) | set(preselected)
     available = set(single_qalys.keys()) - exclude
     cost_values = cost_values or {
@@ -651,7 +680,9 @@ def rank_interventions_by_marginal_cost_per_qaly(
         selected_exclusive_groups = {
             exclusive_groups[item_id]
             for item_id in selected
-            if exclusive_groups and item_id in exclusive_groups and exclusive_groups[item_id]
+            if exclusive_groups
+            and item_id in exclusive_groups
+            and exclusive_groups[item_id]
         }
 
         best_id = None
@@ -671,7 +702,9 @@ def rank_interventions_by_marginal_cost_per_qaly(
             candidate_selected = selected + [int_id]
             candidate_base_total_qaly = _base_total_qaly(candidate_selected)
             candidate_interaction_penalty = _interaction_penalty(candidate_selected)
-            candidate_total_qaly = candidate_base_total_qaly + candidate_interaction_penalty
+            candidate_total_qaly = (
+                candidate_base_total_qaly + candidate_interaction_penalty
+            )
             marginal_qaly = candidate_total_qaly - current_total_qaly
             if marginal_qaly <= 0:
                 continue
@@ -683,16 +716,17 @@ def rank_interventions_by_marginal_cost_per_qaly(
             else:
                 ratio = marginal_cost_value / marginal_qaly
 
-            if (
-                ratio < best_ratio
-                or (ratio == best_ratio and marginal_qaly > best_marginal_qaly)
+            if ratio < best_ratio or (
+                ratio == best_ratio and marginal_qaly > best_marginal_qaly
             ):
                 best_id = int_id
                 best_ratio = ratio
                 best_marginal_qaly = marginal_qaly
                 best_total_qaly = candidate_total_qaly
                 best_interaction_penalty = candidate_interaction_penalty
-                best_marginal_interaction = candidate_interaction_penalty - current_interaction_penalty
+                best_marginal_interaction = (
+                    candidate_interaction_penalty - current_interaction_penalty
+                )
                 best_total_cost_value = candidate_total_cost_value
                 best_marginal_cost_value = marginal_cost_value
 
@@ -701,21 +735,23 @@ def rank_interventions_by_marginal_cost_per_qaly(
 
         selected.append(best_id)
         available.remove(best_id)
-        ranking.append({
-            "step": len(ranking) + 1,
-            "added_intervention": best_id,
-            "marginal_qaly": best_marginal_qaly,
-            "marginal_cost_per_qaly": best_ratio,
-            "marginal_interaction_qaly": best_marginal_interaction,
-            "interaction_penalty_qaly": best_interaction_penalty,
-            "total_qaly": best_total_qaly,
-            "total_base_qaly": _base_total_qaly(selected),
-            "marginal_cost_value": best_marginal_cost_value,
-            "total_cost_value": best_total_cost_value,
-            "total_annual_cost": _total_annual_cost(selected),
-            "preselected_interventions": preselected.copy(),
-            "selected_interventions": selected.copy(),
-        })
+        ranking.append(
+            {
+                "step": len(ranking) + 1,
+                "added_intervention": best_id,
+                "marginal_qaly": best_marginal_qaly,
+                "marginal_cost_per_qaly": best_ratio,
+                "marginal_interaction_qaly": best_marginal_interaction,
+                "interaction_penalty_qaly": best_interaction_penalty,
+                "total_qaly": best_total_qaly,
+                "total_base_qaly": _base_total_qaly(selected),
+                "marginal_cost_value": best_marginal_cost_value,
+                "total_cost_value": best_total_cost_value,
+                "total_annual_cost": _total_annual_cost(selected),
+                "preselected_interventions": preselected.copy(),
+                "selected_interventions": selected.copy(),
+            }
+        )
 
     return ranking
 
@@ -748,14 +784,18 @@ def find_optimal_portfolio_from_qalys(
             break
 
         # Current total
-        current_total = estimate_combined_qaly_from_singles(
-            single_qalys,
-            selected,
-        ) if selected else 0.0
+        current_total = (
+            estimate_combined_qaly_from_singles(
+                single_qalys,
+                selected,
+            )
+            if selected
+            else 0.0
+        )
 
         # Find best next intervention
         best_id = None
-        best_marginal = -float('inf')
+        best_marginal = -float("inf")
         best_total = 0.0
 
         for int_id in available:
@@ -776,12 +816,14 @@ def find_optimal_portfolio_from_qalys(
 
         selected.append(best_id)
         available.remove(best_id)
-        portfolio_path.append({
-            "step": step + 1,
-            "added_intervention": best_id,
-            "marginal_qaly": best_marginal,
-            "total_qaly": best_total,
-            "selected_interventions": selected.copy(),
-        })
+        portfolio_path.append(
+            {
+                "step": step + 1,
+                "added_intervention": best_id,
+                "marginal_qaly": best_marginal,
+                "total_qaly": best_total,
+                "selected_interventions": selected.copy(),
+            }
+        )
 
     return portfolio_path

@@ -58,13 +58,22 @@ class ProfileEffectRule:
     max_age: Optional[int] = None
 
     def matches(self, profile: Profile) -> bool:
-        if self.bmi_categories is not None and profile.bmi_category not in self.bmi_categories:
+        if (
+            self.bmi_categories is not None
+            and profile.bmi_category not in self.bmi_categories
+        ):
             return False
         if self.has_diabetes is not None and profile.has_diabetes != self.has_diabetes:
             return False
-        if self.has_hypertension is not None and profile.has_hypertension != self.has_hypertension:
+        if (
+            self.has_hypertension is not None
+            and profile.has_hypertension != self.has_hypertension
+        ):
             return False
-        if self.activity_levels is not None and profile.activity_level not in self.activity_levels:
+        if (
+            self.activity_levels is not None
+            and profile.activity_level not in self.activity_levels
+        ):
             return False
         if self.min_age is not None and profile.age < self.min_age:
             return False
@@ -102,21 +111,27 @@ class QolEffect:
     source: Optional[str] = None
 
 
-EVIDENCE_EFFECT_MULTIPLIERS: Dict[Literal["high", "moderate", "low", "very-low"], float] = {
+EVIDENCE_EFFECT_MULTIPLIERS: Dict[
+    Literal["high", "moderate", "low", "very-low"], float
+] = {
     "high": 1.0,
     "moderate": 0.95,
     "low": 0.75,
     "very-low": 0.5,
 }
 
-EVIDENCE_CONFIDENCE_LABELS: Dict[Literal["high", "moderate", "low", "very-low"], Literal["high", "medium", "low"]] = {
+EVIDENCE_CONFIDENCE_LABELS: Dict[
+    Literal["high", "moderate", "low", "very-low"], Literal["high", "medium", "low"]
+] = {
     "high": "high",
     "moderate": "medium",
     "low": "low",
     "very-low": "low",
 }
 
-PublicRecommendationLane = Literal["consumer_public", "conditional_public", "personal_only"]
+PublicRecommendationLane = Literal[
+    "consumer_public", "conditional_public", "personal_only"
+]
 PublicCondition = Literal[
     "airway_signal",
     "osa_therapy_signal",
@@ -178,14 +193,22 @@ PUBLIC_PROFILE_RULE_FIELDS: tuple[PublicProfileRuleField, ...] = (
     "has_diabetes",
     "has_hypertension",
 )
-PUBLIC_PROFILE_RULE_OPERATORS: tuple[PublicProfileRuleOperator, ...] = ("gte", "eq", "in")
+PUBLIC_PROFILE_RULE_OPERATORS: tuple[PublicProfileRuleOperator, ...] = (
+    "gte",
+    "eq",
+    "in",
+)
 PUBLIC_CONDITION_EVALUATION_KINDS: tuple[PublicConditionEvaluationKind, ...] = (
     "sleep_any_threshold",
     "profile_score",
 )
 PUBLIC_LANE_DATA_PATH = Path(__file__).parent / "data" / "public_policy_lanes.json"
-PUBLIC_CONDITION_DATA_PATH = Path(__file__).parent / "data" / "public_policy_conditions.json"
-PUBLIC_ITEM_POLICY_DATA_PATH = Path(__file__).parent / "data" / "public_policy_items.json"
+PUBLIC_CONDITION_DATA_PATH = (
+    Path(__file__).parent / "data" / "public_policy_conditions.json"
+)
+PUBLIC_ITEM_POLICY_DATA_PATH = (
+    Path(__file__).parent / "data" / "public_policy_items.json"
+)
 
 
 @dataclass(frozen=True)
@@ -230,6 +253,7 @@ class PublicConditionSpec:
     threshold_rules: tuple[PublicThresholdRule, ...] = ()
     profile_rules: tuple[PublicProfileScoreRule, ...] = ()
     profile_score_threshold: Optional[int] = None
+
 
 @dataclass(frozen=True)
 class PublicLaneSpec:
@@ -293,11 +317,22 @@ def _load_public_item_policy_specs() -> Dict[str, PublicItemPolicySpec]:
         public_condition = raw_spec.get("public_condition")
         display_category = raw_spec.get("public_display_category_override")
 
-        if public_lane is not None and public_lane not in PUBLIC_RECOMMENDATION_LANE_VALUES:
+        if (
+            public_lane is not None
+            and public_lane not in PUBLIC_RECOMMENDATION_LANE_VALUES
+        ):
             raise ValueError(f"Unexpected public lane for {item_id}: {public_lane}")
-        if public_condition is not None and public_condition not in PUBLIC_CONDITION_VALUES:
-            raise ValueError(f"Unexpected public condition for {item_id}: {public_condition}")
-        if display_category is not None and display_category not in PUBLIC_DISPLAY_CATEGORY_VALUES:
+        if (
+            public_condition is not None
+            and public_condition not in PUBLIC_CONDITION_VALUES
+        ):
+            raise ValueError(
+                f"Unexpected public condition for {item_id}: {public_condition}"
+            )
+        if (
+            display_category is not None
+            and display_category not in PUBLIC_DISPLAY_CATEGORY_VALUES
+        ):
             raise ValueError(
                 f"Unexpected public display category override for {item_id}: {display_category}"
             )
@@ -310,6 +345,7 @@ def _load_public_item_policy_specs() -> Dict[str, PublicItemPolicySpec]:
         )
 
     return loaded_specs
+
 
 def _load_public_condition_specs() -> Dict[PublicCondition, PublicConditionSpec]:
     """Load declarative public condition definitions from packaged JSON."""
@@ -328,13 +364,17 @@ def _load_public_condition_specs() -> Dict[PublicCondition, PublicConditionSpec]
 
         evaluation_kind = raw_spec["evaluation_kind"]
         if evaluation_kind not in PUBLIC_CONDITION_EVALUATION_KINDS:
-            raise ValueError(f"Unexpected evaluation kind for {condition_id}: {evaluation_kind}")
+            raise ValueError(
+                f"Unexpected evaluation kind for {condition_id}: {evaluation_kind}"
+            )
 
         threshold_rules = []
         for rule in raw_spec.get("threshold_rules", []):
             signal = rule["signal"]
             if signal not in PUBLIC_THRESHOLD_SIGNAL_VALUES:
-                raise ValueError(f"Unexpected threshold signal for {condition_id}: {signal}")
+                raise ValueError(
+                    f"Unexpected threshold signal for {condition_id}: {signal}"
+                )
             threshold_rules.append(
                 PublicThresholdRule(
                     signal=signal,
@@ -349,9 +389,13 @@ def _load_public_condition_specs() -> Dict[PublicCondition, PublicConditionSpec]
             operator = rule["operator"]
             value = rule["value"]
             if field_name not in PUBLIC_PROFILE_RULE_FIELDS:
-                raise ValueError(f"Unexpected profile field for {condition_id}: {field_name}")
+                raise ValueError(
+                    f"Unexpected profile field for {condition_id}: {field_name}"
+                )
             if operator not in PUBLIC_PROFILE_RULE_OPERATORS:
-                raise ValueError(f"Unexpected profile operator for {condition_id}: {operator}")
+                raise ValueError(
+                    f"Unexpected profile operator for {condition_id}: {operator}"
+                )
             if operator == "in" and isinstance(value, list):
                 value = tuple(value)
             profile_rules.append(
@@ -366,7 +410,9 @@ def _load_public_condition_specs() -> Dict[PublicCondition, PublicConditionSpec]
 
         profile_score_threshold = raw_spec.get("profile_score_threshold")
         if evaluation_kind == "profile_score" and profile_score_threshold is None:
-            raise ValueError(f"profile_score condition {condition_id} requires profile_score_threshold")
+            raise ValueError(
+                f"profile_score condition {condition_id} requires profile_score_threshold"
+            )
 
         loaded_specs[condition_id] = PublicConditionSpec(
             id=condition_id,
@@ -377,16 +423,24 @@ def _load_public_condition_specs() -> Dict[PublicCondition, PublicConditionSpec]
             threshold_rules=tuple(threshold_rules),
             profile_rules=tuple(profile_rules),
             profile_score_threshold=(
-                int(profile_score_threshold) if profile_score_threshold is not None else None
+                int(profile_score_threshold)
+                if profile_score_threshold is not None
+                else None
             ),
         )
 
     return loaded_specs
 
 
-PUBLIC_CONDITION_SPECS: Dict[PublicCondition, PublicConditionSpec] = _load_public_condition_specs()
-PUBLIC_LANE_SPECS: Dict[PublicRecommendationLane, PublicLaneSpec] = _load_public_lane_specs()
-PUBLIC_ITEM_POLICY_SPECS: Dict[str, PublicItemPolicySpec] = _load_public_item_policy_specs()
+PUBLIC_CONDITION_SPECS: Dict[PublicCondition, PublicConditionSpec] = (
+    _load_public_condition_specs()
+)
+PUBLIC_LANE_SPECS: Dict[PublicRecommendationLane, PublicLaneSpec] = (
+    _load_public_lane_specs()
+)
+PUBLIC_ITEM_POLICY_SPECS: Dict[str, PublicItemPolicySpec] = (
+    _load_public_item_policy_specs()
+)
 
 
 def _profile_adjusted_hr(hr: float, multiplier: float) -> float:
@@ -414,9 +468,13 @@ class CatalogEntry:
     id: str
     name: str
     category: Literal[
-        "rx_current", "rx_candidate", "supplement_current",
-        "supplement_bought", "supplement_candidate",
-        "sleep_current", "sleep_candidate",
+        "rx_current",
+        "rx_candidate",
+        "supplement_current",
+        "supplement_bought",
+        "supplement_candidate",
+        "sleep_current",
+        "sleep_candidate",
     ]
     hr_observed: float  # Raw observed HR from literature (before pub bias correction)
     log_sd: float  # Uncertainty in log(HR)
@@ -492,7 +550,9 @@ class CatalogEntry:
 
     def raw_qol_annual(self) -> float:
         """Expected annual non-mortality QALY before evidence shrinkage."""
-        return self.qol_annual + sum(effect.annual_qaly.mean for effect in self.qol_effects)
+        return self.qol_annual + sum(
+            effect.annual_qaly.mean for effect in self.qol_effects
+        )
 
     def effective_qol_annual(self) -> float:
         return self.raw_qol_annual() * self.evidence_effect_multiplier()
@@ -528,7 +588,9 @@ class CatalogEntry:
         """
         shrinkage = self.effective_pub_bias_shrinkage(fallback=pub_bias_shrinkage)
         hr = publication_bias_correct(self.hr_observed, shrinkage=shrinkage)
-        combined_multiplier = self.profile_effect_multiplier(profile) * self.evidence_effect_multiplier()
+        combined_multiplier = (
+            self.profile_effect_multiplier(profile) * self.evidence_effect_multiplier()
+        )
         return _profile_adjusted_hr(hr, combined_multiplier)
 
     def effective_annual_cost(self) -> float:
@@ -621,7 +683,8 @@ class CatalogEntry:
                 ),
             )
             confounding_prior = ConfoundingPrior(
-                alpha=self.conf_alpha, beta=self.conf_beta,
+                alpha=self.conf_alpha,
+                beta=self.conf_beta,
             )
         return Intervention(
             id=self.id,
@@ -679,7 +742,8 @@ def _add(entry: CatalogEntry) -> None:
             public_lane=policy.public_lane or entry.public_lane,
             public_condition=policy.public_condition,
             public_display_category_override=(
-                policy.public_display_category_override or entry.public_display_category_override
+                policy.public_display_category_override
+                or entry.public_display_category_override
             ),
         )
     CATALOG[entry.id] = entry
@@ -688,1287 +752,1953 @@ def _add(entry: CatalogEntry) -> None:
 # ---------------------------------------------------------------------------
 # Prescriptions — current
 # ---------------------------------------------------------------------------
-_add(CatalogEntry(
-    "finasteride_1.25mg", "Finasteride 1.25mg", "rx_current",
-    hr_observed=0.93, log_sd=0.10, conf_alpha=4.0, conf_beta=2.5,
-    annual_cost=171,  # $14.99 / (8*4 doses) * 365 = $171/yr
-    qol_annual=0.015,
-    harm_effects=[
-        HarmEffect(
-            id="sexual_or_mood_side_effects",
-            description="Persistent sexual or mood side effects in a minority of users.",
-            annual_qaly_loss=Distribution(type="normal", params={"mean": 0.0015, "sd": 0.0007}),
+_add(
+    CatalogEntry(
+        "finasteride_1.25mg",
+        "Finasteride 1.25mg",
+        "rx_current",
+        hr_observed=0.93,
+        log_sd=0.10,
+        conf_alpha=4.0,
+        conf_beta=2.5,
+        annual_cost=171,  # $14.99 / (8*4 doses) * 365 = $171/yr
+        qol_annual=0.015,
+        harm_effects=[
+            HarmEffect(
+                id="sexual_or_mood_side_effects",
+                description="Persistent sexual or mood side effects in a minority of users.",
+                annual_qaly_loss=Distribution(
+                    type="normal", params={"mean": 0.0015, "sd": 0.0007}
+                ),
+            ),
+        ],
+        notes="PCPT RCT n=18882. Hair preservation.",
+    )
+)
+_add(
+    CatalogEntry(
+        "tadalafil_2.5mg",
+        "Tadalafil 2.5mg",
+        "rx_current",
+        hr_observed=0.88,
+        log_sd=0.15,
+        conf_alpha=2.0,
+        conf_beta=4.0,
+        annual_cost=252,  # $20.72 / 30 * 365 = $252/yr
+        qol_annual=0.020,
+        harm_effects=[
+            HarmEffect(
+                id="headache_or_hypotension",
+                description="Rare symptomatic hypotension or other PDE5 adverse effects.",
+                event_probability=Distribution(type="point", params={"value": 0.002}),
+                event_qaly_loss=Distribution(type="point", params={"value": 0.02}),
+            ),
+        ],
+        interaction_tags=["vasodilator"],
+        notes="Anderson 2016 obs HR 0.67. Endothelial RCTs.",
+    )
+)
+_add(
+    CatalogEntry(
+        "trazodone_50mg",
+        "Trazodone 50mg",
+        "rx_current",
+        hr_observed=1.00,
+        log_sd=0.05,
+        conf_alpha=3.0,
+        conf_beta=3.0,
+        annual_cost=223,  # $18.34 / 30 * 365 = $223/yr
+        qol_annual=0.0005,
+        has_direct_mortality_effect=False,
+        exclusive_group="insomnia_rx",
+        harm_effects=[
+            HarmEffect(
+                id="daytime_sedation",
+                description="Residual morning grogginess or orthostatic effects.",
+                annual_qaly_loss=Distribution(
+                    type="normal", params={"mean": 0.0012, "sd": 0.0005}
+                ),
+            ),
+        ],
+        interaction_tags=["sedating"],
+        interaction_rules=[SEDATION_STACK_RULE],
+        sleep_component_relief={
+            "duration": 0.22,
+            "continuity": 0.20,
+            "quality": 0.25,
+            "daytime": 0.12,
+        },
+        benefit_tags=[
+            "sleep_duration_support",
+            "sleep_continuity_support",
+            "sleep_quality_support",
+            "sleep_daytime_support",
+        ],
+        access_profile=AccessProfile(
+            tier="generic_rx",
+            coverage_outlook="likely",
+            friction="low",
+            notes="Generic prescription. Usually lower-friction than branded insomnia agents if a clinician is willing to prescribe it.",
         ),
-    ],
-    notes="PCPT RCT n=18882. Hair preservation.",
-))
-_add(CatalogEntry(
-    "tadalafil_2.5mg", "Tadalafil 2.5mg", "rx_current",
-    hr_observed=0.88, log_sd=0.15, conf_alpha=2.0, conf_beta=4.0,
-    annual_cost=252,  # $20.72 / 30 * 365 = $252/yr
-    qol_annual=0.020,
-    harm_effects=[
-        HarmEffect(
-            id="headache_or_hypotension",
-            description="Rare symptomatic hypotension or other PDE5 adverse effects.",
-            event_probability=Distribution(type="point", params={"value": 0.002}),
-            event_qaly_loss=Distribution(type="point", params={"value": 0.02}),
+        notes="Sleep maintenance. No mortality data.",
+        evidence_quality="moderate",
+    )
+)
+_add(
+    CatalogEntry(
+        "doxepin_3mg",
+        "Doxepin 3mg",
+        "sleep_candidate",
+        hr_observed=1.0,
+        log_sd=0.05,
+        conf_alpha=2.0,
+        conf_beta=4.5,
+        annual_cost=60,
+        qol_annual=0.0002,
+        has_direct_mortality_effect=False,
+        exclusive_group="insomnia_rx",
+        harm_effects=[
+            HarmEffect(
+                id="antihistamine_hangover",
+                description="Possible morning grogginess, dry mouth, or anticholinergic nuisance.",
+                annual_qaly_loss=Distribution(
+                    type="normal", params={"mean": 0.00035, "sd": 0.00018}
+                ),
+            ),
+        ],
+        interaction_tags=["sedating"],
+        interaction_rules=[SEDATION_STACK_RULE],
+        sleep_component_relief={
+            "duration": 0.08,
+            "continuity": 0.22,
+            "quality": 0.10,
+            "daytime": 0.06,
+        },
+        benefit_tags=[
+            "sleep_duration_support",
+            "sleep_continuity_support",
+            "sleep_quality_support",
+            "sleep_daytime_support",
+        ],
+        access_profile=AccessProfile(
+            tier="generic_rx",
+            coverage_outlook="likely",
+            friction="low",
+            notes="Generic prescription. Often easier to cover than branded DORAs.",
         ),
-    ],
-    interaction_tags=["vasodilator"],
-    notes="Anderson 2016 obs HR 0.67. Endothelial RCTs.",
-))
-_add(CatalogEntry(
-    "trazodone_50mg", "Trazodone 50mg", "rx_current",
-    hr_observed=1.00, log_sd=0.05, conf_alpha=3.0, conf_beta=3.0,
-    annual_cost=223,  # $18.34 / 30 * 365 = $223/yr
-    qol_annual=0.0005,
-    has_direct_mortality_effect=False,
-    exclusive_group="insomnia_rx",
-    harm_effects=[
-        HarmEffect(
-            id="daytime_sedation",
-            description="Residual morning grogginess or orthostatic effects.",
-            annual_qaly_loss=Distribution(type="normal", params={"mean": 0.0012, "sd": 0.0005}),
+        notes=(
+            "Low-dose doxepin is guideline-supported for sleep-maintenance insomnia. "
+            "Respiratory caution exists in severe sleep apnea, but it is not clearly contraindicated in mild OSA."
         ),
-    ],
-    interaction_tags=["sedating"],
-    interaction_rules=[SEDATION_STACK_RULE],
-    sleep_component_relief={
-        "duration": 0.22,
-        "continuity": 0.20,
-        "quality": 0.25,
-        "daytime": 0.12,
-    },
-    benefit_tags=[
-        "sleep_duration_support",
-        "sleep_continuity_support",
-        "sleep_quality_support",
-        "sleep_daytime_support",
-    ],
-    access_profile=AccessProfile(
-        tier="generic_rx",
-        coverage_outlook="likely",
-        friction="low",
-        notes="Generic prescription. Usually lower-friction than branded insomnia agents if a clinician is willing to prescribe it.",
-    ),
-    notes="Sleep maintenance. No mortality data.",
-    evidence_quality="moderate",
-))
-_add(CatalogEntry(
-    "doxepin_3mg", "Doxepin 3mg", "sleep_candidate",
-    hr_observed=1.0, log_sd=0.05, conf_alpha=2.0, conf_beta=4.5,
-    annual_cost=60, qol_annual=0.0002,
-    has_direct_mortality_effect=False,
-    exclusive_group="insomnia_rx",
-    harm_effects=[
-        HarmEffect(
-            id="antihistamine_hangover",
-            description="Possible morning grogginess, dry mouth, or anticholinergic nuisance.",
-            annual_qaly_loss=Distribution(type="normal", params={"mean": 0.00035, "sd": 0.00018}),
+        sources=[
+            "https://aasm.org/resources/pdf/pharmacologictreatmentofinsomnia.pdf",
+            "https://www.accessdata.fda.gov/drugsatfda_docs/label/2010/022036lbl.pdf",
+        ],
+        evidence_quality="moderate",
+    )
+)
+_add(
+    CatalogEntry(
+        "daridorexant_25mg",
+        "Daridorexant 25mg",
+        "sleep_candidate",
+        hr_observed=1.0,
+        log_sd=0.05,
+        conf_alpha=2.4,
+        conf_beta=4.2,
+        annual_cost=6156,
+        qol_annual=0.0002,
+        has_direct_mortality_effect=False,
+        exclusive_group="insomnia_rx",
+        harm_effects=[
+            HarmEffect(
+                id="next_day_somnolence",
+                description="Residual somnolence or dizziness in a minority of users.",
+                annual_qaly_loss=Distribution(
+                    type="normal", params={"mean": 0.00022, "sd": 0.00012}
+                ),
+            ),
+        ],
+        interaction_tags=["sedating"],
+        interaction_rules=[SEDATION_STACK_RULE],
+        sleep_component_relief={
+            "duration": 0.12,
+            "continuity": 0.24,
+            "quality": 0.12,
+            "daytime": 0.10,
+        },
+        benefit_tags=[
+            "sleep_duration_support",
+            "sleep_continuity_support",
+            "sleep_quality_support",
+            "sleep_daytime_support",
+        ],
+        access_profile=AccessProfile(
+            tier="brand_rx_prior_auth",
+            coverage_outlook="mixed",
+            friction="high",
+            notes="Brand-only DORA. Coverage often depends on prior authorization and plan-specific insomnia criteria.",
         ),
-    ],
-    interaction_tags=["sedating"],
-    interaction_rules=[SEDATION_STACK_RULE],
-    sleep_component_relief={
-        "duration": 0.08,
-        "continuity": 0.22,
-        "quality": 0.10,
-        "daytime": 0.06,
-    },
-    benefit_tags=[
-        "sleep_duration_support",
-        "sleep_continuity_support",
-        "sleep_quality_support",
-        "sleep_daytime_support",
-    ],
-    access_profile=AccessProfile(
-        tier="generic_rx",
-        coverage_outlook="likely",
-        friction="low",
-        notes="Generic prescription. Often easier to cover than branded DORAs.",
-    ),
-    notes=(
-        "Low-dose doxepin is guideline-supported for sleep-maintenance insomnia. "
-        "Respiratory caution exists in severe sleep apnea, but it is not clearly contraindicated in mild OSA."
-    ),
-    sources=[
-        "https://aasm.org/resources/pdf/pharmacologictreatmentofinsomnia.pdf",
-        "https://www.accessdata.fda.gov/drugsatfda_docs/label/2010/022036lbl.pdf",
-    ],
-    evidence_quality="moderate",
-))
-_add(CatalogEntry(
-    "daridorexant_25mg", "Daridorexant 25mg", "sleep_candidate",
-    hr_observed=1.0, log_sd=0.05, conf_alpha=2.4, conf_beta=4.2,
-    annual_cost=6156, qol_annual=0.0002,
-    has_direct_mortality_effect=False,
-    exclusive_group="insomnia_rx",
-    harm_effects=[
-        HarmEffect(
-            id="next_day_somnolence",
-            description="Residual somnolence or dizziness in a minority of users.",
-            annual_qaly_loss=Distribution(type="normal", params={"mean": 0.00022, "sd": 0.00012}),
+        notes=(
+            "Dual orexin receptor antagonist with direct mild-to-moderate OSA respiratory-safety data. "
+            "Modeled as a cleaner maintenance-insomnia option than trazodone, but very expensive."
         ),
-    ],
-    interaction_tags=["sedating"],
-    interaction_rules=[SEDATION_STACK_RULE],
-    sleep_component_relief={
-        "duration": 0.12,
-        "continuity": 0.24,
-        "quality": 0.12,
-        "daytime": 0.10,
-    },
-    benefit_tags=[
-        "sleep_duration_support",
-        "sleep_continuity_support",
-        "sleep_quality_support",
-        "sleep_daytime_support",
-    ],
-    access_profile=AccessProfile(
-        tier="brand_rx_prior_auth",
-        coverage_outlook="mixed",
-        friction="high",
-        notes="Brand-only DORA. Coverage often depends on prior authorization and plan-specific insomnia criteria.",
-    ),
-    notes=(
-        "Dual orexin receptor antagonist with direct mild-to-moderate OSA respiratory-safety data. "
-        "Modeled as a cleaner maintenance-insomnia option than trazodone, but very expensive."
-    ),
-    sources=[
-        "https://pubmed.ncbi.nlm.nih.gov/35065036/",
-        "https://pubmed.ncbi.nlm.nih.gov/33305817/",
-        "https://pubmed.ncbi.nlm.nih.gov/39543812/",
-    ],
-    evidence_quality="high",
-))
-_add(CatalogEntry(
-    "lemborexant_5mg", "Lemborexant 5mg", "sleep_candidate",
-    hr_observed=1.0, log_sd=0.05, conf_alpha=2.5, conf_beta=4.1,
-    annual_cost=4350, qol_annual=0.0002,
-    has_direct_mortality_effect=False,
-    exclusive_group="insomnia_rx",
-    harm_effects=[
-        HarmEffect(
-            id="next_day_somnolence",
-            description="Residual somnolence, balance impairment, or orexin-class parasomnia burden.",
-            annual_qaly_loss=Distribution(type="normal", params={"mean": 0.00028, "sd": 0.00014}),
+        sources=[
+            "https://pubmed.ncbi.nlm.nih.gov/35065036/",
+            "https://pubmed.ncbi.nlm.nih.gov/33305817/",
+            "https://pubmed.ncbi.nlm.nih.gov/39543812/",
+        ],
+        evidence_quality="high",
+    )
+)
+_add(
+    CatalogEntry(
+        "lemborexant_5mg",
+        "Lemborexant 5mg",
+        "sleep_candidate",
+        hr_observed=1.0,
+        log_sd=0.05,
+        conf_alpha=2.5,
+        conf_beta=4.1,
+        annual_cost=4350,
+        qol_annual=0.0002,
+        has_direct_mortality_effect=False,
+        exclusive_group="insomnia_rx",
+        harm_effects=[
+            HarmEffect(
+                id="next_day_somnolence",
+                description="Residual somnolence, balance impairment, or orexin-class parasomnia burden.",
+                annual_qaly_loss=Distribution(
+                    type="normal", params={"mean": 0.00028, "sd": 0.00014}
+                ),
+            ),
+        ],
+        interaction_tags=["sedating"],
+        interaction_rules=[SEDATION_STACK_RULE],
+        sleep_component_relief={
+            "duration": 0.13,
+            "continuity": 0.28,
+            "quality": 0.13,
+            "daytime": 0.09,
+        },
+        benefit_tags=[
+            "sleep_duration_support",
+            "sleep_continuity_support",
+            "sleep_quality_support",
+            "sleep_daytime_support",
+        ],
+        access_profile=AccessProfile(
+            tier="brand_rx_prior_auth",
+            coverage_outlook="mixed",
+            friction="high",
+            notes="Brand-only DORA. Coverage often depends on prior authorization and prior step-therapy failures.",
         ),
-    ],
-    interaction_tags=["sedating"],
-    interaction_rules=[SEDATION_STACK_RULE],
-    sleep_component_relief={
-        "duration": 0.13,
-        "continuity": 0.28,
-        "quality": 0.13,
-        "daytime": 0.09,
-    },
-    benefit_tags=[
-        "sleep_duration_support",
-        "sleep_continuity_support",
-        "sleep_quality_support",
-        "sleep_daytime_support",
-    ],
-    access_profile=AccessProfile(
-        tier="brand_rx_prior_auth",
-        coverage_outlook="mixed",
-        friction="high",
-        notes="Brand-only DORA. Coverage often depends on prior authorization and prior step-therapy failures.",
-    ),
-    notes=(
-        "Dual orexin receptor antagonist with direct respiratory-safety data in mild through severe OSA. "
-        "Modeled as slightly more efficacious than daridorexant for maintenance insomnia, but with a bit more next-day drag."
-    ),
-    sources=[
-        "https://pubmed.ncbi.nlm.nih.gov/32585700/",
-        "https://pubmed.ncbi.nlm.nih.gov/32187781/",
-        "https://pubmed.ncbi.nlm.nih.gov/37677076/",
-        "https://pubmed.ncbi.nlm.nih.gov/40848323/",
-    ],
-    evidence_quality="high",
-))
-_add(CatalogEntry(
-    "suvorexant_10mg", "Suvorexant 10mg", "sleep_candidate",
-    hr_observed=1.0, log_sd=0.05, conf_alpha=2.2, conf_beta=4.8,
-    annual_cost=5686, qol_annual=0.0002,
-    has_direct_mortality_effect=False,
-    exclusive_group="insomnia_rx",
-    harm_effects=[
-        HarmEffect(
-            id="next_day_somnolence",
-            description="Residual somnolence plus orexin-class complex sleep behavior and cataplexy-like burden.",
-            annual_qaly_loss=Distribution(type="normal", params={"mean": 0.00045, "sd": 0.0002}),
+        notes=(
+            "Dual orexin receptor antagonist with direct respiratory-safety data in mild through severe OSA. "
+            "Modeled as slightly more efficacious than daridorexant for maintenance insomnia, but with a bit more next-day drag."
         ),
-    ],
-    interaction_tags=["sedating"],
-    interaction_rules=[SEDATION_STACK_RULE],
-    sleep_component_relief={
-        "duration": 0.11,
-        "continuity": 0.22,
-        "quality": 0.11,
-        "daytime": 0.08,
-    },
-    benefit_tags=[
-        "sleep_duration_support",
-        "sleep_continuity_support",
-        "sleep_quality_support",
-        "sleep_daytime_support",
-    ],
-    access_profile=AccessProfile(
-        tier="brand_rx_prior_auth",
-        coverage_outlook="mixed",
-        friction="high",
-        notes="Brand-only DORA. May be covered, but often with prior authorization and more respiratory caution than newer peers.",
-    ),
-    notes=(
-        "Dual orexin receptor antagonist with clear insomnia efficacy, but the label keeps more respiratory caution in OSA "
-        "than daridorexant or lemborexant. Modeled as a middling trazodone alternative for mild OSA."
-    ),
-    sources=[
-        "https://pubmed.ncbi.nlm.nih.gov/27397664/",
-        "https://pubmed.ncbi.nlm.nih.gov/26194728/",
-        "https://pubmed.ncbi.nlm.nih.gov/39543812/",
-        "https://www.drugs.com/pro/belsomra.html",
-    ],
-    evidence_quality="low",
-))
-_add(CatalogEntry(
-    "nasacort_nightly", "Nasacort nightly", "sleep_current",
-    hr_observed=1.0, log_sd=0.05, conf_alpha=2.0, conf_beta=4.5,
-    annual_cost=120, qol_annual=0.0002,
-    has_direct_mortality_effect=False,
-    sleep_component_relief={
-        "breathing": 0.24,
-        "continuity": 0.05,
-        "quality": 0.06,
-    },
-    airway_target_weights={
-        "upper_airway": 0.4,
-        "nasal_inflammation": 0.6,
-    },
-    benefit_tags=[
-        "sleep_breathing_support",
-        "sleep_continuity_support",
-        "sleep_quality_support",
-    ],
-    access_profile=AccessProfile(
-        tier="otc",
-        coverage_outlook="na",
-        friction="low",
-        notes="Over-the-counter nasal steroid. Easy to trial without specialist access.",
-    ),
-    notes=(
-        "Best-supported for congestion-mediated sleep disturbance and as an adjunct "
-        "in nasal-obstruction OSA phenotypes. Main benefit is upper-airway, not "
-        "general prevention."
-    ),
-    sources=[
-        "https://pubmed.ncbi.nlm.nih.gov/9042068/",
-        "https://pubmed.ncbi.nlm.nih.gov/30154874/",
-        "https://pubmed.ncbi.nlm.nih.gov/15124166/",
-    ],
-    evidence_quality="high",
-))
-_add(CatalogEntry(
-    "nasal_strips_nightly", "Nasal strips nightly", "sleep_current",
-    hr_observed=1.0, log_sd=0.05, conf_alpha=1.8, conf_beta=4.8,
-    annual_cost=180, qol_annual=0.0001,
-    has_direct_mortality_effect=False,
-    sleep_component_relief={
-        "breathing": 0.14,
-        "quality": 0.05,
-    },
-    airway_target_weights={
-        "upper_airway": 0.8,
-        "nasal_inflammation": 0.2,
-    },
-    benefit_tags=[
-        "sleep_breathing_support",
-        "sleep_quality_support",
-    ],
-    access_profile=AccessProfile(
-        tier="otc",
-        coverage_outlook="na",
-        friction="low",
-        notes="Over-the-counter and easy to test immediately, but usually only a modest airway aid.",
-    ),
-    notes=(
-        "Primarily a subjective nasal-congestion and snoring aid. Helps when the "
-        "problem is upper-airway narrowing, but usually not a large standalone OSA treatment."
-    ),
-    sources=[
-        "https://pubmed.ncbi.nlm.nih.gov/30154874/",
-    ],
-    evidence_quality="moderate",
-))
-_add(CatalogEntry(
-    "humidifier_nightly", "Humidifier nightly", "sleep_candidate",
-    hr_observed=1.0, log_sd=0.06, conf_alpha=1.2, conf_beta=6.2,
-    annual_cost=80, qol_annual=0.00005,
-    has_direct_mortality_effect=False,
-    sleep_component_relief={
-        "breathing": 0.05,
-        "continuity": 0.03,
-        "quality": 0.05,
-    },
-    airway_target_weights={
-        "upper_airway": 0.25,
-        "nasal_inflammation": 0.65,
-        "mucus": 0.10,
-    },
-    benefit_tags=[
-        "sleep_breathing_support",
-        "sleep_continuity_support",
-        "sleep_quality_support",
-    ],
-    access_profile=AccessProfile(
-        tier="cash_pay",
-        coverage_outlook="na",
-        friction="low",
-        notes="Low-friction bedroom hardware, but only attractive if the room is actually dry and you keep humidity in a safe range.",
-    ),
-    notes=(
-        "Modeled as a small dryness / nasal-comfort intervention, not a meaningful standalone OSA treatment. "
-        "Best case is low ambient humidity or waking with dry irritated nasal passages."
-    ),
-    sources=[
-        "https://www.aaaai.org/tools-for-the-public/conditions-library/allergies/humidifiers-and-indoor-allergies",
-        "https://www.epa.gov/mold/mold-course-chapter-2",
-        "https://pubmed.ncbi.nlm.nih.gov/3348500/",
-    ],
-    evidence_quality="low",
-))
-_add(CatalogEntry(
-    "mouth_tape_nightly", "Mouth tape nightly", "sleep_candidate",
-    hr_observed=1.0, log_sd=0.06, conf_alpha=1.3, conf_beta=6.0,
-    annual_cost=220, qol_annual=0.00008,
-    has_direct_mortality_effect=False,
-    harm_effects=[
-        HarmEffect(
-            id="mouth_tape_irritation_or_fragmentation",
-            description="Skin irritation, discomfort, or fragmented sleep if it feels intolerable.",
-            annual_qaly_loss=Distribution(type="normal", params={"mean": 0.00018, "sd": 0.0001}),
+        sources=[
+            "https://pubmed.ncbi.nlm.nih.gov/32585700/",
+            "https://pubmed.ncbi.nlm.nih.gov/32187781/",
+            "https://pubmed.ncbi.nlm.nih.gov/37677076/",
+            "https://pubmed.ncbi.nlm.nih.gov/40848323/",
+        ],
+        evidence_quality="high",
+    )
+)
+_add(
+    CatalogEntry(
+        "suvorexant_10mg",
+        "Suvorexant 10mg",
+        "sleep_candidate",
+        hr_observed=1.0,
+        log_sd=0.05,
+        conf_alpha=2.2,
+        conf_beta=4.8,
+        annual_cost=5686,
+        qol_annual=0.0002,
+        has_direct_mortality_effect=False,
+        exclusive_group="insomnia_rx",
+        harm_effects=[
+            HarmEffect(
+                id="next_day_somnolence",
+                description="Residual somnolence plus orexin-class complex sleep behavior and cataplexy-like burden.",
+                annual_qaly_loss=Distribution(
+                    type="normal", params={"mean": 0.00045, "sd": 0.0002}
+                ),
+            ),
+        ],
+        interaction_tags=["sedating"],
+        interaction_rules=[SEDATION_STACK_RULE],
+        sleep_component_relief={
+            "duration": 0.11,
+            "continuity": 0.22,
+            "quality": 0.11,
+            "daytime": 0.08,
+        },
+        benefit_tags=[
+            "sleep_duration_support",
+            "sleep_continuity_support",
+            "sleep_quality_support",
+            "sleep_daytime_support",
+        ],
+        access_profile=AccessProfile(
+            tier="brand_rx_prior_auth",
+            coverage_outlook="mixed",
+            friction="high",
+            notes="Brand-only DORA. May be covered, but often with prior authorization and more respiratory caution than newer peers.",
         ),
-    ],
-    sleep_component_relief={
-        "breathing": 0.10,
-        "quality": 0.04,
-        "continuity": 0.02,
-    },
-    airway_target_weights={
-        "upper_airway": 1.0,
-    },
-    benefit_tags=[
-        "sleep_breathing_support",
-        "sleep_quality_support",
-        "sleep_continuity_support",
-    ],
-    access_profile=AccessProfile(
-        tier="cash_pay",
-        coverage_outlook="na",
-        friction="low",
-        notes="Low-friction cash-pay adjunct. Best case is a clear mouth-breathing phenotype with decent nasal patency.",
-    ),
-    notes=(
-        "Modeled as a phenotype-specific mouth-breathing intervention, not a generic OSA fix. "
-        "The evidence suggests some benefit in mild OSA or snoring when habitual open-mouth breathing is part of the problem, "
-        "but the literature is still thin."
-    ),
-    sources=[
-        "https://pubmed.ncbi.nlm.nih.gov/25450408/",
-        "https://pubmed.ncbi.nlm.nih.gov/38780959/",
-        "https://pubmed.ncbi.nlm.nih.gov/39662104/",
-        "https://pubmed.ncbi.nlm.nih.gov/25766699/",
-    ],
-    evidence_quality="low",
-))
-_add(CatalogEntry(
-    "head_elevation_nightly", "Head elevation nightly", "sleep_current",
-    hr_observed=1.0, log_sd=0.05, conf_alpha=2.2, conf_beta=4.2,
-    annual_cost=0, qol_annual=0.0001,
-    has_direct_mortality_effect=False,
-    sleep_component_relief={
-        "breathing": 0.18,
-        "continuity": 0.05,
-    },
-    airway_target_weights={
-        "upper_airway": 1.0,
-    },
-    benefit_tags=[
-        "sleep_breathing_support",
-        "sleep_continuity_support",
-    ],
-    access_profile=AccessProfile(
-        tier="behavioral",
-        coverage_outlook="na",
-        friction="low",
-        notes="Behavioral setup change. No prescription or purchase barrier if you already have the hardware.",
-    ),
-    notes=(
-        "Behavioral airway aid. Most plausible in positional or upper-airway-predominant sleep-disordered breathing."
-    ),
-    sources=[
-        "https://pubmed.ncbi.nlm.nih.gov/39347559/",
-    ],
-    evidence_quality="moderate",
-))
-_add(CatalogEntry(
-    "apap_nightly", "APAP nightly", "sleep_candidate",
-    hr_observed=1.0, log_sd=0.05, conf_alpha=3.0, conf_beta=3.8,
-    annual_cost=400, qol_annual=0.0002,
-    has_direct_mortality_effect=False,
-    exclusive_group="osa_primary_therapy",
-    sleep_component_relief={
-        "breathing": 0.65,
-        "continuity": 0.25,
-        "quality": 0.18,
-        "daytime": 0.28,
-    },
-    airway_target_weights={
-        "upper_airway": 0.6,
-        "nasal_inflammation": 0.25,
-        "mucus": 0.15,
-    },
-    benefit_tags=[
-        "sleep_breathing_support",
-        "sleep_continuity_support",
-        "sleep_quality_support",
-        "sleep_daytime_support",
-    ],
-    access_profile=AccessProfile(
-        tier="dme_rx",
-        coverage_outlook="likely",
-        friction="medium",
-        notes="Usually requires a prescription plus a DME supplier, but often has better coverage than branded insomnia drugs.",
-    ),
-    notes=(
-        "Modeled as the strongest pre-diagnosis airway intervention candidate. "
-        "No direct mortality term; benefit comes through sleep-burden and sleep-mortality relief."
-    ),
-    sources=[
-        "https://aasm.org/wp-content/uploads/2019/11/Treatment-OSA-with-PAP-Patient-Guide.pdf",
-        "https://pubmed.ncbi.nlm.nih.gov/30736887/",
-    ],
-    evidence_quality="high",
-))
-_add(CatalogEntry(
-    "oral_appliance_custom", "Custom oral appliance", "sleep_candidate",
-    hr_observed=1.0, log_sd=0.05, conf_alpha=2.6, conf_beta=4.2,
-    annual_cost=500, qol_annual=0.0002,
-    has_direct_mortality_effect=False,
-    exclusive_group="osa_primary_therapy",
-    sleep_component_relief={
-        "breathing": 0.45,
-        "continuity": 0.16,
-        "quality": 0.12,
-        "daytime": 0.18,
-    },
-    airway_target_weights={
-        "upper_airway": 0.7,
-        "nasal_inflammation": 0.2,
-        "mucus": 0.1,
-    },
-    benefit_tags=[
-        "sleep_breathing_support",
-        "sleep_continuity_support",
-        "sleep_quality_support",
-        "sleep_daytime_support",
-    ],
-    access_profile=AccessProfile(
-        tier="specialist_device",
-        coverage_outlook="mixed",
-        friction="medium",
-        notes="Usually needs a dentist or sleep specialist plus custom fabrication. Coverage is more variable than PAP.",
-    ),
-    notes=(
-        "Custom mandibular advancement device, annualized over replacement and follow-up. "
-        "Typically less effective than PAP but often easier to tolerate."
-    ),
-    sources=[
-        "https://aasm.org/aasm-and-aadsm-issue-new-joint-clinical-practice-guideline-for-oral-appliance-therapy/",
-        "https://pubmed.ncbi.nlm.nih.gov/26094920/",
-    ],
-    evidence_quality="high",
-))
-_add(CatalogEntry(
-    "hiit_1x_week", "HIIT 1x/week", "supplement_candidate",
-    hr_observed=1.0, log_sd=0.06, conf_alpha=2.0, conf_beta=4.8,
-    annual_cost=0, qol_annual=0.0014, qol_years=12,
-    has_direct_mortality_effect=False,
-    exclusive_group="cardio_mode",
-    notes=(
-        "Structured interval training once weekly, assumed to replace an easier cardio session rather than add volume. "
-        "Modeled through modest CRF/VO2max utility, not a direct mortality claim."
-    ),
-    sources=[
-        "https://pubmed.ncbi.nlm.nih.gov/26243014/",
-        "https://pubmed.ncbi.nlm.nih.gov/38599681/",
-    ],
-))
-_add(CatalogEntry(
-    "hiit_2x_week", "HIIT 2x/week", "supplement_candidate",
-    hr_observed=1.0, log_sd=0.07, conf_alpha=1.9, conf_beta=5.0,
-    annual_cost=0, qol_annual=0.0022, qol_years=12,
-    has_direct_mortality_effect=False,
-    exclusive_group="cardio_mode",
-    notes=(
-        "Structured interval training twice weekly, assumed to replace easier cardio. "
-        "Modeled as a somewhat larger CRF stimulus with diminishing marginal return."
-    ),
-    sources=[
-        "https://pubmed.ncbi.nlm.nih.gov/26243014/",
-        "https://pubmed.ncbi.nlm.nih.gov/38599681/",
-        "https://pubmed.ncbi.nlm.nih.gov/40976973/",
-    ],
-))
-_add(CatalogEntry(
-    "hiit_3x_week", "HIIT 3x/week", "supplement_candidate",
-    hr_observed=1.0, log_sd=0.08, conf_alpha=1.7, conf_beta=5.4,
-    annual_cost=0, qol_annual=0.0019, qol_years=12,
-    has_direct_mortality_effect=False,
-    exclusive_group="cardio_mode",
-    notes=(
-        "Three structured interval sessions weekly, assumed to replace easier cardio. "
-        "Modeled with extra recovery uncertainty and a small recurring downside because current frequency evidence suggests no clear added benefit over 2x/week in recreational runners."
-    ),
-    sources=[
-        "https://pubmed.ncbi.nlm.nih.gov/26243014/",
-        "https://pubmed.ncbi.nlm.nih.gov/38599681/",
-        "https://pubmed.ncbi.nlm.nih.gov/40976973/",
-    ],
-))
-_add(CatalogEntry(
-    "zone2_cardio_2x_week", "Zone 2 cardio 2x/week", "supplement_candidate",
-    hr_observed=1.0, log_sd=0.05, conf_alpha=1.8, conf_beta=5.0,
-    annual_cost=0, qol_annual=0.0010, qol_years=12,
-    has_direct_mortality_effect=False,
-    exclusive_group="cardio_mode",
-    notes=(
-        "Two structured low-to-moderate intensity cardio sessions weekly, assumed to replace unstructured easier running. "
-        "Modeled as a small CRF and recovery-positive intervention."
-    ),
-    sources=[
-        "https://pubmed.ncbi.nlm.nih.gov/38599681/",
-    ],
-))
-_add(CatalogEntry(
-    "tempo_run_1x_week", "Tempo run 1x/week", "supplement_candidate",
-    hr_observed=1.0, log_sd=0.06, conf_alpha=1.9, conf_beta=4.9,
-    annual_cost=0, qol_annual=0.0016, qol_years=12,
-    has_direct_mortality_effect=False,
-    exclusive_group="cardio_mode",
-    notes=(
-        "One threshold/tempo-style run weekly, assumed to replace easier cardio. "
-        "Modeled as intermediate between easy cardio and HIIT for CRF benefit."
-    ),
-    sources=[
-        "https://pubmed.ncbi.nlm.nih.gov/26243014/",
-        "https://pubmed.ncbi.nlm.nih.gov/38599681/",
-    ],
-))
-_add(CatalogEntry(
-    "strength_maintenance", "Strength maintenance", "supplement_candidate",
-    hr_observed=1.0, log_sd=0.04, conf_alpha=1.4, conf_beta=5.6,
-    annual_cost=0, qol_annual=0.0003, qol_years=12,
-    has_direct_mortality_effect=False,
-    exclusive_group="strength_mode",
-    notes=(
-        "Structured maintenance lifting. Kept near flat because you already do strength work daily."
-    ),
-    sources=[
-        "https://pubmed.ncbi.nlm.nih.gov/38599681/",
-    ],
-))
+        notes=(
+            "Dual orexin receptor antagonist with clear insomnia efficacy, but the label keeps more respiratory caution in OSA "
+            "than daridorexant or lemborexant. Modeled as a middling trazodone alternative for mild OSA."
+        ),
+        sources=[
+            "https://pubmed.ncbi.nlm.nih.gov/27397664/",
+            "https://pubmed.ncbi.nlm.nih.gov/26194728/",
+            "https://pubmed.ncbi.nlm.nih.gov/39543812/",
+            "https://www.drugs.com/pro/belsomra.html",
+        ],
+        evidence_quality="low",
+    )
+)
+_add(
+    CatalogEntry(
+        "nasacort_nightly",
+        "Nasacort nightly",
+        "sleep_current",
+        hr_observed=1.0,
+        log_sd=0.05,
+        conf_alpha=2.0,
+        conf_beta=4.5,
+        annual_cost=120,
+        qol_annual=0.0002,
+        has_direct_mortality_effect=False,
+        sleep_component_relief={
+            "breathing": 0.24,
+            "continuity": 0.05,
+            "quality": 0.06,
+        },
+        airway_target_weights={
+            "upper_airway": 0.4,
+            "nasal_inflammation": 0.6,
+        },
+        benefit_tags=[
+            "sleep_breathing_support",
+            "sleep_continuity_support",
+            "sleep_quality_support",
+        ],
+        access_profile=AccessProfile(
+            tier="otc",
+            coverage_outlook="na",
+            friction="low",
+            notes="Over-the-counter nasal steroid. Easy to trial without specialist access.",
+        ),
+        notes=(
+            "Best-supported for congestion-mediated sleep disturbance and as an adjunct "
+            "in nasal-obstruction OSA phenotypes. Main benefit is upper-airway, not "
+            "general prevention."
+        ),
+        sources=[
+            "https://pubmed.ncbi.nlm.nih.gov/9042068/",
+            "https://pubmed.ncbi.nlm.nih.gov/30154874/",
+            "https://pubmed.ncbi.nlm.nih.gov/15124166/",
+        ],
+        evidence_quality="high",
+    )
+)
+_add(
+    CatalogEntry(
+        "nasal_strips_nightly",
+        "Nasal strips nightly",
+        "sleep_current",
+        hr_observed=1.0,
+        log_sd=0.05,
+        conf_alpha=1.8,
+        conf_beta=4.8,
+        annual_cost=180,
+        qol_annual=0.0001,
+        has_direct_mortality_effect=False,
+        sleep_component_relief={
+            "breathing": 0.14,
+            "quality": 0.05,
+        },
+        airway_target_weights={
+            "upper_airway": 0.8,
+            "nasal_inflammation": 0.2,
+        },
+        benefit_tags=[
+            "sleep_breathing_support",
+            "sleep_quality_support",
+        ],
+        access_profile=AccessProfile(
+            tier="otc",
+            coverage_outlook="na",
+            friction="low",
+            notes="Over-the-counter and easy to test immediately, but usually only a modest airway aid.",
+        ),
+        notes=(
+            "Primarily a subjective nasal-congestion and snoring aid. Helps when the "
+            "problem is upper-airway narrowing, but usually not a large standalone OSA treatment."
+        ),
+        sources=[
+            "https://pubmed.ncbi.nlm.nih.gov/30154874/",
+        ],
+        evidence_quality="moderate",
+    )
+)
+_add(
+    CatalogEntry(
+        "humidifier_nightly",
+        "Humidifier nightly",
+        "sleep_candidate",
+        hr_observed=1.0,
+        log_sd=0.06,
+        conf_alpha=1.2,
+        conf_beta=6.2,
+        annual_cost=80,
+        qol_annual=0.00005,
+        has_direct_mortality_effect=False,
+        sleep_component_relief={
+            "breathing": 0.05,
+            "continuity": 0.03,
+            "quality": 0.05,
+        },
+        airway_target_weights={
+            "upper_airway": 0.25,
+            "nasal_inflammation": 0.65,
+            "mucus": 0.10,
+        },
+        benefit_tags=[
+            "sleep_breathing_support",
+            "sleep_continuity_support",
+            "sleep_quality_support",
+        ],
+        access_profile=AccessProfile(
+            tier="cash_pay",
+            coverage_outlook="na",
+            friction="low",
+            notes="Low-friction bedroom hardware, but only attractive if the room is actually dry and you keep humidity in a safe range.",
+        ),
+        notes=(
+            "Modeled as a small dryness / nasal-comfort intervention, not a meaningful standalone OSA treatment. "
+            "Best case is low ambient humidity or waking with dry irritated nasal passages."
+        ),
+        sources=[
+            "https://www.aaaai.org/tools-for-the-public/conditions-library/allergies/humidifiers-and-indoor-allergies",
+            "https://www.epa.gov/mold/mold-course-chapter-2",
+            "https://pubmed.ncbi.nlm.nih.gov/3348500/",
+        ],
+        evidence_quality="low",
+    )
+)
+_add(
+    CatalogEntry(
+        "mouth_tape_nightly",
+        "Mouth tape nightly",
+        "sleep_candidate",
+        hr_observed=1.0,
+        log_sd=0.06,
+        conf_alpha=1.3,
+        conf_beta=6.0,
+        annual_cost=220,
+        qol_annual=0.00008,
+        has_direct_mortality_effect=False,
+        harm_effects=[
+            HarmEffect(
+                id="mouth_tape_irritation_or_fragmentation",
+                description="Skin irritation, discomfort, or fragmented sleep if it feels intolerable.",
+                annual_qaly_loss=Distribution(
+                    type="normal", params={"mean": 0.00018, "sd": 0.0001}
+                ),
+            ),
+        ],
+        sleep_component_relief={
+            "breathing": 0.10,
+            "quality": 0.04,
+            "continuity": 0.02,
+        },
+        airway_target_weights={
+            "upper_airway": 1.0,
+        },
+        benefit_tags=[
+            "sleep_breathing_support",
+            "sleep_quality_support",
+            "sleep_continuity_support",
+        ],
+        access_profile=AccessProfile(
+            tier="cash_pay",
+            coverage_outlook="na",
+            friction="low",
+            notes="Low-friction cash-pay adjunct. Best case is a clear mouth-breathing phenotype with decent nasal patency.",
+        ),
+        notes=(
+            "Modeled as a phenotype-specific mouth-breathing intervention, not a generic OSA fix. "
+            "The evidence suggests some benefit in mild OSA or snoring when habitual open-mouth breathing is part of the problem, "
+            "but the literature is still thin."
+        ),
+        sources=[
+            "https://pubmed.ncbi.nlm.nih.gov/25450408/",
+            "https://pubmed.ncbi.nlm.nih.gov/38780959/",
+            "https://pubmed.ncbi.nlm.nih.gov/39662104/",
+            "https://pubmed.ncbi.nlm.nih.gov/25766699/",
+        ],
+        evidence_quality="low",
+    )
+)
+_add(
+    CatalogEntry(
+        "head_elevation_nightly",
+        "Head elevation nightly",
+        "sleep_current",
+        hr_observed=1.0,
+        log_sd=0.05,
+        conf_alpha=2.2,
+        conf_beta=4.2,
+        annual_cost=0,
+        qol_annual=0.0001,
+        has_direct_mortality_effect=False,
+        sleep_component_relief={
+            "breathing": 0.18,
+            "continuity": 0.05,
+        },
+        airway_target_weights={
+            "upper_airway": 1.0,
+        },
+        benefit_tags=[
+            "sleep_breathing_support",
+            "sleep_continuity_support",
+        ],
+        access_profile=AccessProfile(
+            tier="behavioral",
+            coverage_outlook="na",
+            friction="low",
+            notes="Behavioral setup change. No prescription or purchase barrier if you already have the hardware.",
+        ),
+        notes=(
+            "Behavioral airway aid. Most plausible in positional or upper-airway-predominant sleep-disordered breathing."
+        ),
+        sources=[
+            "https://pubmed.ncbi.nlm.nih.gov/39347559/",
+        ],
+        evidence_quality="moderate",
+    )
+)
+_add(
+    CatalogEntry(
+        "apap_nightly",
+        "APAP nightly",
+        "sleep_candidate",
+        hr_observed=1.0,
+        log_sd=0.05,
+        conf_alpha=3.0,
+        conf_beta=3.8,
+        annual_cost=400,
+        qol_annual=0.0002,
+        has_direct_mortality_effect=False,
+        exclusive_group="osa_primary_therapy",
+        sleep_component_relief={
+            "breathing": 0.65,
+            "continuity": 0.25,
+            "quality": 0.18,
+            "daytime": 0.28,
+        },
+        airway_target_weights={
+            "upper_airway": 0.6,
+            "nasal_inflammation": 0.25,
+            "mucus": 0.15,
+        },
+        benefit_tags=[
+            "sleep_breathing_support",
+            "sleep_continuity_support",
+            "sleep_quality_support",
+            "sleep_daytime_support",
+        ],
+        access_profile=AccessProfile(
+            tier="dme_rx",
+            coverage_outlook="likely",
+            friction="medium",
+            notes="Usually requires a prescription plus a DME supplier, but often has better coverage than branded insomnia drugs.",
+        ),
+        notes=(
+            "Modeled as the strongest pre-diagnosis airway intervention candidate. "
+            "No direct mortality term; benefit comes through sleep-burden and sleep-mortality relief."
+        ),
+        sources=[
+            "https://aasm.org/wp-content/uploads/2019/11/Treatment-OSA-with-PAP-Patient-Guide.pdf",
+            "https://pubmed.ncbi.nlm.nih.gov/30736887/",
+        ],
+        evidence_quality="high",
+    )
+)
+_add(
+    CatalogEntry(
+        "oral_appliance_custom",
+        "Custom oral appliance",
+        "sleep_candidate",
+        hr_observed=1.0,
+        log_sd=0.05,
+        conf_alpha=2.6,
+        conf_beta=4.2,
+        annual_cost=500,
+        qol_annual=0.0002,
+        has_direct_mortality_effect=False,
+        exclusive_group="osa_primary_therapy",
+        sleep_component_relief={
+            "breathing": 0.45,
+            "continuity": 0.16,
+            "quality": 0.12,
+            "daytime": 0.18,
+        },
+        airway_target_weights={
+            "upper_airway": 0.7,
+            "nasal_inflammation": 0.2,
+            "mucus": 0.1,
+        },
+        benefit_tags=[
+            "sleep_breathing_support",
+            "sleep_continuity_support",
+            "sleep_quality_support",
+            "sleep_daytime_support",
+        ],
+        access_profile=AccessProfile(
+            tier="specialist_device",
+            coverage_outlook="mixed",
+            friction="medium",
+            notes="Usually needs a dentist or sleep specialist plus custom fabrication. Coverage is more variable than PAP.",
+        ),
+        notes=(
+            "Custom mandibular advancement device, annualized over replacement and follow-up. "
+            "Typically less effective than PAP but often easier to tolerate."
+        ),
+        sources=[
+            "https://aasm.org/aasm-and-aadsm-issue-new-joint-clinical-practice-guideline-for-oral-appliance-therapy/",
+            "https://pubmed.ncbi.nlm.nih.gov/26094920/",
+        ],
+        evidence_quality="high",
+    )
+)
+_add(
+    CatalogEntry(
+        "hiit_1x_week",
+        "HIIT 1x/week",
+        "supplement_candidate",
+        hr_observed=1.0,
+        log_sd=0.06,
+        conf_alpha=2.0,
+        conf_beta=4.8,
+        annual_cost=0,
+        qol_annual=0.0014,
+        qol_years=12,
+        has_direct_mortality_effect=False,
+        exclusive_group="cardio_mode",
+        notes=(
+            "Structured interval training once weekly, assumed to replace an easier cardio session rather than add volume. "
+            "Modeled through modest CRF/VO2max utility, not a direct mortality claim."
+        ),
+        sources=[
+            "https://pubmed.ncbi.nlm.nih.gov/26243014/",
+            "https://pubmed.ncbi.nlm.nih.gov/38599681/",
+        ],
+    )
+)
+_add(
+    CatalogEntry(
+        "hiit_2x_week",
+        "HIIT 2x/week",
+        "supplement_candidate",
+        hr_observed=1.0,
+        log_sd=0.07,
+        conf_alpha=1.9,
+        conf_beta=5.0,
+        annual_cost=0,
+        qol_annual=0.0022,
+        qol_years=12,
+        has_direct_mortality_effect=False,
+        exclusive_group="cardio_mode",
+        notes=(
+            "Structured interval training twice weekly, assumed to replace easier cardio. "
+            "Modeled as a somewhat larger CRF stimulus with diminishing marginal return."
+        ),
+        sources=[
+            "https://pubmed.ncbi.nlm.nih.gov/26243014/",
+            "https://pubmed.ncbi.nlm.nih.gov/38599681/",
+            "https://pubmed.ncbi.nlm.nih.gov/40976973/",
+        ],
+    )
+)
+_add(
+    CatalogEntry(
+        "hiit_3x_week",
+        "HIIT 3x/week",
+        "supplement_candidate",
+        hr_observed=1.0,
+        log_sd=0.08,
+        conf_alpha=1.7,
+        conf_beta=5.4,
+        annual_cost=0,
+        qol_annual=0.0019,
+        qol_years=12,
+        has_direct_mortality_effect=False,
+        exclusive_group="cardio_mode",
+        notes=(
+            "Three structured interval sessions weekly, assumed to replace easier cardio. "
+            "Modeled with extra recovery uncertainty and a small recurring downside because current frequency evidence suggests no clear added benefit over 2x/week in recreational runners."
+        ),
+        sources=[
+            "https://pubmed.ncbi.nlm.nih.gov/26243014/",
+            "https://pubmed.ncbi.nlm.nih.gov/38599681/",
+            "https://pubmed.ncbi.nlm.nih.gov/40976973/",
+        ],
+    )
+)
+_add(
+    CatalogEntry(
+        "zone2_cardio_2x_week",
+        "Zone 2 cardio 2x/week",
+        "supplement_candidate",
+        hr_observed=1.0,
+        log_sd=0.05,
+        conf_alpha=1.8,
+        conf_beta=5.0,
+        annual_cost=0,
+        qol_annual=0.0010,
+        qol_years=12,
+        has_direct_mortality_effect=False,
+        exclusive_group="cardio_mode",
+        notes=(
+            "Two structured low-to-moderate intensity cardio sessions weekly, assumed to replace unstructured easier running. "
+            "Modeled as a small CRF and recovery-positive intervention."
+        ),
+        sources=[
+            "https://pubmed.ncbi.nlm.nih.gov/38599681/",
+        ],
+    )
+)
+_add(
+    CatalogEntry(
+        "tempo_run_1x_week",
+        "Tempo run 1x/week",
+        "supplement_candidate",
+        hr_observed=1.0,
+        log_sd=0.06,
+        conf_alpha=1.9,
+        conf_beta=4.9,
+        annual_cost=0,
+        qol_annual=0.0016,
+        qol_years=12,
+        has_direct_mortality_effect=False,
+        exclusive_group="cardio_mode",
+        notes=(
+            "One threshold/tempo-style run weekly, assumed to replace easier cardio. "
+            "Modeled as intermediate between easy cardio and HIIT for CRF benefit."
+        ),
+        sources=[
+            "https://pubmed.ncbi.nlm.nih.gov/26243014/",
+            "https://pubmed.ncbi.nlm.nih.gov/38599681/",
+        ],
+    )
+)
+_add(
+    CatalogEntry(
+        "strength_maintenance",
+        "Strength maintenance",
+        "supplement_candidate",
+        hr_observed=1.0,
+        log_sd=0.04,
+        conf_alpha=1.4,
+        conf_beta=5.6,
+        annual_cost=0,
+        qol_annual=0.0003,
+        qol_years=12,
+        has_direct_mortality_effect=False,
+        exclusive_group="strength_mode",
+        notes=(
+            "Structured maintenance lifting. Kept near flat because you already do strength work daily."
+        ),
+        sources=[
+            "https://pubmed.ncbi.nlm.nih.gov/38599681/",
+        ],
+    )
+)
 
 # ---------------------------------------------------------------------------
 # Prescriptions — candidates (off-label longevity)
 # ---------------------------------------------------------------------------
-_add(CatalogEntry(
-    "rapamycin_5mg_wk", "Rapamycin 5mg/wk", "rx_candidate",
-    hr_observed=0.85, log_sd=0.20, conf_alpha=2.0, conf_beta=3.0,
-    annual_cost=600, qol_annual=-0.003,
-    notes="ITP mice: +26% median lifespan. Mannick 2014. Immunosuppression risk.",
-))
-_add(CatalogEntry(
-    "metformin_500mg", "Metformin 500mg", "rx_candidate",
-    hr_observed=0.90, log_sd=0.12, conf_alpha=2.5, conf_beta=3.5,
-    annual_cost=48, qol_annual=0.000,
-    benefit_tags=["cardiometabolic_support"],
-    notes="Bannister 2014: diabetics on metformin outlived controls. TAME pending.",
-))
-_add(CatalogEntry(
-    "acarbose_50mg", "Acarbose 50mg", "rx_candidate",
-    hr_observed=0.88, log_sd=0.18, conf_alpha=2.0, conf_beta=4.0,
-    annual_cost=120, qol_annual=-0.005,
-    notes="ITP mice: +22% median lifespan (males). GI side effects.",
-))
-_add(CatalogEntry(
-    "aspirin_81mg", "Low-dose aspirin 81mg", "rx_candidate",
-    hr_observed=0.94, log_sd=0.06, conf_alpha=4.0, conf_beta=2.0,
-    annual_cost=15, qol_annual=-0.001,
-    harm_effects=[
-        HarmEffect(
-            id="bleeding",
-            description="Clinically meaningful bleeding risk.",
-            event_probability=Distribution(type="point", params={"value": 0.004}),
-            event_qaly_loss=Distribution(type="point", params={"value": 0.05}),
+_add(
+    CatalogEntry(
+        "rapamycin_5mg_wk",
+        "Rapamycin 5mg/wk",
+        "rx_candidate",
+        hr_observed=0.85,
+        log_sd=0.20,
+        conf_alpha=2.0,
+        conf_beta=3.0,
+        annual_cost=600,
+        qol_annual=-0.003,
+        notes="ITP mice: +26% median lifespan. Mannick 2014. Immunosuppression risk.",
+    )
+)
+_add(
+    CatalogEntry(
+        "metformin_500mg",
+        "Metformin 500mg",
+        "rx_candidate",
+        hr_observed=0.90,
+        log_sd=0.12,
+        conf_alpha=2.5,
+        conf_beta=3.5,
+        annual_cost=48,
+        qol_annual=0.000,
+        benefit_tags=["cardiometabolic_support"],
+        notes="Bannister 2014: diabetics on metformin outlived controls. TAME pending.",
+    )
+)
+_add(
+    CatalogEntry(
+        "acarbose_50mg",
+        "Acarbose 50mg",
+        "rx_candidate",
+        hr_observed=0.88,
+        log_sd=0.18,
+        conf_alpha=2.0,
+        conf_beta=4.0,
+        annual_cost=120,
+        qol_annual=-0.005,
+        notes="ITP mice: +22% median lifespan (males). GI side effects.",
+    )
+)
+_add(
+    CatalogEntry(
+        "aspirin_81mg",
+        "Low-dose aspirin 81mg",
+        "rx_candidate",
+        hr_observed=0.94,
+        log_sd=0.06,
+        conf_alpha=4.0,
+        conf_beta=2.0,
+        annual_cost=15,
+        qol_annual=-0.001,
+        harm_effects=[
+            HarmEffect(
+                id="bleeding",
+                description="Clinically meaningful bleeding risk.",
+                event_probability=Distribution(type="point", params={"value": 0.004}),
+                event_qaly_loss=Distribution(type="point", params={"value": 0.05}),
+            ),
+        ],
+        interaction_tags=["bleeding_stack"],
+        interaction_rules=[BLEEDING_STACK_RULE],
+        benefit_tags=["cardiometabolic_support"],
+        notes="ASPREE (>70yr): no benefit, more bleeding. USPSTF equivocal at 39.",
+    )
+)
+_add(
+    CatalogEntry(
+        "semaglutide",
+        "GLP-1 RA (semaglutide)",
+        "rx_candidate",
+        hr_observed=0.80,
+        log_sd=0.12,
+        conf_alpha=3.5,
+        conf_beta=2.0,
+        annual_cost=6000,
+        qol_annual=0.004,
+        harm_effects=[
+            HarmEffect(
+                id="ongoing_gi_side_effects",
+                description="Nausea, vomiting, or GI intolerance during treatment.",
+                annual_qaly_loss=Distribution(
+                    type="normal", params={"mean": 0.004, "sd": 0.0015}
+                ),
+            ),
+            HarmEffect(
+                id="gallbladder_or_pancreatitis",
+                description="Rare but meaningful biliary or pancreatic adverse event.",
+                event_probability=Distribution(type="point", params={"value": 0.002}),
+                event_qaly_loss=Distribution(type="point", params={"value": 0.05}),
+            ),
+        ],
+        profile_effect_rules=[
+            ProfileEffectRule(
+                multiplier=0.20,
+                bmi_categories=("normal",),
+            ),
+            ProfileEffectRule(
+                multiplier=0.75,
+                has_diabetes=False,
+                has_hypertension=False,
+            ),
+        ],
+        benefit_tags=["cardiometabolic_support"],
+        notes=(
+            "SELECT trial: HR 0.80 MACE in overweight/obesity with established CVD. "
+            "Strong transport shrinkage applied for lean, low-risk profiles plus GI/gallbladder harms."
         ),
-    ],
-    interaction_tags=["bleeding_stack"],
-    interaction_rules=[BLEEDING_STACK_RULE],
-    benefit_tags=["cardiometabolic_support"],
-    notes="ASPREE (>70yr): no benefit, more bleeding. USPSTF equivocal at 39.",
-))
-_add(CatalogEntry(
-    "semaglutide", "GLP-1 RA (semaglutide)", "rx_candidate",
-    hr_observed=0.80, log_sd=0.12, conf_alpha=3.5, conf_beta=2.0,
-    annual_cost=6000, qol_annual=0.004,
-    harm_effects=[
-        HarmEffect(
-            id="ongoing_gi_side_effects",
-            description="Nausea, vomiting, or GI intolerance during treatment.",
-            annual_qaly_loss=Distribution(type="normal", params={"mean": 0.004, "sd": 0.0015}),
-        ),
-        HarmEffect(
-            id="gallbladder_or_pancreatitis",
-            description="Rare but meaningful biliary or pancreatic adverse event.",
-            event_probability=Distribution(type="point", params={"value": 0.002}),
-            event_qaly_loss=Distribution(type="point", params={"value": 0.05}),
-        ),
-    ],
-    profile_effect_rules=[
-        ProfileEffectRule(
-            multiplier=0.20,
-            bmi_categories=("normal",),
-        ),
-        ProfileEffectRule(
-            multiplier=0.75,
-            has_diabetes=False,
-            has_hypertension=False,
-        ),
-    ],
-    benefit_tags=["cardiometabolic_support"],
-    notes=(
-        "SELECT trial: HR 0.80 MACE in overweight/obesity with established CVD. "
-        "Strong transport shrinkage applied for lean, low-risk profiles plus GI/gallbladder harms."
-    ),
-))
-_add(CatalogEntry(
-    "lithium_5mg", "Low-dose lithium 5mg", "rx_candidate",
-    hr_observed=0.92, log_sd=0.18, conf_alpha=1.5, conf_beta=4.5,
-    annual_cost=60, qol_annual=0.001,
-    notes="Ecological: municipal Li → lower suicide/dementia. No RCTs at low dose.",
-))
-_add(CatalogEntry(
-    "17a_estradiol", "17α-estradiol (topical)", "rx_candidate",
-    hr_observed=0.88, log_sd=0.20, conf_alpha=1.5, conf_beta=4.5,
-    annual_cost=360, qol_annual=-0.002,
-    notes="ITP mice: +19% median lifespan (males only). No human data.",
-))
-_add(CatalogEntry(
-    "empagliflozin", "SGLT2i (empagliflozin)", "rx_candidate",
-    hr_observed=0.86, log_sd=0.10, conf_alpha=3.5, conf_beta=2.5,
-    annual_cost=3600, qol_annual=0.002,
-    benefit_tags=["cardiometabolic_support"],
-    notes="EMPA-REG: HR 0.68 CV death (diabetics). Off-label in healthy unclear.",
-))
-_add(CatalogEntry(
-    "statin_5mg", "Statin (rosuvastatin 5mg)", "rx_candidate",
-    hr_observed=0.88, log_sd=0.08, conf_alpha=4.5, conf_beta=1.5,
-    annual_cost=120, qol_annual=-0.002,
-    benefit_tags=["cardiometabolic_support"],
-    notes="CTT meta: 21% CVD reduction per mmol/L LDL.",
-))
+    )
+)
+_add(
+    CatalogEntry(
+        "lithium_5mg",
+        "Low-dose lithium 5mg",
+        "rx_candidate",
+        hr_observed=0.92,
+        log_sd=0.18,
+        conf_alpha=1.5,
+        conf_beta=4.5,
+        annual_cost=60,
+        qol_annual=0.001,
+        notes="Ecological: municipal Li → lower suicide/dementia. No RCTs at low dose.",
+    )
+)
+_add(
+    CatalogEntry(
+        "17a_estradiol",
+        "17α-estradiol (topical)",
+        "rx_candidate",
+        hr_observed=0.88,
+        log_sd=0.20,
+        conf_alpha=1.5,
+        conf_beta=4.5,
+        annual_cost=360,
+        qol_annual=-0.002,
+        notes="ITP mice: +19% median lifespan (males only). No human data.",
+    )
+)
+_add(
+    CatalogEntry(
+        "empagliflozin",
+        "SGLT2i (empagliflozin)",
+        "rx_candidate",
+        hr_observed=0.86,
+        log_sd=0.10,
+        conf_alpha=3.5,
+        conf_beta=2.5,
+        annual_cost=3600,
+        qol_annual=0.002,
+        benefit_tags=["cardiometabolic_support"],
+        notes="EMPA-REG: HR 0.68 CV death (diabetics). Off-label in healthy unclear.",
+    )
+)
+_add(
+    CatalogEntry(
+        "statin_5mg",
+        "Statin (rosuvastatin 5mg)",
+        "rx_candidate",
+        hr_observed=0.88,
+        log_sd=0.08,
+        conf_alpha=4.5,
+        conf_beta=1.5,
+        annual_cost=120,
+        qol_annual=-0.002,
+        benefit_tags=["cardiometabolic_support"],
+        notes="CTT meta: 21% CVD reduction per mmol/L LDL.",
+    )
+)
 
 # ---------------------------------------------------------------------------
 # Supplements — current stack
 # ---------------------------------------------------------------------------
-_add(CatalogEntry(
-    "omega3_clo", "Omega-3 CLO ~500mg", "supplement_current",
-    hr_observed=0.92, log_sd=0.10, conf_alpha=2.5, conf_beta=3.5,
-    annual_cost=180, qol_annual=0.001,
-    interaction_tags=["bleeding_stack"],
-    interaction_rules=[BLEEDING_STACK_RULE],
-    benefit_tags=["cardiometabolic_support"],
-    notes="Aung 2018 meta. VITAL.",
-))
-_add(CatalogEntry(
-    "vitamin_d_2000", "Vitamin D 2000 IU", "supplement_current",
-    hr_observed=0.94, log_sd=0.08, conf_alpha=3.0, conf_beta=4.0,
-    annual_cost=30, qol_annual=0.000,
-    interaction_tags=["vitamin_d"],
-    interaction_rules=[DUPLICATE_VITAMIN_D_RULE],
-    notes="VITAL NS. Bolland meta D3 HR 0.97.",
-))
-_add(CatalogEntry(
-    "magnesium_200", "Magnesium 400mg", "supplement_current",
-    hr_observed=0.90, log_sd=0.12, conf_alpha=2.0, conf_beta=3.5,
-    annual_cost=146, qol_annual=0.0005,
-    sleep_component_relief={
-        "duration": 0.08,
-        "quality": 0.20,
-        "daytime": 0.15,
-    },
-    benefit_tags=[
-        "sleep_duration_support",
-        "sleep_quality_support",
-        "sleep_daytime_support",
-        "cardiometabolic_support",
-    ],
-    notes=(
-        "Current dose is 400mg supplemental magnesium. Benefit is capped for diminishing returns; "
-        "watch GI tolerance because the NIH supplemental UL is 350mg/day."
-    ),
-))
-_add(CatalogEntry(
-    "garlic_1200", "Garlic 1200mg", "supplement_current",
-    hr_observed=0.88, log_sd=0.12, conf_alpha=2.0, conf_beta=4.0,
-    annual_cost=300, qol_annual=0.000,
-    interaction_tags=["bleeding_stack"],
-    interaction_rules=[BLEEDING_STACK_RULE],
-    benefit_tags=["cardiometabolic_support"],
-    notes="Obs HR 0.88. BP + calcification RCTs.",
-))
-_add(CatalogEntry(
-    "creatine_5g", "Creatine 5g", "supplement_current",
-    hr_observed=0.98, log_sd=0.08, conf_alpha=1.0, conf_beta=6.0,
-    annual_cost=120,
-    qol_effects=[
-        QolEffect(
-            id="strength_power_lean_mass",
-            label="Strength / power / lean mass",
-            annual_qaly=Distribution(type="normal", params={"mean": 0.0030, "sd": 0.0011}),
-            description=(
-                "Resistance-training performance and lean-mass support; more valuable with "
-                "aging reserve value and low dietary creatine."
+_add(
+    CatalogEntry(
+        "omega3_clo",
+        "Omega-3 CLO ~500mg",
+        "supplement_current",
+        hr_observed=0.92,
+        log_sd=0.10,
+        conf_alpha=2.5,
+        conf_beta=3.5,
+        annual_cost=180,
+        qol_annual=0.001,
+        interaction_tags=["bleeding_stack"],
+        interaction_rules=[BLEEDING_STACK_RULE],
+        benefit_tags=["cardiometabolic_support"],
+        notes="Aung 2018 meta. VITAL.",
+    )
+)
+_add(
+    CatalogEntry(
+        "vitamin_d_2000",
+        "Vitamin D 2000 IU",
+        "supplement_current",
+        hr_observed=0.94,
+        log_sd=0.08,
+        conf_alpha=3.0,
+        conf_beta=4.0,
+        annual_cost=30,
+        qol_annual=0.000,
+        interaction_tags=["vitamin_d"],
+        interaction_rules=[DUPLICATE_VITAMIN_D_RULE],
+        notes="VITAL NS. Bolland meta D3 HR 0.97.",
+    )
+)
+_add(
+    CatalogEntry(
+        "magnesium_200",
+        "Magnesium 400mg",
+        "supplement_current",
+        hr_observed=0.90,
+        log_sd=0.12,
+        conf_alpha=2.0,
+        conf_beta=3.5,
+        annual_cost=146,
+        qol_annual=0.0005,
+        sleep_component_relief={
+            "duration": 0.08,
+            "quality": 0.20,
+            "daytime": 0.15,
+        },
+        benefit_tags=[
+            "sleep_duration_support",
+            "sleep_quality_support",
+            "sleep_daytime_support",
+            "cardiometabolic_support",
+        ],
+        notes=(
+            "Current dose is 400mg supplemental magnesium. Benefit is capped for diminishing returns; "
+            "watch GI tolerance because the NIH supplemental UL is 350mg/day."
+        ),
+    )
+)
+_add(
+    CatalogEntry(
+        "garlic_1200",
+        "Garlic 1200mg",
+        "supplement_current",
+        hr_observed=0.88,
+        log_sd=0.12,
+        conf_alpha=2.0,
+        conf_beta=4.0,
+        annual_cost=300,
+        qol_annual=0.000,
+        interaction_tags=["bleeding_stack"],
+        interaction_rules=[BLEEDING_STACK_RULE],
+        benefit_tags=["cardiometabolic_support"],
+        notes="Obs HR 0.88. BP + calcification RCTs.",
+    )
+)
+_add(
+    CatalogEntry(
+        "creatine_5g",
+        "Creatine 5g",
+        "supplement_current",
+        hr_observed=0.98,
+        log_sd=0.08,
+        conf_alpha=1.0,
+        conf_beta=6.0,
+        annual_cost=120,
+        qol_effects=[
+            QolEffect(
+                id="strength_power_lean_mass",
+                label="Strength / power / lean mass",
+                annual_qaly=Distribution(
+                    type="normal", params={"mean": 0.0030, "sd": 0.0011}
+                ),
+                description=(
+                    "Resistance-training performance and lean-mass support; more valuable with "
+                    "aging reserve value and low dietary creatine."
+                ),
+                source="https://jissn.biomedcentral.com/articles/10.1186/s12970-017-0173-z",
             ),
-            source="https://jissn.biomedcentral.com/articles/10.1186/s12970-017-0173-z",
-        ),
-        QolEffect(
-            id="cognitive_resilience",
-            label="Cognitive resilience",
-            annual_qaly=Distribution(type="normal", params={"mean": 0.0015, "sd": 0.0010}),
-            description=(
-                "Small average cognitive benefit, likely concentrated in memory/attention "
-                "and under higher brain-energy stress."
+            QolEffect(
+                id="cognitive_resilience",
+                label="Cognitive resilience",
+                annual_qaly=Distribution(
+                    type="normal", params={"mean": 0.0015, "sd": 0.0010}
+                ),
+                description=(
+                    "Small average cognitive benefit, likely concentrated in memory/attention "
+                    "and under higher brain-energy stress."
+                ),
+                source="https://www.frontiersin.org/journals/nutrition/articles/10.3389/fnut.2024.1424972/full",
             ),
-            source="https://www.frontiersin.org/journals/nutrition/articles/10.3389/fnut.2024.1424972/full",
+            QolEffect(
+                id="functional_reserve",
+                label="Functional reserve",
+                annual_qaly=Distribution(
+                    type="normal", params={"mean": 0.0008, "sd": 0.0006}
+                ),
+                description="Small long-run reserve value from maintaining training capacity and muscle function.",
+            ),
+        ],
+        harm_effects=[
+            HarmEffect(
+                id="gi_water_weight_lab_noise",
+                description="GI nuisance, water-weight friction, and serum-creatinine/eGFR interpretability cost.",
+                annual_qaly_loss=Distribution(
+                    type="normal", params={"mean": 0.0003, "sd": 0.0002}
+                ),
+                source="https://bmcnephrol.biomedcentral.com/articles/10.1186/s12882-025-04558-6",
+            ),
+        ],
+        benefit_tags=["performance_recovery"],
+        notes=(
+            "No mortality RCTs. QoL decomposed into strength/lean-mass, cognitive-resilience, "
+            "and functional-reserve components; nuisance harm captures GI/water-weight and creatinine lab noise."
         ),
-        QolEffect(
-            id="functional_reserve",
-            label="Functional reserve",
-            annual_qaly=Distribution(type="normal", params={"mean": 0.0008, "sd": 0.0006}),
-            description="Small long-run reserve value from maintaining training capacity and muscle function.",
+        sources=[
+            "https://jissn.biomedcentral.com/articles/10.1186/s12970-017-0173-z",
+            "https://www.frontiersin.org/journals/nutrition/articles/10.3389/fnut.2024.1424972/full",
+            "https://bmcnephrol.biomedcentral.com/articles/10.1186/s12882-025-04558-6",
+        ],
+    )
+)
+_add(
+    CatalogEntry(
+        "nac_1200",
+        "NAC 1200mg",
+        "supplement_current",
+        hr_observed=0.93,
+        log_sd=0.15,
+        conf_alpha=1.5,
+        conf_beta=4.0,
+        annual_cost=40,
+        qol_annual=0.001,
+        sleep_component_relief={
+            "breathing": 0.08,
+            "quality": 0.02,
+        },
+        airway_target_weights={
+            "mucus": 0.75,
+            "upper_airway": 0.25,
+        },
+        benefit_tags=["sleep_breathing_support"],
+        notes=(
+            "Best-supported as a mucolytic in chronic bronchitis/COPD. Much weaker for "
+            "upper-airway sleep problems, so any sleep benefit is scaled to mucus-heavy phenotypes."
         ),
-    ],
-    harm_effects=[
-        HarmEffect(
-            id="gi_water_weight_lab_noise",
-            description="GI nuisance, water-weight friction, and serum-creatinine/eGFR interpretability cost.",
-            annual_qaly_loss=Distribution(type="normal", params={"mean": 0.0003, "sd": 0.0002}),
-            source="https://bmcnephrol.biomedcentral.com/articles/10.1186/s12882-025-04558-6",
+        sources=[
+            "https://pubmed.ncbi.nlm.nih.gov/38555190/",
+            "https://pubmed.ncbi.nlm.nih.gov/28122105/",
+        ],
+    )
+)
+_add(
+    CatalogEntry(
+        "curcumin_250",
+        "Curcumin 250mg",
+        "supplement_current",
+        hr_observed=0.90,
+        log_sd=0.18,
+        conf_alpha=1.5,
+        conf_beta=4.5,
+        annual_cost=40,
+        qol_annual=0.000,
+        harm_effects=[
+            HarmEffect(
+                id="rare_liver_injury",
+                description="Rare idiosyncratic liver injury concern.",
+                event_probability=Distribution(type="point", params={"value": 0.0005}),
+                event_qaly_loss=Distribution(type="point", params={"value": 0.08}),
+            ),
+        ],
+        interaction_tags=["bleeding_stack"],
+        interaction_rules=[BLEEDING_STACK_RULE],
+        notes="Anti-inflam. Bioavailability issues.",
+    )
+)
+_add(
+    CatalogEntry(
+        "ginger_400",
+        "Ginger 400mg",
+        "supplement_current",
+        hr_observed=0.96,
+        log_sd=0.15,
+        conf_alpha=1.0,
+        conf_beta=5.0,
+        annual_cost=0,
+        qol_annual=0.000,
+        interaction_tags=["bleeding_stack"],
+        interaction_rules=[BLEEDING_STACK_RULE],
+        notes="Bundled. Anti-nausea.",
+    )
+)
+_add(
+    CatalogEntry(
+        "vitamin_k2",
+        "Vitamin K2 MK-7+MK-4",
+        "supplement_current",
+        hr_observed=0.92,
+        log_sd=0.15,
+        conf_alpha=1.5,
+        conf_beta=4.0,
+        annual_cost=25,
+        qol_annual=0.000,
+        notes="Rotterdam obs. Calcification RCTs.",
+    )
+)
+_add(
+    CatalogEntry(
+        "melatonin_300mcg",
+        "Melatonin 300mcg",
+        "supplement_current",
+        hr_observed=0.97,
+        log_sd=0.10,
+        conf_alpha=1.2,
+        conf_beta=4.5,
+        annual_cost=30,
+        qol_annual=0.0003,
+        harm_effects=[
+            HarmEffect(
+                id="residual_sedation",
+                description="Morning grogginess or vivid-dream disutility.",
+                annual_qaly_loss=Distribution(
+                    type="normal", params={"mean": 0.00012, "sd": 0.00008}
+                ),
+            ),
+        ],
+        interaction_tags=["sedating"],
+        interaction_rules=[SEDATION_STACK_RULE],
+        sleep_component_relief={
+            "duration": 0.08,
+            "continuity": 0.12,
+            "regularity": 0.10,
+        },
+        benefit_tags=[
+            "sleep_duration_support",
+            "sleep_continuity_support",
+            "sleep_regularity_support",
+        ],
+        access_profile=AccessProfile(
+            tier="otc",
+            coverage_outlook="na",
+            friction="low",
+            notes="Over-the-counter and low-friction. Good first stop before branded prescription sleep agents.",
         ),
-    ],
-    benefit_tags=["performance_recovery"],
-    notes=(
-        "No mortality RCTs. QoL decomposed into strength/lean-mass, cognitive-resilience, "
-        "and functional-reserve components; nuisance harm captures GI/water-weight and creatinine lab noise."
-    ),
-    sources=[
-        "https://jissn.biomedcentral.com/articles/10.1186/s12970-017-0173-z",
-        "https://www.frontiersin.org/journals/nutrition/articles/10.3389/fnut.2024.1424972/full",
-        "https://bmcnephrol.biomedcentral.com/articles/10.1186/s12882-025-04558-6",
-    ],
-))
-_add(CatalogEntry(
-    "nac_1200", "NAC 1200mg", "supplement_current",
-    hr_observed=0.93, log_sd=0.15, conf_alpha=1.5, conf_beta=4.0,
-    annual_cost=40, qol_annual=0.001,
-    sleep_component_relief={
-        "breathing": 0.08,
-        "quality": 0.02,
-    },
-    airway_target_weights={
-        "mucus": 0.75,
-        "upper_airway": 0.25,
-    },
-    benefit_tags=["sleep_breathing_support"],
-    notes=(
-        "Best-supported as a mucolytic in chronic bronchitis/COPD. Much weaker for "
-        "upper-airway sleep problems, so any sleep benefit is scaled to mucus-heavy phenotypes."
-    ),
-    sources=[
-        "https://pubmed.ncbi.nlm.nih.gov/38555190/",
-        "https://pubmed.ncbi.nlm.nih.gov/28122105/",
-    ],
-))
-_add(CatalogEntry(
-    "curcumin_250", "Curcumin 250mg", "supplement_current",
-    hr_observed=0.90, log_sd=0.18, conf_alpha=1.5, conf_beta=4.5,
-    annual_cost=40, qol_annual=0.000,
-    harm_effects=[
-        HarmEffect(
-            id="rare_liver_injury",
-            description="Rare idiosyncratic liver injury concern.",
-            event_probability=Distribution(type="point", params={"value": 0.0005}),
-            event_qaly_loss=Distribution(type="point", params={"value": 0.08}),
+        notes="Sleep onset RCTs.",
+    )
+)
+_add(
+    CatalogEntry(
+        "collagen_22g",
+        "Collagen 22g",
+        "supplement_current",
+        hr_observed=0.99,
+        log_sd=0.05,
+        conf_alpha=1.0,
+        conf_beta=7.0,
+        annual_cost=360,
+        qol_annual=0.003,
+        notes="No mortality data. Joint/skin RCTs.",
+        evidence_quality="low",
+    )
+)
+_add(
+    CatalogEntry(
+        "prebiotics",
+        "Prebiotics combo",
+        "supplement_current",
+        hr_observed=0.96,
+        log_sd=0.10,
+        conf_alpha=1.0,
+        conf_beta=5.5,
+        annual_cost=180,
+        qol_annual=0.003,
+        benefit_tags=["gut_support"],
+        notes="Gut health markers.",
+    )
+)
+_add(
+    CatalogEntry(
+        "probiotic_daily",
+        "Daily probiotics",
+        "supplement_bought",
+        hr_observed=1.0,
+        log_sd=0.08,
+        conf_alpha=1.2,
+        conf_beta=5.6,
+        annual_cost=273,
+        qol_annual=0.001,
+        has_direct_mortality_effect=False,
+        evidence_quality="low",
+        benefit_tags=["gut_support"],
+        notes=(
+            "Modeled as a low-evidence GI-support intervention, not a hard-endpoint longevity lever. "
+            "Annual cost uses Sports Research Probiotic 60 Billion at the current official subscribe-and-save price; "
+            "the currently owned expiring bottle has near-zero marginal cost."
         ),
-    ],
-    interaction_tags=["bleeding_stack"],
-    interaction_rules=[BLEEDING_STACK_RULE],
-    notes="Anti-inflam. Bioavailability issues.",
-))
-_add(CatalogEntry(
-    "ginger_400", "Ginger 400mg", "supplement_current",
-    hr_observed=0.96, log_sd=0.15, conf_alpha=1.0, conf_beta=5.0,
-    annual_cost=0, qol_annual=0.000,
-    interaction_tags=["bleeding_stack"],
-    interaction_rules=[BLEEDING_STACK_RULE],
-    notes="Bundled. Anti-nausea.",
-))
-_add(CatalogEntry(
-    "vitamin_k2", "Vitamin K2 MK-7+MK-4", "supplement_current",
-    hr_observed=0.92, log_sd=0.15, conf_alpha=1.5, conf_beta=4.0,
-    annual_cost=25, qol_annual=0.000,
-    notes="Rotterdam obs. Calcification RCTs.",
-))
-_add(CatalogEntry(
-    "melatonin_300mcg", "Melatonin 300mcg", "supplement_current",
-    hr_observed=0.97, log_sd=0.10, conf_alpha=1.2, conf_beta=4.5,
-    annual_cost=30, qol_annual=0.0003,
-    harm_effects=[
-        HarmEffect(
-            id="residual_sedation",
-            description="Morning grogginess or vivid-dream disutility.",
-            annual_qaly_loss=Distribution(type="normal", params={"mean": 0.00012, "sd": 0.00008}),
+        sources=[
+            "https://www.sportsresearch.store/products/probiotic-60-billion",
+            "https://pubmed.ncbi.nlm.nih.gov/24230488/",
+            "https://pubmed.ncbi.nlm.nih.gov/41233756/",
+        ],
+    )
+)
+_add(
+    CatalogEntry(
+        "lutein_zeaxanthin",
+        "Lutein+Zeaxanthin",
+        "supplement_current",
+        hr_observed=0.97,
+        log_sd=0.10,
+        conf_alpha=1.0,
+        conf_beta=5.5,
+        annual_cost=0,
+        qol_annual=0.002,
+        benefit_tags=["antioxidant_support"],
+        notes="AREDS2. Eye health. Bundled.",
+    )
+)
+_add(
+    CatalogEntry(
+        "astaxanthin_12",
+        "Astaxanthin 12mg",
+        "supplement_current",
+        hr_observed=0.95,
+        log_sd=0.12,
+        conf_alpha=1.0,
+        conf_beta=5.0,
+        annual_cost=0,
+        qol_annual=0.002,
+        benefit_tags=["antioxidant_support"],
+        notes="CRP/HDL RCTs. Bundled.",
+    )
+)
+_add(
+    CatalogEntry(
+        "lycopene_15",
+        "Lycopene 15mg",
+        "supplement_current",
+        hr_observed=0.95,
+        log_sd=0.15,
+        conf_alpha=1.2,
+        conf_beta=4.8,
+        annual_cost=0,
+        qol_annual=0.000,
+        benefit_tags=["antioxidant_support"],
+        notes="Song meta obs. Bundled.",
+    )
+)
+_add(
+    CatalogEntry(
+        "nr_300",
+        "NR 300mg",
+        "supplement_current",
+        hr_observed=0.97,
+        log_sd=0.10,
+        conf_alpha=1.2,
+        conf_beta=5.0,
+        annual_cost=0,
+        qol_annual=0.001,
+        benefit_tags=["mitochondrial_support"],
+        notes="NAD+ precursor. Bundled.",
+    )
+)
+_add(
+    CatalogEntry(
+        "nr_300_unbundled",
+        "NR 300mg (unbundled)",
+        "supplement_candidate",
+        hr_observed=0.97,
+        log_sd=0.10,
+        conf_alpha=1.2,
+        conf_beta=5.0,
+        annual_cost=396,
+        qol_annual=0.001,
+        benefit_tags=["mitochondrial_support"],
+        notes=(
+            "Standalone NR option using current official Tru Niagen 300mg "
+            "180-count subscription pricing."
         ),
-    ],
-    interaction_tags=["sedating"],
-    interaction_rules=[SEDATION_STACK_RULE],
-    sleep_component_relief={
-        "duration": 0.08,
-        "continuity": 0.12,
-        "regularity": 0.10,
-    },
-    benefit_tags=[
-        "sleep_duration_support",
-        "sleep_continuity_support",
-        "sleep_regularity_support",
-    ],
-    access_profile=AccessProfile(
-        tier="otc",
-        coverage_outlook="na",
-        friction="low",
-        notes="Over-the-counter and low-friction. Good first stop before branded prescription sleep agents.",
-    ),
-    notes="Sleep onset RCTs.",
-))
-_add(CatalogEntry(
-    "collagen_22g", "Collagen 22g", "supplement_current",
-    hr_observed=0.99, log_sd=0.05, conf_alpha=1.0, conf_beta=7.0,
-    annual_cost=360, qol_annual=0.003,
-    notes="No mortality data. Joint/skin RCTs.",
-    evidence_quality="low",
-))
-_add(CatalogEntry(
-    "prebiotics", "Prebiotics combo", "supplement_current",
-    hr_observed=0.96, log_sd=0.10, conf_alpha=1.0, conf_beta=5.5,
-    annual_cost=180, qol_annual=0.003,
-    benefit_tags=["gut_support"],
-    notes="Gut health markers.",
-))
-_add(CatalogEntry(
-    "probiotic_daily", "Daily probiotics", "supplement_bought",
-    hr_observed=1.0, log_sd=0.08, conf_alpha=1.2, conf_beta=5.6,
-    annual_cost=273, qol_annual=0.001,
-    has_direct_mortality_effect=False,
-    evidence_quality="low",
-    benefit_tags=["gut_support"],
-    notes=(
-        "Modeled as a low-evidence GI-support intervention, not a hard-endpoint longevity lever. "
-        "Annual cost uses Sports Research Probiotic 60 Billion at the current official subscribe-and-save price; "
-        "the currently owned expiring bottle has near-zero marginal cost."
-    ),
-    sources=[
-        "https://www.sportsresearch.store/products/probiotic-60-billion",
-        "https://pubmed.ncbi.nlm.nih.gov/24230488/",
-        "https://pubmed.ncbi.nlm.nih.gov/41233756/",
-    ],
-))
-_add(CatalogEntry(
-    "lutein_zeaxanthin", "Lutein+Zeaxanthin", "supplement_current",
-    hr_observed=0.97, log_sd=0.10, conf_alpha=1.0, conf_beta=5.5,
-    annual_cost=0, qol_annual=0.002,
-    benefit_tags=["antioxidant_support"],
-    notes="AREDS2. Eye health. Bundled.",
-))
-_add(CatalogEntry(
-    "astaxanthin_12", "Astaxanthin 12mg", "supplement_current",
-    hr_observed=0.95, log_sd=0.12, conf_alpha=1.0, conf_beta=5.0,
-    annual_cost=0, qol_annual=0.002,
-    benefit_tags=["antioxidant_support"],
-    notes="CRP/HDL RCTs. Bundled.",
-))
-_add(CatalogEntry(
-    "lycopene_15", "Lycopene 15mg", "supplement_current",
-    hr_observed=0.95, log_sd=0.15, conf_alpha=1.2, conf_beta=4.8,
-    annual_cost=0, qol_annual=0.000,
-    benefit_tags=["antioxidant_support"],
-    notes="Song meta obs. Bundled.",
-))
-_add(CatalogEntry(
-    "nr_300", "NR 300mg", "supplement_current",
-    hr_observed=0.97, log_sd=0.10, conf_alpha=1.2, conf_beta=5.0,
-    annual_cost=0, qol_annual=0.001,
-    benefit_tags=["mitochondrial_support"],
-    notes="NAD+ precursor. Bundled.",
-))
-_add(CatalogEntry(
-    "nr_300_unbundled", "NR 300mg (unbundled)", "supplement_candidate",
-    hr_observed=0.97, log_sd=0.10, conf_alpha=1.2, conf_beta=5.0,
-    annual_cost=396, qol_annual=0.001,
-    benefit_tags=["mitochondrial_support"],
-    notes=(
-        "Standalone NR option using current official Tru Niagen 300mg "
-        "180-count subscription pricing."
-    ),
-    sources=["https://www.truniagen.com/products/tru-niagen-300mg"],
-))
-_add(CatalogEntry(
-    "fisetin_100", "Fisetin 100mg", "supplement_current",
-    hr_observed=0.97, log_sd=0.12, conf_alpha=1.0, conf_beta=5.5,
-    annual_cost=0, qol_annual=0.000,
-    notes="Senolytic. Animal. Bundled.",
-))
-_add(CatalogEntry(
-    "fisetin_100_unbundled", "Fisetin 100mg (unbundled)", "supplement_candidate",
-    hr_observed=0.97, log_sd=0.12, conf_alpha=1.0, conf_beta=5.5,
-    annual_cost=133, qol_annual=0.000,
-    notes=(
-        "Standalone fisetin using current Double Wood pricing, modeled at an "
-        "Amazon-favored effective cost after 5% Prime cash back."
-    ),
-    sources=["https://doublewoodsupplements.com/products/fisetin"],
-))
-_add(CatalogEntry(
-    "spermidine_10", "Spermidine 10mg", "supplement_current",
-    hr_observed=0.95, log_sd=0.15, conf_alpha=1.2, conf_beta=5.0,
-    annual_cost=0, qol_annual=0.000,
-    notes="Madeo obs HR 0.70. Animal.",
-))
-_add(CatalogEntry(
-    "luteolin_100", "Luteolin 100mg", "supplement_current",
-    hr_observed=0.97, log_sd=0.12, conf_alpha=1.0, conf_beta=5.5,
-    annual_cost=0, qol_annual=0.001,
-    benefit_tags=["antioxidant_support"],
-    notes="Anti-inflammatory. Neuroprotective. Bundled.",
-))
-_add(CatalogEntry(
-    "luteolin_100_unbundled", "Luteolin 100mg (unbundled)", "supplement_candidate",
-    hr_observed=0.97, log_sd=0.12, conf_alpha=1.0, conf_beta=5.5,
-    annual_cost=115, qol_annual=0.001,
-    benefit_tags=["antioxidant_support"],
-    notes=(
-        "Standalone luteolin using current Double Wood pricing, modeled at an "
-        "Amazon-favored effective cost after 5% Prime cash back."
-    ),
-    sources=["https://doublewoodsupplements.com/products/luteolin"],
-))
-_add(CatalogEntry(
-    "ubiquinol_50", "Ubiquinol 50mg", "supplement_current",
-    hr_observed=0.96, log_sd=0.12, conf_alpha=1.5, conf_beta=4.5,
-    annual_cost=0, qol_annual=0.001,
-    benefit_tags=["mitochondrial_support"],
-    notes="Q-SYMBIO RCT in HF. Healthy-pop extrapolation.",
-))
-_add(CatalogEntry(
-    "ubiquinol_50_unbundled", "Ubiquinol 50mg (unbundled)", "supplement_candidate",
-    hr_observed=0.96, log_sd=0.12, conf_alpha=1.5, conf_beta=4.5,
-    annual_cost=120, qol_annual=0.001,
-    benefit_tags=["mitochondrial_support"],
-    notes=(
-        "Standalone ubiquinol using current Life Extension pricing, modeled at "
-        "an Amazon-favored effective cost after 5% Prime cash back."
-    ),
-    sources=["https://www.lifeextension.com/vitamins-supplements/item01425/super-ubiquinol-coq10-with-ppm-pyrroloquinoline-quinone"],
-))
-_add(CatalogEntry(
-    "boron_3", "Boron 3mg", "supplement_current",
-    hr_observed=0.97, log_sd=0.10, conf_alpha=1.0, conf_beta=5.5,
-    annual_cost=0, qol_annual=0.000,
-    notes="Prostate/bone obs. Bundled.",
-))
-_add(CatalogEntry(
-    "lithium_1mg_orotate", "Lithium 1mg orotate", "supplement_current",
-    hr_observed=0.98, log_sd=0.10, conf_alpha=1.2, conf_beta=5.0,
-    annual_cost=0, qol_annual=0.001,
-    notes="Ecological Li data. Neuroprotective. Bundled.",
-))
-_add(CatalogEntry(
-    "broccoli_seed_200", "Broccoli Seed Ext 200mg", "supplement_current",
-    hr_observed=0.95, log_sd=0.15, conf_alpha=1.5, conf_beta=4.5,
-    annual_cost=0, qol_annual=0.000,
-    notes="Sulforaphane. Phase 2 enzyme induction. Bundled.",
-))
-_add(CatalogEntry(
-    "cocoa_flavanols_500", "Cocoa flavanols ~500mg", "supplement_current",
-    hr_observed=0.90, log_sd=0.12, conf_alpha=2.5, conf_beta=3.0,
-    annual_cost=260, qol_annual=0.001,
-    benefit_tags=["cardiometabolic_support"],
-    notes=(
-        "COSMOS RCT HR 0.73 CVD. "
-        "Blueprint Cocoa priced at $41/container with 60 scoops x 5.76g; "
-        "at ~6g/day this is ~58 days/container, or ~$260/yr."
-    ),
-))
-_add(CatalogEntry(
-    "hyaluronic_acid_120", "Hyaluronic acid (oral)", "supplement_current",
-    hr_observed=0.99, log_sd=0.08, conf_alpha=1.0, conf_beta=7.0,
-    annual_cost=0, qol_annual=0.001,
-    notes="Joint/skin support. No mortality effect.",
-    evidence_quality="low",
-))
+        sources=["https://www.truniagen.com/products/tru-niagen-300mg"],
+    )
+)
+_add(
+    CatalogEntry(
+        "fisetin_100",
+        "Fisetin 100mg",
+        "supplement_current",
+        hr_observed=0.97,
+        log_sd=0.12,
+        conf_alpha=1.0,
+        conf_beta=5.5,
+        annual_cost=0,
+        qol_annual=0.000,
+        notes="Senolytic. Animal. Bundled.",
+    )
+)
+_add(
+    CatalogEntry(
+        "fisetin_100_unbundled",
+        "Fisetin 100mg (unbundled)",
+        "supplement_candidate",
+        hr_observed=0.97,
+        log_sd=0.12,
+        conf_alpha=1.0,
+        conf_beta=5.5,
+        annual_cost=133,
+        qol_annual=0.000,
+        notes=(
+            "Standalone fisetin using current Double Wood pricing, modeled at an "
+            "Amazon-favored effective cost after 5% Prime cash back."
+        ),
+        sources=["https://doublewoodsupplements.com/products/fisetin"],
+    )
+)
+_add(
+    CatalogEntry(
+        "spermidine_10",
+        "Spermidine 10mg",
+        "supplement_current",
+        hr_observed=0.95,
+        log_sd=0.15,
+        conf_alpha=1.2,
+        conf_beta=5.0,
+        annual_cost=0,
+        qol_annual=0.000,
+        notes="Madeo obs HR 0.70. Animal.",
+    )
+)
+_add(
+    CatalogEntry(
+        "luteolin_100",
+        "Luteolin 100mg",
+        "supplement_current",
+        hr_observed=0.97,
+        log_sd=0.12,
+        conf_alpha=1.0,
+        conf_beta=5.5,
+        annual_cost=0,
+        qol_annual=0.001,
+        benefit_tags=["antioxidant_support"],
+        notes="Anti-inflammatory. Neuroprotective. Bundled.",
+    )
+)
+_add(
+    CatalogEntry(
+        "luteolin_100_unbundled",
+        "Luteolin 100mg (unbundled)",
+        "supplement_candidate",
+        hr_observed=0.97,
+        log_sd=0.12,
+        conf_alpha=1.0,
+        conf_beta=5.5,
+        annual_cost=115,
+        qol_annual=0.001,
+        benefit_tags=["antioxidant_support"],
+        notes=(
+            "Standalone luteolin using current Double Wood pricing, modeled at an "
+            "Amazon-favored effective cost after 5% Prime cash back."
+        ),
+        sources=["https://doublewoodsupplements.com/products/luteolin"],
+    )
+)
+_add(
+    CatalogEntry(
+        "ubiquinol_50",
+        "Ubiquinol 50mg",
+        "supplement_current",
+        hr_observed=0.96,
+        log_sd=0.12,
+        conf_alpha=1.5,
+        conf_beta=4.5,
+        annual_cost=0,
+        qol_annual=0.001,
+        benefit_tags=["mitochondrial_support"],
+        notes="Q-SYMBIO RCT in HF. Healthy-pop extrapolation.",
+    )
+)
+_add(
+    CatalogEntry(
+        "ubiquinol_50_unbundled",
+        "Ubiquinol 50mg (unbundled)",
+        "supplement_candidate",
+        hr_observed=0.96,
+        log_sd=0.12,
+        conf_alpha=1.5,
+        conf_beta=4.5,
+        annual_cost=120,
+        qol_annual=0.001,
+        benefit_tags=["mitochondrial_support"],
+        notes=(
+            "Standalone ubiquinol using current Life Extension pricing, modeled at "
+            "an Amazon-favored effective cost after 5% Prime cash back."
+        ),
+        sources=[
+            "https://www.lifeextension.com/vitamins-supplements/item01425/super-ubiquinol-coq10-with-ppm-pyrroloquinoline-quinone"
+        ],
+    )
+)
+_add(
+    CatalogEntry(
+        "boron_3",
+        "Boron 3mg",
+        "supplement_current",
+        hr_observed=0.97,
+        log_sd=0.10,
+        conf_alpha=1.0,
+        conf_beta=5.5,
+        annual_cost=0,
+        qol_annual=0.000,
+        notes="Prostate/bone obs. Bundled.",
+    )
+)
+_add(
+    CatalogEntry(
+        "lithium_1mg_orotate",
+        "Lithium 1mg orotate",
+        "supplement_current",
+        hr_observed=0.98,
+        log_sd=0.10,
+        conf_alpha=1.2,
+        conf_beta=5.0,
+        annual_cost=0,
+        qol_annual=0.001,
+        notes="Ecological Li data. Neuroprotective. Bundled.",
+    )
+)
+_add(
+    CatalogEntry(
+        "broccoli_seed_200",
+        "Broccoli Seed Ext 200mg",
+        "supplement_current",
+        hr_observed=0.95,
+        log_sd=0.15,
+        conf_alpha=1.5,
+        conf_beta=4.5,
+        annual_cost=0,
+        qol_annual=0.000,
+        notes="Sulforaphane. Phase 2 enzyme induction. Bundled.",
+    )
+)
+_add(
+    CatalogEntry(
+        "cocoa_flavanols_500",
+        "Cocoa flavanols ~500mg",
+        "supplement_current",
+        hr_observed=0.90,
+        log_sd=0.12,
+        conf_alpha=2.5,
+        conf_beta=3.0,
+        annual_cost=260,
+        qol_annual=0.001,
+        benefit_tags=["cardiometabolic_support"],
+        notes=(
+            "COSMOS RCT HR 0.73 CVD. "
+            "Blueprint Cocoa priced at $41/container with 60 scoops x 5.76g; "
+            "at ~6g/day this is ~58 days/container, or ~$260/yr."
+        ),
+    )
+)
+_add(
+    CatalogEntry(
+        "hyaluronic_acid_120",
+        "Hyaluronic acid (oral)",
+        "supplement_current",
+        hr_observed=0.99,
+        log_sd=0.08,
+        conf_alpha=1.0,
+        conf_beta=7.0,
+        annual_cost=0,
+        qol_annual=0.001,
+        notes="Joint/skin support. No mortality effect.",
+        evidence_quality="low",
+    )
+)
 
 # ---------------------------------------------------------------------------
 # Supplements — already purchased (new additions)
 # ---------------------------------------------------------------------------
-_add(CatalogEntry(
-    "glycine_2g", "Glycine 2g bedtime", "supplement_bought",
-    hr_observed=1.0, log_sd=0.05, conf_alpha=1.5, conf_beta=6.0,
-    annual_cost=28,  # $17.40 / 227 doses (1lb/151×3g servings, 2g dose) * 365
-    qol_annual=0.0002,
-    has_direct_mortality_effect=False,
-    interaction_tags=["sedating"],
-    interaction_rules=[SEDATION_STACK_RULE],
-    sleep_component_relief={
-        "duration": 0.06,
-        "quality": 0.14,
-        "daytime": 0.10,
-    },
-    benefit_tags=[
-        "sleep_duration_support",
-        "sleep_quality_support",
-        "sleep_daytime_support",
-    ],
-    notes=(
-        "Sleep/QOL helper only. Human evidence supports modest next-day fatigue "
-        "and sleep-quality improvement, not a mortality claim."
-    ),
-    sources=[
-        "https://pubmed.ncbi.nlm.nih.gov/22529837/",
-        "https://www.amazon.com/dp/B0013OVZJW",
-    ],
-))
-_add(CatalogEntry(
-    "apigenin_50", "Apigenin 50mg", "supplement_bought",
-    hr_observed=0.96, log_sd=0.12, conf_alpha=1.0, conf_beta=6.0,
-    annual_cost=76,  # $24.95 / 120 caps * 365
-    qol_annual=0.0003,
-    interaction_tags=["sedating"],
-    interaction_rules=[SEDATION_STACK_RULE],
-    sleep_component_relief={
-        "quality": 0.12,
-        "daytime": 0.08,
-    },
-    benefit_tags=[
-        "sleep_quality_support",
-        "sleep_daytime_support",
-    ],
-    notes="CD38 inhibitor. Anxiolytic.",
-    sources=["https://www.amazon.com/dp/B09DGTBBSF"],
-))
-_add(CatalogEntry(
-    "omega3_epa_2g", "High-EPA Omega-3 +2g", "supplement_bought",
-    hr_observed=0.955, log_sd=0.10, conf_alpha=2.5, conf_beta=3.0,
-    annual_cost=227,  # $27.95 / 90 softgels * 2/day = 45 days, * 365/45
-    qol_annual=0.002,
-    interaction_tags=["bleeding_stack"],
-    interaction_rules=[BLEEDING_STACK_RULE],
-    benefit_tags=["cardiometabolic_support"],
-    notes="Incremental over CLO. VITAL/REDUCE-IT.",
-    sources=["https://www.amazon.com/dp/B07DX89ZHN"],
-))
-_add(CatalogEntry(
-    "taurine_500_topup", "Taurine 500mg top-up", "supplement_bought",
-    hr_observed=1.0, log_sd=0.05, conf_alpha=1.2, conf_beta=6.0,
-    annual_cost=4.4,  # $23.97 / 2000 doses (1kg powder, 500mg top-up) * 365
-    qol_annual=0.0001,
-    has_direct_mortality_effect=False,
-    benefit_tags=["performance_recovery"],
-    notes=(
-        "Tiny marginal top-up over 1500mg already in Longevity Mix. Most human "
-        "signals are at 1-3g+ or in non-lean phenotypes."
-    ),
-    sources=[
-        "https://pubmed.ncbi.nlm.nih.gov/34039357/",
-        "https://pubmed.ncbi.nlm.nih.gov/39796489/",
-        "https://www.amazon.com/dp/B00ENSLW7A",
-    ],
-))
+_add(
+    CatalogEntry(
+        "glycine_2g",
+        "Glycine 2g bedtime",
+        "supplement_bought",
+        hr_observed=1.0,
+        log_sd=0.05,
+        conf_alpha=1.5,
+        conf_beta=6.0,
+        annual_cost=28,  # $17.40 / 227 doses (1lb/151×3g servings, 2g dose) * 365
+        qol_annual=0.0002,
+        has_direct_mortality_effect=False,
+        interaction_tags=["sedating"],
+        interaction_rules=[SEDATION_STACK_RULE],
+        sleep_component_relief={
+            "duration": 0.06,
+            "quality": 0.14,
+            "daytime": 0.10,
+        },
+        benefit_tags=[
+            "sleep_duration_support",
+            "sleep_quality_support",
+            "sleep_daytime_support",
+        ],
+        notes=(
+            "Sleep/QOL helper only. Human evidence supports modest next-day fatigue "
+            "and sleep-quality improvement, not a mortality claim."
+        ),
+        sources=[
+            "https://pubmed.ncbi.nlm.nih.gov/22529837/",
+            "https://www.amazon.com/dp/B0013OVZJW",
+        ],
+    )
+)
+_add(
+    CatalogEntry(
+        "apigenin_50",
+        "Apigenin 50mg",
+        "supplement_bought",
+        hr_observed=0.96,
+        log_sd=0.12,
+        conf_alpha=1.0,
+        conf_beta=6.0,
+        annual_cost=76,  # $24.95 / 120 caps * 365
+        qol_annual=0.0003,
+        interaction_tags=["sedating"],
+        interaction_rules=[SEDATION_STACK_RULE],
+        sleep_component_relief={
+            "quality": 0.12,
+            "daytime": 0.08,
+        },
+        benefit_tags=[
+            "sleep_quality_support",
+            "sleep_daytime_support",
+        ],
+        notes="CD38 inhibitor. Anxiolytic.",
+        sources=["https://www.amazon.com/dp/B09DGTBBSF"],
+    )
+)
+_add(
+    CatalogEntry(
+        "omega3_epa_2g",
+        "High-EPA Omega-3 +2g",
+        "supplement_bought",
+        hr_observed=0.955,
+        log_sd=0.10,
+        conf_alpha=2.5,
+        conf_beta=3.0,
+        annual_cost=227,  # $27.95 / 90 softgels * 2/day = 45 days, * 365/45
+        qol_annual=0.002,
+        interaction_tags=["bleeding_stack"],
+        interaction_rules=[BLEEDING_STACK_RULE],
+        benefit_tags=["cardiometabolic_support"],
+        notes="Incremental over CLO. VITAL/REDUCE-IT.",
+        sources=["https://www.amazon.com/dp/B07DX89ZHN"],
+    )
+)
+_add(
+    CatalogEntry(
+        "taurine_500_topup",
+        "Taurine 500mg top-up",
+        "supplement_bought",
+        hr_observed=1.0,
+        log_sd=0.05,
+        conf_alpha=1.2,
+        conf_beta=6.0,
+        annual_cost=4.4,  # $23.97 / 2000 doses (1kg powder, 500mg top-up) * 365
+        qol_annual=0.0001,
+        has_direct_mortality_effect=False,
+        benefit_tags=["performance_recovery"],
+        notes=(
+            "Tiny marginal top-up over 1500mg already in Longevity Mix. Most human "
+            "signals are at 1-3g+ or in non-lean phenotypes."
+        ),
+        sources=[
+            "https://pubmed.ncbi.nlm.nih.gov/34039357/",
+            "https://pubmed.ncbi.nlm.nih.gov/39796489/",
+            "https://www.amazon.com/dp/B00ENSLW7A",
+        ],
+    )
+)
 
 # ---------------------------------------------------------------------------
 # Supplements — candidates
 # ---------------------------------------------------------------------------
-_add(CatalogEntry(
-    "urolithin_a_500", "Urolithin A 500mg", "supplement_candidate",
-    hr_observed=0.94, log_sd=0.15, conf_alpha=1.5, conf_beta=4.5,
-    annual_cost=780, qol_annual=0.003,
-    notes="Mitopure. RCTs: improved mitochondrial function. Expensive.",
-))
-_add(CatalogEntry(
-    "ergothioneine_5", "Ergothioneine 5mg", "supplement_candidate",
-    hr_observed=0.94, log_sd=0.15, conf_alpha=1.2, conf_beta=5.0,
-    annual_cost=240, qol_annual=0.001,
-    notes="Longevity vitamin hypothesis. Obs: low ergo → higher mortality.",
-))
-_add(CatalogEntry(
-    "quercetin_500", "Quercetin 500mg", "supplement_candidate",
-    hr_observed=0.93, log_sd=0.15, conf_alpha=1.5, conf_beta=4.5,
-    annual_cost=60, qol_annual=0.000,
-    benefit_tags=["antioxidant_support"],
-    notes="Senolytic. Anti-inflammatory. Animal lifespan.",
-))
-_add(CatalogEntry(
-    "sulforaphane_20_extra", "Sulforaphane 20mg (extra)", "supplement_candidate",
-    hr_observed=0.94, log_sd=0.15, conf_alpha=1.5, conf_beta=4.5,
-    annual_cost=180, qol_annual=0.000,
-    notes="NRF2 activator. Incremental over Broccoli Seed Ext.",
-))
-_add(CatalogEntry(
-    "pterostilbene_50", "Pterostilbene 50mg", "supplement_candidate",
-    hr_observed=0.96, log_sd=0.15, conf_alpha=1.0, conf_beta=5.5,
-    annual_cost=120, qol_annual=0.000,
-    notes="Resveratrol analog. AMPK/SIRT1. Animal only.",
-))
-_add(CatalogEntry(
-    "egcg_400", "EGCG 400mg (green tea)", "supplement_candidate",
-    hr_observed=0.92, log_sd=0.15, conf_alpha=1.5, conf_beta=4.5,
-    annual_cost=60, qol_annual=0.000,
-    harm_effects=[
-        HarmEffect(
-            id="liver_injury",
-            description="High-dose extract-associated liver injury concern.",
-            event_probability=Distribution(type="point", params={"value": 0.001}),
-            event_qaly_loss=Distribution(type="point", params={"value": 0.08}),
-        ),
-    ],
-    benefit_tags=["antioxidant_support", "cardiometabolic_support"],
-    notes="Obs meta HR 0.74-0.85. Heavily confounded. Liver risk at high dose.",
-))
-_add(CatalogEntry(
-    "berberine_500", "Berberine 500mg", "supplement_candidate",
-    hr_observed=0.88, log_sd=0.18, conf_alpha=1.5, conf_beta=4.5,
-    annual_cost=180, qol_annual=-0.004,
-    notes="Metformin-like. RCTs in diabetes. GI side effects.",
-))
-_add(CatalogEntry(
-    "alpha_lipoic_acid_300", "Alpha-lipoic acid 300mg", "supplement_candidate",
-    hr_observed=0.96, log_sd=0.12, conf_alpha=1.2, conf_beta=5.0,
-    annual_cost=60, qol_annual=0.000,
-    notes="Antioxidant. RCTs for diabetic neuropathy.",
-))
-_add(CatalogEntry(
-    "pqq_20", "PQQ 20mg", "supplement_candidate",
-    hr_observed=0.97, log_sd=0.12, conf_alpha=1.0, conf_beta=6.0,
-    annual_cost=180, qol_annual=0.001,
-    benefit_tags=["mitochondrial_support", "antioxidant_support"],
-    notes="Mitochondrial biogenesis. Small RCTs. Expensive.",
-))
-_add(CatalogEntry(
-    "tmg_1g", "TMG/Betaine 1g", "supplement_candidate",
-    hr_observed=0.97, log_sd=0.10, conf_alpha=1.0, conf_beta=5.5,
-    annual_cost=30, qol_annual=0.000,
-    notes="Methyl donor. Homocysteine reduction. Often paired with NR/NMN.",
-))
-_add(CatalogEntry(
-    "ashwagandha_600", "Ashwagandha 600mg", "supplement_bought",
-    hr_observed=0.96, log_sd=0.15, conf_alpha=1.2, conf_beta=5.0,
-    annual_cost=60, qol_annual=0.0010,
-    harm_effects=[
-        HarmEffect(
-            id="sedation_or_emotional_blunting",
-            description="Next-day dulling, sedation, or emotional blunting during use.",
-            annual_qaly_loss=Distribution(type="normal", params={"mean": 0.00015, "sd": 0.00015}),
-            source="https://www.nccih.nih.gov/health/ashwagandha",
-        ),
-        HarmEffect(
-            id="gi_intolerance",
-            description="GI upset, nausea, diarrhea, or vomiting.",
-            event_probability=Distribution(type="point", params={"value": 0.015}),
-            event_qaly_loss=Distribution(type="point", params={"value": 0.003}),
-            source="https://www.ncbi.nlm.nih.gov/books/NBK548536/",
-        ),
-        HarmEffect(
-            id="thyroid_overactivation",
-            description="Thyroid overactivation, thyroiditis, palpitations, or anxiety.",
-            event_probability=Distribution(type="point", params={"value": 0.0015}),
-            event_qaly_loss=Distribution(type="point", params={"value": 0.035}),
-            source="https://pubmed.ncbi.nlm.nih.gov/28829155/",
-        ),
-        HarmEffect(
-            id="rare_liver_injury",
-            description="Rare clinically apparent liver injury.",
-            event_probability=Distribution(type="point", params={"value": 0.001}),
-            event_qaly_loss=Distribution(type="point", params={"value": 0.08}),
-            source="https://www.ncbi.nlm.nih.gov/books/NBK548536/",
-        ),
-    ],
-    interaction_tags=["sedating", "thyroid_active"],
-    interaction_rules=[SEDATION_STACK_RULE],
-    sleep_component_relief={
-        "duration": 0.05,
-        "quality": 0.12,
-        "daytime": 0.12,
-    },
-    benefit_tags=[
-        "sleep_duration_support",
-        "sleep_quality_support",
-        "sleep_daytime_support",
-    ],
-    notes="RCTs: cortisol, anxiety, sleep, testosterone. Rare liver concern.",
-))
-_add(CatalogEntry(
-    "lions_mane_1g", "Lions Mane 1g", "supplement_bought",
-    hr_observed=0.98, log_sd=0.12, conf_alpha=1.0, conf_beta=6.0,
-    annual_cost=287,  # $47.21 / 120 caps, 2/day = 60 days, * 365/60
-    qol_annual=0.003,
-    notes="NGF stimulation. Small RCTs: cognitive improvement.",
-    sources=["https://www.amazon.com/dp/B00OVF9DVM"],
-))
-_add(CatalogEntry(
-    "black_seed_oil_1g", "Black seed oil 1g", "supplement_candidate",
-    hr_observed=0.91, log_sd=0.18, conf_alpha=1.2, conf_beta=5.0,
-    annual_cost=60, qol_annual=0.000,
-    notes="Thymoquinone. Anti-inflammatory. No mortality RCTs.",
-))
-_add(CatalogEntry(
-    "cistanche_200", "Cistanche 200mg", "supplement_bought",
-    hr_observed=0.95, log_sd=0.18, conf_alpha=1.0, conf_beta=6.0,
-    annual_cost=231,  # $37.99 / 60 tabs, 1/day = 60 days, * 365/60
-    qol_annual=0.002,
-    benefit_tags=["performance_recovery"],
-    notes="Testosterone, anti-aging TCM. Very limited human data.",
-    sources=["https://www.amazon.com/dp/B08VTFXWQF"],
-))
-_add(CatalogEntry(
-    "nmn_500", "NMN 500mg", "supplement_candidate",
-    hr_observed=0.96, log_sd=0.12, conf_alpha=1.2, conf_beta=5.0,
-    annual_cost=360, qol_annual=0.001,
-    benefit_tags=["mitochondrial_support"],
-    notes="NAD+ precursor (alt to NR). Already getting NR 300mg. Expensive.",
-))
-_add(CatalogEntry(
-    "ghk_cu", "GHK-Cu peptide (topical)", "supplement_candidate",
-    hr_observed=0.99, log_sd=0.10, conf_alpha=1.0, conf_beta=7.0,
-    annual_cost=300, qol_annual=0.002,
-    notes="Wound healing, collagen. Skin only.",
-))
-_add(CatalogEntry(
-    "vitamin_c_500_extra", "Vitamin C 500mg (extra)", "supplement_candidate",
-    hr_observed=0.97, log_sd=0.08, conf_alpha=2.0, conf_beta=4.5,
-    annual_cost=15, qol_annual=0.000,
-    notes="Already getting 250mg from Longevity Mix. Obs meta: modest CVD.",
-))
+_add(
+    CatalogEntry(
+        "urolithin_a_500",
+        "Urolithin A 500mg",
+        "supplement_candidate",
+        hr_observed=0.94,
+        log_sd=0.15,
+        conf_alpha=1.5,
+        conf_beta=4.5,
+        annual_cost=780,
+        qol_annual=0.003,
+        notes="Mitopure. RCTs: improved mitochondrial function. Expensive.",
+    )
+)
+_add(
+    CatalogEntry(
+        "ergothioneine_5",
+        "Ergothioneine 5mg",
+        "supplement_candidate",
+        hr_observed=0.94,
+        log_sd=0.15,
+        conf_alpha=1.2,
+        conf_beta=5.0,
+        annual_cost=240,
+        qol_annual=0.001,
+        notes="Longevity vitamin hypothesis. Obs: low ergo → higher mortality.",
+    )
+)
+_add(
+    CatalogEntry(
+        "quercetin_500",
+        "Quercetin 500mg",
+        "supplement_candidate",
+        hr_observed=0.93,
+        log_sd=0.15,
+        conf_alpha=1.5,
+        conf_beta=4.5,
+        annual_cost=60,
+        qol_annual=0.000,
+        benefit_tags=["antioxidant_support"],
+        notes="Senolytic. Anti-inflammatory. Animal lifespan.",
+    )
+)
+_add(
+    CatalogEntry(
+        "sulforaphane_20_extra",
+        "Sulforaphane 20mg (extra)",
+        "supplement_candidate",
+        hr_observed=0.94,
+        log_sd=0.15,
+        conf_alpha=1.5,
+        conf_beta=4.5,
+        annual_cost=180,
+        qol_annual=0.000,
+        notes="NRF2 activator. Incremental over Broccoli Seed Ext.",
+    )
+)
+_add(
+    CatalogEntry(
+        "pterostilbene_50",
+        "Pterostilbene 50mg",
+        "supplement_candidate",
+        hr_observed=0.96,
+        log_sd=0.15,
+        conf_alpha=1.0,
+        conf_beta=5.5,
+        annual_cost=120,
+        qol_annual=0.000,
+        notes="Resveratrol analog. AMPK/SIRT1. Animal only.",
+    )
+)
+_add(
+    CatalogEntry(
+        "egcg_400",
+        "EGCG 400mg (green tea)",
+        "supplement_candidate",
+        hr_observed=0.92,
+        log_sd=0.15,
+        conf_alpha=1.5,
+        conf_beta=4.5,
+        annual_cost=60,
+        qol_annual=0.000,
+        harm_effects=[
+            HarmEffect(
+                id="liver_injury",
+                description="High-dose extract-associated liver injury concern.",
+                event_probability=Distribution(type="point", params={"value": 0.001}),
+                event_qaly_loss=Distribution(type="point", params={"value": 0.08}),
+            ),
+        ],
+        benefit_tags=["antioxidant_support", "cardiometabolic_support"],
+        notes="Obs meta HR 0.74-0.85. Heavily confounded. Liver risk at high dose.",
+    )
+)
+_add(
+    CatalogEntry(
+        "berberine_500",
+        "Berberine 500mg",
+        "supplement_candidate",
+        hr_observed=0.88,
+        log_sd=0.18,
+        conf_alpha=1.5,
+        conf_beta=4.5,
+        annual_cost=180,
+        qol_annual=-0.004,
+        notes="Metformin-like. RCTs in diabetes. GI side effects.",
+    )
+)
+_add(
+    CatalogEntry(
+        "alpha_lipoic_acid_300",
+        "Alpha-lipoic acid 300mg",
+        "supplement_candidate",
+        hr_observed=0.96,
+        log_sd=0.12,
+        conf_alpha=1.2,
+        conf_beta=5.0,
+        annual_cost=60,
+        qol_annual=0.000,
+        notes="Antioxidant. RCTs for diabetic neuropathy.",
+    )
+)
+_add(
+    CatalogEntry(
+        "pqq_20",
+        "PQQ 20mg",
+        "supplement_candidate",
+        hr_observed=0.97,
+        log_sd=0.12,
+        conf_alpha=1.0,
+        conf_beta=6.0,
+        annual_cost=180,
+        qol_annual=0.001,
+        benefit_tags=["mitochondrial_support", "antioxidant_support"],
+        notes="Mitochondrial biogenesis. Small RCTs. Expensive.",
+    )
+)
+_add(
+    CatalogEntry(
+        "tmg_1g",
+        "TMG/Betaine 1g",
+        "supplement_candidate",
+        hr_observed=0.97,
+        log_sd=0.10,
+        conf_alpha=1.0,
+        conf_beta=5.5,
+        annual_cost=30,
+        qol_annual=0.000,
+        notes="Methyl donor. Homocysteine reduction. Often paired with NR/NMN.",
+    )
+)
+_add(
+    CatalogEntry(
+        "ashwagandha_600",
+        "Ashwagandha 600mg",
+        "supplement_bought",
+        hr_observed=0.96,
+        log_sd=0.15,
+        conf_alpha=1.2,
+        conf_beta=5.0,
+        annual_cost=60,
+        qol_annual=0.0010,
+        harm_effects=[
+            HarmEffect(
+                id="sedation_or_emotional_blunting",
+                description="Next-day dulling, sedation, or emotional blunting during use.",
+                annual_qaly_loss=Distribution(
+                    type="normal", params={"mean": 0.00015, "sd": 0.00015}
+                ),
+                source="https://www.nccih.nih.gov/health/ashwagandha",
+            ),
+            HarmEffect(
+                id="gi_intolerance",
+                description="GI upset, nausea, diarrhea, or vomiting.",
+                event_probability=Distribution(type="point", params={"value": 0.015}),
+                event_qaly_loss=Distribution(type="point", params={"value": 0.003}),
+                source="https://www.ncbi.nlm.nih.gov/books/NBK548536/",
+            ),
+            HarmEffect(
+                id="thyroid_overactivation",
+                description="Thyroid overactivation, thyroiditis, palpitations, or anxiety.",
+                event_probability=Distribution(type="point", params={"value": 0.0015}),
+                event_qaly_loss=Distribution(type="point", params={"value": 0.035}),
+                source="https://pubmed.ncbi.nlm.nih.gov/28829155/",
+            ),
+            HarmEffect(
+                id="rare_liver_injury",
+                description="Rare clinically apparent liver injury.",
+                event_probability=Distribution(type="point", params={"value": 0.001}),
+                event_qaly_loss=Distribution(type="point", params={"value": 0.08}),
+                source="https://www.ncbi.nlm.nih.gov/books/NBK548536/",
+            ),
+        ],
+        interaction_tags=["sedating", "thyroid_active"],
+        interaction_rules=[SEDATION_STACK_RULE],
+        sleep_component_relief={
+            "duration": 0.05,
+            "quality": 0.12,
+            "daytime": 0.12,
+        },
+        benefit_tags=[
+            "sleep_duration_support",
+            "sleep_quality_support",
+            "sleep_daytime_support",
+        ],
+        notes="RCTs: cortisol, anxiety, sleep, testosterone. Rare liver concern.",
+    )
+)
+_add(
+    CatalogEntry(
+        "lions_mane_1g",
+        "Lions Mane 1g",
+        "supplement_bought",
+        hr_observed=0.98,
+        log_sd=0.12,
+        conf_alpha=1.0,
+        conf_beta=6.0,
+        annual_cost=287,  # $47.21 / 120 caps, 2/day = 60 days, * 365/60
+        qol_annual=0.003,
+        notes="NGF stimulation. Small RCTs: cognitive improvement.",
+        sources=["https://www.amazon.com/dp/B00OVF9DVM"],
+    )
+)
+_add(
+    CatalogEntry(
+        "black_seed_oil_1g",
+        "Black seed oil 1g",
+        "supplement_candidate",
+        hr_observed=0.91,
+        log_sd=0.18,
+        conf_alpha=1.2,
+        conf_beta=5.0,
+        annual_cost=60,
+        qol_annual=0.000,
+        notes="Thymoquinone. Anti-inflammatory. No mortality RCTs.",
+    )
+)
+_add(
+    CatalogEntry(
+        "cistanche_200",
+        "Cistanche 200mg",
+        "supplement_bought",
+        hr_observed=0.95,
+        log_sd=0.18,
+        conf_alpha=1.0,
+        conf_beta=6.0,
+        annual_cost=231,  # $37.99 / 60 tabs, 1/day = 60 days, * 365/60
+        qol_annual=0.002,
+        benefit_tags=["performance_recovery"],
+        notes="Testosterone, anti-aging TCM. Very limited human data.",
+        sources=["https://www.amazon.com/dp/B08VTFXWQF"],
+    )
+)
+_add(
+    CatalogEntry(
+        "nmn_500",
+        "NMN 500mg",
+        "supplement_candidate",
+        hr_observed=0.96,
+        log_sd=0.12,
+        conf_alpha=1.2,
+        conf_beta=5.0,
+        annual_cost=360,
+        qol_annual=0.001,
+        benefit_tags=["mitochondrial_support"],
+        notes="NAD+ precursor (alt to NR). Already getting NR 300mg. Expensive.",
+    )
+)
+_add(
+    CatalogEntry(
+        "ghk_cu",
+        "GHK-Cu peptide (topical)",
+        "supplement_candidate",
+        hr_observed=0.99,
+        log_sd=0.10,
+        conf_alpha=1.0,
+        conf_beta=7.0,
+        annual_cost=300,
+        qol_annual=0.002,
+        notes="Wound healing, collagen. Skin only.",
+    )
+)
+_add(
+    CatalogEntry(
+        "vitamin_c_500_extra",
+        "Vitamin C 500mg (extra)",
+        "supplement_candidate",
+        hr_observed=0.97,
+        log_sd=0.08,
+        conf_alpha=2.0,
+        conf_beta=4.5,
+        annual_cost=15,
+        qol_annual=0.000,
+        notes="Already getting 250mg from Longevity Mix. Obs meta: modest CVD.",
+    )
+)
 # -------------------------------------------------------------------------
 # Blueprint Longevity Mix actives (1 scoop = 14.8 g, ~$537/yr, 30 servings).
 # Added so the Mix can be modeled as a bundle AND ingredient-by-ingredient.
@@ -1977,259 +2707,360 @@ _add(CatalogEntry(
 # held at the 1.0 null rather than inventing a benefit. study_quality uses the
 # tiers actually defined in confounding.STUDY_QUALITY_SHRINKAGE.
 # -------------------------------------------------------------------------
-_add(CatalogEntry(
-    "caakg_2000", "Calcium AKG 2000mg", "supplement_current",
-    hr_observed=1.0, log_sd=0.05, conf_alpha=1.2, conf_beta=6.0,
-    annual_cost=0, qol_annual=0.0,
-    has_direct_mortality_effect=False,
-    benefit_tags=["mitochondrial_support"],
-    notes=(
-        "Calcium alpha-ketoglutarate, the largest active in the Blueprint "
-        "Longevity Mix (2000 mg). Lifespan/healthspan evidence is animal-only: "
-        "in C57BL/6 mice, CaAKG begun at 18 months extended median lifespan "
-        "~12-16% and compressed morbidity/frailty (Asadi Shahmirzadi et al., "
-        "Cell Metabolism 2020, PMID 32877690), an effect that was sexually "
-        "dimorphic (stronger in females). The only human data is an open-label, "
-        "uncontrolled biological-age (DNA-methylation) study of Rejuvant "
-        "(Demidenko et al., Aging 2021) - not a mortality endpoint and heavily "
-        "confounded. With no human all-cause mortality RCT or cohort, "
-        "hr_observed is held at the 1.0 null (animal_or_mechanistic tier, "
-        "speculative) rather than extrapolating the mouse effect to humans."
-    ),
-    sources=(
-        "https://pubmed.ncbi.nlm.nih.gov/32877690/",
-        "https://www.aging-us.com/article/203736/text",
-    ),
-    study_quality="animal_or_mechanistic",
-    evidence_quality="very-low",
-))
-_add(CatalogEntry(
-    "glucosamine_sulfate_750", "Glucosamine sulfate 750mg", "supplement_current",
-    hr_observed=0.92, log_sd=0.10, conf_alpha=1.0, conf_beta=5.5,
-    annual_cost=0, qol_annual=0.0,
-    benefit_tags=["anti_inflammatory"],
-    notes=(
-        "Glucosamine sulfate 750 mg (Blueprint Longevity Mix). The only Mix "
-        "active with direct human all-cause mortality data: in the UK Biobank "
-        "prospective cohort (n=495,077, median 8.9 y follow-up, 19,882 deaths), "
-        "regular glucosamine use had a multivariable-adjusted all-cause "
-        "mortality HR of 0.85 (95% CI 0.82-0.89) (Li et al., Ann Rheum Dis "
-        "2020;79:829-836, PMID 32253185). That association is almost certainly "
-        "inflated by healthy-user / selection bias - Suissa et al. "
-        "(Pharmacoepidemiol Drug Saf 2022) argue the apparent benefit largely "
-        "reflects who chooses to take glucosamine, not the supplement. We "
-        "therefore enter a conservative observed HR of 0.92 (well above the raw "
-        "0.85) and tier it observational_speculative (0.55 shrinkage) so the "
-        "confounding machinery pulls it further toward null."
-    ),
-    sources=(
-        "https://pubmed.ncbi.nlm.nih.gov/32253185/",
-        "https://onlinelibrary.wiley.com/doi/abs/10.1002/pds.5535",
-    ),
-    study_quality="observational_speculative",
-    evidence_quality="low",
-))
-_add(CatalogEntry(
-    "l_lysine_1000", "L-Lysine 1000mg", "supplement_current",
-    hr_observed=1.0, log_sd=0.04, conf_alpha=1.1, conf_beta=6.0,
-    annual_cost=0, qol_annual=0.0,
-    has_direct_mortality_effect=False,
-    notes=(
-        "L-Lysine 1000 mg (Blueprint Longevity Mix). Lysine is an essential "
-        "amino acid generally replete in an adequate-protein diet, so "
-        "incremental supplementation has limited expected effect. No all-cause "
-        "mortality, longevity, or healthspan RCT/cohort exists for lysine. The "
-        "human RCT evidence is for unrelated outcomes: recurrent herpes "
-        "labialis prophylaxis at >=1 g/day (Griffith et al. 1987, PMID "
-        "3115841; mixed across trials, Cochrane found no clear benefit), and "
-        "reduced anxiety/cortisol only when COMBINED with L-arginine 2.64 g "
-        "each (Smriga et al., Biomed Res 2007, PMID 17510493) - not lysine "
-        "alone. With no mortality signal, hr_observed is held at the 1.0 null."
-    ),
-    sources=(
-        "https://pubmed.ncbi.nlm.nih.gov/3115841/",
-        "https://pubmed.ncbi.nlm.nih.gov/17510493/",
-    ),
-    study_quality="animal_or_mechanistic",
-    evidence_quality="very-low",
-))
-_add(CatalogEntry(
-    "glutathione_250", "Reduced glutathione 250mg (oral)", "supplement_current",
-    hr_observed=1.0, log_sd=0.05, conf_alpha=1.1, conf_beta=6.0,
-    annual_cost=0, qol_annual=0.0,
-    has_direct_mortality_effect=False,
-    benefit_tags=["antioxidant_support"],
-    notes=(
-        "Oral reduced glutathione 250 mg (Blueprint Longevity Mix). A 6-month "
-        "randomized, double-blind, placebo-controlled trial (n=54) of oral GSH "
-        "at exactly 250 and 1000 mg/day raised body glutathione stores in "
-        "blood, erythrocytes, lymphocytes and buccal cells and increased NK "
-        "cytotoxicity (Richie et al., Eur J Nutr 2015;54:251-263, PMID "
-        "24791752). Those are biomarker/surrogate endpoints only - no clinical "
-        "or mortality outcome was measured, and oral GSH bioavailability is "
-        "inherently limited by gut degradation. With no hard-endpoint or "
-        "mortality evidence, hr_observed is held at the 1.0 null. Tiered as a "
-        "supplement-industry surrogate-endpoint RCT (0.50 shrinkage)."
-    ),
-    sources=(
-        "https://pubmed.ncbi.nlm.nih.gov/24791752/",
-        "https://pmc.ncbi.nlm.nih.gov/articles/PMC3162377/",
-    ),
-    study_quality="supplement_industry_rct",
-    evidence_quality="very-low",
-))
-_add(CatalogEntry(
-    "l_theanine_200", "L-Theanine 200mg", "supplement_current",
-    hr_observed=1.0, log_sd=0.05, conf_alpha=1.2, conf_beta=5.5,
-    annual_cost=0, qol_annual=0.0004, qol_years=10,
-    has_direct_mortality_effect=False,
-    benefit_tags=["neurotrophic_support"],
-    notes=(
-        "L-Theanine 200 mg (Blueprint Longevity Mix). No mortality, longevity, "
-        "or healthspan evidence exists. Randomized placebo-controlled trials at "
-        "this 200 mg/day dose show modest benefits for stress, sleep quality, "
-        "and cognition in healthy adults (Hidese et al., Nutrients 2019, PMID "
-        "31623400; meta-analytic support for acute stress/anxiety at 200-400 "
-        "mg). The mortality HR is held at the 1.0 null; a very small recurring "
-        "quality-of-life term (~0.0004 QALY/yr) captures the stress/sleep "
-        "benefit without implying any lifespan effect."
-    ),
-    sources=(
-        "https://pubmed.ncbi.nlm.nih.gov/31623400/",
-        "https://pmc.ncbi.nlm.nih.gov/articles/PMC6836118/",
-    ),
-    study_quality="rct_standard",
-    evidence_quality="low",
-))
-_add(CatalogEntry(
-    "magnesium_citrate_150", "Magnesium citrate 150mg", "supplement_current",
-    hr_observed=1.0, log_sd=0.04, conf_alpha=1.1, conf_beta=6.0,
-    annual_cost=0, qol_annual=0.0,
-    has_direct_mortality_effect=False,
-    benefit_tags=["cardiometabolic_support"],
-    notes=(
-        "Magnesium citrate 150 mg (Blueprint Longevity Mix). Cohort meta-"
-        "analyses link higher total magnesium intake to lower all-cause and "
-        "cardiovascular mortality (Fang et al., BMC Med 2016, PMID 27927203), "
-        "but the effect is intake/deficiency-driven and confounded. Critically, "
-        "Max separately takes 400 mg magnesium glycinate nightly, so this 150 "
-        "mg is incremental on top of an already-adequate intake; to avoid "
-        "double-counting any magnesium mortality benefit, the incremental HR is "
-        "held at the 1.0 null (observational_speculative tier, very-low)."
-    ),
-    sources=(
-        "https://pubmed.ncbi.nlm.nih.gov/27927203/",
-    ),
-    study_quality="observational_speculative",
-    evidence_quality="very-low",
-))
-_add(CatalogEntry(
-    "zinc_carnosine_75", "Zinc carnosine 75mg", "supplement_bought",
-    hr_observed=0.97, log_sd=0.10, conf_alpha=1.5, conf_beta=4.5,
-    annual_cost=60, qol_annual=0.001,
-    benefit_tags=["gut_support"],
-    notes="Gut barrier integrity. Already getting zinc 15mg.",
-))
-_add(CatalogEntry(
-    "traditional_sauna_4x_week", "Traditional dry sauna 4x/week", "supplement_candidate",
-    hr_observed=1.0, log_sd=0.08, conf_alpha=1.8, conf_beta=4.8,
-    annual_cost=2178, qol_annual=0.0008, qol_years=15,
-    has_direct_mortality_effect=False,
-    benefit_tags=["performance_recovery"],
-    notes=(
-        "Modeled as a modest Finnish-style dry sauna intervention, not a direct mortality claim. "
-        "Effect assumes roughly 175-194F traditional dry sauna; cost uses current MINT DC club pricing as a local paid-access proxy."
-    ),
-    sources=[
-        "https://pubmed.ncbi.nlm.nih.gov/25705824/",
-        "https://pmc.ncbi.nlm.nih.gov/articles/PMC9394774/",
-    ],
-    evidence_quality="low",
-))
-_add(CatalogEntry(
-    "infrared_sauna_4x_week", "Infrared sauna 4x/week", "supplement_candidate",
-    hr_observed=1.0, log_sd=0.07, conf_alpha=1.5, conf_beta=5.2,
-    annual_cost=3588, qol_annual=0.00035, qol_years=10,
-    has_direct_mortality_effect=False,
-    benefit_tags=["performance_recovery"],
-    notes=(
-        "Infrared sauna is modeled separately from Finnish dry sauna because the evidence is weaker and less directly transportable. "
-        "Cost uses current Pure Sweat Georgetown unlimited pricing for 4x/week access."
-    ),
-    sources=[
-        "https://pubmed.ncbi.nlm.nih.gov/41049507/",
-        "https://pmc.ncbi.nlm.nih.gov/articles/PMC9394774/",
-    ],
-    evidence_quality="very-low",
-))
-_add(CatalogEntry(
-    "hbot_60sessions", "HBOT 60-session course", "supplement_candidate",
-    hr_observed=1.0, log_sd=0.06, conf_alpha=1.2, conf_beta=6.4,
-    annual_cost=1800, qol_annual=0.0002,
-    qol_years=5,
-    has_direct_mortality_effect=False,
-    harm_effects=[
-        HarmEffect(
-            id="barotrauma_or_oxygen_toxicity",
-            description="Barotrauma, middle-ear injury, or rare oxygen-toxicity events.",
-            event_probability=Distribution(type="point", params={"value": 0.003}),
-            event_qaly_loss=Distribution(type="point", params={"value": 0.02}),
+_add(
+    CatalogEntry(
+        "caakg_2000",
+        "Calcium AKG 2000mg",
+        "supplement_current",
+        hr_observed=1.0,
+        log_sd=0.05,
+        conf_alpha=1.2,
+        conf_beta=6.0,
+        annual_cost=0,
+        qol_annual=0.0,
+        has_direct_mortality_effect=False,
+        benefit_tags=["mitochondrial_support"],
+        notes=(
+            "Calcium alpha-ketoglutarate, the largest active in the Blueprint "
+            "Longevity Mix (2000 mg). Lifespan/healthspan evidence is animal-only: "
+            "in C57BL/6 mice, CaAKG begun at 18 months extended median lifespan "
+            "~12-16% and compressed morbidity/frailty (Asadi Shahmirzadi et al., "
+            "Cell Metabolism 2020, PMID 32877690), an effect that was sexually "
+            "dimorphic (stronger in females). The only human data is an open-label, "
+            "uncontrolled biological-age (DNA-methylation) study of Rejuvant "
+            "(Demidenko et al., Aging 2021) - not a mortality endpoint and heavily "
+            "confounded. With no human all-cause mortality RCT or cohort, "
+            "hr_observed is held at the 1.0 null (animal_or_mechanistic tier, "
+            "speculative) rather than extrapolating the mouse effect to humans."
         ),
-    ],
-    benefit_tags=["performance_recovery"],
-    notes=(
-        "Cost annualized from a clinic course. Healthy-aging evidence remains early and mostly surrogate-driven."
-    ),
-    sources=[
-        "https://pubmed.ncbi.nlm.nih.gov/35649312/",
-        "https://www.fda.gov/medical-devices/letters-health-care-providers/follow-instructions-safe-use-hyperbaric-oxygen-therapy-devices-letter-health-care-providers",
-        "https://www.uhms.org/pl/resources/featured-resources/hbo-indications.html",
-    ],
-    evidence_quality="very-low",
-))
-_add(CatalogEntry(
-    "bpc157_cycle", "BPC-157 cycle", "supplement_candidate",
-    hr_observed=1.0, log_sd=0.06, conf_alpha=1.0, conf_beta=6.8,
-    annual_cost=1200, qol_annual=0.00005,
-    qol_years=2,
-    has_direct_mortality_effect=False,
-    harm_effects=[
-        HarmEffect(
-            id="gray_market_peptide_quality_risk",
-            description="Injection burden, contamination, dosing, or immunogenicity risk from gray-market peptides.",
-            annual_qaly_loss=Distribution(type="normal", params={"mean": 0.0004, "sd": 0.00015}),
+        sources=(
+            "https://pubmed.ncbi.nlm.nih.gov/32877690/",
+            "https://www.aging-us.com/article/203736/text",
         ),
-    ],
-    notes=(
-        "Modeled for a generic annual cycle in an otherwise uninjured user. Human efficacy evidence is extremely thin and product-quality uncertainty is real."
-    ),
-    sources=[
-        "https://pubmed.ncbi.nlm.nih.gov/40756949/",
-        "https://www.fda.gov/drugs/human-drug-compounding/understanding-risks-compounded-drugs",
-    ],
-    evidence_quality="very-low",
-))
-_add(CatalogEntry(
-    "tb500_cycle", "TB-500 cycle", "supplement_candidate",
-    hr_observed=1.0, log_sd=0.06, conf_alpha=1.0, conf_beta=7.0,
-    annual_cost=1500, qol_annual=0.00003,
-    qol_years=2,
-    has_direct_mortality_effect=False,
-    harm_effects=[
-        HarmEffect(
-            id="gray_market_tb500_quality_risk",
-            description="Injection burden plus contamination and immunogenicity risk with minimal human efficacy data.",
-            annual_qaly_loss=Distribution(type="normal", params={"mean": 0.00045, "sd": 0.00018}),
+        study_quality="animal_or_mechanistic",
+        evidence_quality="very-low",
+    )
+)
+_add(
+    CatalogEntry(
+        "glucosamine_sulfate_750",
+        "Glucosamine sulfate 750mg",
+        "supplement_current",
+        hr_observed=0.92,
+        log_sd=0.10,
+        conf_alpha=1.0,
+        conf_beta=5.5,
+        annual_cost=0,
+        qol_annual=0.0,
+        benefit_tags=["anti_inflammatory"],
+        notes=(
+            "Glucosamine sulfate 750 mg (Blueprint Longevity Mix). The only Mix "
+            "active with direct human all-cause mortality data: in the UK Biobank "
+            "prospective cohort (n=495,077, median 8.9 y follow-up, 19,882 deaths), "
+            "regular glucosamine use had a multivariable-adjusted all-cause "
+            "mortality HR of 0.85 (95% CI 0.82-0.89) (Li et al., Ann Rheum Dis "
+            "2020;79:829-836, PMID 32253185). That association is almost certainly "
+            "inflated by healthy-user / selection bias - Suissa et al. "
+            "(Pharmacoepidemiol Drug Saf 2022) argue the apparent benefit largely "
+            "reflects who chooses to take glucosamine, not the supplement. We "
+            "therefore enter a conservative observed HR of 0.92 (well above the raw "
+            "0.85) and tier it observational_speculative (0.55 shrinkage) so the "
+            "confounding machinery pulls it further toward null."
         ),
-    ],
-    notes=(
-        "Treated as an even weaker evidence base than BPC-157 for a general healthy user."
-    ),
-    sources=[
-        "https://www.fda.gov/drugs/human-drug-compounding/understanding-risks-compounded-drugs",
-    ],
-    evidence_quality="very-low",
-))
+        sources=(
+            "https://pubmed.ncbi.nlm.nih.gov/32253185/",
+            "https://onlinelibrary.wiley.com/doi/abs/10.1002/pds.5535",
+        ),
+        study_quality="observational_speculative",
+        evidence_quality="low",
+    )
+)
+_add(
+    CatalogEntry(
+        "l_lysine_1000",
+        "L-Lysine 1000mg",
+        "supplement_current",
+        hr_observed=1.0,
+        log_sd=0.04,
+        conf_alpha=1.1,
+        conf_beta=6.0,
+        annual_cost=0,
+        qol_annual=0.0,
+        has_direct_mortality_effect=False,
+        notes=(
+            "L-Lysine 1000 mg (Blueprint Longevity Mix). Lysine is an essential "
+            "amino acid generally replete in an adequate-protein diet, so "
+            "incremental supplementation has limited expected effect. No all-cause "
+            "mortality, longevity, or healthspan RCT/cohort exists for lysine. The "
+            "human RCT evidence is for unrelated outcomes: recurrent herpes "
+            "labialis prophylaxis at >=1 g/day (Griffith et al. 1987, PMID "
+            "3115841; mixed across trials, Cochrane found no clear benefit), and "
+            "reduced anxiety/cortisol only when COMBINED with L-arginine 2.64 g "
+            "each (Smriga et al., Biomed Res 2007, PMID 17510493) - not lysine "
+            "alone. With no mortality signal, hr_observed is held at the 1.0 null."
+        ),
+        sources=(
+            "https://pubmed.ncbi.nlm.nih.gov/3115841/",
+            "https://pubmed.ncbi.nlm.nih.gov/17510493/",
+        ),
+        study_quality="animal_or_mechanistic",
+        evidence_quality="very-low",
+    )
+)
+_add(
+    CatalogEntry(
+        "glutathione_250",
+        "Reduced glutathione 250mg (oral)",
+        "supplement_current",
+        hr_observed=1.0,
+        log_sd=0.05,
+        conf_alpha=1.1,
+        conf_beta=6.0,
+        annual_cost=0,
+        qol_annual=0.0,
+        has_direct_mortality_effect=False,
+        benefit_tags=["antioxidant_support"],
+        notes=(
+            "Oral reduced glutathione 250 mg (Blueprint Longevity Mix). A 6-month "
+            "randomized, double-blind, placebo-controlled trial (n=54) of oral GSH "
+            "at exactly 250 and 1000 mg/day raised body glutathione stores in "
+            "blood, erythrocytes, lymphocytes and buccal cells and increased NK "
+            "cytotoxicity (Richie et al., Eur J Nutr 2015;54:251-263, PMID "
+            "24791752). Those are biomarker/surrogate endpoints only - no clinical "
+            "or mortality outcome was measured, and oral GSH bioavailability is "
+            "inherently limited by gut degradation. With no hard-endpoint or "
+            "mortality evidence, hr_observed is held at the 1.0 null. Tiered as a "
+            "supplement-industry surrogate-endpoint RCT (0.50 shrinkage)."
+        ),
+        sources=(
+            "https://pubmed.ncbi.nlm.nih.gov/24791752/",
+            "https://pmc.ncbi.nlm.nih.gov/articles/PMC3162377/",
+        ),
+        study_quality="supplement_industry_rct",
+        evidence_quality="very-low",
+    )
+)
+_add(
+    CatalogEntry(
+        "l_theanine_200",
+        "L-Theanine 200mg",
+        "supplement_current",
+        hr_observed=1.0,
+        log_sd=0.05,
+        conf_alpha=1.2,
+        conf_beta=5.5,
+        annual_cost=0,
+        qol_annual=0.0004,
+        qol_years=10,
+        has_direct_mortality_effect=False,
+        benefit_tags=["neurotrophic_support"],
+        notes=(
+            "L-Theanine 200 mg (Blueprint Longevity Mix). No mortality, longevity, "
+            "or healthspan evidence exists. Randomized placebo-controlled trials at "
+            "this 200 mg/day dose show modest benefits for stress, sleep quality, "
+            "and cognition in healthy adults (Hidese et al., Nutrients 2019, PMID "
+            "31623400; meta-analytic support for acute stress/anxiety at 200-400 "
+            "mg). The mortality HR is held at the 1.0 null; a very small recurring "
+            "quality-of-life term (~0.0004 QALY/yr) captures the stress/sleep "
+            "benefit without implying any lifespan effect."
+        ),
+        sources=(
+            "https://pubmed.ncbi.nlm.nih.gov/31623400/",
+            "https://pmc.ncbi.nlm.nih.gov/articles/PMC6836118/",
+        ),
+        study_quality="rct_standard",
+        evidence_quality="low",
+    )
+)
+_add(
+    CatalogEntry(
+        "magnesium_citrate_150",
+        "Magnesium citrate 150mg",
+        "supplement_current",
+        hr_observed=1.0,
+        log_sd=0.04,
+        conf_alpha=1.1,
+        conf_beta=6.0,
+        annual_cost=0,
+        qol_annual=0.0,
+        has_direct_mortality_effect=False,
+        benefit_tags=["cardiometabolic_support"],
+        notes=(
+            "Magnesium citrate 150 mg (Blueprint Longevity Mix). Cohort meta-"
+            "analyses link higher total magnesium intake to lower all-cause and "
+            "cardiovascular mortality (Fang et al., BMC Med 2016, PMID 27927203), "
+            "but the effect is intake/deficiency-driven and confounded. Critically, "
+            "Max separately takes 400 mg magnesium glycinate nightly, so this 150 "
+            "mg is incremental on top of an already-adequate intake; to avoid "
+            "double-counting any magnesium mortality benefit, the incremental HR is "
+            "held at the 1.0 null (observational_speculative tier, very-low)."
+        ),
+        sources=("https://pubmed.ncbi.nlm.nih.gov/27927203/",),
+        study_quality="observational_speculative",
+        evidence_quality="very-low",
+    )
+)
+_add(
+    CatalogEntry(
+        "zinc_carnosine_75",
+        "Zinc carnosine 75mg",
+        "supplement_bought",
+        hr_observed=0.97,
+        log_sd=0.10,
+        conf_alpha=1.5,
+        conf_beta=4.5,
+        annual_cost=60,
+        qol_annual=0.001,
+        benefit_tags=["gut_support"],
+        notes="Gut barrier integrity. Already getting zinc 15mg.",
+    )
+)
+_add(
+    CatalogEntry(
+        "traditional_sauna_4x_week",
+        "Traditional dry sauna 4x/week",
+        "supplement_candidate",
+        hr_observed=1.0,
+        log_sd=0.08,
+        conf_alpha=1.8,
+        conf_beta=4.8,
+        annual_cost=2178,
+        qol_annual=0.0008,
+        qol_years=15,
+        has_direct_mortality_effect=False,
+        benefit_tags=["performance_recovery"],
+        notes=(
+            "Modeled as a modest Finnish-style dry sauna intervention, not a direct mortality claim. "
+            "Effect assumes roughly 175-194F traditional dry sauna; cost uses current MINT DC club pricing as a local paid-access proxy."
+        ),
+        sources=[
+            "https://pubmed.ncbi.nlm.nih.gov/25705824/",
+            "https://pmc.ncbi.nlm.nih.gov/articles/PMC9394774/",
+        ],
+        evidence_quality="low",
+    )
+)
+_add(
+    CatalogEntry(
+        "infrared_sauna_4x_week",
+        "Infrared sauna 4x/week",
+        "supplement_candidate",
+        hr_observed=1.0,
+        log_sd=0.07,
+        conf_alpha=1.5,
+        conf_beta=5.2,
+        annual_cost=3588,
+        qol_annual=0.00035,
+        qol_years=10,
+        has_direct_mortality_effect=False,
+        benefit_tags=["performance_recovery"],
+        notes=(
+            "Infrared sauna is modeled separately from Finnish dry sauna because the evidence is weaker and less directly transportable. "
+            "Cost uses current Pure Sweat Georgetown unlimited pricing for 4x/week access."
+        ),
+        sources=[
+            "https://pubmed.ncbi.nlm.nih.gov/41049507/",
+            "https://pmc.ncbi.nlm.nih.gov/articles/PMC9394774/",
+        ],
+        evidence_quality="very-low",
+    )
+)
+_add(
+    CatalogEntry(
+        "hbot_60sessions",
+        "HBOT 60-session course",
+        "supplement_candidate",
+        hr_observed=1.0,
+        log_sd=0.06,
+        conf_alpha=1.2,
+        conf_beta=6.4,
+        annual_cost=1800,
+        qol_annual=0.0002,
+        qol_years=5,
+        has_direct_mortality_effect=False,
+        harm_effects=[
+            HarmEffect(
+                id="barotrauma_or_oxygen_toxicity",
+                description="Barotrauma, middle-ear injury, or rare oxygen-toxicity events.",
+                event_probability=Distribution(type="point", params={"value": 0.003}),
+                event_qaly_loss=Distribution(type="point", params={"value": 0.02}),
+            ),
+        ],
+        benefit_tags=["performance_recovery"],
+        notes=(
+            "Cost annualized from a clinic course. Healthy-aging evidence remains early and mostly surrogate-driven."
+        ),
+        sources=[
+            "https://pubmed.ncbi.nlm.nih.gov/35649312/",
+            "https://www.fda.gov/medical-devices/letters-health-care-providers/follow-instructions-safe-use-hyperbaric-oxygen-therapy-devices-letter-health-care-providers",
+            "https://www.uhms.org/pl/resources/featured-resources/hbo-indications.html",
+        ],
+        evidence_quality="very-low",
+    )
+)
+_add(
+    CatalogEntry(
+        "bpc157_cycle",
+        "BPC-157 cycle",
+        "supplement_candidate",
+        hr_observed=1.0,
+        log_sd=0.06,
+        conf_alpha=1.0,
+        conf_beta=6.8,
+        annual_cost=1200,
+        qol_annual=0.00005,
+        qol_years=2,
+        has_direct_mortality_effect=False,
+        harm_effects=[
+            HarmEffect(
+                id="gray_market_peptide_quality_risk",
+                description="Injection burden, contamination, dosing, or immunogenicity risk from gray-market peptides.",
+                annual_qaly_loss=Distribution(
+                    type="normal", params={"mean": 0.0004, "sd": 0.00015}
+                ),
+            ),
+        ],
+        notes=(
+            "Modeled for a generic annual cycle in an otherwise uninjured user. Human efficacy evidence is extremely thin and product-quality uncertainty is real."
+        ),
+        sources=[
+            "https://pubmed.ncbi.nlm.nih.gov/40756949/",
+            "https://www.fda.gov/drugs/human-drug-compounding/understanding-risks-compounded-drugs",
+        ],
+        evidence_quality="very-low",
+    )
+)
+_add(
+    CatalogEntry(
+        "tb500_cycle",
+        "TB-500 cycle",
+        "supplement_candidate",
+        hr_observed=1.0,
+        log_sd=0.06,
+        conf_alpha=1.0,
+        conf_beta=7.0,
+        annual_cost=1500,
+        qol_annual=0.00003,
+        qol_years=2,
+        has_direct_mortality_effect=False,
+        harm_effects=[
+            HarmEffect(
+                id="gray_market_tb500_quality_risk",
+                description="Injection burden plus contamination and immunogenicity risk with minimal human efficacy data.",
+                annual_qaly_loss=Distribution(
+                    type="normal", params={"mean": 0.00045, "sd": 0.00018}
+                ),
+            ),
+        ],
+        notes=(
+            "Treated as an even weaker evidence base than BPC-157 for a general healthy user."
+        ),
+        sources=[
+            "https://www.fda.gov/drugs/human-drug-compounding/understanding-risks-compounded-drugs",
+        ],
+        evidence_quality="very-low",
+    )
+)
 
 missing_public_policy_items = sorted(
     item_id for item_id in PUBLIC_ITEM_POLICY_SPECS if item_id not in CATALOG
@@ -2400,12 +3231,20 @@ EXTRA_BENEFIT_TAGS: Dict[str, List[str]] = {
     "ashwagandha_600": ["anti_inflammatory"],
     "black_seed_oil_1g": ["anti_inflammatory"],
     "fisetin_100": ["senolytic_support", "anti_inflammatory", "antioxidant_support"],
-    "fisetin_100_unbundled": ["senolytic_support", "anti_inflammatory", "antioxidant_support"],
+    "fisetin_100_unbundled": [
+        "senolytic_support",
+        "anti_inflammatory",
+        "antioxidant_support",
+    ],
     "spermidine_10": ["senolytic_support"],
     "luteolin_100": ["anti_inflammatory"],
     "luteolin_100_unbundled": ["anti_inflammatory"],
     "broccoli_seed_200": ["antioxidant_support", "anti_inflammatory"],
-    "pterostilbene_50": ["anti_inflammatory", "mitochondrial_support", "senolytic_support"],
+    "pterostilbene_50": [
+        "anti_inflammatory",
+        "mitochondrial_support",
+        "senolytic_support",
+    ],
     "alpha_lipoic_acid_300": ["antioxidant_support"],
     "tmg_1g": ["methylation_support"],
     "nr_300": ["nad_precursor"],
@@ -2499,8 +3338,12 @@ def _apply_annotations() -> None:
                     HarmEffect(
                         id="bleeding",
                         description="Clinically meaningful bleeding risk in primary prevention.",
-                        event_probability=Distribution(type="point", params={"value": 0.008}),
-                        event_qaly_loss=Distribution(type="point", params={"value": 0.06}),
+                        event_probability=Distribution(
+                            type="point", params={"value": 0.008}
+                        ),
+                        event_qaly_loss=Distribution(
+                            type="point", params={"value": 0.06}
+                        ),
                     )
                 )
             else:
@@ -2510,7 +3353,8 @@ def _apply_annotations() -> None:
             conf_alpha=2.5,
             conf_beta=5.0,  # mean causal fraction ~0.33
             harm_effects=new_harms,
-            profile_effect_rules=list(aspirin.profile_effect_rules) + [
+            profile_effect_rules=list(aspirin.profile_effect_rules)
+            + [
                 ProfileEffectRule(
                     multiplier=0.30,
                     bmi_categories=("normal",),
@@ -2528,7 +3372,8 @@ def _apply_annotations() -> None:
     if statin is not None:
         _replace_entry(
             "statin_5mg",
-            profile_effect_rules=list(statin.profile_effect_rules) + [
+            profile_effect_rules=list(statin.profile_effect_rules)
+            + [
                 ProfileEffectRule(
                     multiplier=0.45,
                     bmi_categories=("normal",),
@@ -2716,7 +3561,9 @@ def _merge_public_condition_spec(
     *,
     base_spec: PublicConditionSpec,
 ) -> PublicConditionSpec:
-    evaluation_kind = str(raw_override.get("evaluation_kind", base_spec.evaluation_kind))
+    evaluation_kind = str(
+        raw_override.get("evaluation_kind", base_spec.evaluation_kind)
+    )
     if evaluation_kind not in PUBLIC_CONDITION_EVALUATION_KINDS:
         raise ValueError(
             f"Unexpected evaluation_kind {evaluation_kind!r} in public condition override {condition_id}"
@@ -2760,7 +3607,9 @@ def _merge_public_item_policy_spec(
     base_spec: PublicItemPolicySpec,
 ) -> PublicItemPolicySpec:
     if item_id not in CATALOG:
-        raise ValueError(f"Unknown catalog id in public item policy override: {item_id}")
+        raise ValueError(
+            f"Unknown catalog id in public item policy override: {item_id}"
+        )
 
     public_lane = base_spec.public_lane
     if "public_lane" in raw_override:
@@ -2781,7 +3630,10 @@ def _merge_public_item_policy_spec(
     display_category = base_spec.public_display_category_override
     if "public_display_category_override" in raw_override:
         display_category = raw_override["public_display_category_override"]
-    if display_category is not None and display_category not in PUBLIC_DISPLAY_CATEGORY_VALUES:
+    if (
+        display_category is not None
+        and display_category not in PUBLIC_DISPLAY_CATEGORY_VALUES
+    ):
         raise ValueError(
             "Unexpected public_display_category_override "
             f"{display_category!r} in public item policy override {item_id}"
@@ -2837,7 +3689,9 @@ def load_public_policy_override(
     excluded_reasons = dict(active_policy.excluded_reasons)
     for item_id, reason in raw_policy.get("excluded_reasons", {}).items():
         if item_id not in CATALOG:
-            raise ValueError(f"Unknown catalog id in excluded_reasons override: {item_id}")
+            raise ValueError(
+                f"Unknown catalog id in excluded_reasons override: {item_id}"
+            )
         if reason in (None, ""):
             excluded_reasons.pop(item_id, None)
             continue
@@ -2986,7 +3840,9 @@ def evaluate_public_condition(
         field_scores: dict[str, int] = {}
         for rule in spec.profile_rules:
             if rule.matches(profile):
-                field_scores[rule.field] = max(field_scores.get(rule.field, 0), rule.points)
+                field_scores[rule.field] = max(
+                    field_scores.get(rule.field, 0), rule.points
+                )
         return sum(field_scores.values()) >= spec.profile_score_threshold
 
     return False
@@ -3022,7 +3878,9 @@ def has_meaningful_public_condition_signal(
     )
 
 
-def public_display_category(entry: CatalogEntry, policy: Optional[PublicPolicy] = None) -> str:
+def public_display_category(
+    entry: CatalogEntry, policy: Optional[PublicPolicy] = None
+) -> str:
     """Generic public-facing category, separate from Max-specific stack status."""
     display_category_override = _effective_public_item_policy(
         entry,
@@ -3052,7 +3910,9 @@ _ROUTE_WORDS = {
 }
 
 
-def public_display_name(entry: CatalogEntry, policy: Optional[PublicPolicy] = None) -> str:
+def public_display_name(
+    entry: CatalogEntry, policy: Optional[PublicPolicy] = None
+) -> str:
     """Public-facing name, with dose/brand stripped for prescription items.
 
     Surfacing a specific dose ("rosuvastatin 5mg") or brand ("(semaglutide)") to
@@ -3104,7 +3964,9 @@ def public_rankability_reason(
     policy: Optional[PublicPolicy] = None,
 ) -> Optional[str]:
     """Explain why an item is excluded from the public ranked frontier."""
-    if is_publicly_rankable(entry, profile=profile, sleep_estimate=sleep_estimate, policy=policy):
+    if is_publicly_rankable(
+        entry, profile=profile, sleep_estimate=sleep_estimate, policy=policy
+    ):
         return None
     active_policy = _active_public_policy(policy)
     effective_item_policy = _effective_public_item_policy(entry, policy)
@@ -3177,14 +4039,16 @@ def build_public_policy_spec(
         display_category = public_display_category(entry, policy=policy)
         explicitly_excluded = item_id in active_policy.excluded_reasons
 
-        items.append({
-            "id": item_id,
-            "name": entry.name,
-            "lane": lane,
-            "condition": condition,
-            "display_category": display_category,
-            "explicitly_excluded": explicitly_excluded,
-        })
+        items.append(
+            {
+                "id": item_id,
+                "name": entry.name,
+                "lane": lane,
+                "condition": condition,
+                "display_category": display_category,
+                "explicitly_excluded": explicitly_excluded,
+            }
+        )
         lane_to_item_ids[lane].append(item_id)
         if condition is not None:
             condition_to_item_ids[condition].append(item_id)
@@ -3192,53 +4056,72 @@ def build_public_policy_spec(
     lanes = []
     for lane_id, meta in active_policy.lane_specs.items():
         item_ids = sorted(lane_to_item_ids[lane_id])
-        condition_ids = sorted({
-            str(_effective_public_item_policy(entries[item_id], policy).public_condition)
-            for item_id in item_ids
-            if _effective_public_item_policy(entries[item_id], policy).public_condition is not None
-        })
-        lanes.append({
-            "id": lane_id,
-            "label": meta.label,
-            "description": meta.description,
-            "item_ids": item_ids,
-            "item_count": len(item_ids),
-            "condition_ids": condition_ids,
-        })
+        condition_ids = sorted(
+            {
+                str(
+                    _effective_public_item_policy(
+                        entries[item_id], policy
+                    ).public_condition
+                )
+                for item_id in item_ids
+                if _effective_public_item_policy(
+                    entries[item_id], policy
+                ).public_condition
+                is not None
+            }
+        )
+        lanes.append(
+            {
+                "id": lane_id,
+                "label": meta.label,
+                "description": meta.description,
+                "item_ids": item_ids,
+                "item_count": len(item_ids),
+                "condition_ids": condition_ids,
+            }
+        )
 
     conditions = []
     for condition_id, meta in active_policy.condition_specs.items():
         item_ids = sorted(condition_to_item_ids[condition_id])
         if not item_ids:
             continue
-        conditions.append({
-            "id": condition_id,
-            "label": meta.label,
-            "description": meta.description,
-            "item_ids": item_ids,
-            "item_count": len(item_ids),
-            "evaluation_kind": meta.evaluation_kind,
-            "score_threshold": meta.profile_score_threshold,
-            "thresholds": [
-                {
-                    "signal": rule.signal,
-                    "label": rule.label,
-                    "threshold": rule.threshold,
-                }
-                for rule in meta.threshold_rules
-            ],
-            "score_rules": [
-                {
-                    "field": rule.field,
-                    "operator": rule.operator,
-                    "label": rule.label,
-                    "points": rule.points,
-                }
-                for rule in meta.profile_rules
-            ],
-        })
+        conditions.append(
+            {
+                "id": condition_id,
+                "label": meta.label,
+                "description": meta.description,
+                "item_ids": item_ids,
+                "item_count": len(item_ids),
+                "evaluation_kind": meta.evaluation_kind,
+                "score_threshold": meta.profile_score_threshold,
+                "thresholds": [
+                    {
+                        "signal": rule.signal,
+                        "label": rule.label,
+                        "threshold": rule.threshold,
+                    }
+                    for rule in meta.threshold_rules
+                ],
+                "score_rules": [
+                    {
+                        "field": rule.field,
+                        "operator": rule.operator,
+                        "label": rule.label,
+                        "points": rule.points,
+                    }
+                    for rule in meta.profile_rules
+                ],
+            }
+        )
 
-    items.sort(key=lambda item: (str(item["lane"]), str(item["display_category"]), str(item["name"])))
+    items.sort(
+        key=lambda item: (
+            str(item["lane"]),
+            str(item["display_category"]),
+            str(item["name"]),
+        )
+    )
     return {
         "lanes": lanes,
         "conditions": conditions,
@@ -3311,22 +4194,24 @@ def _simulate_qol_effect_draws(
         qol_draws += component
         annual_summary = _summarize_qaly_draws(annual_draws * evidence_multiplier)
         lifetime_summary = _summarize_qaly_draws(component)
-        component_summaries.append({
-            "id": effect.id,
-            "label": effect.label,
-            "description": effect.description,
-            "source": effect.source,
-            "annual_mean_qaly": annual_summary["mean_qaly"],
-            "annual_ci95_qaly_low": annual_summary["ci95_qaly_low"],
-            "annual_ci95_qaly_high": annual_summary["ci95_qaly_high"],
-            "mean_qaly": lifetime_summary["mean_qaly"],
-            "ci95_qaly_low": lifetime_summary["ci95_qaly_low"],
-            "ci95_qaly_high": lifetime_summary["ci95_qaly_high"],
-            "mean_days": lifetime_summary["mean_days"],
-            "ci95_days_low": lifetime_summary["ci95_days_low"],
-            "ci95_days_high": lifetime_summary["ci95_days_high"],
-            "p_positive": lifetime_summary["p_positive"],
-        })
+        component_summaries.append(
+            {
+                "id": effect.id,
+                "label": effect.label,
+                "description": effect.description,
+                "source": effect.source,
+                "annual_mean_qaly": annual_summary["mean_qaly"],
+                "annual_ci95_qaly_low": annual_summary["ci95_qaly_low"],
+                "annual_ci95_qaly_high": annual_summary["ci95_qaly_high"],
+                "mean_qaly": lifetime_summary["mean_qaly"],
+                "ci95_qaly_low": lifetime_summary["ci95_qaly_low"],
+                "ci95_qaly_high": lifetime_summary["ci95_qaly_high"],
+                "mean_days": lifetime_summary["mean_days"],
+                "ci95_days_low": lifetime_summary["ci95_days_low"],
+                "ci95_days_high": lifetime_summary["ci95_days_high"],
+                "p_positive": lifetime_summary["p_positive"],
+            }
+        )
 
     return raw_qol_draws, qol_draws, component_summaries
 
@@ -3368,18 +4253,27 @@ def simulate_catalog(
     else:
         entries = get_catalog(categories)
     results = []
-    baseline_sleep_hazard_multiplier = sleep_baseline_mortality_multiplier(sleep_estimate)
+    baseline_sleep_hazard_multiplier = sleep_baseline_mortality_multiplier(
+        sleep_estimate
+    )
 
     for entry_index, entry in enumerate(entries.values()):
         effect_multiplier = entry.profile_effect_multiplier(profile)
         evidence_multiplier = entry.evidence_effect_multiplier()
-        effective_shrinkage = entry.effective_pub_bias_shrinkage(fallback=pub_bias_shrinkage)
+        effective_shrinkage = entry.effective_pub_bias_shrinkage(
+            fallback=pub_bias_shrinkage
+        )
         intervention = entry.to_intervention(pub_bias_shrinkage, profile=profile)
-        sleep_mortality_hr_multiplier = entry.sleep_mortality_hr_multiplier(sleep_estimate)
-        sleep_mortality_relief_fraction = entry.sleep_mortality_relief_fraction(sleep_estimate)
+        sleep_mortality_hr_multiplier = entry.sleep_mortality_hr_multiplier(
+            sleep_estimate
+        )
+        sleep_mortality_relief_fraction = entry.sleep_mortality_relief_fraction(
+            sleep_estimate
+        )
         airway_effect_multiplier = entry.airway_effect_multiplier(sleep_estimate)
         r, base_qaly_draws = simulate_qaly_profile_vectorized(
-            intervention, profile,
+            intervention,
+            profile,
             n_simulations=n_simulations,
             discount_rate=qaly_discount_rate,
             cost_discount_rate=cost_discount_rate,
@@ -3390,7 +4284,8 @@ def simulate_catalog(
             return_qaly_gains=True,
         )
         hr_corrected = publication_bias_correct(
-            entry.hr_observed, shrinkage=effective_shrinkage,
+            entry.hr_observed,
+            shrinkage=effective_shrinkage,
         )
         harm_qaly = r.expected_harm_qalys + r.expected_interaction_harm_qalys
         mort_qaly = r.mean - harm_qaly
@@ -3401,11 +4296,13 @@ def simulate_catalog(
             r.expected_qol_factor,
         )
         qol_rng = np.random.default_rng(
-            np.random.SeedSequence([
-                int(random_state) if random_state is not None else 0,
-                entry_index,
-                9917,
-            ])
+            np.random.SeedSequence(
+                [
+                    int(random_state) if random_state is not None else 0,
+                    entry_index,
+                    9917,
+                ]
+            )
         )
         raw_qol_draws, qol_draws, qol_effect_summaries = _simulate_qol_effect_draws(
             entry,
@@ -3420,7 +4317,9 @@ def simulate_catalog(
         sleep_qol_annual = entry.sleep_qol_annual(sleep_estimate)
         raw_sleep_qol_qaly = raw_sleep_qol_annual * qol_factor
         sleep_qol_qaly = sleep_qol_annual * qol_factor
-        evidence_discount_qaly = (raw_qol_qaly - qol_qaly) + (raw_sleep_qol_qaly - sleep_qol_qaly)
+        evidence_discount_qaly = (raw_qol_qaly - qol_qaly) + (
+            raw_sleep_qol_qaly - sleep_qol_qaly
+        )
         total_qaly_draws = base_qaly_draws + qol_draws + sleep_qol_qaly
         total_qaly = float(np.mean(total_qaly_draws))
         total_qaly_ci95 = (
@@ -3442,7 +4341,9 @@ def simulate_catalog(
         # share of the Blueprint Essentials bundle price instead of free-riding.
         effective_cost = entry.effective_annual_cost()
         total_cost = effective_cost * r.expected_discounted_cost_factor
-        cost_per_qaly = total_cost / total_qaly if total_qaly > 0 and effective_cost > 0 else None
+        cost_per_qaly = (
+            total_cost / total_qaly if total_qaly > 0 and effective_cost > 0 else None
+        )
         component_breakdown = {
             "mortality_qaly": mort_qaly,
             "direct_qol_qaly": qol_qaly,
@@ -3468,73 +4369,79 @@ def simulate_catalog(
             key=lambda item: item[1],
         )[0]
 
-        results.append({
-            "id": entry.id,
-            "name": entry.name,
-            "category": entry.category,
-            "hr_observed": entry.hr_observed,
-            # hr_corrected = publication-bias-only HR (what the literature
-            # "actually shows" after naive bias correction). Kept for back-compat.
-            "hr_corrected": hr_corrected,
-            # hr_posterior* = HR the simulator actually applies after pub bias
-            # PLUS Bayesian confounding + profile transport + evidence shrinkage.
-            # This is the column a reader should compare items on.
-            "hr_posterior_mean": r.posterior_hr_mean,
-            "hr_posterior_median": r.posterior_hr_median,
-            "hr_posterior_ci95": r.posterior_hr_ci95,
-            "pub_bias_shrinkage": effective_shrinkage,
-            "study_quality": entry.study_quality,
-            "profile_effect_multiplier": effect_multiplier,
-            "evidence_quality": entry.evidence_quality,
-            "evidence_effect_multiplier": evidence_multiplier,
-            "baseline_sleep_hazard_multiplier": baseline_sleep_hazard_multiplier,
-            "airway_effect_multiplier": airway_effect_multiplier,
-            "sleep_mortality_relief_fraction": sleep_mortality_relief_fraction,
-            "sleep_mortality_hr_multiplier": sleep_mortality_hr_multiplier,
-            "mort_qaly": mort_qaly,
-            "harm_qaly": harm_qaly,
-            "direct_harm_qaly": r.expected_harm_qalys,
-            "interaction_harm_qaly": r.expected_interaction_harm_qalys,
-            "raw_qol_qaly": raw_qol_qaly,
-            "qol_qaly": qol_qaly,
-            "qol_effects": qol_effect_summaries,
-            "qol_years": qol_years,
-            "raw_sleep_qol_annual": raw_sleep_qol_annual,
-            "sleep_qol_annual": sleep_qol_annual,
-            "raw_sleep_qol_qaly": raw_sleep_qol_qaly,
-            "sleep_qol_qaly": sleep_qol_qaly,
-            "evidence_discount_qaly": evidence_discount_qaly,
-            "component_breakdown": component_breakdown,
-            "top_positive_component": top_positive_component,
-            "top_negative_component": top_negative_component,
-            "total_qaly": total_qaly,
-            "days": total_qaly * 365.25,
-            "total_qaly_ci95": total_qaly_ci95,
-        "net_qaly_ci": net_qaly_ci,
-            "ci_low": total_qaly_ci95[0] * 365.25,
-            "ci_high": total_qaly_ci95[1] * 365.25,
-            # Median QALY of the mortality arm — convexity-invariant
-            # diagnostic. Do NOT substitute for total_qaly in ICER / net-
-            # monetary-benefit calculations; CEA arithmetic requires expected
-            # values, not medians. Median can hide discrete large-loss harm
-            # draws and reorder the frontier vs. the mean. Surface this
-            # alongside total_qaly to spot cases where the mean has material
-            # Jensen-on-survival bias or heavy-tail harm exposure.
-            "mortality_qaly_median": float(r.median),
-            "mortality_qaly_mean": float(r.mean),
-            "p_benefit": float(np.mean(total_qaly_draws > 0)),
-            "p_harm": float(np.mean(total_qaly_draws < 0)),
-            "expected_upside_days": float(np.mean(np.clip(total_qaly_draws, 0, None)) * 365.25),
-            "expected_downside_days": float(np.mean(np.clip(total_qaly_draws, None, 0)) * 365.25),
-            "annual_cost": entry.annual_cost,
-            "effective_annual_cost": effective_cost,
-            "bundle_cost_share": entry.bundle_cost_share,
-            "bundle_id": entry.bundle_id,
-            "total_cost": total_cost,
-            "cost_per_qaly": cost_per_qaly,
-            "expected_discounted_cost_factor": r.expected_discounted_cost_factor,
-            "gross_value": total_qaly * wtp - total_cost,
-        })
+        results.append(
+            {
+                "id": entry.id,
+                "name": entry.name,
+                "category": entry.category,
+                "hr_observed": entry.hr_observed,
+                # hr_corrected = publication-bias-only HR (what the literature
+                # "actually shows" after naive bias correction). Kept for back-compat.
+                "hr_corrected": hr_corrected,
+                # hr_posterior* = HR the simulator actually applies after pub bias
+                # PLUS Bayesian confounding + profile transport + evidence shrinkage.
+                # This is the column a reader should compare items on.
+                "hr_posterior_mean": r.posterior_hr_mean,
+                "hr_posterior_median": r.posterior_hr_median,
+                "hr_posterior_ci95": r.posterior_hr_ci95,
+                "pub_bias_shrinkage": effective_shrinkage,
+                "study_quality": entry.study_quality,
+                "profile_effect_multiplier": effect_multiplier,
+                "evidence_quality": entry.evidence_quality,
+                "evidence_effect_multiplier": evidence_multiplier,
+                "baseline_sleep_hazard_multiplier": baseline_sleep_hazard_multiplier,
+                "airway_effect_multiplier": airway_effect_multiplier,
+                "sleep_mortality_relief_fraction": sleep_mortality_relief_fraction,
+                "sleep_mortality_hr_multiplier": sleep_mortality_hr_multiplier,
+                "mort_qaly": mort_qaly,
+                "harm_qaly": harm_qaly,
+                "direct_harm_qaly": r.expected_harm_qalys,
+                "interaction_harm_qaly": r.expected_interaction_harm_qalys,
+                "raw_qol_qaly": raw_qol_qaly,
+                "qol_qaly": qol_qaly,
+                "qol_effects": qol_effect_summaries,
+                "qol_years": qol_years,
+                "raw_sleep_qol_annual": raw_sleep_qol_annual,
+                "sleep_qol_annual": sleep_qol_annual,
+                "raw_sleep_qol_qaly": raw_sleep_qol_qaly,
+                "sleep_qol_qaly": sleep_qol_qaly,
+                "evidence_discount_qaly": evidence_discount_qaly,
+                "component_breakdown": component_breakdown,
+                "top_positive_component": top_positive_component,
+                "top_negative_component": top_negative_component,
+                "total_qaly": total_qaly,
+                "days": total_qaly * 365.25,
+                "total_qaly_ci95": total_qaly_ci95,
+                "net_qaly_ci": net_qaly_ci,
+                "ci_low": total_qaly_ci95[0] * 365.25,
+                "ci_high": total_qaly_ci95[1] * 365.25,
+                # Median QALY of the mortality arm — convexity-invariant
+                # diagnostic. Do NOT substitute for total_qaly in ICER / net-
+                # monetary-benefit calculations; CEA arithmetic requires expected
+                # values, not medians. Median can hide discrete large-loss harm
+                # draws and reorder the frontier vs. the mean. Surface this
+                # alongside total_qaly to spot cases where the mean has material
+                # Jensen-on-survival bias or heavy-tail harm exposure.
+                "mortality_qaly_median": float(r.median),
+                "mortality_qaly_mean": float(r.mean),
+                "p_benefit": float(np.mean(total_qaly_draws > 0)),
+                "p_harm": float(np.mean(total_qaly_draws < 0)),
+                "expected_upside_days": float(
+                    np.mean(np.clip(total_qaly_draws, 0, None)) * 365.25
+                ),
+                "expected_downside_days": float(
+                    np.mean(np.clip(total_qaly_draws, None, 0)) * 365.25
+                ),
+                "annual_cost": entry.annual_cost,
+                "effective_annual_cost": effective_cost,
+                "bundle_cost_share": entry.bundle_cost_share,
+                "bundle_id": entry.bundle_id,
+                "total_cost": total_cost,
+                "cost_per_qaly": cost_per_qaly,
+                "expected_discounted_cost_factor": r.expected_discounted_cost_factor,
+                "gross_value": total_qaly * wtp - total_cost,
+            }
+        )
 
     results.sort(key=lambda x: x["gross_value"], reverse=True)
     return results

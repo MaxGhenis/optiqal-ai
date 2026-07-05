@@ -10,13 +10,15 @@ The precompute script passes:
 2. HealthState(diabetes=..., hypertension=...) as initial_state
 """
 
-import pytest
 import numpy as np
-from optiqal.profile import Profile, get_baseline_mortality_multiplier
+
 from optiqal.markov import HealthState, simulate_lifetime_markov
+from optiqal.profile import Profile, get_baseline_mortality_multiplier
 
 
-def simulate_life_expectancy(profile: Profile, n_sims: int = 200, seed: int = 42) -> float:
+def simulate_life_expectancy(
+    profile: Profile, n_sims: int = 200, seed: int = 42
+) -> float:
     """Helper to get median death age for a profile."""
     rng = np.random.default_rng(seed)
 
@@ -46,12 +48,22 @@ class TestMortalityMultiplierArchitecture:
     def test_profile_multiplier_excludes_conditions(self):
         """Profile multiplier should NOT include diabetes/hypertension."""
         profile_healthy = Profile(
-            age=50, sex="male", bmi_category="normal", smoking_status="never",
-            has_diabetes=False, has_hypertension=False, activity_level="light",
+            age=50,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=False,
+            has_hypertension=False,
+            activity_level="light",
         )
         profile_diabetes = Profile(
-            age=50, sex="male", bmi_category="normal", smoking_status="never",
-            has_diabetes=True, has_hypertension=False, activity_level="light",
+            age=50,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=True,
+            has_hypertension=False,
+            activity_level="light",
         )
 
         mult_healthy = get_baseline_mortality_multiplier(profile_healthy)
@@ -70,7 +82,10 @@ class TestMortalityMultiplierArchitecture:
 
         assert state_healthy.get_mortality_multiplier() == 1.0
         assert state_diabetes.get_mortality_multiplier() > 1.0  # Should be ~1.8
-        assert state_both.get_mortality_multiplier() > state_diabetes.get_mortality_multiplier()
+        assert (
+            state_both.get_mortality_multiplier()
+            > state_diabetes.get_mortality_multiplier()
+        )
 
 
 class TestLifeExpectancyReasonableness:
@@ -95,19 +110,28 @@ class TestLifeExpectancyReasonableness:
 
         # Be somewhat lenient since model includes condition acquisition
         assert death_age >= 73, (
-            f"Healthy 35yo male dying at {death_age:.0f} is too early. "
-            f"Expected ~78."
+            f"Healthy 35yo male dying at {death_age:.0f} is too early. Expected ~78."
         )
 
     def test_diabetes_reduces_life_expectancy(self):
         """Diabetes should reduce life expectancy by ~5-10 years."""
         base_profile = Profile(
-            age=50, sex="male", bmi_category="normal", smoking_status="never",
-            has_diabetes=False, has_hypertension=False, activity_level="light",
+            age=50,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=False,
+            has_hypertension=False,
+            activity_level="light",
         )
         diabetes_profile = Profile(
-            age=50, sex="male", bmi_category="normal", smoking_status="never",
-            has_diabetes=True, has_hypertension=False, activity_level="light",
+            age=50,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=True,
+            has_hypertension=False,
+            activity_level="light",
         )
 
         death_age_healthy = simulate_life_expectancy(base_profile)
@@ -126,12 +150,22 @@ class TestLifeExpectancyReasonableness:
     def test_combined_risk_factors_effect(self):
         """Multiple risk factors should compound but not be extreme."""
         healthy = Profile(
-            age=35, sex="male", bmi_category="normal", smoking_status="never",
-            has_diabetes=False, has_hypertension=False, activity_level="moderate",
+            age=35,
+            sex="male",
+            bmi_category="normal",
+            smoking_status="never",
+            has_diabetes=False,
+            has_hypertension=False,
+            activity_level="moderate",
         )
         unhealthy = Profile(
-            age=35, sex="male", bmi_category="obese", smoking_status="current",
-            has_diabetes=True, has_hypertension=True, activity_level="light",
+            age=35,
+            sex="male",
+            bmi_category="obese",
+            smoking_status="current",
+            has_diabetes=True,
+            has_hypertension=True,
+            activity_level="light",
         )
 
         death_healthy = simulate_life_expectancy(healthy)
@@ -141,7 +175,9 @@ class TestLifeExpectancyReasonableness:
 
         # Combined risk factors should reduce life by 10-30 years
         # (not 35+ years which would be unrealistic)
-        assert years_lost >= 10, f"Only {years_lost:.0f} years lost with severe risk factors"
+        assert years_lost >= 10, (
+            f"Only {years_lost:.0f} years lost with severe risk factors"
+        )
         assert years_lost <= 30, f"{years_lost:.0f} years lost is too extreme"
 
         # Unhealthy person should still live past 50 at median
@@ -152,9 +188,18 @@ class TestLifeExpectancyReasonableness:
     def test_life_expectancy_ordering(self):
         """Healthier profiles should outlive unhealthier ones."""
         profiles = [
-            ("unhealthy", Profile(35, "male", "obese", "current", True, True, "sedentary")),
-            ("average", Profile(35, "male", "overweight", "never", False, False, "light")),
-            ("healthy", Profile(35, "male", "normal", "never", False, False, "moderate")),
+            (
+                "unhealthy",
+                Profile(35, "male", "obese", "current", True, True, "sedentary"),
+            ),
+            (
+                "average",
+                Profile(35, "male", "overweight", "never", False, False, "light"),
+            ),
+            (
+                "healthy",
+                Profile(35, "male", "normal", "never", False, False, "moderate"),
+            ),
         ]
 
         death_ages = {}
@@ -199,7 +244,9 @@ class TestProfileMultiplierValues:
 
         ratio = mult_current / mult_never
         # Current smoking RR ~2.8
-        assert 2.5 <= ratio <= 3.2, f"Smoking effect ratio {ratio:.2f} outside expected range"
+        assert 2.5 <= ratio <= 3.2, (
+            f"Smoking effect ratio {ratio:.2f} outside expected range"
+        )
 
     def test_activity_effect(self):
         """Active lifestyle should reduce mortality."""

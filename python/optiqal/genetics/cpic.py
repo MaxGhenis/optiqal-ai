@@ -85,7 +85,9 @@ def diplotype_to_phenotype(diplotype: Diplotype) -> Phenotype:
 
     if gene_spec["mode"] == "function_pair":
         return _function_pair_phenotype(
-            gene_spec, diplotype.allele1, diplotype.allele2,
+            gene_spec,
+            diplotype.allele1,
+            diplotype.allele2,
         )
 
     return "unknown"
@@ -96,7 +98,9 @@ def phenotype_label(gene: str, phenotype: Phenotype) -> str:
     cpic = _load_cpic()
     gene_spec = cpic.get(gene, {})
     if gene_spec.get("mode") == "function_pair":
-        return gene_spec.get("pair_labels", {}).get(phenotype, phenotype.replace("_", " ").title())
+        return gene_spec.get("pair_labels", {}).get(
+            phenotype, phenotype.replace("_", " ").title()
+        )
     for r in gene_spec.get("ranges", []):
         if r["phenotype"] == phenotype:
             return r["label"]
