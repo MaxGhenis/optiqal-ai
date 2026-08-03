@@ -100,6 +100,80 @@ class AccessProfile:
     notes: str = ""
 
 
+# Access tiers a payer can plausibly cover. Behavioral interventions cost
+# nothing to begin with, and OTC supplements are excluded from essentially
+# every US medical benefit, so neither is payable regardless of insurance.
+COVERABLE_TIERS: frozenset[str] = frozenset(
+    {"generic_rx", "brand_rx_prior_auth", "dme_rx", "specialist_device"}
+)
+
+
+@dataclass(frozen=True)
+class InsuranceContext:
+    """Converts an item's sticker price into what the patient actually pays.
+
+    Every ``annual_cost`` in this catalog is a cash retail price. That is the
+    right number for supplements, which no payer covers, and the wrong number
+    for prescriptions and durable medical equipment. Pricing a CPAP or a brand
+    hypnotic at retail for someone whose insurance covers it puts a systematic
+    thumb on the scale against clinical interventions and in favour of
+    cash-pay supplements, because only the supplements were ever priced
+    correctly.
+
+    Expected patient cost for a coverable item is
+
+        sticker * [(1 - p_denied) * cost_share + p_denied * 1.0]
+
+    i.e. a covered claim costs ``cost_share`` of sticker, and a denied one
+    reverts to full retail. Items outside ``COVERABLE_TIERS`` always cost
+    sticker.
+
+    ``denial_rate`` is a modelling prior, not a measured statistic. No payer
+    publishes prior-authorization denial rates by coverage outlook, so these
+    encode "how likely is this to clear utilization review", judged the same
+    way ``conf_alpha``/``conf_beta`` are elsewhere in this catalog. They are
+    deliberately not zero even for ``likely`` items: an intervention that
+    needs prior authorization sometimes fails it.
+    """
+
+    name: str = "uninsured"
+    cost_share: float = 1.0
+    denial_rate: Mapping[str, float] = field(
+        default_factory=lambda: {
+            "likely": 0.15,
+            "mixed": 0.50,
+            "unlikely": 0.85,
+            "na": 1.00,
+        }
+    )
+
+    def patient_cost(self, sticker: float, access: AccessProfile) -> float:
+        """Expected annual out-of-pocket cost for an item at ``sticker``."""
+        if sticker <= 0:
+            return 0.0
+        if access.tier not in COVERABLE_TIERS:
+            return float(sticker)
+        p_denied = float(self.denial_rate.get(access.coverage_outlook, 1.0))
+        p_denied = min(max(p_denied, 0.0), 1.0)
+        share = (1.0 - p_denied) * float(self.cost_share) + p_denied
+        return float(sticker) * share
+
+
+#: Nobody's coverage. Every price is retail. This reproduces the model's
+#: behaviour before insurance was represented at all, so it is the default.
+UNINSURED = InsuranceContext(name="uninsured", cost_share=1.0)
+
+#: DC Medicaid managed care. DHCF states there is no cost sharing for
+#: beneficiaries enrolled in Medicaid managed care, so a covered claim costs
+#: the patient nothing; the residual expected cost is the chance of a denied
+#: prior authorization reverting to self-pay.
+#: https://dhcf.dc.gov/service/how-are-services-received
+DC_MEDICAID_MANAGED_CARE = InsuranceContext(
+    name="dc_medicaid_managed_care",
+    cost_share=0.0,
+)
+
+
 @dataclass(frozen=True)
 class QolEffect:
     """Named non-mortality QALY effect with explicit uncertainty."""
@@ -593,15 +667,25 @@ class CatalogEntry:
         )
         return _profile_adjusted_hr(hr, combined_multiplier)
 
-    def effective_annual_cost(self) -> float:
+    def effective_annual_cost(
+        self,
+        insurance: Optional["InsuranceContext"] = None,
+    ) -> float:
         """Dollar cost attributed to this item, including any bundle allocation.
 
         Bundled catalog items historically declared ``annual_cost=0`` because
         their price was absorbed by the bundle (e.g. Blueprint Essentials).
         That understated true cost. When ``bundle_cost_share`` is set, it is
         added to ``annual_cost`` so $/QALY reflects the real marginal spend.
+
+        ``insurance`` converts that sticker price into expected out-of-pocket
+        cost via ``access_profile``. Omitting it prices everything at retail,
+        which is what this model did before insurance was represented.
         """
-        return float(self.annual_cost) + float(self.bundle_cost_share)
+        sticker = float(self.annual_cost) + float(self.bundle_cost_share)
+        if insurance is None:
+            return sticker
+        return insurance.patient_cost(sticker, self.access_profile)
 
     def _effective_sleep_component_relief(
         self,
@@ -2756,33 +2840,55 @@ _add(
         "glucosamine_sulfate_750",
         "Glucosamine sulfate 750mg",
         "supplement_current",
-        hr_observed=0.92,
+        hr_observed=1.0,
         log_sd=0.10,
         conf_alpha=1.0,
         conf_beta=5.5,
         annual_cost=0,
         qol_annual=0.0,
+        has_direct_mortality_effect=False,
         benefit_tags=["anti_inflammatory"],
         notes=(
-            "Glucosamine sulfate 750 mg (Blueprint Longevity Mix). The only Mix "
-            "active with direct human all-cause mortality data: in the UK Biobank "
-            "prospective cohort (n=495,077, median 8.9 y follow-up, 19,882 deaths), "
-            "regular glucosamine use had a multivariable-adjusted all-cause "
-            "mortality HR of 0.85 (95% CI 0.82-0.89) (Li et al., Ann Rheum Dis "
-            "2020;79:829-836, PMID 32253185). That association is almost certainly "
-            "inflated by healthy-user / selection bias - Suissa et al. "
-            "(Pharmacoepidemiol Drug Saf 2022) argue the apparent benefit largely "
-            "reflects who chooses to take glucosamine, not the supplement. We "
-            "therefore enter a conservative observed HR of 0.92 (well above the raw "
-            "0.85) and tier it observational_speculative (0.55 shrinkage) so the "
-            "confounding machinery pulls it further toward null."
+            "Glucosamine sulfate 750 mg (Blueprint Longevity Mix). Held at the "
+            "1.0 null as of 2026-08-03, revised down from an earlier 0.92. "
+            "The headline association is UK Biobank (n=495,077, median 8.9 y, "
+            "19,882 deaths): regular glucosamine use, all-cause mortality HR "
+            "0.85 (95% CI 0.82-0.89) (Li et al., Ann Rheum Dis 2020;79:829-836, "
+            "PMID 32253185). Four things argue that number should not carry "
+            "benefit here. (1) Exposure is a single yes/no touchscreen "
+            "checkbox; the paper states UK Biobank 'did not gather detailed "
+            "information on the dosage, forms or duration of glucosamine use', "
+            "so there is no dose-response anywhere in this literature and no "
+            "basis to attribute the effect to 750 mg specifically. (2) Suissa "
+            "et al. (Pharmacoepidemiol Drug Saf 2022) show all 11 "
+            "glucosamine-mortality studies are prevalent-user cohorts subject "
+            "to collider/selection bias, concluding they cannot support "
+            "glucosamine as a preventive measure for mortality. (3) Mendelian "
+            "randomization - the design that strips healthy-user confounding - "
+            "does not replicate it: Hayward et al. (2025) found a strongly "
+            "favourable observational association for albuminuria (OR 0.81) "
+            "that vanished in the MR arm of the same paper. (4) A cohort of "
+            "685,778 newly-diagnosed osteoarthritis patients found the "
+            "opposite direction entirely (CVD HR 1.68, with a dose-response "
+            "gradient), which the authors attribute to population differences "
+            "from UK Biobank's healthy-volunteer base. No RCT has ever tested "
+            "glucosamine for mortality at any dose. Separately, the OA-pain "
+            "RCTs that did work used Rotta crystalline glucosamine sulfate "
+            "stabilized with sodium chloride; generic sulfate and the "
+            "hydrochloride salt (GAIT) failed to replicate, and this product "
+            "is potassium-chloride stabilized - so the Mix does not even carry "
+            "the formulation with trial support. Treated the same way CaAKG "
+            "and lysine already are: no human evidence that survives "
+            "confounding correction means no modelled benefit, rather than a "
+            "shrunken one."
         ),
         sources=(
             "https://pubmed.ncbi.nlm.nih.gov/32253185/",
             "https://onlinelibrary.wiley.com/doi/abs/10.1002/pds.5535",
+            "https://pubmed.ncbi.nlm.nih.gov/30566740/",
         ),
         study_quality="observational_speculative",
-        evidence_quality="low",
+        evidence_quality="very-low",
     )
 )
 _add(
@@ -4247,6 +4353,7 @@ def simulate_catalog(
     catalog_entries: Optional[Dict[str, CatalogEntry]] = None,
     active_interaction_tags: Optional[List[str]] = None,
     sleep_estimate: Optional[SleepBurdenEstimate] = None,
+    insurance: Optional[InsuranceContext] = None,
 ) -> List[Dict]:
     """
     Simulate all catalog entries and return sorted results.
@@ -4256,6 +4363,11 @@ def simulate_catalog(
 
     Costs and QALYs use the shared reference-case discount defaults unless
     explicitly overridden for sensitivity analysis.
+
+    ``insurance`` prices coverable items (prescriptions, DME, specialist
+    devices) at expected out-of-pocket rather than cash retail. Omitting it
+    leaves every price at retail, which understates the relative value of
+    anything a payer would have covered.
     """
     from .simulate import (
         effective_qol_factor_for_years,
@@ -4357,7 +4469,7 @@ def simulate_catalog(
         # Survival-weighted discounted cost. Uses effective_annual_cost so
         # bundled items (NR, ubiquinol, astaxanthin, etc.) get their allocated
         # share of the Blueprint Essentials bundle price instead of free-riding.
-        effective_cost = entry.effective_annual_cost()
+        effective_cost = entry.effective_annual_cost(insurance)
         total_cost = effective_cost * r.expected_discounted_cost_factor
         cost_per_qaly = (
             total_cost / total_qaly if total_qaly > 0 and effective_cost > 0 else None
@@ -4450,7 +4562,17 @@ def simulate_catalog(
                 "expected_downside_days": float(
                     np.mean(np.clip(total_qaly_draws, None, 0)) * 365.25
                 ),
-                "annual_cost": entry.annual_cost,
+                # Patient-facing price. Downstream reports read this field, so
+                # insurance has to be applied here too or it never reaches the
+                # published tables. A no-op when ``insurance`` is None.
+                "annual_cost": (
+                    entry.annual_cost
+                    if insurance is None
+                    else insurance.patient_cost(
+                        entry.annual_cost, entry.access_profile
+                    )
+                ),
+                "retail_annual_cost": entry.annual_cost,
                 "effective_annual_cost": effective_cost,
                 "bundle_cost_share": entry.bundle_cost_share,
                 "bundle_id": entry.bundle_id,
