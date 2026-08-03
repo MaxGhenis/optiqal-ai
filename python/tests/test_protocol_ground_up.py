@@ -1437,11 +1437,21 @@ def test_longevity_mix_specs_inherit_catalog_evidence():
         assert resolved.rationale == CATALOG[iid].notes
 
 
-def test_glucosamine_is_the_only_mix_component_with_mortality_signal():
-    """Glucosamine alone has cohort mortality data (catalog HR 0.92); the
-    other five hold mortality at the 1.0 null. l-theanine carries a small
-    cited QoL term but no mortality signal, so the cohort-signal distinction
-    is on mortality_qaly, not total_qaly."""
+def test_no_mix_component_carries_a_mortality_signal():
+    """No Longevity Mix active has mortality evidence that survives correction.
+
+    Glucosamine used to be the sole exception, entered at a conservative HR of
+    0.92 off the UK Biobank cohort. It was moved to the 1.0 null on 2026-08-03:
+    the exposure is a yes/no checkbox with no dose recorded, Mendelian
+    randomization does not replicate it, and a 685,778-patient osteoarthritis
+    cohort found the opposite direction. So every Mix active now holds
+    mortality at the null, and whatever value the product has comes from QoL
+    terms only.
+
+    That is a substantive claim about the product, not a bookkeeping detail:
+    glucosamine carried ~92% of the Mix's modelled in-state value, so zeroing
+    it is what decides the Mix's keep/drop verdict.
+    """
     baseline = load_baseline()
     specs = build_specs(baseline)
     specs.update(build_additional_specs(baseline))
@@ -1458,25 +1468,26 @@ def test_glucosamine_is_the_only_mix_component_with_mortality_signal():
             # Null-mortality components contribute no mortality QALYs.
             assert estimate["mortality_qaly"] == pytest.approx(0.0, abs=1e-6)
 
-    assert with_mortality_signal == ["glucosamine_sulfate_750"]
+    assert with_mortality_signal == []
 
-    # l-theanine is modeled-null on mortality but carries its cited QoL term.
+    # l-theanine is modeled-null on mortality but carries its cited QoL term,
+    # so the Mix is not uniformly worthless — the distinction is on
+    # mortality_qaly, not total_qaly.
     theanine = estimate_item(
         loaded["l_theanine_200"], specs["l_theanine_200"], baseline
     )
     assert theanine["mortality_qaly"] == pytest.approx(0.0, abs=1e-6)
     assert theanine["qol_qaly"] > 0.0
 
+    # Glucosamine keeps its cohort citations — the sources are why it is held
+    # at the null, not evidence that was discarded.
     gluc = estimate_item(
         loaded["glucosamine_sulfate_750"],
         specs["glucosamine_sulfate_750"],
         baseline,
     )
-    assert gluc["total_qaly"] > 0.0
     assert gluc["within_range"]
-    # Glucosamine's modeled benefit flows from the (confounded) mortality
-    # signal, with its real cohort citations attached.
-    assert gluc["mortality_qaly"] > 0.0
+    assert gluc["mortality_qaly"] == pytest.approx(0.0, abs=1e-6)
     assert gluc["sources"]
 
 
