@@ -3,6 +3,7 @@
 import json
 import math
 from dataclasses import replace
+from datetime import date
 from types import SimpleNamespace
 
 import numpy as np
@@ -13,7 +14,9 @@ from optiqal.catalog import CATALOG
 from optiqal.genetics import GeneticProfile
 from optiqal.profile import Profile
 from optiqal.protocol_ground_up import (
+    BIRTH_DATE_ENV,
     PROFILE,
+    PROFILE_AGE_FALLBACK,
     StackSpec,
     apply_joint_fall_pathway,
     build_additional_specs,
@@ -23,11 +26,14 @@ from optiqal.protocol_ground_up import (
     build_protocol_optimizers,
     build_specs,
     build_state_marginal_decision_table,
+    co_packaged_item_ids,
     cost_per_qaly,
     current_stack_interaction_tags,
     discount_factor,
     estimate_item,
     evaluate_protocol_state,
+    format_drop_granularity,
+    format_marginal_cost_per_qaly,
     latent_protocol_item_draws,
     latent_protocol_item_score,
     load_baseline,
@@ -39,7 +45,9 @@ from optiqal.protocol_ground_up import (
     profile_payload,
     qaly_lineage_payload,
     reference_case_payload,
+    resolve_profile_age,
     resolve_stack_spec,
+    resolve_supplying_products,
     simulate_structured_qaly,
 )
 from optiqal.protocol_personalization import (
@@ -53,6 +61,104 @@ from optiqal.protocol_personalization import (
 def test_protocol_profile_has_single_active_source_of_truth():
     assert PROFILE.activity_level == "active"
     assert load_protocol_profile() == PROFILE
+
+
+def test_profile_age_falls_back_without_a_birth_date(monkeypatch):
+    monkeypatch.delenv(BIRTH_DATE_ENV, raising=False)
+    assert resolve_profile_age() == PROFILE_AGE_FALLBACK
+
+
+def test_profile_age_tracks_the_calendar_when_a_birth_date_is_set(monkeypatch):
+    monkeypatch.setenv(BIRTH_DATE_ENV, "1986-09-12")
+
+    assert resolve_profile_age(today=date(2026, 9, 11)) == 39
+    assert resolve_profile_age(today=date(2026, 9, 12)) == 40
+    assert resolve_profile_age(today=date(2027, 1, 1)) == 40
+
+
+@pytest.mark.parametrize("raw", ["", "   ", "not-a-date", "1986-13-45", "2999-01-01"])
+def test_profile_age_ignores_unusable_birth_dates(monkeypatch, raw):
+    monkeypatch.setenv(BIRTH_DATE_ENV, raw)
+    assert resolve_profile_age(today=date(2026, 7, 25)) == PROFILE_AGE_FALLBACK
+
+
+def test_co_packaged_items_are_not_reported_as_separably_droppable():
+    """Ingredients sharing one capsule cannot be stopped one at a time."""
+    baseline = load_baseline()
+    state_ids = ["vitamin_d_2000", "nr_300", "trazodone_50mg"]
+
+    co_packaged = co_packaged_item_ids(baseline, state_ids)
+
+    assert set(co_packaged["vitamin_d_2000"]) == {"nr_300"}
+    assert set(co_packaged["nr_300"]) == {"vitamin_d_2000"}
+    # Trazodone is its own product, so it is droppable on its own.
+    assert co_packaged["trazodone_50mg"] == []
+
+    assert format_drop_granularity({"separably_droppable": True}) == "on its own"
+    assert "Blueprint Essential Capsules" in format_drop_granularity(
+        {
+            "separably_droppable": False,
+            "supplying_product": "Blueprint Essential Capsules",
+            "co_packaged_with": ["nr_300"],
+        }
+    )
+
+
+def test_co_packaging_falls_back_to_catalog_bundle_ids():
+    """Longevity Mix actives are bundle-only in the catalog, not in health.db."""
+    baseline = load_baseline()
+    state_ids = ["caakg_2000", "l_lysine_1000", "hyaluronic_acid_120"]
+
+    supplying = resolve_supplying_products(baseline, state_ids)
+    co_packaged = co_packaged_item_ids(baseline, state_ids)
+
+    # hyaluronic_acid_120 is mapped by name in the DB; the other two resolve
+    # through their shared catalog bundle id to the same product name.
+    assert supplying["caakg_2000"] == "Blueprint Longevity Mix"
+    assert supplying["l_lysine_1000"] == "Blueprint Longevity Mix"
+    assert set(co_packaged["caakg_2000"]) == {
+        "l_lysine_1000",
+        "hyaluronic_acid_120",
+    }
+
+
+def test_marginal_cost_label_separates_zero_qaly_cases():
+    """A zero-QALY drop that saves money dominates; it is not "net negative"."""
+    assert (
+        format_marginal_cost_per_qaly({"delta_qaly": -0.01, "delta_cost": -100})
+        == "net negative"
+    )
+    assert (
+        format_marginal_cost_per_qaly({"delta_qaly": 0.0, "delta_cost": -383})
+        == "dominant"
+    )
+    assert (
+        format_marginal_cost_per_qaly({"delta_qaly": 0.0, "delta_cost": 0.0}) == "flat"
+    )
+    assert (
+        format_marginal_cost_per_qaly({"delta_qaly": 0.0, "delta_cost": 500})
+        == "cost, no gain"
+    )
+
+
+def test_bundle_supplied_items_carry_no_standalone_cost():
+    """Dropping a bundled ingredient cannot save its standalone bottle price.
+
+    Vitamin D and K2 come inside Blueprint Essential Capsules and Advanced
+    Antioxidants respectively, so a standalone annual_cost made "drop it" look
+    cost-saving while the bundle stayed in the stack.
+    """
+    from optiqal.catalog import BUNDLE_ALLOCATIONS
+
+    for item_id, (_bundle_id, share) in BUNDLE_ALLOCATIONS.items():
+        entry = CATALOG[item_id]
+        assert entry.bundle_cost_share == pytest.approx(share)
+
+    for item_id in ("vitamin_d_2000", "vitamin_k2", "nac_1200", "curcumin_250"):
+        entry = CATALOG[item_id]
+        assert item_id in BUNDLE_ALLOCATIONS
+        assert entry.annual_cost == 0
+        assert entry.effective_annual_cost() > 0
 
 
 def test_hiit_three_times_weekly_does_not_exceed_two_for_current_baseline():

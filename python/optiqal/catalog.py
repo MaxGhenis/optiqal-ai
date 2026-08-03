@@ -1724,7 +1724,11 @@ _add(
         log_sd=0.08,
         conf_alpha=3.0,
         conf_beta=4.0,
-        annual_cost=30,
+        # Supplied by Blueprint Essential Capsules (2000 IU/serving), not a
+        # standalone bottle — see BUNDLE_ALLOCATIONS. A standalone annual_cost
+        # here made dropping it look like it saved money, which it does not
+        # while the bundle stays in the stack.
+        annual_cost=0,
         qol_annual=0.000,
         interaction_tags=["vitamin_d"],
         interaction_rules=[DUPLICATE_VITAMIN_D_RULE],
@@ -1851,7 +1855,9 @@ _add(
         log_sd=0.15,
         conf_alpha=1.5,
         conf_beta=4.0,
-        annual_cost=40,
+        # Supplied by Blueprint NAC+Ginger+Curcumin, not a standalone bottle —
+        # see BUNDLE_ALLOCATIONS.
+        annual_cost=0,
         qol_annual=0.001,
         sleep_component_relief={
             "breathing": 0.08,
@@ -1881,7 +1887,9 @@ _add(
         log_sd=0.18,
         conf_alpha=1.5,
         conf_beta=4.5,
-        annual_cost=40,
+        # Supplied by Blueprint NAC+Ginger+Curcumin, not a standalone bottle —
+        # see BUNDLE_ALLOCATIONS.
+        annual_cost=0,
         qol_annual=0.000,
         harm_effects=[
             HarmEffect(
@@ -1921,7 +1929,9 @@ _add(
         log_sd=0.15,
         conf_alpha=1.5,
         conf_beta=4.0,
-        annual_cost=25,
+        # Supplied by Blueprint Advanced Antioxidants (MK-4 5mg + MK-7 0.6mg
+        # per serving), not a standalone bottle — see BUNDLE_ALLOCATIONS.
+        annual_cost=0,
         qol_annual=0.000,
         notes="Rotterdam obs. Calcification RCTs.",
     )
@@ -3184,20 +3194,24 @@ STUDY_QUALITY_BY_ID: Dict[str, str] = {
 # across the Optiqal-tracked constituent ingredients. Prior to this
 # annotation, bundled items had annual_cost=0 and inflated their $/QALY.
 BUNDLE_ALLOCATIONS: Dict[str, tuple[str, float]] = {
-    # Blueprint Essential Capsules subscription: ~$480/yr across 8 tracked
-    # constituents → ~$60/yr each.
-    "fisetin_100": ("blueprint_essential_capsules", 60.0),
-    "spermidine_10": ("blueprint_essential_capsules", 60.0),
-    "nr_300": ("blueprint_essential_capsules", 60.0),
-    "ubiquinol_50": ("blueprint_essential_capsules", 60.0),
-    "lithium_1mg_orotate": ("blueprint_essential_capsules", 60.0),
-    "boron_3": ("blueprint_essential_capsules", 60.0),
-    "broccoli_seed_200": ("blueprint_essential_capsules", 60.0),
-    "luteolin_100": ("blueprint_essential_capsules", 60.0),
-    # Blueprint Advanced Antioxidants: ~$180/yr across 3 items → $60 each.
-    "astaxanthin_12": ("blueprint_advanced_antioxidants", 60.0),
-    "lutein_zeaxanthin": ("blueprint_advanced_antioxidants", 60.0),
-    "lycopene_15": ("blueprint_advanced_antioxidants", 60.0),
+    # Blueprint Essential Capsules subscription: ~$480/yr across 9 tracked
+    # constituents → ~$53.33/yr each. Vitamin D belongs here (2000 IU/serving
+    # per health.db ingredients) rather than carrying a standalone bottle cost.
+    "fisetin_100": ("blueprint_essential_capsules", 53.33),
+    "spermidine_10": ("blueprint_essential_capsules", 53.33),
+    "nr_300": ("blueprint_essential_capsules", 53.33),
+    "ubiquinol_50": ("blueprint_essential_capsules", 53.33),
+    "lithium_1mg_orotate": ("blueprint_essential_capsules", 53.33),
+    "boron_3": ("blueprint_essential_capsules", 53.33),
+    "broccoli_seed_200": ("blueprint_essential_capsules", 53.33),
+    "luteolin_100": ("blueprint_essential_capsules", 53.33),
+    "vitamin_d_2000": ("blueprint_essential_capsules", 53.33),
+    # Blueprint Advanced Antioxidants: ~$180/yr across 4 tracked items → $45
+    # each. K2 (MK-4 5mg + MK-7 0.6mg per serving) is in this capsule too.
+    "astaxanthin_12": ("blueprint_advanced_antioxidants", 45.0),
+    "lutein_zeaxanthin": ("blueprint_advanced_antioxidants", 45.0),
+    "lycopene_15": ("blueprint_advanced_antioxidants", 45.0),
+    "vitamin_k2": ("blueprint_advanced_antioxidants", 45.0),
     # Blueprint Longevity Mix: 1 scoop (14.8 g) = ~$537/yr across 11 actives.
     # Shares are allocated in proportion to each active's dose (mg) so they sum
     # to the real $537 retail price (total dose 9920 mg). Reused items
@@ -3215,9 +3229,13 @@ BUNDLE_ALLOCATIONS: Dict[str, tuple[str, float]] = {
     "l_theanine_200": ("blueprint_longevity_mix", 11.0),
     "magnesium_citrate_150": ("blueprint_longevity_mix", 8.0),
     "vitamin_c_500_extra": ("blueprint_longevity_mix", 14.0),
-    # Blueprint NAC+Ginger+Curcumin: allocate a fair share to ginger (NAC and
-    # curcumin are priced separately in the catalog).
-    "ginger_400": ("blueprint_nac_ginger_curcumin", 25.0),
+    # Blueprint NAC+Ginger+Curcumin: one capsule, ~$329/yr per health.db, split
+    # across its three tracked actives. Pricing NAC and curcumin as standalone
+    # bottles made each of them look individually cost-saving to drop, which is
+    # not possible while the capsule stays in the stack.
+    "nac_1200": ("blueprint_nac_ginger_curcumin", 109.67),
+    "curcumin_250": ("blueprint_nac_ginger_curcumin", 109.67),
+    "ginger_400": ("blueprint_nac_ginger_curcumin", 109.66),
 }
 
 # Extra benefit tags to enable mechanism-cluster diminishing returns. Each
