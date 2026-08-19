@@ -629,7 +629,15 @@ class CatalogEntry:
         )
 
     def effective_qol_annual(self) -> float:
-        return self.raw_qol_annual() * self.evidence_effect_multiplier()
+        # Same replacement rule as the draw path: calibrated guard for
+        # annotated positive claims, legacy flat multiplier otherwise.
+        from .qol_annotations import general_qol_evidence_for
+
+        raw = self.raw_qol_annual()
+        evidence = general_qol_evidence_for(self.id)
+        if evidence is not None and raw > 0:
+            return raw * evidence.multiplier_mean
+        return raw * self.evidence_effect_multiplier()
 
     def raw_sleep_qol_annual(
         self,
@@ -696,7 +704,21 @@ class CatalogEntry:
             self.sleep_component_relief,
             self.airway_target_weights,
         )
-        multiplier = self.evidence_effect_multiplier()
+        # Prefer the calibrated per-claim evidence guard (study-quality
+        # shrinkage x transport prior) when this item is annotated; the flat
+        # evidence_quality multiplier stays as the legacy fallback. This is a
+        # replacement, never a stack — an annotated claim must not be shrunk
+        # twice. The guarded relief flows to the QoL leg AND the sleep
+        # mortality multiplier, which is applied after the confounding step
+        # and previously carried no evidence adjustment of its own.
+        from .qol_annotations import sleep_relief_evidence_for
+
+        evidence = sleep_relief_evidence_for(self.id)
+        multiplier = (
+            evidence.multiplier_mean
+            if evidence is not None
+            else self.evidence_effect_multiplier()
+        )
         if multiplier == 1.0:
             return relief
         return {component: value * multiplier for component, value in relief.items()}
@@ -4296,13 +4318,31 @@ def _simulate_qol_effect_draws(
     rng: np.random.Generator,
 ) -> tuple[np.ndarray, np.ndarray, List[Dict[str, Any]]]:
     """Sample named QoL components and preserve the legacy scalar component."""
+    from .qol_annotations import general_qol_evidence_for
+    from .qol_evidence import stable_seed
+
     raw_qol_draws = np.zeros(n_simulations)
     qol_draws = np.zeros(n_simulations)
     component_summaries: List[Dict[str, Any]] = []
 
+    # Calibrated per-claim guard replaces the flat evidence multiplier for
+    # annotated positive claims (replacement, never stacked). Negative
+    # (harm-side) components keep the legacy multiplier: shrinking a claimed
+    # harm would flatter the intervention.
+    general_evidence = general_qol_evidence_for(entry.id)
+
+    def _guard(raw_component: np.ndarray, component_name: str) -> np.ndarray:
+        if general_evidence is None or float(np.mean(raw_component)) <= 0:
+            return raw_component * evidence_multiplier
+        theta = general_evidence.transport_prior.sample(
+            n_simulations,
+            stable_seed(entry.id, component_name, "transport"),
+        )
+        return raw_component * (1.0 - general_evidence.shrinkage) * theta
+
     if entry.qol_annual != 0:
         raw_component = np.full(n_simulations, entry.qol_annual * qol_factor)
-        component = raw_component * evidence_multiplier
+        component = _guard(raw_component, "qol_annual")
         raw_qol_draws += raw_component
         qol_draws += component
 
@@ -4313,7 +4353,7 @@ def _simulate_qol_effect_draws(
             rng,
         )
         raw_component = annual_draws * qol_factor
-        component = raw_component * evidence_multiplier
+        component = _guard(raw_component, effect.id)
         raw_qol_draws += raw_component
         qol_draws += component
         annual_summary = _summarize_qaly_draws(annual_draws * evidence_multiplier)
@@ -4568,9 +4608,7 @@ def simulate_catalog(
                 "annual_cost": (
                     entry.annual_cost
                     if insurance is None
-                    else insurance.patient_cost(
-                        entry.annual_cost, entry.access_profile
-                    )
+                    else insurance.patient_cost(entry.annual_cost, entry.access_profile)
                 ),
                 "retail_annual_cost": entry.annual_cost,
                 "effective_annual_cost": effective_cost,

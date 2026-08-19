@@ -107,6 +107,19 @@ from .public_frontier_benchmark import (
     render_public_frontier_judge_prompt,
     run_public_frontier_benchmark,
 )
+from .qol_annotations import (
+    GENERAL_QOL_EVIDENCE,
+    SLEEP_RELIEF_EVIDENCE,
+    general_qol_evidence_for,
+    sleep_relief_evidence_for,
+)
+from .qol_evidence import (
+    AUTHORED_RESIDUAL_OPTIMISM_PRIOR,
+    QOL_STUDY_QUALITY_SHRINKAGE,
+    QOL_TRANSPORT_PRIORS,
+    QolEvidence,
+    guarded_component_relief,
+)
 from .reference_case import (
     DEFAULT_REFERENCE_CASE,
     NICE_REFERENCE_CASE,
@@ -157,6 +170,15 @@ __all__ = [
     "CAUSE_FRACTIONS",
     "ConfoundingPrior",
     "CATEGORY_PRIORS",
+    "AUTHORED_RESIDUAL_OPTIMISM_PRIOR",
+    "GENERAL_QOL_EVIDENCE",
+    "QOL_STUDY_QUALITY_SHRINKAGE",
+    "QOL_TRANSPORT_PRIORS",
+    "QolEvidence",
+    "SLEEP_RELIEF_EVIDENCE",
+    "general_qol_evidence_for",
+    "guarded_component_relief",
+    "sleep_relief_evidence_for",
     "hr_to_lognormal_params",
     "simulate_qaly",
     "simulate_qaly_profile",

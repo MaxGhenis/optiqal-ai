@@ -28,6 +28,11 @@ from .intervention import (
     allocate_interaction_rule,
 )
 from .profile import Profile
+from .qol_annotations import (
+    general_qol_evidence_for,
+    sleep_relief_evidence_for,
+)
+from .qol_evidence import QolEvidence, guarded_component_relief
 from .reference_case import (
     DEFAULT_REFERENCE_CASE,
     get_public_health_utility_weight,
@@ -1214,6 +1219,40 @@ def sample_qol_component_draws(
         scale=abs(mean_qaly) * relative_sd,
         size=n_simulations,
     )
+    return draws + (mean_qaly - float(np.mean(draws)))
+
+
+def _evidence_scaled_draws(
+    mean_qaly: float,
+    *,
+    item_id: str,
+    component: str,
+    evidence_quality: str | None,
+    evidence: QolEvidence | None,
+    n_simulations: int = N_SIMULATIONS,
+) -> np.ndarray:
+    """QoL draws around an evidence-guarded mean, with transport-prior spread.
+
+    ``mean_qaly`` is the already-guarded mean. When an evidence annotation is
+    present, the transport prior's Beta draws add the structural (placebo /
+    transport) uncertainty on top of the effect-size noise; draws are then
+    recentered so the reported mean stays the deterministic guarded value.
+    """
+    base = sample_qol_component_draws(
+        mean_qaly,
+        item_id=item_id,
+        component=component,
+        evidence_quality=evidence_quality,
+        n_simulations=n_simulations,
+    )
+    if evidence is None or abs(mean_qaly) <= 1e-12:
+        return base
+    prior = evidence.transport_prior
+    theta = prior.sample(
+        n_simulations,
+        stable_random_seed(item_id, component, "transport"),
+    )
+    draws = base * (theta / prior.mean)
     return draws + (mean_qaly - float(np.mean(draws)))
 
 
@@ -3858,10 +3897,16 @@ def simulate_structured_qaly(
             alpha=resolved.conf_alpha, beta=resolved.conf_beta
         ),
     )
-    scaled_sleep_relief = effective_sleep_component_relief(
-        sleep_estimate,
-        resolved.sleep_component_relief,
-        resolved.airway_target_weights,
+    # Evidence-guard the relief fractions BEFORE they reach the mortality
+    # multiplier: sleep-relief-derived mortality benefit previously bypassed
+    # every evidence adjustment (it is applied after the confounding step).
+    scaled_sleep_relief = guarded_component_relief(
+        effective_sleep_component_relief(
+            sleep_estimate,
+            resolved.sleep_component_relief,
+            resolved.airway_target_weights,
+        ),
+        sleep_relief_evidence_for(item_id),
     )
     result, qaly_draws = simulate_qaly_profile_vectorized(
         intervention,
@@ -3894,42 +3939,95 @@ def simulate_structured_qaly(
     }
 
 
-def estimate_item(
-    item: dict[str, Any],
-    spec: StackSpec,
+PREDECLARED_RANGES_PATH = Path(__file__).parent / "data" / "predeclared_ranges_v1.json"
+
+
+def load_predeclared_ranges() -> dict[str, Any]:
+    """Frozen per-item ranges, kept outside this file so the range check is a
+    real precommitment rather than a same-file consistency check."""
+    return json.loads(PREDECLARED_RANGES_PATH.read_text())
+
+
+def predeclared_range_drift(estimates: list[dict[str, Any]]) -> dict[str, Any]:
+    """Compare live spec ranges and outcomes against the frozen range file."""
+    frozen = load_predeclared_ranges()
+    frozen_ranges = frozen.get("ranges", {})
+    edited: list[str] = []
+    outside_frozen: list[str] = []
+    unfrozen: list[str] = []
+    for item in estimates:
+        item_id = str(item["id"])
+        pair = frozen_ranges.get(item_id)
+        if pair is None:
+            unfrozen.append(item_id)
+            continue
+        low, high = float(pair[0]), float(pair[1])
+        if not (
+            math.isclose(low, float(item["range_low_qaly"]), abs_tol=1e-9)
+            and math.isclose(high, float(item["range_high_qaly"]), abs_tol=1e-9)
+        ):
+            edited.append(item_id)
+        if not (low <= float(item["total_qaly"]) <= high):
+            outside_frozen.append(item_id)
+    return {
+        "frozen_at": frozen.get("frozen_at"),
+        "frozen_from": frozen.get("frozen_from"),
+        "ranges_edited_since_freeze": edited,
+        "items_outside_frozen_range": outside_frozen,
+        "items_missing_from_freeze": unfrozen,
+    }
+
+
+def qol_evidence_guard_summary(estimates: list[dict[str, Any]]) -> dict[str, Any]:
+    """Aggregate what the QoL evidence guard removed, for transparency."""
+    general_claimed = general_effective = 0.0
+    sleep_claimed = sleep_effective = 0.0
+    n_general = n_sleep = 0
+    for item in estimates:
+        payload = item.get("qol_evidence") or {}
+        if payload.get("general_qol") is not None:
+            n_general += 1
+            general_claimed += float(payload["general_qol_claimed_qaly"])
+            general_effective += float(item["general_qol_qaly"])
+        if payload.get("sleep_relief") is not None:
+            n_sleep += 1
+            sleep_claimed += float(payload["sleep_qol_claimed_qaly"])
+            sleep_effective += float(item["sleep_qol_qaly"])
+    return {
+        "n_general_claims_guarded": n_general,
+        "n_sleep_claims_guarded": n_sleep,
+        "general_qol_claimed_qaly": round(general_claimed, 4),
+        "general_qol_effective_qaly": round(general_effective, 4),
+        "sleep_qol_claimed_qaly": round(sleep_claimed, 4),
+        "sleep_qol_effective_qaly": round(sleep_effective, 4),
+    }
+
+
+def protocol_sleep_estimate_from_baseline_dict(
     baseline: dict[str, Any],
-    context: ProtocolContext | None = None,
-    active_interaction_tags: tuple[str, ...] = (),
-    include_draws: bool = False,
-) -> dict[str, Any]:
-    context = resolve_protocol_context(context)
-    resolved = resolve_stack_spec(spec, CATALOG[item["id"]])
+) -> SleepBurdenEstimate:
+    """Rebuild the personalized sleep estimate from a load_baseline() payload."""
+    derived = baseline["derived"]
     sleep_estimate = SleepBurdenEstimate(
         component_burdens={
             key: float(value)
-            for key, value in baseline["derived"]
-            .get("sleep_component_burdens", {})
-            .items()
+            for key, value in derived.get("sleep_component_burdens", {}).items()
         },
         component_losses={
             key: float(value)
-            for key, value in baseline["derived"]
-            .get("sleep_component_losses", {})
-            .items()
+            for key, value in derived.get("sleep_component_losses", {}).items()
         },
-        annual_qaly_loss=float(
-            baseline["derived"].get("sleep_burden_annual_qaly", 0.0)
-        ),
-        mortality_signal=float(baseline["derived"].get("sleep_mortality_signal", 0.0)),
+        annual_qaly_loss=float(derived.get("sleep_burden_annual_qaly", 0.0)),
+        mortality_signal=float(derived.get("sleep_mortality_signal", 0.0)),
         airway=None,
         component_utility_weight_ids={
             key: str(value)
             for key, value in (
-                baseline["derived"].get("sleep_component_utility_weight_ids") or {}
+                derived.get("sleep_component_utility_weight_ids") or {}
             ).items()
         },
     )
-    airway = baseline["derived"].get("sleep_airway") or {}
+    airway = derived.get("sleep_airway") or {}
     if airway:
         sleep_estimate = SleepBurdenEstimate(
             component_burdens=sleep_estimate.component_burdens,
@@ -3944,12 +4042,24 @@ def estimate_item(
                     airway.get("nasal_inflammation_probability", 0.0)
                 ),
                 mucus_probability=float(airway.get("mucus_probability", 0.0)),
-                response_signal=float(
-                    baseline["derived"].get("airway_response_signal", 0.0)
-                ),
+                response_signal=float(derived.get("airway_response_signal", 0.0)),
             ),
             component_utility_weight_ids=sleep_estimate.component_utility_weight_ids,
         )
+    return sleep_estimate
+
+
+def estimate_item(
+    item: dict[str, Any],
+    spec: StackSpec,
+    baseline: dict[str, Any],
+    context: ProtocolContext | None = None,
+    active_interaction_tags: tuple[str, ...] = (),
+    include_draws: bool = False,
+) -> dict[str, Any]:
+    context = resolve_protocol_context(context)
+    resolved = resolve_stack_spec(spec, CATALOG[item["id"]])
+    sleep_estimate = protocol_sleep_estimate_from_baseline_dict(baseline)
     simulated = simulate_structured_qaly(
         spec,
         item["id"],
@@ -3959,11 +4069,36 @@ def estimate_item(
     )
     mortality_qaly = simulated["mortality_qaly"]
     direct_harm_qaly = simulated["direct_harm_qaly"]
-    general_qol_qaly = resolved.qol_annual * discount_factor(resolved.qol_years)
-    scaled_sleep_relief = effective_sleep_component_relief(
+
+    # General-QoL evidence guard. Positive claims only: shrinking an authored
+    # harm (negative qol_annual) would flatter the intervention.
+    general_evidence = general_qol_evidence_for(item["id"])
+    general_qol_claimed_qaly = resolved.qol_annual * discount_factor(resolved.qol_years)
+    apply_general_guard = general_evidence is not None and general_qol_claimed_qaly > 0
+    general_qol_qaly = (
+        general_qol_claimed_qaly * general_evidence.multiplier_mean
+        if apply_general_guard
+        else general_qol_claimed_qaly
+    )
+
+    # Sleep-relief evidence guard: relief fractions are pure evidence claims
+    # (personal severity is measured upstream), so they take the full
+    # published_delta transport prior — and the guarded fractions feed both
+    # the QoL leg here and the mortality multiplier in
+    # simulate_structured_qaly.
+    sleep_evidence = sleep_relief_evidence_for(item["id"])
+    unguarded_sleep_relief = effective_sleep_component_relief(
         sleep_estimate,
         resolved.sleep_component_relief,
         resolved.airway_target_weights,
+    )
+    scaled_sleep_relief = guarded_component_relief(
+        unguarded_sleep_relief,
+        sleep_evidence,
+    )
+    sleep_qol_claimed_annual = estimate_sleep_relief_annual_qaly(
+        sleep_estimate,
+        unguarded_sleep_relief,
     )
     sleep_qol_annual = estimate_sleep_relief_annual_qaly(
         sleep_estimate,
@@ -3977,17 +4112,19 @@ def estimate_item(
         scaled_sleep_relief,
     )
     sleep_qol_qaly = sleep_qol_annual * discount_factor(resolved.qol_years)
-    general_qol_draws = sample_qol_component_draws(
+    general_qol_draws = _evidence_scaled_draws(
         general_qol_qaly,
         item_id=item["id"],
         component="general_qol",
         evidence_quality=CATALOG[item["id"]].evidence_quality,
+        evidence=general_evidence if apply_general_guard else None,
     )
-    sleep_qol_draws = sample_qol_component_draws(
+    sleep_qol_draws = _evidence_scaled_draws(
         sleep_qol_qaly,
         item_id=item["id"],
         component="sleep_qol",
         evidence_quality=CATALOG[item["id"]].evidence_quality,
+        evidence=sleep_evidence if sleep_qol_qaly > 0 else None,
     )
     qol_qaly = float(np.mean(general_qol_draws + sleep_qol_draws))
     total_draws = simulated["qaly_draws"] + general_qol_draws + sleep_qol_draws
@@ -4037,6 +4174,24 @@ def estimate_item(
         "within_range": resolved.low_qaly <= total_qaly <= resolved.high_qaly,
         "reference_case_status": qaly_lineage["overall_reference_case_status"],
         "qaly_lineage": qaly_lineage,
+        "qol_evidence": {
+            "general_qol": (
+                general_evidence.lineage(general_qol_claimed_qaly)
+                if apply_general_guard
+                else None
+            ),
+            "general_qol_claimed_qaly": round(general_qol_claimed_qaly, 4),
+            "sleep_relief": (
+                sleep_evidence.lineage(
+                    sleep_qol_claimed_annual * discount_factor(resolved.qol_years)
+                )
+                if sleep_evidence is not None and sleep_qol_claimed_annual > 0
+                else None
+            ),
+            "sleep_qol_claimed_qaly": round(
+                sleep_qol_claimed_annual * discount_factor(resolved.qol_years), 4
+            ),
+        },
         "assumptions": {
             "observed_hr": resolved.observed_hr,
             "profile_effect_multiplier": round(
@@ -5047,6 +5202,8 @@ def main(context: ProtocolContext | None = None) -> None:
                     "uses_fallback" in issue for issue in item["qaly_lineage"]["issues"]
                 )
             ),
+            "qol_evidence_guard": qol_evidence_guard_summary(estimates),
+            "predeclared_range_drift": predeclared_range_drift(estimates),
         },
         "current_state": public_state_payload(current_state),
         "state_marginal_decisions": state_marginal_decisions,
@@ -5073,13 +5230,27 @@ def main(context: ProtocolContext | None = None) -> None:
     print(
         f"Total stack: {payload['summary']['total_stack_qaly']:.4f} QALY ({payload['summary']['total_stack_days']:.1f} days)"
     )
+    guard = payload["summary"]["qol_evidence_guard"]
+    print(
+        "QoL evidence guard: general "
+        f"{guard['general_qol_claimed_qaly']:+.4f} -> {guard['general_qol_effective_qaly']:+.4f} QALY "
+        f"({guard['n_general_claims_guarded']} claims); sleep "
+        f"{guard['sleep_qol_claimed_qaly']:+.4f} -> {guard['sleep_qol_effective_qaly']:+.4f} QALY "
+        f"({guard['n_sleep_claims_guarded']} claims)"
+    )
+    drift = payload["summary"]["predeclared_range_drift"]
     print(
         f"Sanity check: {payload['summary']['items_within_range']}/{payload['summary']['n_items']} "
-        "item estimates inside predeclared ranges"
+        f"item estimates inside predeclared ranges (frozen {drift['frozen_at']}; "
+        f"{len(drift['ranges_edited_since_freeze'])} ranges edited since freeze)"
     )
     outside = [item for item in estimates if not item["within_range"]]
     if outside:
-        print("Outside range:")
+        print(
+            "Outside range (expected where the evidence guard moved totals "
+            "below pre-guard authored expectations — ranges deliberately NOT "
+            "rewritten to match):"
+        )
         for item in outside:
             print(
                 f"  {item['name']}: {item['total_qaly']:.4f} vs "
