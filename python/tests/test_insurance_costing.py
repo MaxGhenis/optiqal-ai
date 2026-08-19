@@ -118,9 +118,9 @@ def test_apap_gets_cheaper_under_medicaid_and_supplements_do_not():
     assert apap.effective_annual_cost(DC_MEDICAID_MANAGED_CARE) < (
         apap.effective_annual_cost(UNINSURED)
     )
-    assert mix_active.effective_annual_cost(
-        DC_MEDICAID_MANAGED_CARE
-    ) == pytest.approx(mix_active.effective_annual_cost(UNINSURED))
+    assert mix_active.effective_annual_cost(DC_MEDICAID_MANAGED_CARE) == pytest.approx(
+        mix_active.effective_annual_cost(UNINSURED)
+    )
 
 
 def test_simulate_catalog_threads_insurance_through_to_cost():
@@ -133,13 +133,17 @@ def test_simulate_catalog_threads_insurance_through_to_cost():
             profile, n_simulations=2_000, insurance=DC_MEDICAID_MANAGED_CARE
         )
     }
-    assert covered["apap_nightly"]["annual_cost"] < retail["apap_nightly"]["annual_cost"]
-    assert covered["apap_nightly"]["effective_annual_cost"] < (
-        retail["apap_nightly"]["effective_annual_cost"]
+    assert (
+        covered["apap_nightly"]["annual_cost"] < retail["apap_nightly"]["annual_cost"]
+    )
+    assert (
+        covered["apap_nightly"]["effective_annual_cost"]
+        < (retail["apap_nightly"]["effective_annual_cost"])
     )
     # The sticker price is still reported, so the discount stays auditable.
-    assert covered["apap_nightly"]["retail_annual_cost"] == (
-        retail["apap_nightly"]["retail_annual_cost"]
+    assert (
+        covered["apap_nightly"]["retail_annual_cost"]
+        == (retail["apap_nightly"]["retail_annual_cost"])
     )
     # QALYs are a clinical quantity and must not move when only price changes.
     assert covered["apap_nightly"]["days"] == pytest.approx(
