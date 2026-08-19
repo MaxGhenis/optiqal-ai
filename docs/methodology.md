@@ -124,25 +124,25 @@ $$
 $$
 
 **Exercise interventions** (walking, moderate exercise):
-- Prior: $\text{Beta}(2.5, 5.0)$
-- Mean causal fraction: 33%
-- 95% CI: [8%, 65%]
+- Prior: $\text{Beta}(1.2, 6.0)$
+- Mean causal fraction: 17%
+- 95% CI: [2%, 45%]
 - **Rationale**: RCTs show minimal causal effect on mortality (Ballin et al., 2021, n=50,000). Finnish Twin Cohort study of identical twins discordant for physical activity found no mortality difference (2024). Mendelian randomization studies show null effects. Strong healthy user bias in observational studies.
 - **Calibration sources**: Ballin et al. 2021 (RCT critical review); Finnish Twin Cohort 2024; Hamer & Stamatakis 2012 (sibling comparison); Ekelund et al. 2019 (device-measured activity)
 
 **Diet interventions** (Mediterranean diet):
-- Prior: $\text{Beta}(6.0, 2.5)$
-- Mean causal fraction: 71%
-- 95% CI: [42%, 90%]
+- Prior: $\text{Beta}(3.0, 3.0)$
+- Mean causal fraction: 50%
+- 95% CI: [15%, 85%]
 - **Rationale**: PREDIMED RCT confirms substantial causal effects on CVD (30% reduction, Estruch et al., 2018). Mendelian randomization supports causality (Larsson et al., 2020). Much stronger causal evidence than exercise.
 - **Calibration sources**: PREDIMED Trial 2018 (RCT, n=7,447); Larsson 2020 (MR); Sofi et al. 2014 (observational meta-analysis)
 
-**Smoking cessation**:
-- Prior: $\text{Beta}(9.0, 1.0)$
-- Mean causal fraction: 90%
-- 95% CI: [71%, 99%]
-- **Rationale**: Extremely strong causal evidence from dose-response, temporality (risk reversal after cessation), biological plausibility, and RCTs. Minimal confounding.
-- **Calibration sources**: Surgeon General Reports (1964-2020); Doll & Hill 1950s studies; Taylor et al. 2014 (cessation RCTs)
+**Substance interventions** (smoking cessation, alcohol changes):
+- Prior: $\text{Beta}(2.0, 4.0)$
+- Mean causal fraction: 33%
+- 95% CI: [6%, 68%]
+- **Rationale**: Smoking cessation has strong RCT backing (~56% causal fraction, Taylor et al. 2014), but the alcohol J-curve is essentially entirely confounded (Mendelian randomization shows no benefit), so the pooled substance prior sits between them.
+- **Calibration sources**: Taylor et al. 2014 (cessation RCTs); Stockwell et al. 2016 (alcohol J-curve as bias)
 
 **Sleep interventions**:
 - Prior: $\text{Beta}(1.5, 4.5)$
@@ -183,6 +183,63 @@ For each intervention, the framework samples from both the hazard ratio distribu
 5. Repeat 5,000-10,000 times to estimate median, mean, and credible intervals
 
 This propagates both epistemic uncertainty (parameter uncertainty) and causal uncertainty (confounding) into final estimates.
+
+Note: the Beta parameters in this section are the live values in
+`optiqal/confounding.py`. That file is canonical; if the two ever disagree,
+the code wins and this document is stale.
+
+## Quality-of-Life Evidence Guarding
+
+Mortality effects have always passed through the guard stack above, but most
+of the modeled protocol value flows through quality-of-life overlays (symptom
+relief, wellbeing, sleep quality). These claims now pass through a parallel
+guard (`optiqal/qol_evidence.py`), composed on the claimed annual effect:
+
+$$
+\text{QALY}_{\text{effective}} = \text{QALY}_{\text{claimed}} \times (1 - s) \times \theta
+$$
+
+1. **Study-quality shrinkage** $s$: reporting/publication inflation for
+   patient-reported endpoints, tiered from 10% (objective-endpoint RCTs) to
+   70% (mechanistic or self-experiment only). Subjective endpoints get
+   harsher weak-end tiers than the mortality table because they are easier to
+   p-hack and selectively report.
+2. **Transport prior** $\theta \sim \text{Beta}(\alpha, \beta)$: the fraction
+   of the claimed benefit expected to survive placebo/expectancy stripping and
+   transport to an already-healthy, already-treated user. Category priors are
+   calibrated to published placebo-adjusted versus open-label discrepancies
+   (e.g. placebo response averages roughly two-thirds of drug response for
+   subjective insomnia outcomes, Winkler & Rief 2015; commercial adaptogen
+   trials shrink in better designs, Speers 2021; sham-controlled CPAP trials
+   show roughly halved subjective gains versus open-label, Jenkinson 1999).
+
+Two anchor modes prevent double-shrinking:
+
+- **authored_shaded**: the authored mean already embeds a private severity
+  judgment, so only study-quality shrinkage plus a mild residual-optimism
+  prior ($\text{Beta}(6, 2)$, mean 75%) applies. Re-anchoring such an item to
+  a published placebo-adjusted delta requires a user severity input.
+- **published_delta**: the claim is a published delta or is applied to a
+  measured personal burden, so the full category transport prior applies.
+  Sleep-relief fractions use this mode: personal severity is measured
+  (wearables plus a home sleep study), making the relief fraction a pure
+  evidence claim. Guarded relief feeds **both** the sleep-QoL leg and the
+  sleep-derived mortality hazard multiplier, closing a previous bypass where
+  relief-derived mortality benefit skipped every evidence adjustment.
+
+Claimed **harms** (negative QoL overlays) are never shrunk: conservatism cuts
+against the intervention on both sides. Per-item annotations with study
+quality, category, and rationale live in `optiqal/qol_annotations.py`; a test
+fails if any positive claim lacks one.
+
+### Predeclared range freeze
+
+Per-item predeclared total-QALY ranges are frozen in
+`optiqal/data/predeclared_ranges_v1.json` (stamped 2026-08-07, pre-guard).
+The pipeline reports items outside their frozen range and any ranges edited
+since the freeze, and the ranges are deliberately **not** rewritten to match
+guarded outputs — a claim landing below its pre-guard authored expectation is
+information, not an error to be tuned away.
 
 ## Baseline Mortality Adjustments by Profile
 
