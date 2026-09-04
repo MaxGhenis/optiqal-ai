@@ -16,6 +16,64 @@ Branch: `rebuild/a-rng-priors`
 | `ef1e2221` | Rebase protocol optimizer sign cases |
 | `af3b11a7` | Bound protocol smoke-test runtime |
 | `07b107a1` | Record PR A completion |
+| `3195ae4f` | Refresh report commit hashes |
+| `80173b14` | Move the PR A progress file under docs/rebuild |
+
+### Review round 1
+
+| Commit | Subject |
+| --- | --- |
+| `c6f6977f` | Test RNG independence against the simulator itself |
+| `e7d0205e` | Apply ruff format to the Python tree |
+| `ac3efe7a` | Keep the mortality arm when a decision overrides the hazard ratio |
+| `5726a937` | Draw the walking reference runs from fixed seeds |
+| `f43fa435` | Cite the category calibration the served priors actually use |
+| `3229b1c8` | List the item-level prior overrides in the PR A notes |
+| `ec83a13a` | Record the facts the first PR A report left out |
+| `d7c28c1a` | Cover the protocol pipeline at its production draw count |
+| `6e3703cd` | Parse the documented means and example blocks for drift |
+| `8eee0971` | Guard protocol spec constructors against numeric priors |
+| `fecf4019` | Record the review round 1 verification |
+
+## What review round 1 changed
+
+1. **The RNG independence test never entered the simulator.** It rebuilt
+   `SeedSequence(seed).spawn(4)` by hand and correlated its own draws, so it passed
+   against the coupled engine it was written to guard. It now installs a spy on
+   `Distribution.sample`, `ConfoundingPrior.sample` and numpy's `default_rng` factory,
+   runs the real `simulate_qaly_profile_vectorized` on walking at n=20,000, and
+   correlates the arrays the simulator actually drew, additionally asserting that the
+   hazard-ratio and causal-fraction draws each receive a `Generator` rather than the
+   raw integer seed. Restoring the four-line coupling fails all four cases: the
+   standardized quality and log-HR arrays come back byte-identical and
+   `isinstance(7, Generator)` is False.
+
+2. **`override_hr` was silently dropped for QoL-only entries.** See "Decision-path
+   mortality for a QoL-only item" below.
+
+3. **Walking's rationale argued for the number it replaced,** and Mediterranean
+   diet's argued for the 71% mean it replaced. Both rows now state that they serve
+   their category prior, carry the category's calibration sources, and record the
+   superseded item-level estimate as pending PR G, in `priors.yaml`, the frozen
+   fixture, the shipped intervention YAMLs and the methodology. The same class of
+   drift was corrected in `docs/appendix.md` F.1 and F.3 and in the paper's
+   exercise-prior derivation sentence.
+
+4. **Three material facts were missing from this report;** they are the four sections
+   that follow the RNG results.
+
+5. **Eight item-level priors differ from their category.** They are legitimate
+   overrides under the charter schema and the drift test cannot see the divergence,
+   because it compares each YAML against `priors.yaml`'s `interventions` section
+   rather than against the category. `REBUILD.md`'s PR A notes now table all eight
+   with their category values and say so, and correct the protocol prior count from
+   76 to 77.
+
+Nice-to-have items 6 through 10 all landed: the drift test now parses the two
+methodology example blocks and every stated mean, the AST literal guard covers
+`make_spec` and `StackSpec`, the seeded-versus-independent walking comparison uses
+fixed seeds, the protocol smoke test gained a `@pytest.mark.slow` variant at the
+production 40,000 draws, and the hand-set protocol prior count is corrected.
 
 ## Prior drift resolved
 
@@ -138,7 +196,7 @@ All six are QoL-only and unchanged, with exactly zero mortality contribution. Mo
 
 ## Verification
 
-`uv run ruff check .`:
+First pass, at `07b107a1`. `uv run ruff check .`:
 
 ```text
 All checks passed!
@@ -152,4 +210,52 @@ All checks passed!
 512 passed in 1071.86s (0:17:51)
 ```
 
+Review round 1, covering every commit through `fecf4019`.
+`uv run --no-sync ruff check .`:
+
+```text
+All checks passed!
+```
+
+`uv run --no-sync ruff format --check .`:
+
+```text
+78 files already formatted
+```
+
+`PYTHONPATH=. uv run --no-sync pytest -q`:
+
+```text
+........................................................................ [ 13%]
+........................................................................ [ 27%]
+........................................................................ [ 40%]
+........................................................................ [ 54%]
+........................................................................ [ 68%]
+........................................................................ [ 81%]
+........................................................................ [ 95%]
+........................                                                 [100%]
+528 passed in 1002.86s (0:16:42)
+```
+
+The first pass verified `ruff check` only; `ruff format --check` reported four files
+as unformatted, which `e7d0205e` fixed. The test count moves 512 to 528: five in
+`test_simulate_streams.py` (the distinct-arrays companion, three override cases and
+the mortality-bearing control), nine parametrized cases pinning the extended AST
+literal guard, one methodology example-block drift case, and the slow protocol
+smoke test. `tests/test_model_regression.py` passes unchanged, with no further
+rebaseline: the override fix touches the decisions path in `evaluate_decisions`,
+while the served catalog path builds its interventions in `simulate_catalog` and
+already gated on `has_direct_mortality_effect`.
+
 The sandbox could not download SciPy during the initial network-backed `uv sync`; verification therefore used the worktree `.venv` with the already-installed system packages and `uv run --no-sync` semantics. No requested implementation, test, drift correction, rebaseline, or verification work is omitted. Nothing was pushed.
+
+## Remaining prose debt for PR G
+
+Not fixed this round, because each would need a study row rather than a rewording:
+
+- `docs/index.md`'s exercise row calls Ballin 2021 "a ~30% attenuation" while the
+  served prior mean is 17%.
+- `docs/appendix.md` F.1's three-row RCT-versus-observational table has no recorded
+  provenance for its HR pairs.
+- The 92 catalog rows in `confounding.interventions` mostly carry the source string
+  "No item-specific prior source was recorded in catalog.py."

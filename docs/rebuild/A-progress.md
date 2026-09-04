@@ -2,7 +2,8 @@
 
 ## State
 
-Complete on `rebuild/a-rng-priors`; final evidence is recorded in `PR_A_REPORT.md`.
+Review round 1 complete on `rebuild/a-rng-priors`; all five required items and all
+five nice-to-haves landed. Final evidence is recorded in `PR_A_REPORT.md`. Not pushed.
 
 ## Done
 
@@ -107,6 +108,12 @@ State: fixing the read-only review findings in place on `rebuild/a-rng-priors`.
   must and must not fire on. Verified end to end by injecting `conf_alpha=4.5` into
   the statin `make_spec` call and confirming the scan reports it.
 
+- Verified: `ruff check .` and `ruff format --check .` clean, and the whole suite at
+  528 passed in 1002.86s. `tests/test_model_regression.py` passes with no further
+  rebaseline.
+- Recorded the round-1 commit table, the round-1 summary, the four new evidence
+  sections and the remaining prose debt in `PR_A_REPORT.md`.
+
 ### Next
 
-- Full verification: ruff check, ruff format --check, and the whole pytest suite.
+- Ready for re-review; the branch has not been pushed.
