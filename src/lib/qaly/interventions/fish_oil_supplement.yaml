@@ -8,6 +8,16 @@ name: Omega-3 Fish Oil Supplement
 description: Daily supplementation with 1g EPA+DHA omega-3 fatty acids from fish oil
 category: medical
 
+lineage:
+  estimand: Lifetime net QALY delta versus not doing the intervention
+  model_version: canonical-v1
+  study_ids:
+    - manson2019_vital_cvd
+    - abdelhamid2020_omega3_mortality
+  studies: []
+  parameter_lineage: []
+  prior_lineage: []
+
 keywords:
   - fish oil
   - omega-3

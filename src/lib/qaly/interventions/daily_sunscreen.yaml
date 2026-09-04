@@ -10,6 +10,16 @@ name: Daily Sunscreen SPF 30+
 category: medical
 description: Daily application of SPF 30+ broad-spectrum sunscreen to exposed skin areas
 
+lineage:
+  estimand: Lifetime net QALY delta versus not doing the intervention
+  model_version: canonical-v1
+  study_ids:
+    - green2011_sunscreen_melanoma
+    - vanderpols2006_sunscreen_scc
+  studies: []
+  parameter_lineage: []
+  prior_lineage: []
+
 # Evidence quality
 evidence:
   quality: high

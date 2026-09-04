@@ -31,6 +31,7 @@ from .intervention import (
     HarmEffect,
     InteractionRule,
     Intervention,
+    InterventionLineage,
     MortalityEffect,
 )
 from .profile import Profile
@@ -576,6 +577,7 @@ class CatalogEntry:
     access_profile: AccessProfile = field(default_factory=AccessProfile)
     notes: str = ""
     sources: List[str] = field(default_factory=list)
+    study_ids: List[str] = field(default_factory=list)
     evidence_quality: Literal["high", "moderate", "low", "very-low"] = "moderate"
     # Per-item publication-bias tier. When unset, the catalog falls back to the
     # caller's (AnalysisConfig) ``pub_bias_shrinkage`` value — preserving prior
@@ -802,6 +804,11 @@ class CatalogEntry:
             interaction_rules=list(self.interaction_rules),
             confounding_prior=confounding_prior,
             evidence_quality=self.evidence_quality,
+            lineage=InterventionLineage(
+                estimand="Lifetime net QALY delta versus not doing the intervention",
+                model_version="canonical-v1",
+                study_ids=list(self.study_ids),
+            ),
         )
 
 
@@ -3220,10 +3227,11 @@ if missing_public_policy_items:
 # harness later.
 #
 # 1. STUDY_QUALITY_BY_ID:   per-item pub-bias shrinkage tier.
-# 2. BUNDLE_ALLOCATIONS:    allocate bundle dollar cost to constituent items.
-# 3. EXTRA_BENEFIT_TAGS:    attach mechanism-cluster tags so the stack overlap
+# 2. STUDY_IDS_BY_ID:       link catalog claims to verified evidence-table rows.
+# 3. BUNDLE_ALLOCATIONS:    allocate bundle dollar cost to constituent items.
+# 4. EXTRA_BENEFIT_TAGS:    attach mechanism-cluster tags so the stack overlap
 #                           penalty fires for correlated supplements.
-# 4. EVIDENCE_OVERRIDES:    drop evidence_quality for items that have weaker
+# 5. EVIDENCE_OVERRIDES:    drop evidence_quality for items that have weaker
 #                           evidence than their default tier implies.
 
 STUDY_QUALITY_BY_ID: Dict[str, str] = {
@@ -3315,6 +3323,14 @@ STUDY_QUALITY_BY_ID: Dict[str, str] = {
     # Behavioral / environmental sleep interventions.
     "head_elevation_nightly": "observational_speculative",
     "nasacort_nightly": "rct_standard",
+}
+
+STUDY_IDS_BY_ID: Dict[str, List[str]] = {
+    "semaglutide": ["lincoff2023_select_mace"],
+    "empagliflozin": ["zinman2015_empareg_mace"],
+    "cocoa_flavanols_500": ["sesso2022_cosmos_cvd"],
+    "omega3_clo": ["manson2019_vital_cvd"],
+    "vitamin_d_2000": ["bjelakovic2014_vitamin_d3_mortality"],
 }
 
 # Bundle cost allocation. Each tuple is (bundle_id, annual_dollar_share).
@@ -3449,11 +3465,15 @@ def _apply_annotations() -> None:
     for item_id, tier in STUDY_QUALITY_BY_ID.items():
         _replace_entry(item_id, study_quality=tier)
 
-    # 2. Bundle cost allocations.
+    # 2. Verified evidence-table rows.
+    for item_id, study_ids in STUDY_IDS_BY_ID.items():
+        _replace_entry(item_id, study_ids=list(study_ids))
+
+    # 3. Bundle cost allocations.
     for item_id, (bundle_id, share) in BUNDLE_ALLOCATIONS.items():
         _replace_entry(item_id, bundle_id=bundle_id, bundle_cost_share=float(share))
 
-    # 3. Extra benefit tags (mechanism clusters).
+    # 4. Extra benefit tags (mechanism clusters).
     for item_id, extra_tags in EXTRA_BENEFIT_TAGS.items():
         entry = CATALOG.get(item_id)
         if entry is None:
@@ -3464,11 +3484,11 @@ def _apply_annotations() -> None:
                 existing.append(tag)
         _replace_entry(item_id, benefit_tags=existing)
 
-    # 4. Evidence-quality overrides.
+    # 5. Evidence-quality overrides.
     for item_id, quality in EVIDENCE_OVERRIDES.items():
         _replace_entry(item_id, evidence_quality=quality)
 
-    # 5. Individual calibrations:
+    # 6. Individual calibrations:
     #
     # Aspirin at age 39 with no CVD risk factors. ASPREE (>70y) and ARRIVE
     # (moderate-risk) showed null/harm in healthy primary prevention. The

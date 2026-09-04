@@ -9,6 +9,14 @@ name: Mediterranean Diet Pattern
 description: Diet rich in vegetables, fruits, whole grains, legumes, nuts, olive oil, fish; moderate wine; low red meat
 category: diet
 
+lineage:
+  estimand: Lifetime net QALY delta versus not doing the intervention
+  model_version: canonical-v1
+  study_ids: []
+  studies: []
+  parameter_lineage: []
+  prior_lineage: []
+
 keywords:
   - mediterranean diet
   - PREDIMED

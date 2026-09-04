@@ -8,6 +8,14 @@ name: Regular 8 Hours of Sleep
 description: Consistent 7.5-8.5 hours of sleep per night with regular sleep schedule
 category: sleep
 
+lineage:
+  estimand: Lifetime net QALY delta versus not doing the intervention
+  model_version: canonical-v1
+  study_ids: []
+  studies: []
+  parameter_lineage: []
+  prior_lineage: []
+
 keywords:
   - sleep
   - 8 hours

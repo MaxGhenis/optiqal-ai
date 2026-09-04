@@ -1,9 +1,34 @@
 """Tests for intervention module."""
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
+from optiqal.catalog import CATALOG
 from optiqal.intervention import Distribution, Intervention, MortalityEffect
+
+INTERVENTION_DIR = (
+    Path(__file__).resolve().parents[2] / "src" / "lib" / "qaly" / "interventions"
+)
+EXPECTED_YAML_STUDY_IDS = {
+    "daily_exercise_moderate": ["arem2015_physical_activity_mortality"],
+    "daily_sunscreen": [
+        "green2011_sunscreen_melanoma",
+        "vanderpols2006_sunscreen_scc",
+    ],
+    "fish_oil_supplement": [
+        "manson2019_vital_cvd",
+        "abdelhamid2020_omega3_mortality",
+    ],
+    "meditation_daily": [],
+    "mediterranean_diet": [],
+    "moderate_alcohol": [],
+    "quit_smoking": [],
+    "sleep_8_hours": [],
+    "strength_training": [],
+    "walking_30min_daily": [],
+}
 
 
 class TestDistribution:
@@ -153,6 +178,7 @@ evidence:
 lineage:
   model_version: canonical-v1-draft
   estimand: Lifetime net QALY delta versus not doing the intervention
+  study_ids: [arem2015_physical_activity_mortality]
   studies:
     - id: aune2016_main
       citation: "Aune et al. 2016"
@@ -221,6 +247,9 @@ interaction_rules:
         assert intervention.lineage is not None
         assert intervention.lineage.model_version == "canonical-v1-draft"
         assert intervention.lineage.estimand.startswith("Lifetime net QALY delta")
+        assert intervention.lineage.study_ids == [
+            "arem2015_physical_activity_mortality"
+        ]
         assert len(intervention.lineage.studies) == 1
         assert intervention.lineage.studies[0]["study_type"] == "meta-analysis"
         assert (
@@ -237,6 +266,38 @@ interaction_rules:
         assert intervention.interaction_tags == ["sedating", "serotonergic"]
         assert len(intervention.interaction_rules) == 1
         assert intervention.interaction_rules[0].minimum_matches == 2
+
+
+def test_repository_intervention_yamls_have_canonical_lineage():
+    yaml_paths = sorted(INTERVENTION_DIR.glob("*.yaml"))
+    assert {path.stem for path in yaml_paths} == set(EXPECTED_YAML_STUDY_IDS)
+
+    for path in yaml_paths:
+        intervention = Intervention.from_yaml(path)
+        assert intervention.lineage is not None, path.name
+        assert intervention.lineage.model_version == "canonical-v1", path.name
+        assert intervention.lineage.estimand == (
+            "Lifetime net QALY delta versus not doing the intervention"
+        ), path.name
+        assert intervention.lineage.study_ids == EXPECTED_YAML_STUDY_IDS[path.stem]
+
+
+def test_catalog_study_ids_propagate_to_intervention_lineage():
+    expected = {
+        "semaglutide": ["lincoff2023_select_mace"],
+        "empagliflozin": ["zinman2015_empareg_mace"],
+        "cocoa_flavanols_500": ["sesso2022_cosmos_cvd"],
+        "omega3_clo": ["manson2019_vital_cvd"],
+        "vitamin_d_2000": ["bjelakovic2014_vitamin_d3_mortality"],
+    }
+
+    for item_id, study_ids in expected.items():
+        entry = CATALOG[item_id]
+        intervention = entry.to_intervention()
+        assert entry.study_ids == study_ids
+        assert intervention.lineage is not None
+        assert intervention.lineage.model_version == "canonical-v1"
+        assert intervention.lineage.study_ids == study_ids
 
 
 class TestInterventionPathwayHRs:

@@ -8,6 +8,14 @@ name: Strength Training 2x/Week
 description: Resistance exercise training 2-3 times per week, targeting major muscle groups
 category: exercise
 
+lineage:
+  estimand: Lifetime net QALY delta versus not doing the intervention
+  model_version: canonical-v1
+  study_ids: []
+  studies: []
+  parameter_lineage: []
+  prior_lineage: []
+
 keywords:
   - strength training
   - resistance training

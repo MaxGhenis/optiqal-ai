@@ -8,6 +8,14 @@ name: Limit Alcohol to 1-2 Drinks/Day
 description: Reduce alcohol consumption from heavy/moderate to 1-2 standard drinks per day (or abstinence)
 category: substance
 
+lineage:
+  estimand: Lifetime net QALY delta versus not doing the intervention
+  model_version: canonical-v1
+  study_ids: []
+  studies: []
+  parameter_lineage: []
+  prior_lineage: []
+
 keywords:
   - alcohol
   - moderate drinking

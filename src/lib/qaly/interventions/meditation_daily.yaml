@@ -8,6 +8,14 @@ name: Daily Mindfulness Meditation
 description: Practice mindfulness meditation 10-20 minutes daily, focusing on breath awareness and present-moment attention
 category: stress
 
+lineage:
+  estimand: Lifetime net QALY delta versus not doing the intervention
+  model_version: canonical-v1
+  study_ids: []
+  studies: []
+  parameter_lineage: []
+  prior_lineage: []
+
 keywords:
   - meditation
   - mindfulness
