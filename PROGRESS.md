@@ -4,8 +4,8 @@ Branch `rebuild/e-load-snapshots`. Charter: `REBUILD.md` (PR E row). Updated as 
 
 ## State
 
-Working. The loader, MEPS build, and CDC life-table evidence are landed; the pinned,
-explicitly unverified cause-fraction snapshot is ready to land next.
+Working. All snapshot artifacts and generators are landed; `lifecycle.py` now loads them at
+import and the dated pre-refactor fixture proves every value is unchanged.
 Verification (`uv run ruff check .`, `uv run pytest -q` from `python/`) is run before the
 final commit; `tests/test_model_regression.py` and `tests/test_sleep.py` must pass untouched
 because this PR changes no number.
@@ -55,8 +55,14 @@ because this PR changes no number.
   age-100 rows, snapshot/source ratios range from 0.632411 to 1.309524.
 - Snapshotted `CAUSE_FRACTIONS` as the transcribed approximation it is. Its validator refuses
   to invent the absent WONDER query and prints the evidence a future replacement must save.
+- Replaced all five literal blocks in `lifecycle.py` with import-time snapshot accessors while
+  retaining the public module names, dictionary shapes, key types, and scalar float type.
+- Exported the pre-refactor literals to `tests/fixtures/lifecycle_constants_2026-09-04.json`
+  and compared every loaded numeric leaf at absolute tolerance `1e-12`.
+- Added an integration test that reloads `lifecycle.py` against a malformed temporary snapshot
+  and proves the named-file `SnapshotError` occurs during import.
 
 ## Next
 
-1. `lifecycle.py` loads all three snapshots; fixture equality test at 1e-12.
-2. `docs/DATA_PROVENANCE.md`, snapshots README, `REBUILD.md` PR E notes.
+1. `docs/DATA_PROVENANCE.md`, snapshots README, `REBUILD.md` PR E notes.
+2. Run targeted untouched regressions, then the required full Ruff and pytest verification.

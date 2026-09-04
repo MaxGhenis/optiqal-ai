@@ -1,9 +1,13 @@
 """Tests for provenance-stamped runtime data snapshots."""
 
+import importlib
 import json
+import shutil
+from pathlib import Path
 
 import pytest
 
+import optiqal.lifecycle as lifecycle
 from optiqal import snapshots
 from optiqal.data_build import cause_fractions, cdc_life_table, meps_quality_weights
 
@@ -131,3 +135,59 @@ def test_cdc_life_table_snapshot_and_source_comparison_are_pinned():
 
 def test_cause_fraction_snapshot_is_pinned():
     cause_fractions.validate_committed_snapshot()
+
+
+def _assert_nested_close(actual, expected, path: str = "fixture") -> None:
+    if isinstance(expected, dict):
+        assert isinstance(actual, dict), path
+        actual_by_json_key = {str(key): value for key, value in actual.items()}
+        assert actual_by_json_key.keys() == expected.keys(), path
+        for key, expected_value in expected.items():
+            _assert_nested_close(
+                actual_by_json_key[key], expected_value, f"{path}.{key}"
+            )
+        return
+    assert isinstance(actual, (int, float)), path
+    assert actual == pytest.approx(expected, rel=0, abs=1e-12), path
+
+
+def test_loaded_lifecycle_values_match_pre_refactor_literals():
+    fixture_path = (
+        Path(__file__).parent / "fixtures" / "lifecycle_constants_2026-09-04.json"
+    )
+    expected = json.loads(fixture_path.read_text(encoding="utf-8"))
+    actual = {
+        "CDC_LIFE_TABLE": lifecycle.CDC_LIFE_TABLE,
+        "CAUSE_FRACTIONS": lifecycle.CAUSE_FRACTIONS,
+        "QUALITY_WEIGHTS": lifecycle.QUALITY_WEIGHTS,
+        "QUALITY_WEIGHT_STD": lifecycle.QUALITY_WEIGHT_STD,
+        "CONDITION_DECREMENTS": lifecycle.CONDITION_DECREMENTS,
+    }
+
+    _assert_nested_close(actual, expected)
+    assert isinstance(lifecycle.QUALITY_WEIGHT_STD, float)
+
+
+def test_bad_snapshot_fails_during_lifecycle_import(tmp_path, monkeypatch):
+    real_snapshot_dir = snapshots.snapshot_dir()
+    runtime_names = ("cdc_life_table", "cause_fractions", "meps_quality_weights")
+    for name in runtime_names:
+        shutil.copy2(real_snapshot_dir / f"{name}.json", tmp_path / f"{name}.json")
+
+    bad_path = tmp_path / "cdc_life_table.json"
+    payload = json.loads(bad_path.read_text(encoding="utf-8"))
+    payload["data"]["life_table"]["male"]["0"] = -0.00566
+    payload["provenance"]["sha256_of_data"] = snapshots.data_checksum(payload["data"])
+    bad_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    try:
+        with monkeypatch.context() as context:
+            context.setattr(snapshots, "snapshot_dir", lambda: tmp_path)
+            snapshots.clear_cache()
+            with pytest.raises(snapshots.SnapshotError) as error:
+                importlib.reload(lifecycle)
+            assert "cdc_life_table.json" in str(error.value)
+            assert "negative" in str(error.value)
+    finally:
+        snapshots.clear_cache()
+        importlib.reload(lifecycle)
