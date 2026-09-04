@@ -5,9 +5,9 @@ Lane brief: `docs/rebuild/B-deletion.md`. Branch `rebuild/b-deletion`, worktree
 
 ## State
 
-Steps 1 to 4 of 5 done: the intervention YAMLs moved into the Python package;
-the TypeScript engine, its served JSON, the orphaned Python modules and the
-unconsumed MEPS binaries are gone.
+All five steps done. The intervention YAMLs live in the Python package; the
+TypeScript engine, its served JSON, the orphaned Python modules and the
+unconsumed MEPS binaries are gone; the docs describe what is left.
 
 ## Baseline captured before the first deletion (at `550f5cf0`)
 
@@ -84,8 +84,44 @@ Reference measurements at the base commit:
    command, and its `baselines.json` section no longer points at the deleted
    TypeScript mirrors.
 
-## Next
+5. **Rewrite the docs to match what is left.**
+   - `PRODUCT_STRATEGY.md`: the free/paid-individual/paid-pro tier list is
+     replaced by a "What ships" section — the engine, the evidence table, the
+     results file and the scoreboard, all public, no tiers. Go-to-market phase 3
+     no longer proposes team plans.
+   - `REPRODUCIBILITY.md`: rewritten around one engine. It now names the two
+     routes, the bridge, the FastAPI wrapper, `_spawn_generators` (four streams
+     vectorized, two in the loop simulators), the snapshot loader and
+     `priors.yaml`. The legacy TypeScript section and the `paper-results.ts`
+     paragraph are gone.
+   - `python/README.md`: rewritten. No MCMC install path, no MCMC example, no
+     "for TypeScript web app". Adds what the web serves and where the numbers
+     come from.
+   - `README.md`: adds a "How it is put together" section naming the one engine
+     and the two routes; fixes the absolute-path link to `PRODUCT_STRATEGY.md`
+     and drops "monetization plan"; corrects the stack (Next.js 16, not 15).
+   - `PRECOMPUTED_BASELINES_SUMMARY.md`, `docs/precomputed-baselines.md` and
+     `docs/precomputed-quick-start.md`: trimmed to the surviving Python half.
+     Each of the three described a mixed system, so none was deleted outright.
+     The 8% speedup claim was re-measured this session (4,871 against 4,465
+     simulations/second) instead of inherited.
+   - `docs/optiqal_results.py`: the docstring no longer says it wraps
+     `paper-results.ts`. It now says the exercise prior comes from `priors.yaml`
+     and the rest are hand-entered literals no code reproduces.
+   - `src/app/thesis/page.tsx`: "450 TypeScript tests passing" and "121 Python
+     tests passing" were both stale before this branch. They are now 546 Python
+     engine tests and 43 web tests, both measured today.
+   - `scripts/calibrate_nhanes.py`: dropped `generate_typescript_file`, which
+     wrote into the deleted `src/lib/evidence/baseline/`.
+   - `REBUILD.md`: PR B notes appended, nothing else touched.
 
-5. Rewrite `PRODUCT_STRATEGY.md`, `REPRODUCIBILITY.md`, `python/README.md`,
-   `README.md` and `PRECOMPUTED_BASELINES_SUMMARY.md`; append PR B notes to
-   `REBUILD.md`.
+## Not done, and why
+
+- `python/optiqal/web_api.py` holds the NHANES calibration factors as literals
+  (`CALIBRATION_BY_AGE_SEX`, `CALIBRATION_BY_SEX`) rather than reading
+  `data/nhanes/calibration.json`. That is a live provenance gap, but closing it is
+  a load-from-snapshot change of the kind PR E did, not a deletion.
+- `docs/index.md`, `docs/methodology.md` and `docs/appendix.md` are left alone
+  beyond the `paper-results.ts` reference, per the lane brief. PR F retires the
+  paper.
+- `autoagent/` and the public-frontier benchmark are untouched, per the brief.

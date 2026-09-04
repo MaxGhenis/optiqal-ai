@@ -1,7 +1,11 @@
 """Paper results wrapper for MyST {eval} directives.
 
-This Python module wraps the TypeScript paper-results.ts values for use
-in the JupyterBook documentation. Values are kept in sync manually.
+This module supplies the values the paper renders through ``{eval}``. The
+exercise confounding prior is read from ``python/optiqal/data/priors.yaml``; the
+per-intervention QALY figures below are hand-entered literals kept in sync
+manually. They were originally transcribed from the TypeScript engine, which
+rebuild PR B deleted, so they are no longer reproducible from any code in this
+repository; PR F retires the paper.
 
 Usage in paper:
     Inline: The QALY for exercise is {eval}`r.exercise.qaly`.
