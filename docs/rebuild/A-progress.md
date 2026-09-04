@@ -49,7 +49,12 @@ State: fixing the read-only review findings in place on `rebuild/a-rng-priors`.
 ### Done
 
 - Moved the progress file to `docs/rebuild/A-progress.md`.
+- Item 1: rewrote the RNG independence test so it observes the simulator's own draws
+  through a spy on `Distribution.sample`, `ConfoundingPrior.sample` and the
+  quality-offset generator, and asserts the hazard-ratio draw receives a `Generator`.
+  Confirmed by experiment that the rewritten test fails when the four-line coupling is
+  restored in `simulate_qaly_profile_vectorized` (4 failures) and passes on the branch.
 
 ### Next
 
-- Item 1: rewrite `tests/test_simulate_streams.py::test_quality_and_log_hr_streams_are_independent`.
+- Item 2: build the mortality arm on the decisions path when `override_hr` is not 1.0.
