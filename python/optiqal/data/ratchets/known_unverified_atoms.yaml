@@ -1,0 +1,387 @@
+- id: appendix:calibration:diet-mortality
+  reason: 'appendix paired RCT/observational calibration row is not wholly traceable to exact abstract
+    estimates: | Diet → mortality | HR 0.91 | HR 0.79 | 0.67 |'
+  since: '2026-09-04'
+- id: appendix:calibration:exercise-cvd
+  reason: 'appendix paired RCT/observational calibration row is not wholly traceable to exact abstract
+    estimates: | Exercise → CVD | HR 0.86 | HR 0.70 | 0.48 |'
+  since: '2026-09-04'
+- id: appendix:calibration:omega-3-supplements
+  reason: 'appendix paired RCT/observational calibration row is not wholly traceable to exact abstract
+    estimates: | Omega-3 supplements | HR 0.97 | HR 0.82 | 0.17 |'
+  since: '2026-09-04'
+- id: appendix:hazard:alcohol-heavy
+  reason: 'appendix estimate is not stated exactly in the cited abstract: | Heavy (>14/week) | vs moderate
+    | 1.24 | [1.15, 1.34] | Wood 2018 |'
+  since: '2026-09-04'
+- id: appendix:hazard:bmi-obese
+  reason: 'appendix estimate is not stated exactly in the cited abstract: | Obese (30-35) vs normal |
+    Per 5 kg/m² | 1.29 | [1.22, 1.36] | GSCB 2009 |'
+  since: '2026-09-04'
+- id: appendix:hazard:bmi-severe
+  reason: 'appendix estimate is not stated exactly in the cited abstract: | Severely obese (35+) | Per
+    5 kg/m² | 1.91 | [1.67, 2.18] | GSCB 2009 |'
+  since: '2026-09-04'
+- id: appendix:hazard:bp-stage-1
+  reason: 'appendix estimate is not stated exactly in the cited abstract: | Stage 1 HTN (130-139) | vs
+    <120 | 1.20 | [1.12, 1.29] | PSC 2002 |'
+  since: '2026-09-04'
+- id: appendix:hazard:bp-stage-2
+  reason: 'appendix estimate is not stated exactly in the cited abstract: | Stage 2 HTN (140+) | vs <120
+    | 1.56 | [1.44, 1.69] | PSC 2002 |'
+  since: '2026-09-04'
+- id: appendix:hazard:diet-mediterranean-high
+  reason: 'appendix estimate is not stated exactly in the cited abstract: | Mediterranean high | vs low
+    | 0.79 | [0.73, 0.85] | PREDIMED |'
+  since: '2026-09-04'
+- id: appendix:hazard:exercise-guideline
+  reason: 'appendix estimate is not stated exactly in the cited abstract: | 150+ min/week vs sedentary
+    | | 0.70 | [0.64, 0.77] | Arem 2015 |'
+  since: '2026-09-04'
+- id: appendix:hazard:exercise-half-guideline
+  reason: 'appendix estimate is not stated exactly in the cited abstract: | 75-150 min/week | | 0.80 |
+    [0.74, 0.87] | Arem 2015 |'
+  since: '2026-09-04'
+- id: appendix:hazard:sleep-short
+  reason: 'appendix estimate is not stated exactly in the cited abstract: | <6 hours | vs 7-8 hours |
+    1.13 | [1.06, 1.21] | Cappuccio 2010 |'
+  since: '2026-09-04'
+- id: appendix:hazard:smoking-current
+  reason: 'appendix estimate is not stated exactly in the cited abstract: | Current vs never | 20 pack-years
+    | 2.80 | [2.45, 3.20] | Jha 2013 |'
+  since: '2026-09-04'
+- id: appendix:hazard:smoking-former
+  reason: 'appendix estimate is not stated exactly in the cited abstract: | Former vs never | Quit 5+
+    years | 1.34 | [1.25, 1.44] | Jha 2013 |'
+  since: '2026-09-04'
+- id: appendix:hazard:social-isolation
+  reason: 'appendix estimate is not stated exactly in the cited abstract: | Social isolation | vs connected
+    | 1.50 | [1.35, 1.67] | Holt-Lunstad 2010 |'
+  since: '2026-09-04'
+- id: catalog:apap_nightly:pmid:30736887
+  reason: 'catalog citation has no abstract-supported study row: 30736887'
+  since: '2026-09-04'
+- id: catalog:bpc157_cycle:pmid:40756949
+  reason: 'catalog citation has no abstract-supported study row: 40756949'
+  since: '2026-09-04'
+- id: catalog:caakg_2000:pmid:32877690
+  reason: 'catalog citation has no abstract-supported study row: 32877690'
+  since: '2026-09-04'
+- id: catalog:creatine_5g:doi:10.1186/s12882-025-04558-6
+  reason: 'catalog citation has no abstract-supported study row: 10.1186/s12882-025-04558-6'
+  since: '2026-09-04'
+- id: catalog:creatine_5g:doi:10.1186/s12970-017-0173-z
+  reason: 'catalog citation has no abstract-supported study row: 10.1186/s12970-017-0173-z'
+  since: '2026-09-04'
+- id: catalog:creatine_5g:doi:10.3389/fnut.2024.1424972
+  reason: 'catalog citation has no abstract-supported study row: 10.3389/fnut.2024.1424972'
+  since: '2026-09-04'
+- id: catalog:daridorexant_25mg:pmid:33305817
+  reason: 'catalog citation has no abstract-supported study row: 33305817'
+  since: '2026-09-04'
+- id: catalog:daridorexant_25mg:pmid:35065036
+  reason: 'catalog citation has no abstract-supported study row: 35065036'
+  since: '2026-09-04'
+- id: catalog:daridorexant_25mg:pmid:39543812
+  reason: 'catalog citation has no abstract-supported study row: 39543812'
+  since: '2026-09-04'
+- id: catalog:doxepin_3mg:target-tier
+  reason: target-tier catalog claim has no identifiable abstract-supported study row
+  since: '2026-09-04'
+- id: catalog:garlic_1200:target-tier
+  reason: target-tier catalog claim has no identifiable abstract-supported study row
+  since: '2026-09-04'
+- id: catalog:glucosamine_sulfate_750:pmid:30566740
+  reason: 'catalog citation has no abstract-supported study row: 30566740'
+  since: '2026-09-04'
+- id: catalog:glutathione_250:pmid:24791752
+  reason: 'catalog citation has no abstract-supported study row: 24791752'
+  since: '2026-09-04'
+- id: catalog:glycine_2g:pmid:22529837
+  reason: 'catalog citation has no abstract-supported study row: 22529837'
+  since: '2026-09-04'
+- id: catalog:hbot_60sessions:pmid:35649312
+  reason: 'catalog citation has no abstract-supported study row: 35649312'
+  since: '2026-09-04'
+- id: catalog:head_elevation_nightly:pmid:39347559
+  reason: 'catalog citation has no abstract-supported study row: 39347559'
+  since: '2026-09-04'
+- id: catalog:hiit_1x_week:pmid:26243014
+  reason: 'catalog citation has no abstract-supported study row: 26243014'
+  since: '2026-09-04'
+- id: catalog:hiit_1x_week:pmid:38599681
+  reason: 'catalog citation has no abstract-supported study row: 38599681'
+  since: '2026-09-04'
+- id: catalog:hiit_2x_week:pmid:26243014
+  reason: 'catalog citation has no abstract-supported study row: 26243014'
+  since: '2026-09-04'
+- id: catalog:hiit_2x_week:pmid:38599681
+  reason: 'catalog citation has no abstract-supported study row: 38599681'
+  since: '2026-09-04'
+- id: catalog:hiit_2x_week:pmid:40976973
+  reason: 'catalog citation has no abstract-supported study row: 40976973'
+  since: '2026-09-04'
+- id: catalog:hiit_3x_week:pmid:26243014
+  reason: 'catalog citation has no abstract-supported study row: 26243014'
+  since: '2026-09-04'
+- id: catalog:hiit_3x_week:pmid:38599681
+  reason: 'catalog citation has no abstract-supported study row: 38599681'
+  since: '2026-09-04'
+- id: catalog:hiit_3x_week:pmid:40976973
+  reason: 'catalog citation has no abstract-supported study row: 40976973'
+  since: '2026-09-04'
+- id: catalog:humidifier_nightly:pmid:3348500
+  reason: 'catalog citation has no abstract-supported study row: 3348500'
+  since: '2026-09-04'
+- id: catalog:infrared_sauna_4x_week:pmid:41049507
+  reason: 'catalog citation has no abstract-supported study row: 41049507'
+  since: '2026-09-04'
+- id: catalog:l_lysine_1000:pmid:17510493
+  reason: 'catalog citation has no abstract-supported study row: 17510493'
+  since: '2026-09-04'
+- id: catalog:l_lysine_1000:pmid:3115841
+  reason: 'catalog citation has no abstract-supported study row: 3115841'
+  since: '2026-09-04'
+- id: catalog:l_theanine_200:pmid:31623400
+  reason: 'catalog citation has no abstract-supported study row: 31623400'
+  since: '2026-09-04'
+- id: catalog:lemborexant_5mg:pmid:32187781
+  reason: 'catalog citation has no abstract-supported study row: 32187781'
+  since: '2026-09-04'
+- id: catalog:lemborexant_5mg:pmid:32585700
+  reason: 'catalog citation has no abstract-supported study row: 32585700'
+  since: '2026-09-04'
+- id: catalog:lemborexant_5mg:pmid:37677076
+  reason: 'catalog citation has no abstract-supported study row: 37677076'
+  since: '2026-09-04'
+- id: catalog:lemborexant_5mg:pmid:40848323
+  reason: 'catalog citation has no abstract-supported study row: 40848323'
+  since: '2026-09-04'
+- id: catalog:magnesium_200:target-tier
+  reason: target-tier catalog claim has no identifiable abstract-supported study row
+  since: '2026-09-04'
+- id: catalog:metformin_500mg:target-tier
+  reason: target-tier catalog claim has no identifiable abstract-supported study row
+  since: '2026-09-04'
+- id: catalog:mouth_tape_nightly:pmid:25450408
+  reason: 'catalog citation has no abstract-supported study row: 25450408'
+  since: '2026-09-04'
+- id: catalog:mouth_tape_nightly:pmid:25766699
+  reason: 'catalog citation has no abstract-supported study row: 25766699'
+  since: '2026-09-04'
+- id: catalog:mouth_tape_nightly:pmid:38780959
+  reason: 'catalog citation has no abstract-supported study row: 38780959'
+  since: '2026-09-04'
+- id: catalog:mouth_tape_nightly:pmid:39662104
+  reason: 'catalog citation has no abstract-supported study row: 39662104'
+  since: '2026-09-04'
+- id: catalog:nac_1200:pmid:28122105
+  reason: 'catalog citation has no abstract-supported study row: 28122105'
+  since: '2026-09-04'
+- id: catalog:nac_1200:pmid:38555190
+  reason: 'catalog citation has no abstract-supported study row: 38555190'
+  since: '2026-09-04'
+- id: catalog:nasacort_nightly:pmid:15124166
+  reason: 'catalog citation has no abstract-supported study row: 15124166'
+  since: '2026-09-04'
+- id: catalog:nasacort_nightly:pmid:30154874
+  reason: 'catalog citation has no abstract-supported study row: 30154874'
+  since: '2026-09-04'
+- id: catalog:nasacort_nightly:pmid:9042068
+  reason: 'catalog citation has no abstract-supported study row: 9042068'
+  since: '2026-09-04'
+- id: catalog:nasal_strips_nightly:pmid:30154874
+  reason: 'catalog citation has no abstract-supported study row: 30154874'
+  since: '2026-09-04'
+- id: catalog:oral_appliance_custom:pmid:26094920
+  reason: 'catalog citation has no abstract-supported study row: 26094920'
+  since: '2026-09-04'
+- id: catalog:probiotic_daily:pmid:24230488
+  reason: 'catalog citation has no abstract-supported study row: 24230488'
+  since: '2026-09-04'
+- id: catalog:probiotic_daily:pmid:41233756
+  reason: 'catalog citation has no abstract-supported study row: 41233756'
+  since: '2026-09-04'
+- id: catalog:rapamycin_5mg_wk:citation
+  reason: catalog author-year citation has no linked abstract-supported study row
+  since: '2026-09-04'
+- id: catalog:strength_maintenance:pmid:38599681
+  reason: 'catalog citation has no abstract-supported study row: 38599681'
+  since: '2026-09-04'
+- id: catalog:suvorexant_10mg:pmid:26194728
+  reason: 'catalog citation has no abstract-supported study row: 26194728'
+  since: '2026-09-04'
+- id: catalog:suvorexant_10mg:pmid:27397664
+  reason: 'catalog citation has no abstract-supported study row: 27397664'
+  since: '2026-09-04'
+- id: catalog:suvorexant_10mg:pmid:39543812
+  reason: 'catalog citation has no abstract-supported study row: 39543812'
+  since: '2026-09-04'
+- id: catalog:taurine_500_topup:pmid:34039357
+  reason: 'catalog citation has no abstract-supported study row: 34039357'
+  since: '2026-09-04'
+- id: catalog:taurine_500_topup:pmid:39796489
+  reason: 'catalog citation has no abstract-supported study row: 39796489'
+  since: '2026-09-04'
+- id: catalog:tempo_run_1x_week:pmid:26243014
+  reason: 'catalog citation has no abstract-supported study row: 26243014'
+  since: '2026-09-04'
+- id: catalog:tempo_run_1x_week:pmid:38599681
+  reason: 'catalog citation has no abstract-supported study row: 38599681'
+  since: '2026-09-04'
+- id: catalog:trazodone_50mg:target-tier
+  reason: target-tier catalog claim has no identifiable abstract-supported study row
+  since: '2026-09-04'
+- id: catalog:vitamin_c_500_extra:target-tier
+  reason: target-tier catalog claim has no identifiable abstract-supported study row
+  since: '2026-09-04'
+- id: catalog:zone2_cardio_2x_week:pmid:38599681
+  reason: 'catalog citation has no abstract-supported study row: 38599681'
+  since: '2026-09-04'
+- id: reference:angrist2010credibility
+  reason: 'reference is not an extractable study estimate: Mostly harmless econometrics: An empiricist''s
+    companion'
+  since: '2026-09-04'
+- id: reference:aune2015exercise
+  reason: 'bibliography reference has no abstract-supported study row: Physical activity and the risk
+    of type 2 diabetes: a systematic review and dose-response meta-analysis'
+  since: '2026-09-04'
+- id: reference:clarke2002ukpds62
+  reason: 'bibliography reference has no abstract-supported study row: Estimating utility values for health
+    states of type 2 diabetic patients using the EQ-5D (UKPDS 62)'
+  since: '2026-09-04'
+- id: reference:doll2004
+  reason: 'bibliography reference has no abstract-supported study row: Mortality in relation to smoking:
+    50 years'' observations on male British doctors'
+  since: '2026-09-04'
+- id: reference:gbd2016alcohol
+  reason: 'bibliography reference has no abstract-supported study row: Alcohol use and burden for 195
+    countries and territories, 1990--2016: a systematic analysis for the Global Burden of Disease Study
+    2016'
+  since: '2026-09-04'
+- id: reference:goff2014acc
+  reason: 'bibliography reference has no abstract-supported study row: 2013 ACC/AHA guideline on the assessment
+    of cardiovascular risk: a report of the American College of Cardiology/American Heart Association
+    Task Force on Practice Guidelines'
+  since: '2026-09-04'
+- id: reference:gold2002halys
+  reason: 'bibliography reference has no abstract-supported study row: HALYs and QALYs and DALYs, Oh My:
+    similarities and differences in summary measures of population health'
+  since: '2026-09-04'
+- id: reference:guh2009bmi
+  reason: 'bibliography reference has no abstract-supported study row: The incidence of co-morbidities
+    related to obesity and overweight: a systematic review and meta-analysis'
+  since: '2026-09-04'
+- id: reference:hernan2020causal
+  reason: 'bibliography reference has no abstract-supported study row: Causal inference: what if'
+  since: '2026-09-04'
+- id: reference:hippisley2017derivation
+  reason: 'bibliography reference has no abstract-supported study row: Development and validation of QRISK3
+    risk prediction algorithms to estimate future risk of cardiovascular disease: prospective cohort study'
+  since: '2026-09-04'
+- id: reference:house1988
+  reason: 'bibliography reference has no abstract-supported study row: Social relationships and health'
+  since: '2026-09-04'
+- id: reference:johnson2013nhanes
+  reason: 'bibliography reference has no abstract-supported study row: {National Health and Nutrition
+    Examination Survey}: Analytic guidelines, 1999--2010'
+  since: '2026-09-04'
+- id: reference:kessler2003epidemiology
+  reason: 'bibliography reference has no abstract-supported study row: The epidemiology of major depressive
+    disorder: results from the National Comorbidity Survey Replication (NCS-R)'
+  since: '2026-09-04'
+- id: reference:lewington2002bp
+  reason: 'bibliography reference has no abstract-supported study row: Age-specific relevance of usual
+    blood pressure to vascular mortality: a meta-analysis of individual data for one million adults in
+    61 prospective studies'
+  since: '2026-09-04'
+- id: reference:lindstrom2003findrisc
+  reason: 'bibliography reference has no abstract-supported study row: The diabetes risk score: a practical
+    tool to predict type 2 diabetes risk'
+  since: '2026-09-04'
+- id: reference:lundborg2018schooling
+  reason: 'bibliography reference has no abstract-supported study row: The health returns to schooling—what
+    can we learn from twins?'
+  since: '2026-09-04'
+- id: reference:moore2012
+  reason: 'bibliography reference has no abstract-supported study row: Leisure time physical activity
+    of moderate to vigorous intensity and mortality: a large pooled cohort analysis'
+  since: '2026-09-04'
+- id: reference:nhanes2020
+  reason: 'reference is not an extractable study estimate: {National Health and Nutrition Examination
+    Survey (NHANES) 2017--March 2020 Pre-Pandemic Data Files}'
+  since: '2026-09-04'
+- id: reference:noble2011findrisc
+  reason: 'bibliography reference has no abstract-supported study row: Risk models and scores for type
+    2 diabetes: systematic review'
+  since: '2026-09-04'
+- id: reference:sullivan2005catalog
+  reason: 'bibliography reference has no abstract-supported study row: A national catalog of preference-based
+    scores for chronic conditions in the United States'
+  since: '2026-09-04'
+- id: reference:sullivan2005eq5d
+  reason: 'bibliography reference has no abstract-supported study row: EQ-5D scores for 600 health states'
+  since: '2026-09-04'
+- id: reference:vanderweele2019
+  reason: 'bibliography reference has no abstract-supported study row: Principles of confounder selection'
+  since: '2026-09-04'
+- id: yaml:daily_exercise_moderate:citation:moore-2012
+  reason: 'YAML citation has no abstract-supported study row: Moore SC et al. Leisure time physical activity
+    of moderate to vigorous intensity and mortality. PLoS Med 2012;9:e1001335'
+  since: '2026-09-04'
+- id: yaml:daily_exercise_moderate:citation:warburton-2006
+  reason: 'YAML citation has no abstract-supported study row: Warburton DE et al. Health benefits of physical
+    activity. CMAJ 2006;174:801-9'
+  since: '2026-09-04'
+- id: yaml:meditation_daily:citation:black-slavich-2016
+  reason: 'YAML citation has no abstract-supported study row: Black DS & Slavich GM. Mindfulness meditation
+    and immune function. Ann NY Acad Sci 2016;1373:13-24'
+  since: '2026-09-04'
+- id: yaml:meditation_daily:citation:creswell-2016
+  reason: 'YAML citation has no abstract-supported study row: Creswell JD et al. Mindfulness-based stress
+    reduction training reduces loneliness and pro-inflammatory gene expression. Brain Behav Immun 2016;56:165-72'
+  since: '2026-09-04'
+- id: yaml:meditation_daily:citation:pascoe-2017
+  reason: 'YAML citation has no abstract-supported study row: Pascoe et al 2017 (cortisol meta-analysis)'
+  since: '2026-09-04'
+- id: yaml:mediterranean_diet:citation:grosso-2017
+  reason: 'YAML citation has no abstract-supported study row: Grosso G et al. A comprehensive meta-analysis
+    on dietary flavonoid intake. Nutr Metab 2017;14:57'
+  since: '2026-09-04'
+- id: yaml:mediterranean_diet:citation:larsson-2020
+  reason: 'YAML citation has no abstract-supported study row: Larsson 2020 (Mendelian randomization)'
+  since: '2026-09-04'
+- id: yaml:mediterranean_diet:citation:sofi-2014
+  reason: 'YAML citation has no abstract-supported study row: Sofi 2014 (observational meta-analysis)'
+  since: '2026-09-04'
+- id: yaml:quit_smoking:citation:doll-hill-1950s
+  reason: 'YAML citation has no abstract-supported study row: Doll & Hill 1950s physician studies'
+  since: '2026-09-04'
+- id: yaml:quit_smoking:citation:multiple-rcts
+  reason: 'YAML citation has no abstract-supported study row: Multiple RCTs of cessation interventions'
+  since: '2026-09-04'
+- id: yaml:quit_smoking:citation:surgeon-general-1964-2020
+  reason: 'YAML citation has no abstract-supported study row: Surgeon General Reports (1964-2020)'
+  since: '2026-09-04'
+- id: yaml:sleep_8_hours:citation:grandner-2016
+  reason: 'YAML citation has no abstract-supported study row: Grandner 2016 (review of causality)'
+  since: '2026-09-04'
+- id: yaml:strength_training:citation:liu-2019
+  reason: 'YAML citation has no abstract-supported study row: Liu Y et al. Associations of resistance
+    exercise with CVD morbidity and mortality. Med Sci Sports Exerc 2019;51:499-508'
+  since: '2026-09-04'
+- id: yaml:strength_training:citation:momma-2022
+  reason: 'YAML citation has no abstract-supported study row: Momma H et al. Muscle-strengthening activities
+    are associated with lower risk and mortality. Am J Epidemiol 2022;191:771-83'
+  since: '2026-09-04'
+- id: yaml:strength_training:citation:westcott-2012
+  reason: 'YAML citation has no abstract-supported study row: Westcott WL. Resistance training is medicine.
+    Curr Sports Med Rep 2012;11:209-16'
+  since: '2026-09-04'
+- id: yaml:walking_30min_daily:citation:hamer-stamatakis-2012
+  reason: 'YAML citation has no abstract-supported study row: Hamer & Stamatakis 2012 (sibling comparison)'
+  since: '2026-09-04'
+- id: yaml:walking_30min_daily:citation:kelly-2014
+  reason: 'YAML citation has no abstract-supported study row: Kelly et al 2014. Walking on mortality in
+    cohorts'
+  since: '2026-09-04'

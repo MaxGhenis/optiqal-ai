@@ -2,8 +2,9 @@
 
 ## State
 
-In progress on `rebuild/d-evidence-table`. The fail-closed loader and evidence seed are
-committed, and all applicable catalog/YAML lineages are linked; debt snapshots remain.
+In progress on `rebuild/d-evidence-table`. The loader, evidence seed, live lineage
+links, debt ratchets, and lint report are implemented; final full-suite verification
+and the delivery report remain.
 
 ## Done
 
@@ -19,10 +20,15 @@ committed, and all applicable catalog/YAML lineages are linked; debt snapshots r
   CI wiring, validation tests, and the two missing study-design tiers.
 - Resolved the requested citation inventory and seeded 48 abstract-supported estimate
   rows backed by 46 offline PMID fixture records; unsupported estimates remain debt.
-- Linked 14 catalog entries and nine intervention YAMLs to their applicable validated
+- Linked 15 catalog entries and nine intervention YAMLs to their applicable validated
   rows, with a regression test rejecting any dangling live lineage id.
+- Generated and seeded exact live-debt snapshots: 74 unsourced claims, 114 unverified
+  atoms, and 130 judgment atoms.
+- Added bidirectional ratchet tests, deterministic snapshot writing, and per-item lint
+  output with the three summary counts.
+- Restored the fallback virtualenv's editable package link offline so subprocess tests
+  use the same checkout; the first complete run otherwise reached 499 passing tests.
 
 ## Next
 
-- Generate the three ratchets and add the lint report.
 - Run all required verification commands and record their results.
