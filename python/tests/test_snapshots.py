@@ -103,6 +103,35 @@ def test_noncanonical_age_fails_closed_and_names_file(snapshot_directory):
     assert "non-canonical" in str(error.value)
 
 
+def test_overflowing_float_literal_fails_closed_and_names_file(snapshot_directory):
+    """``1e400`` is valid JSON grammar; it parses to ``inf``, not a constant.
+
+    ``parse_constant`` never sees it, so the guard against bare ``NaN`` and
+    ``Infinity`` tokens does not catch it and the value reaches the checksum.
+    """
+    raw = json.dumps(
+        {
+            "provenance": {
+                "source": "test source",
+                "url": "https://example.test/source",
+                "table": "test table",
+                "retrieved": "2026-09-04",
+                "generator": "python -m optiqal.data_build.test",
+                "version": 1,
+                "sha256_of_data": "0" * 64,
+            },
+            "data": {"rates": {"1": 0.1}},
+        }
+    ).replace('"1": 0.1', '"1": 1e400')
+    (snapshot_directory / "overflow.json").write_text(raw)
+
+    with pytest.raises(snapshots.SnapshotError) as error:
+        snapshots.load_snapshot("overflow")
+
+    assert "overflow.json" in str(error.value)
+    assert "canonically serialized" in str(error.value)
+
+
 def test_checksum_mismatch_fails_closed_and_names_file(snapshot_directory):
     payload = _snapshot({"rates": {"1": 0.1}})
     payload["data"]["rates"]["1"] = 0.2

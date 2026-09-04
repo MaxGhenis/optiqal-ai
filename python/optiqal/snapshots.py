@@ -297,7 +297,12 @@ def load_snapshot(name: str) -> Snapshot:
         raise SnapshotError(
             f"{path}: provenance sha256_of_data is missing or malformed"
         )
-    actual = data_checksum(data)
+    try:
+        actual = data_checksum(data)
+    except (ValueError, TypeError) as exc:
+        raise SnapshotError(
+            f"{path}: data cannot be canonically serialized: {exc}"
+        ) from exc
     if actual != checksum:
         raise SnapshotError(
             f"{path}: data does not match provenance sha256_of_data "
