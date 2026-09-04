@@ -5,9 +5,9 @@ Lane brief: `docs/rebuild/B-deletion.md`. Branch `rebuild/b-deletion`, worktree
 
 ## State
 
-Steps 1 to 3 of 5 done: the intervention YAMLs moved into the Python package,
-the TypeScript engine and its served JSON are gone, and the orphaned Python
-modules are gone.
+Steps 1 to 4 of 5 done: the intervention YAMLs moved into the Python package;
+the TypeScript engine, its served JSON, the orphaned Python modules and the
+unconsumed MEPS binaries are gone.
 
 ## Baseline captured before the first deletion (at `550f5cf0`)
 
@@ -74,10 +74,18 @@ Reference measurements at the base commit:
    execute; the roughly two-second cold start the lane brief cites needs the
    `bayesian` extra, which no longer exists.
 
+4. **Remove the unconsumed data.** The four AHRQ MEPS year parquet files plus
+   `meps_combined.parquet` (50 MB, no git-LFS) and `condition_joint_distribution.json`
+   (88 KB, no recorded source) are gone at `9bbbabaa`; history is not rewritten.
+   `fetch_meps.py`, `quality_weight_calibration.json` and PR E's snapshots stay.
+   `.gitignore` now excludes `python/optiqal/data/meps/*.parquet`.
+   `docs/DATA_PROVENANCE.md` replaces its two open gaps with a Removals section
+   carrying the commit hash, the no-history-rewrite statement and the regeneration
+   command, and its `baselines.json` section no longer points at the deleted
+   TypeScript mirrors.
+
 ## Next
 
-4. `git rm` the five MEPS parquet files and `condition_joint_distribution.json`;
-   record the removal in `docs/DATA_PROVENANCE.md`.
 5. Rewrite `PRODUCT_STRATEGY.md`, `REPRODUCIBILITY.md`, `python/README.md`,
    `README.md` and `PRECOMPUTED_BASELINES_SUMMARY.md`; append PR B notes to
    `REBUILD.md`.
