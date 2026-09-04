@@ -17,11 +17,12 @@ of the ten intervention YAMLs link to applicable rows, and every intervention YA
 the canonical `lineage.study_ids` field.
 
 No `hr_observed` and no `qol_annual` changed. That is checked programmatically, not asserted:
-loading `python/optiqal/catalog.py` from this branch and from `rebuild/one-engine` and
-comparing both fields across all 92 items reports no difference, and
-`python/tests/test_model_regression.py` is byte-identical to its `rebuild/one-engine` version
-and passes. The only edits to `src/lib/qaly/interventions/*.yaml` are added `lineage` blocks;
-no distribution or number in them moved.
+loading `python/optiqal/catalog.py` from this branch and from the branch point at `009acd90`
+and comparing both fields across all 92 items reports no difference, and the same comparison
+against `rebuild/one-engine` at `9a2c35ec` also reports none. `test_model_regression.py` is
+byte-identical to both and passes. The only edits to `src/lib/qaly/interventions/*.yaml` are
+added `lineage` blocks; no distribution or number in them moved. `rebuild/one-engine` has
+since advanced past `9a2c35ec` with work of its own, so `009acd90` is the stable baseline.
 
 ## What was verified, by whom, and how
 
