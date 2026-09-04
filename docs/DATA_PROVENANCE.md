@@ -33,10 +33,12 @@ value to the engine and must be one checksum. The loader names the file and rais
 at import for a missing or malformed file, incomplete provenance, checksum drift,
 NaN/Infinity, a float literal that overflows to infinity during parsing, a
 negative or out-of-range runtime value, non-monotone age keys, or an age table
-that has lost or gained an anchor. `lifecycle.py` pins those anchor sets
-explicitly as `LIFE_TABLE_AGES` (22 ages) and `QUALITY_WEIGHT_AGES` (8 ages), so a
-snapshot that drops a row fails at import rather than being interpolated across
-the hole. The dated fixture
+or age-row table that has lost or gained an anchor. `lifecycle.py` pins all three
+anchor sets explicitly as `LIFE_TABLE_AGES` (22 ages), `QUALITY_WEIGHT_AGES`
+(8 ages), and `CAUSE_FRACTION_AGES` (6 ages), so a snapshot that drops a row fails
+at import rather than being clamped or interpolated across the hole. The
+cause-fraction pin is not redundant with the row-sum check: dropping a whole age
+leaves every remaining row summing to 1.0. The dated fixture
 `python/tests/fixtures/lifecycle_constants_2026-09-04.json` proves every loaded
 numeric leaf equals the former literal at absolute tolerance `1e-12`.
 

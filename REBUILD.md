@@ -171,8 +171,9 @@ A card with `verification_state: heuristic` never reaches the public site.
 ### Review round 1 (2026-09-04)
 
 - The loader now pins each table's exact anchor set (`LIFE_TABLE_AGES`,
-  `QUALITY_WEIGHT_AGES`), so a snapshot that drops or gains a row fails at import
-  instead of being interpolated across the hole.
+  `QUALITY_WEIGHT_AGES`, and — added in round 2 — `CAUSE_FRACTION_AGES`), so a
+  snapshot that drops or gains a row fails at import instead of being clamped or
+  interpolated across the hole.
 - The checksum is defined over a canonical form that renders every numeric leaf as
   a float, matching how the loader reads them. That moved one committed digest,
   the audit-only NVSR comparison artifact, whose `data` holds four integer leaves.
@@ -183,3 +184,14 @@ A card with `verification_state: heuristic` never reaches the public site.
   swallowed the flag, so `--check` on the MEPS generator rewrote its snapshot.
 - The two What Nut citations for the cause fractions are reconciled: the constant
   at `c67a7232` is the origin, the YAML at `0ff87e2` mirrors it.
+
+### Review round 2 (2026-09-04)
+
+- All nine round-1 findings were re-derived from the code and the sibling What Nut
+  repository rather than read off the round-1 write-up. Every one held.
+- `age_rows` gained the same `ages=` pin `age_table` got in round 1, closing the
+  last unpinned runtime table. No loaded value and no snapshot byte moved.
+- A round-1 sentence claiming import opens nothing outside the `optiqal` package
+  was measured false — three stdlib opens occur under the SciPy chain — and is
+  corrected in `docs/rebuild/E-progress.md`.
+- Ruff and all 509 tests pass at `4d123998`, the last commit touching `python/`.

@@ -6,10 +6,11 @@ sibling rebuild lanes each write a root `PROGRESS.md` and those would collide on
 
 ## State
 
-Review round 1 complete. All nine findings from the read-only review are closed,
-plus one wart the review's verification recipe exposed (the generators swallowed
-`--check`). Verification tails, naming the commit they cover, are under
-"Verification" at the end of this file.
+Review rounds 1 and 2 complete. All nine findings from the read-only review are
+closed, plus two warts the review exposed indirectly: the generators swallowed
+`--check` (round 1), and the cause-fraction table was the one age table left
+without an anchor pin (round 2). Verification tails, naming the commit they
+cover, are under "Verification" at the end of this file.
 
 ## Findings that shape the work (verified 2026-09-04, this lane)
 
@@ -113,7 +114,8 @@ Findings closed, in the order the review numbered them.
    `test_dropped_life_table_age_fails_during_lifecycle_import`,
    `test_extra_quality_weight_age_fails_during_lifecycle_import`,
    `test_life_table_age_pin_matches_the_generator_pin`,
-   `test_runtime_age_pins_match_the_committed_snapshots`.
+   `test_runtime_age_pins_match_the_committed_snapshots`. Round 2 extended the
+   same pin to `age_rows` and the cause fractions; see below.
 4. **The overflow literal no longer escapes bare.** `1e400` is valid JSON grammar,
    so `parse_constant` never sees it; `json` parses it to `inf` through
    `parse_float`, and `canonical_json`'s `allow_nan=False` raised a bare
@@ -168,12 +170,18 @@ Tests: `test_meps_check_mode_confirms_the_committed_bytes`,
 
 ### Import cost and what import reads
 
-`python -c "import optiqal.lifecycle"` takes about **0.39 s** wall (five in-process
-measurements: 583.7, 378.8, 389.0, 398.2, 373.5 ms; `/usr/bin/time -p` on the
-whole process reads `real 0.54`). Loading and validating all three snapshots is
-**0.41 ms** of that. The rest is SciPy: `optiqal/__init__.py` imports
-`analyzer` -> `catalog` -> `confounding` -> `scipy.stats`, which `-X importtime`
-attributes 447 ms of cumulative import time.
+`python -c "import optiqal.lifecycle"` takes about **0.36 s** wall, re-measured at
+the round-2 tip over five warm in-process runs: 371.9, 363.9, 357.2, 346.8,
+351.9 ms; `/usr/bin/time -p` on the whole process reads `real 0.44`. (Round 1
+recorded 0.39 s because its five-run mean included a cold 583.7 ms first
+measurement.)
+
+Almost none of that is PR E. Loading and validating all three snapshots is
+**0.29 ms**. `-X importtime` puts `optiqal.lifecycle`'s own module body at
+**1.5 ms** cumulative, of which `optiqal.snapshots` is 0.6 ms; the enclosing
+`optiqal` package is 476 ms, because `optiqal/__init__.py` imports
+`analyzer` -> `catalog` -> `confounding` -> `scipy.stats`, and
+`scipy.stats._stats_py` alone accounts for 260 ms.
 
 The review asked whether import reads anything outside `optiqal/data/snapshots/`
 and noted `strace` is unavailable. Rather than reason from the code, this was
@@ -198,11 +206,66 @@ So the strict form of the claim is false and should be stated precisely: the
 branch and are untouched by it. What is true is the part PR E owns:
 **`lifecycle.py` itself reads only `optiqal/data/snapshots/`.** `baselines.json`
 was confirmed *not* opened during import -- `load_precomputed_baselines()` is
-lazy. No file outside the `optiqal` package (and outside `.venv`) is opened.
+lazy.
+
+Re-measured at the round-1 tip, the audit hook also records three opens the
+earlier wording denied, none of them made by `optiqal` code: CPython's
+`_osx_support` opens `/System/Library/CoreServices/SystemVersion.plist`, the
+import machinery probes the interpreter's `python3xx.zip`, and `importlib.metadata`
+opens NumPy's `dist-info/direct_url.json` under `.venv`. All three sit under the
+SciPy chain reached through `optiqal/confounding.py`. So the accurate statement
+is the narrow one: **no `optiqal` module opens a file outside the `optiqal`
+package**, and `lifecycle.py` opens only `optiqal/data/snapshots/`.
+
+## Review round 2 (2026-09-04)
+
+Round 2 re-derived all nine round-1 findings from the code and the sibling
+repository rather than trusting the round-1 write-up. Every one held. Three
+things changed.
+
+### The cause fractions were the one table still unpinned
+
+Round 1 gave `age_table` an `ages=` pin because a one-row table satisfied every
+check the loader had. `age_rows` has the identical hole, and `CAUSE_FRACTIONS`
+is loaded through it at import. `get_cause_fraction` clamps below age 40 and
+above age 90 and interpolates straight across a missing interior anchor, so a
+snapshot that lost age 70 would still import and quietly shift every
+intermediate cause mix. The row-sum check does not cover it: dropping a whole
+age leaves every remaining row summing to 1.0.
+
+`age_rows` now takes `ages=`, mirroring `age_table` exactly (opt-in, defaulting
+to `()`), and `lifecycle.py` passes `CAUSE_FRACTION_AGES = (40, 50, 60, 70, 80,
+90)`. `data_build.cause_fractions` keeps calling `age_rows` unpinned and
+checking its own `EXPECTED_AGES`, as `cdc_life_table.py` does; a test holds the
+two equal. Tests: `test_age_rows_rejects_a_missing_age_and_names_file`,
+`test_age_rows_rejects_an_extra_age_and_names_file`,
+`test_age_rows_without_a_pin_still_accepts_any_increasing_ages`,
+`test_cause_fraction_age_pin_matches_the_generator_pin`,
+`test_dropped_cause_fraction_age_fails_during_lifecycle_import`, and
+`test_runtime_age_pins_match_the_committed_snapshots` extended to the six
+cause-fraction anchors. No loaded value moved and no snapshot byte changed.
+
+### An overstated claim about what import reads
+
+Round 1 closed with "No file outside the `optiqal` package (and outside
+`.venv`) is opened." Re-running the audit hook shows that is false: three such
+opens occur, all from the standard library under the SciPy chain. The paragraph
+above now states the accurate, narrower claim. The finding this branch owns is
+unaffected.
+
+### Verification now covers the actual tip
+
+Round 1's tails named `d29ed48d` while HEAD was `486bd794` — two documentation
+commits later. That is finding 1 recurring in miniature. The tails below name
+the commit whose tree they ran against, and the rule that makes them cover the
+tip is stated with them.
 
 ## Verification
 
-At commit `d29ed48d`, from `python/`:
+Run from `python/` against the tree of commit `4d123998`, which is the last
+commit touching any file under `python/`. Later commits on this branch change
+only `docs/` and `REBUILD.md`; `git diff --stat 4d123998..HEAD -- python/` is
+empty, so these tails cover the tip's code exactly.
 
 ```
 $ uv run --no-sync ruff check .
@@ -212,11 +275,11 @@ $ uv run --no-sync ruff format --check .
 80 files already formatted
 
 $ PYTHONPATH=. uv run --no-sync pytest -q -n auto
-504 passed in 245.26s (0:04:05)
+509 passed in 218.61s (0:03:38)
 
 $ PYTHONPATH=. uv run --no-sync pytest -q tests/test_model_regression.py \
       tests/test_sleep.py tests/test_snapshots.py tests/test_lifecycle.py
-61 passed in 10.00s
+66 passed in 8.86s
 
 $ for m in cdc_life_table cause_fractions meps_quality_weights; do
     PYTHONPATH=. uv run --no-sync python -m optiqal.data_build.$m --check; done
@@ -225,13 +288,19 @@ Validated the transcribed cause-fraction snapshot against its checksum.
 .../optiqal/data/snapshots/meps_quality_weights.json is byte-identical to a rebuild.
 ```
 
-504 tests is the previous 490 plus the 14 added this round.
+509 tests is 490 before review, plus 14 from round 1, plus 5 from round 2.
 `tests/test_model_regression.py` and `tests/test_sleep.py` have no diff against
 `009acd90` and pass.
 
+Regeneration was re-run in write mode, not only `--check`: all three generators
+were executed with no flags and `git status` stayed empty, so every one of the
+four committed snapshot files is byte-identical to a fresh build. Their sha256
+file digests before and after the run are the same four values.
+
 ## Next
 
-1. No work remains in PR E.
+1. No work remains in PR E. Every runtime table is now checksum-pinned,
+   anchor-pinned, and regenerable or explicitly marked as unregenerable.
 2. A later behavior-changing PR should replace the legacy life-table anchors from an agreed
    source and replace the cause fractions only with a committed reproducible query/export.
 3. Optional, outside this lane: wire `--check` on the three generators into CI so snapshot
