@@ -123,10 +123,9 @@ def test_meps_snapshot_matches_committed_calibration():
     actual = snapshots.load_snapshot("meps_quality_weights")
 
     assert actual.data == expected
-    assert (
-        actual.provenance["source_artifact_sha256"]
-        == meps_quality_weights.file_checksum(calibration_path)
-    )
+    assert actual.provenance[
+        "source_artifact_sha256"
+    ] == meps_quality_weights.file_checksum(calibration_path)
 
 
 def test_cdc_life_table_snapshot_and_source_comparison_are_pinned():

@@ -41,7 +41,9 @@ def validate_committed_snapshot() -> None:
 def print_manual_regeneration_steps() -> None:
     """Describe a reproducible future WONDER derivation without inventing one."""
     print("Manual source replacement (automatic regeneration is impossible):")
-    print("1. Record the CDC WONDER dataset/release, year 2021, and population filters.")
+    print(
+        "1. Record the CDC WONDER dataset/release, year 2021, and population filters."
+    )
     print("2. Record the exact age grouping and numerator cause definitions.")
     print("3. Commit the saved query parameters and exported raw death counts.")
     print("4. Compute CVD, cancer, and other shares and document their row-sum checks.")

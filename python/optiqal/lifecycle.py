@@ -31,12 +31,8 @@ CAUSE_FRACTIONS = _CAUSE_FRACTION_SNAPSHOT.age_rows(
 )
 
 _QUALITY_WEIGHT_SNAPSHOT = load_snapshot("meps_quality_weights")
-QUALITY_WEIGHTS = _QUALITY_WEIGHT_SNAPSHOT.age_table(
-    "quality_weights", maximum=1.0
-)
-QUALITY_WEIGHT_STD = _QUALITY_WEIGHT_SNAPSHOT.value(
-    "quality_weight_std", maximum=1.0
-)
+QUALITY_WEIGHTS = _QUALITY_WEIGHT_SNAPSHOT.age_table("quality_weights", maximum=1.0)
+QUALITY_WEIGHT_STD = _QUALITY_WEIGHT_SNAPSHOT.value("quality_weight_std", maximum=1.0)
 CONDITION_DECREMENTS = _QUALITY_WEIGHT_SNAPSHOT.named_table(
     "condition_decrements",
     keys=(

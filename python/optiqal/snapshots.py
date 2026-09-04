@@ -150,7 +150,9 @@ class Snapshot:
             self.fail(f"{where} has a negative age: {ages[0]}")
         return ages
 
-    def age_table(self, *path: str, maximum: Optional[float] = None) -> dict[int, float]:
+    def age_table(
+        self, *path: str, maximum: Optional[float] = None
+    ) -> dict[int, float]:
         """An age -> number table, keyed by int, ages strictly increasing."""
         where = f"data.{'.'.join(path)}"
         node = self._node(path)
@@ -183,7 +185,9 @@ class Snapshot:
                 for c in columns
             }
             if sums_to is not None and abs(sum(values.values()) - sums_to) > tolerance:
-                self.fail(f"{row_where} sums to {sum(values.values())!r}, not {sums_to}")
+                self.fail(
+                    f"{row_where} sums to {sum(values.values())!r}, not {sums_to}"
+                )
             rows[age] = values
         return rows
 
@@ -258,7 +262,9 @@ def load_snapshot(name: str) -> Snapshot:
 
     checksum = provenance.get("sha256_of_data")
     if not isinstance(checksum, str) or not _SHA256_RE.match(checksum):
-        raise SnapshotError(f"{path}: provenance sha256_of_data is missing or malformed")
+        raise SnapshotError(
+            f"{path}: provenance sha256_of_data is missing or malformed"
+        )
     actual = data_checksum(data)
     if actual != checksum:
         raise SnapshotError(

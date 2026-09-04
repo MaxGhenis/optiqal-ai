@@ -77,9 +77,7 @@ def build_data(calibration: dict) -> dict:
     quality_weights["95"] = 0.75
 
     condition_decrements = {
-        condition: _rounded(
-            calibration, "by_condition", condition, "decrement"
-        )
+        condition: _rounded(calibration, "by_condition", condition, "decrement")
         for condition in CONDITION_KEYS
     }
     return {

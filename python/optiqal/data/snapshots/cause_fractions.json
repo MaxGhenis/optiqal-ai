@@ -8,7 +8,7 @@
     "version": 1,
     "status": "transcribed approximation; not source-validated",
     "retrieval_note": "The legacy repository history and current CDC WONDER landing page were inspected on this date; the original query and retrieval date were not recorded.",
-    "whatnut_history": "Likely adapted from What Nut c67a72322d277a42415b5553896baf757f771631; similarity is evidence, not proof of inheritance.",
+    "whatnut_history": "Likely adapted from CAUSE_FRACTIONS_BY_AGE in src/whatnut/lifecycle_pathways.py at What Nut commit c67a72322d277a42415b5553896baf757f771631 (2025-12-20, the day before this repo's 5e472e22): ages 40-80 are identical there, age 90 is 0.45/0.10/0.45. Similarity is evidence, not proof of inheritance.",
     "sha256_of_data": "e653f6864d8fc5c537e6ca5783932982dea7e11487a2c54e90da5b1111dfcb0c"
   },
   "data": {
