@@ -150,6 +150,8 @@ A card with `verification_state: heuristic` never reaches the public site.
 
 ## PR E notes (2026-09-04)
 
+- Lane progress lives in `docs/rebuild/E-progress.md`, not a root `PROGRESS.md`:
+  the sibling lanes each write that one root path and would collide on merge.
 - `lifecycle.py` now loads its five public data blocks from three committed,
   provenance-stamped JSON snapshots through a fail-closed loader. The dated
   fixture proves every numeric value stayed unchanged to `1e-12`.
@@ -165,3 +167,19 @@ A card with `verification_state: heuristic` never reaches the public site.
   future replacement must record instead of inventing a regeneration path.
 - `condition_joint_distribution.json` and the committed MEPS parquet remain in
   place for PR B, as required by the lane boundaries.
+
+### Review round 1 (2026-09-04)
+
+- The loader now pins each table's exact anchor set (`LIFE_TABLE_AGES`,
+  `QUALITY_WEIGHT_AGES`), so a snapshot that drops or gains a row fails at import
+  instead of being interpolated across the hole.
+- The checksum is defined over a canonical form that renders every numeric leaf as
+  a float, matching how the loader reads them. That moved one committed digest,
+  the audit-only NVSR comparison artifact, whose `data` holds four integer leaves.
+  No runtime snapshot's bytes or digest moved, and no loaded value moved.
+- An overflowing float literal (`1e400`) reached the checksum and escaped as a
+  bare `ValueError` naming no file; it now raises `SnapshotError` with the path.
+- The three generators accept `--check`, which writes nothing. Previously they
+  swallowed the flag, so `--check` on the MEPS generator rewrote its snapshot.
+- The two What Nut citations for the cause fractions are reconciled: the constant
+  at `c67a7232` is the origin, the YAML at `0ff87e2` mirrors it.

@@ -27,10 +27,16 @@ retaining the public names `CDC_LIFE_TABLE`, `CAUSE_FRACTIONS`, `QUALITY_WEIGHTS
 
 Every snapshot has a `provenance` block (`source`, `url`, `table`, `retrieved`,
 `generator`, and schema `version`) and a `data` block. It also carries the sha256
-of a canonical serialization of `data`. The loader names the file and raises at
-import for a missing or malformed file, incomplete provenance, checksum drift,
-NaN/Infinity, a negative or out-of-range runtime value, or non-monotone age keys.
-The dated fixture
+of a canonical serialization of `data`, in which every numeric leaf is rendered as
+a float: the loader reads all numbers through `float()`, so `1` and `1.0` are one
+value to the engine and must be one checksum. The loader names the file and raises
+at import for a missing or malformed file, incomplete provenance, checksum drift,
+NaN/Infinity, a float literal that overflows to infinity during parsing, a
+negative or out-of-range runtime value, non-monotone age keys, or an age table
+that has lost or gained an anchor. `lifecycle.py` pins those anchor sets
+explicitly as `LIFE_TABLE_AGES` (22 ages) and `QUALITY_WEIGHT_AGES` (8 ages), so a
+snapshot that drops a row fails at import rather than being interpolated across
+the hole. The dated fixture
 `python/tests/fixtures/lifecycle_constants_2026-09-04.json` proves every loaded
 numeric leaf equals the former literal at absolute tolerance `1e-12`.
 
@@ -47,6 +53,10 @@ The other two commands validate independently pinned checksums and print manual
 source-refresh steps; they do not claim an automatic fetch or rewrite values
 whose derivations are absent. Each snapshot repeats its command in
 `provenance.generator`.
+
+All three accept `--check`, which writes nothing and exits non-zero on drift; for
+MEPS that compares the committed bytes against a rebuild. Use it to audit the
+snapshots without regenerating them.
 
 ## Legacy life-table anchors and the CDC comparison
 
@@ -80,11 +90,17 @@ whose derivations are absent. Each snapshot repeats its command in
   labeled only “CDC WONDER 2021.” No saved query, export, table identifier,
   retrieval date, population filters, or exact cause definitions survive.
 - **History evidence.** Ages 40–80 are numerically identical to What Nut's
-  hand-authored “CDC WONDER, 2021 US mortality data (approximate)” values. The
-  Optiqal age-90 row is `0.45/0.12/0.43`, versus What Nut's
-  `0.45/0.10/0.45`. Adaptation is likely given that similarity and the module's
-  “Based on whatnut methodology” header, but it is an inference, not a proven
-  lineage.
+  hand-authored “CDC WONDER, 2021 US mortality data (approximate)” values. Two
+  What Nut locations hold those values and both citations are true. The origin is
+  `CAUSE_FRACTIONS_BY_AGE` in `src/whatnut/lifecycle_pathways.py` at What Nut
+  commit `c67a7232` (2025-12-20, the day before Optiqal's `5e472e22`), which
+  carries that header as a comment. What Nut later mirrored the same values into
+  `src/whatnut/data/cause_fractions.yaml` at commit `0ff87e2` (2026-02-20) under
+  the same header; the two What Nut spellings are numerically identical, so the
+  YAML is a mirror of the constant and not a second source. Against either, the
+  Optiqal age-90 row is `0.45/0.12/0.43` versus What Nut's `0.45/0.10/0.45`.
+  Adaptation is likely given that similarity and the module's “Based on whatnut
+  methodology” header, but similarity is evidence, not proof of inheritance.
 - **Status.** The runtime table now has one checksum-pinned snapshot and cannot
   drift from `lifecycle.py`. It remains a transcribed approximation, not a
   source-validated CDC WONDER result. The validator refuses to invent the lost
