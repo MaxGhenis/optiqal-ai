@@ -147,3 +147,51 @@ the generated list no longer has (a fixed debt that must be removed).
        "verification_state": "sourced|authored|heuristic", "study_ids": [...]}]}
 
 A card with `verification_state: heuristic` never reaches the public site.
+
+## PR E notes (2026-09-04)
+
+- Lane progress lives in `docs/rebuild/E-progress.md`, not a root `PROGRESS.md`:
+  the sibling lanes each write that one root path and would collide on merge.
+- `lifecycle.py` now loads its five public data blocks from three committed,
+  provenance-stamped JSON snapshots through a fail-closed loader. The dated
+  fixture proves every numeric value stayed unchanged to `1e-12`.
+- The MEPS snapshot regenerates from the committed calibration artifact, and
+  `fetch_meps.py` refreshes it after recalibration. The age-95 quality weight is
+  labeled as an authored extrapolation rather than attributed to MEPS.
+- The production life-table anchors are transcribed legacy data. A committed
+  comparison against NVSR 72-12 Tables 2–3 finds zero matches across 44 anchors;
+  production is not using the CDC 2021 table the earlier docs cited. Correcting
+  those values requires a later behavior-changing PR.
+- Cause fractions remain a transcribed approximation because no saved CDC WONDER
+  query or export exists. Their pinned validator prints the raw evidence a
+  future replacement must record instead of inventing a regeneration path.
+- `condition_joint_distribution.json` and the committed MEPS parquet remain in
+  place for PR B, as required by the lane boundaries.
+
+### Review round 1 (2026-09-04)
+
+- The loader now pins each table's exact anchor set (`LIFE_TABLE_AGES`,
+  `QUALITY_WEIGHT_AGES`, and — added in round 2 — `CAUSE_FRACTION_AGES`), so a
+  snapshot that drops or gains a row fails at import instead of being clamped or
+  interpolated across the hole.
+- The checksum is defined over a canonical form that renders every numeric leaf as
+  a float, matching how the loader reads them. That moved one committed digest,
+  the audit-only NVSR comparison artifact, whose `data` holds four integer leaves.
+  No runtime snapshot's bytes or digest moved, and no loaded value moved.
+- An overflowing float literal (`1e400`) reached the checksum and escaped as a
+  bare `ValueError` naming no file; it now raises `SnapshotError` with the path.
+- The three generators accept `--check`, which writes nothing. Previously they
+  swallowed the flag, so `--check` on the MEPS generator rewrote its snapshot.
+- The two What Nut citations for the cause fractions are reconciled: the constant
+  at `c67a7232` is the origin, the YAML at `0ff87e2` mirrors it.
+
+### Review round 2 (2026-09-04)
+
+- All nine round-1 findings were re-derived from the code and the sibling What Nut
+  repository rather than read off the round-1 write-up. Every one held.
+- `age_rows` gained the same `ages=` pin `age_table` got in round 1, closing the
+  last unpinned runtime table. No loaded value and no snapshot byte moved.
+- A round-1 sentence claiming import opens nothing outside the `optiqal` package
+  was measured false — three stdlib opens occur under the SciPy chain — and is
+  corrected in `docs/rebuild/E-progress.md`.
+- Ruff and all 509 tests pass at `4d123998`, the last commit touching `python/`.

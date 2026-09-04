@@ -1,0 +1,66 @@
+{
+  "provenance": {
+    "source": "Transcribed from legacy Optiqal CDC_LIFE_TABLE introduced in commit 5e472e228ea95573cab3dee57542cbe4e3bdb278; originally attributed to CDC United States Life Tables, 2021, but these values do not match NVSR 72-12 Tables 2-3",
+    "url": "https://www.cdc.gov/nchs/data/nvsr/nvsr72/nvsr72-12.pdf",
+    "table": "Legacy sparse qx anchors; compared with NVSR 72-12 Table 2 (males) and Table 3 (females), not a match",
+    "retrieved": "2026-09-04",
+    "generator": "python -m optiqal.data_build.cdc_life_table",
+    "version": 1,
+    "status": "transcribed; does not match cited source",
+    "retrieval_note": "The legacy artifact and source URLs were inspected on this date; the original transcription date was not recorded.",
+    "comparison_artifact": "optiqal/data/snapshots/cdc_life_table_2021_source_comparison.json",
+    "sha256_of_data": "c760c03f4cffc93b606f1b75ce0a13e32d5709ee1da52913ee9dd20e42d04cd2"
+  },
+  "data": {
+    "life_table": {
+      "male": {
+        "0": 0.00566,
+        "1": 0.00039,
+        "5": 0.00012,
+        "10": 0.00011,
+        "15": 0.0005,
+        "20": 0.00129,
+        "25": 0.00156,
+        "30": 0.00175,
+        "35": 0.00209,
+        "40": 0.00261,
+        "45": 0.00369,
+        "50": 0.00547,
+        "55": 0.00832,
+        "60": 0.01206,
+        "65": 0.01697,
+        "70": 0.02467,
+        "75": 0.03711,
+        "80": 0.0564,
+        "85": 0.08737,
+        "90": 0.1351,
+        "95": 0.19853,
+        "100": 0.275
+      },
+      "female": {
+        "0": 0.00476,
+        "1": 0.00031,
+        "5": 0.0001,
+        "10": 0.00009,
+        "15": 0.00025,
+        "20": 0.00047,
+        "25": 0.00059,
+        "30": 0.00073,
+        "35": 0.00096,
+        "40": 0.00136,
+        "45": 0.00204,
+        "50": 0.0031,
+        "55": 0.00469,
+        "60": 0.00692,
+        "65": 0.01019,
+        "70": 0.01556,
+        "75": 0.02502,
+        "80": 0.04085,
+        "85": 0.06837,
+        "90": 0.11295,
+        "95": 0.17639,
+        "100": 0.255
+      }
+    }
+  }
+}
