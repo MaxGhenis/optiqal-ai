@@ -81,7 +81,9 @@ def main():
 
     args = parser.parse_args()
 
-    intervention_dir = project_root / "src" / "lib" / "qaly" / "interventions"
+    intervention_dir = (
+        project_root / "python" / "optiqal" / "data" / "interventions"
+    )
     output_dir = Path(args.output_dir)
 
     # Parse ages

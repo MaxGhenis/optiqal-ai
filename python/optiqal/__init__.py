@@ -11,8 +11,8 @@ This package provides rigorous, evidence-based QALY calculations with:
 Usage:
     from optiqal import Intervention, LifecycleModel, run_mcmc
 
-    # Load intervention from YAML
-    walking = Intervention.from_yaml("walking_30min_daily.yaml")
+    # Load a shipped intervention by id
+    walking = Intervention.packaged("walking_30min_daily")
 
     # Quick Monte Carlo estimate
     result = walking.simulate(age=40, sex="male")
@@ -74,7 +74,13 @@ from .decision_states import (
     ordered_unique,
     summarize_stack_from_qalys,
 )
-from .intervention import HarmEffect, InteractionRule, Intervention
+from .intervention import (
+    INTERVENTIONS_DIR,
+    HarmEffect,
+    InteractionRule,
+    Intervention,
+    packaged_intervention_path,
+)
 from .lifecycle import CAUSE_FRACTIONS, CDC_LIFE_TABLE, LifecycleModel
 from .precompute import (
     PrecomputedResult,
@@ -165,6 +171,8 @@ __all__ = [
     "Intervention",
     "HarmEffect",
     "InteractionRule",
+    "INTERVENTIONS_DIR",
+    "packaged_intervention_path",
     "LifecycleModel",
     "CDC_LIFE_TABLE",
     "CAUSE_FRACTIONS",

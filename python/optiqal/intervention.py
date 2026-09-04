@@ -1,7 +1,8 @@
 """
 Intervention Definition Module
 
-Reads YAML intervention definitions (shared with TypeScript package).
+Reads the packaged YAML intervention definitions under
+``optiqal/data/interventions/``.
 """
 
 from dataclasses import dataclass, field, replace
@@ -16,6 +17,16 @@ from .confounding import (
     ConfoundingPrior,
     get_confounding_prior,
 )
+
+#: Directory holding the shipped intervention YAMLs. They live inside the
+#: package so the engine, its tests, and the deployed model service all read
+#: one copy.
+INTERVENTIONS_DIR = Path(__file__).resolve().parent / "data" / "interventions"
+
+
+def packaged_intervention_path(intervention_id: str) -> Path:
+    """Return the packaged YAML path for ``intervention_id``."""
+    return INTERVENTIONS_DIR / f"{intervention_id}.yaml"
 
 
 def _copy_confounding_prior(prior: ConfoundingPrior) -> ConfoundingPrior:
@@ -309,12 +320,21 @@ class Intervention:
 
     @classmethod
     def from_yaml(cls, path: Union[str, Path]) -> "Intervention":
-        """Load intervention from YAML file."""
+        """Load intervention from a YAML file path.
+
+        Shipped definitions live in :data:`INTERVENTIONS_DIR`, e.g.
+        ``Intervention.from_yaml(packaged_intervention_path("walking_30min_daily"))``.
+        """
         path = Path(path)
         with open(path) as f:
             data = yaml.safe_load(f)
 
         return cls._from_dict(data)
+
+    @classmethod
+    def packaged(cls, intervention_id: str) -> "Intervention":
+        """Load a shipped intervention by id from :data:`INTERVENTIONS_DIR`."""
+        return cls.from_yaml(packaged_intervention_path(intervention_id))
 
     @classmethod
     def from_yaml_string(cls, yaml_str: str) -> "Intervention":

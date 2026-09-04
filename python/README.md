@@ -24,7 +24,7 @@ pip install optiqal[all]
 from optiqal import Intervention, simulate_qaly
 
 # Load intervention from YAML
-intervention = Intervention.from_yaml("walking_30min_daily.yaml")
+intervention = Intervention.packaged("walking_30min_daily")
 
 # Run Monte Carlo simulation
 result = simulate_qaly(
@@ -63,7 +63,7 @@ Generate precomputed results for TypeScript web app:
 from optiqal.precompute import precompute_all_interventions
 
 precompute_all_interventions(
-    intervention_dir="interventions/",
+    intervention_dir="optiqal/data/interventions/",
     output_dir="precomputed/",
     use_mcmc=True,
 )

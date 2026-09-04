@@ -61,7 +61,7 @@ python3 scripts/validate_precomputed.py
 
 When adding a new intervention or updating existing ones:
 
-1. Create/update the YAML file in `src/lib/qaly/interventions/`
+1. Create/update the YAML file in `python/optiqal/data/interventions/`
 2. Run precomputation: `python3 scripts/precompute_all.py`
 3. Validate output: `python3 scripts/validate_precomputed.py`
 4. Commit both YAML and generated JSON files
@@ -69,7 +69,7 @@ When adding a new intervention or updating existing ones:
 ## File Structure
 
 ```
-src/lib/qaly/interventions/     # Input: Intervention YAML definitions
+python/optiqal/data/interventions/  # Input: Intervention YAML definitions
 public/precomputed/             # Output: Precomputed JSON results
 scripts/
   precompute_all.py            # Generate precomputed results
