@@ -122,7 +122,10 @@ def test_keys_bind_only_declared_inputs_and_platform_when_declared(monkeypatch):
     first_platform = node_key(node, inputs, platform_kernel)
     monkeypatch.setattr("optiqal.graph.keys.platform_fingerprint", lambda: "two")
     assert first_platform != node_key(node, inputs, platform_kernel)
+    assert first_platform == node_key(node, inputs, platform_kernel, fingerprint="one")
     assert identity == node_key(node, inputs, bitwise)
+    with pytest.raises(TypeError, match="fingerprint"):
+        node_key(node, inputs, platform_kernel, fingerprint="")
 
 
 def test_key_helpers_validate_and_match_seed_formula():

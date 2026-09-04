@@ -47,8 +47,19 @@ def source_key(name: str, content: object) -> str:
     return _hash_parts("source", name, normative(content))
 
 
-def node_key(node: Node, input_keys: Mapping[str, str], kernel: Kernel) -> str:
-    """Hash one node declaration, its declared inputs, and kernel identity."""
+def node_key(
+    node: Node,
+    input_keys: Mapping[str, str],
+    kernel: Kernel,
+    *,
+    fingerprint: str | None = None,
+) -> str:
+    """Hash one node declaration, its declared inputs, and kernel identity.
+
+    ``fingerprint`` lets a serialized manifest re-derive a platform-scoped key
+    using the platform recorded by that run. Normal execution leaves it unset
+    and observes :func:`platform_fingerprint`, as specified.
+    """
 
     if not isinstance(node, Node):
         raise TypeError("node_key expects a Node")
@@ -73,18 +84,22 @@ def node_key(node: Node, input_keys: Mapping[str, str], kernel: Kernel) -> str:
     capabilities = kernel.capabilities
     if not isinstance(capabilities, Capabilities):
         raise TypeError(f"Kernel {kernel.ref!r} has invalid capabilities.")
-    fingerprint = (
-        platform_fingerprint()
-        if capabilities.numeric is Numeric.PLATFORM_BITWISE
-        else None
-    )
+    if fingerprint is not None and (
+        not isinstance(fingerprint, str) or not fingerprint
+    ):
+        raise TypeError("fingerprint must be a non-empty string or None")
+    resolved_fingerprint = None
+    if capabilities.numeric is Numeric.PLATFORM_BITWISE:
+        resolved_fingerprint = (
+            platform_fingerprint() if fingerprint is None else fingerprint
+        )
     return _hash_parts(
         "node",
         normative(node),
         tuple(ordered_inputs),
         implementation,
         _capabilities_projection(capabilities),
-        fingerprint,
+        resolved_fingerprint,
     )
 
 

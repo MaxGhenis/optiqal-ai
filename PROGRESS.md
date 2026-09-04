@@ -2,8 +2,9 @@
 
 ## State
 
-In progress on `rebuild/i-graph`. The frozen interface plus canonical identity and atomic
-content storage are implemented and focused tests pass. Manifest execution is next.
+In progress on `rebuild/i-graph`. The frozen interface, canonical identity, atomic content
+storage, and fail-closed portable manifest are implemented. The executor and source loaders
+are next.
 
 ## Done
 
@@ -26,9 +27,15 @@ content storage are implemented and focused tests pass. Manifest execution is ne
 - Implemented `ContentStore` at the required sharded path with JSON and artifact checksums,
   atomic visibility, corruption/miss separation, and NumPy restoration (17 focused tests
   passing).
+- Implemented immutable decisions, node receipts, and run manifests with canonical atomic
+  save/load, stable run-independent manifest keys, graph/input/key/seed authentication, and
+  strict schema parsing.
+- Implemented certified loading that re-derives every release tier, requires complete gate
+  evidence, permits authored evidence, and refuses failed, unreached, heuristic, empty, or
+  tampered releases (52 graph-focused tests passing).
 
 ## Next
 
-- Implement the manifest and executor with gates, tiers, numerics, and resume policies.
-- Implement source loaders, the toy graph, views, and the explorer CLI.
+- Implement source loaders and the executor with gates, tiers, numerics, and resume policies.
+- Implement the toy graph, views, and the explorer CLI.
 - Run all requested verification and record the three toy-run outputs.
