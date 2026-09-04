@@ -14,6 +14,7 @@ the manual steps for refreshing the published-source evidence.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import NoReturn
 
 from optiqal.snapshots import SnapshotError, data_checksum, load_snapshot
 
@@ -51,7 +52,7 @@ EXPECTED_AGES = (
 )
 
 
-def _fail(path: Path, message: str) -> None:
+def _fail(path: Path, message: str) -> NoReturn:
     raise SnapshotError(f"{path}: {message}")
 
 
