@@ -39,7 +39,7 @@ python3 scripts/precompute_all.py --help
 - Each file contains results for all age/sex combinations
 
 **Performance:**
-- Uses fast Monte Carlo simulation (not MCMC)
+- Monte Carlo simulation over the priors registry
 - 5000 samples provides good precision in ~1-2 seconds per intervention
 - Total runtime scales linearly with number of interventions × age/sex combinations
 

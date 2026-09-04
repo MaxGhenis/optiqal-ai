@@ -5,8 +5,9 @@ Lane brief: `docs/rebuild/B-deletion.md`. Branch `rebuild/b-deletion`, worktree
 
 ## State
 
-Steps 1 and 2 of 5 done: the intervention YAMLs moved into the Python package,
-and the TypeScript engine plus its served JSON are gone.
+Steps 1 to 3 of 5 done: the intervention YAMLs moved into the Python package,
+the TypeScript engine and its served JSON are gone, and the orphaned Python
+modules are gone.
 
 ## Baseline captured before the first deletion (at `550f5cf0`)
 
@@ -49,11 +50,32 @@ Reference measurements at the base commit:
    `precompute_baselines.py` writes only the Python copy. The thesis page no longer
    claims a TypeScript simulation path.
 
+3. **Delete the orphaned Python modules.** `bayesian.py`, `bayesian_updating.py`,
+   `markov.py`, `population.py`, `tests/test_bayesian_updating.py`,
+   `tests/test_mortality_multipliers.py`, `scripts/precompute_baseline_profiles.py`.
+   `precompute.py` lost its `bayesian` try-except and its `use_mcmc` branch;
+   `__init__.py` lost the lazy `run_mcmc` export. `pyproject.toml` lost the
+   `bayesian` extra and `uv.lock` was refreshed (pymc, pytensor, arviz, xarray,
+   numba and their transitive dependencies dropped). Python tests fall from 559 to
+   546; the 13 removed all covered deleted modules.
+
+   `profile.get_baseline_mortality_multiplier` carried a NOTE saying diabetes and
+   hypertension were excluded because `markov.HealthState` applied them. That is no
+   longer a live reason. The comment now records what the code actually does:
+   `web_api.build_baseline_response` applies both condition relative risks itself,
+   while the `simulate.py` and `stack_interactions.py` callers apply neither and
+   never read `profile.has_diabetes` or `profile.has_hypertension`. The gap is
+   recorded rather than closed, because closing it moves served numbers.
+
+   Import cost, measured in one venv with the base-commit tree restored under
+   `/tmp/optiqal-b-before-tree`: cumulative `-X importtime` for `optiqal.web_api`
+   is 0.556 s before and 0.539 s after (median of seven subprocess runs). PyMC and
+   ArviZ are not installed here, so `bayesian.py` cost only its own parse and
+   execute; the roughly two-second cold start the lane brief cites needs the
+   `bayesian` extra, which no longer exists.
+
 ## Next
 
-3. Delete `bayesian.py`, `bayesian_updating.py`, `markov.py`, `population.py`, their
-   tests and `scripts/precompute_baseline_profiles.py`; strip the MCMC branch from
-   `precompute.py` and `run_mcmc` from `__init__.py`; drop the `bayesian` extra.
 4. `git rm` the five MEPS parquet files and `condition_joint_distribution.json`;
    record the removal in `docs/DATA_PROVENANCE.md`.
 5. Rewrite `PRODUCT_STRATEGY.md`, `REPRODUCIBILITY.md`, `python/README.md`,

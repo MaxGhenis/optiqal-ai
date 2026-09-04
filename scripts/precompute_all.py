@@ -116,7 +116,6 @@ def main():
             output_dir=output_dir,
             ages=args.ages,
             sexes=args.sexes,
-            use_mcmc=False,  # Use fast Monte Carlo
             n_samples=args.samples,
             discount_rate=args.discount_rate,
             random_seed=args.random_seed,

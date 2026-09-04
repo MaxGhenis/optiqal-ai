@@ -36,8 +36,8 @@ def validate_precomputed_result(result_data: dict, key: str) -> list:
     if "sex" in result_data and result_data["sex"] not in ["male", "female"]:
         errors.append(f"  {key}: 'sex' should be 'male' or 'female'")
 
-    if "method" in result_data and result_data["method"] not in ["monte_carlo", "mcmc"]:
-        errors.append(f"  {key}: 'method' should be 'monte_carlo' or 'mcmc'")
+    if "method" in result_data and result_data["method"] != "monte_carlo":
+        errors.append(f"  {key}: 'method' should be 'monte_carlo'")
 
     # Validate numeric ranges
     if "causal_fraction_mean" in result_data:
