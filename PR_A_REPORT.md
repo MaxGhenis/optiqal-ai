@@ -9,12 +9,13 @@ Branch: `rebuild/a-rng-priors`
 | --- | --- |
 | `4a06ef2d` | Track PR A progress |
 | `8d108d77` | Separate simulation random streams |
-| `e685bf63` | Centralize hand-set priors |
-| `12c00821` | Align prior artifacts with served values |
-| `db45fd88` | Correct paper confounding statistics |
-| `1392eed1` | Rebaseline seeded model goldens |
-| `d5bdd8f6` | Rebase protocol optimizer sign cases |
-| `7f6c2ca2` | Bound protocol smoke-test runtime |
+| `a23d4d7d` | Centralize hand-set priors |
+| `e5f41dc7` | Align prior artifacts with served values |
+| `96de9f2e` | Correct paper confounding statistics |
+| `0cd390b0` | Rebaseline seeded model goldens |
+| `ef1e2221` | Rebase protocol optimizer sign cases |
+| `af3b11a7` | Bound protocol smoke-test runtime |
+| `07b107a1` | Record PR A completion |
 
 ## Prior drift resolved
 
