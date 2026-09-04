@@ -83,6 +83,62 @@ def test_unsourced_claim_requires_a_verified_link():
     assert [entry.id for entry in entries] == ["dangling", "qol"]
 
 
+def test_unsourced_claim_requires_an_endpoint_compatible_link():
+    catalog = {
+        "mace_only": SimpleNamespace(
+            hr_observed=0.8, qol_annual=0.0, study_ids=["composite"]
+        ),
+        "mortality_row": SimpleNamespace(
+            hr_observed=0.8, qol_annual=0.0, study_ids=["smith2020_trial"]
+        ),
+        "qol_claim_mortality_row": SimpleNamespace(
+            hr_observed=1.0, qol_annual=0.01, study_ids=["smith2020_trial"]
+        ),
+        "qol_claim_qol_row": SimpleNamespace(
+            hr_observed=1.0, qol_annual=0.01, study_ids=["sleep"]
+        ),
+        "calibration_only": SimpleNamespace(
+            hr_observed=0.8, qol_annual=0.0, study_ids=["calibrator"]
+        ),
+        "both_legs": SimpleNamespace(
+            hr_observed=0.8, qol_annual=0.01, study_ids=["smith2020_trial"]
+        ),
+    }
+    studies = [
+        _study(),
+        _study("composite", endpoint="major_adverse_cardiovascular_event"),
+        _study("sleep", endpoint="sleep_quality", role="transport"),
+        _study("calibrator", role="calibration"),
+    ]
+
+    entries = generate_known_unsourced_claims(catalog, studies, since="2026-09-04")
+
+    assert [entry.id for entry in entries] == [
+        "both_legs",
+        "calibration_only",
+        "mace_only",
+        "qol_claim_mortality_row",
+    ]
+    reasons = {entry.id: entry.reason for entry in entries}
+    assert "a mortality effect" in reasons["mace_only"]
+    assert "a quality-of-life effect" in reasons["qol_claim_mortality_row"]
+    assert "a quality-of-life effect" in reasons["both_legs"]
+
+
+def test_a_transport_link_still_answers_a_catalog_citation():
+    from optiqal.ratchets import _catalog_unverified_reasons
+
+    entry = SimpleNamespace(
+        study_ids=["smith2020_trial"],
+        sources=["Smith et al. 2020"],
+        notes="",
+        study_quality="rct_standard",
+    )
+    rows = {"smith2020_trial": _study(role="transport")}
+
+    assert _catalog_unverified_reasons({"item": entry}, rows, {}) == {}
+
+
 def test_unverified_generator_scans_raw_rows_catalog_and_yaml(tmp_path):
     studies_path = tmp_path / "studies.yaml"
     studies_path.write_text(

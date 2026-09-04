@@ -1,222 +1,340 @@
 - id: 17a_estradiol
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: acarbose_50mg
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: alpha_lipoic_acid_300
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality effect with no linked direct or transport study row on a matching
+    endpoint
   since: '2026-09-04'
 - id: apap_nightly
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: apigenin_50
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: ashwagandha_600
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
+  since: '2026-09-04'
+- id: aspirin_81mg
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: astaxanthin_12
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: berberine_500
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: black_seed_oil_1g
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality effect with no linked direct or transport study row on a matching
+    endpoint
   since: '2026-09-04'
 - id: boron_3
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality effect with no linked direct or transport study row on a matching
+    endpoint
   since: '2026-09-04'
 - id: bpc157_cycle
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: broccoli_seed_200
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality effect with no linked direct or transport study row on a matching
+    endpoint
   since: '2026-09-04'
 - id: cistanche_200
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
+  since: '2026-09-04'
+- id: cocoa_flavanols_500
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: collagen_22g
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: creatine_5g
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality effect with no linked direct or transport study row on a matching
+    endpoint
   since: '2026-09-04'
 - id: curcumin_250
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality effect with no linked direct or transport study row on a matching
+    endpoint
   since: '2026-09-04'
 - id: daridorexant_25mg
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: doxepin_3mg
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: egcg_400
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality effect with no linked direct or transport study row on a matching
+    endpoint
+  since: '2026-09-04'
+- id: empagliflozin
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: ergothioneine_5
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
+  since: '2026-09-04'
+- id: finasteride_1.25mg
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: fisetin_100
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality effect with no linked direct or transport study row on a matching
+    endpoint
   since: '2026-09-04'
 - id: fisetin_100_unbundled
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality effect with no linked direct or transport study row on a matching
+    endpoint
   since: '2026-09-04'
 - id: garlic_1200
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality effect with no linked direct or transport study row on a matching
+    endpoint
   since: '2026-09-04'
 - id: ghk_cu
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: ginger_400
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality effect with no linked direct or transport study row on a matching
+    endpoint
   since: '2026-09-04'
 - id: glycine_2g
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: hbot_60sessions
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: head_elevation_nightly
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: hiit_1x_week
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: hiit_2x_week
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: hiit_3x_week
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: humidifier_nightly
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: hyaluronic_acid_120
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: infrared_sauna_4x_week
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: l_theanine_200
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: lemborexant_5mg
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: lions_mane_1g
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: lithium_1mg_orotate
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: lithium_5mg
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: lutein_zeaxanthin
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: luteolin_100
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: luteolin_100_unbundled
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: lycopene_15
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality effect with no linked direct or transport study row on a matching
+    endpoint
   since: '2026-09-04'
 - id: magnesium_200
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
+  since: '2026-09-04'
+- id: melatonin_300mcg
+  reason: catalog entry claims a mortality effect with no linked direct or transport study row on a matching
+    endpoint
   since: '2026-09-04'
 - id: metformin_500mg
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality effect with no linked direct or transport study row on a matching
+    endpoint
   since: '2026-09-04'
 - id: mouth_tape_nightly
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: nac_1200
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: nasacort_nightly
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: nasal_strips_nightly
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: nmn_500
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: nr_300
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: nr_300_unbundled
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
+  since: '2026-09-04'
+- id: omega3_clo
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
+  since: '2026-09-04'
+- id: omega3_epa_2g
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: oral_appliance_custom
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: pqq_20
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: prebiotics
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: probiotic_daily
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: pterostilbene_50
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality effect with no linked direct or transport study row on a matching
+    endpoint
   since: '2026-09-04'
 - id: quercetin_500
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality effect with no linked direct or transport study row on a matching
+    endpoint
   since: '2026-09-04'
 - id: rapamycin_5mg_wk
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
+  since: '2026-09-04'
+- id: semaglutide
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: spermidine_10
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality effect with no linked direct or transport study row on a matching
+    endpoint
+  since: '2026-09-04'
+- id: statin_5mg
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: strength_maintenance
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: sulforaphane_20_extra
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality effect with no linked direct or transport study row on a matching
+    endpoint
   since: '2026-09-04'
 - id: suvorexant_10mg
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
+  since: '2026-09-04'
+- id: tadalafil_2.5mg
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: taurine_500_topup
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: tb500_cycle
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: tempo_run_1x_week
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: tmg_1g
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality effect with no linked direct or transport study row on a matching
+    endpoint
+  since: '2026-09-04'
+- id: traditional_sauna_4x_week
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: trazodone_50mg
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'
 - id: ubiquinol_50
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: ubiquinol_50_unbundled
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: urolithin_a_500
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: vitamin_c_500_extra
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality effect with no linked direct or transport study row on a matching
+    endpoint
   since: '2026-09-04'
 - id: zinc_carnosine_75
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a mortality and quality-of-life effect with no linked direct or transport
+    study row on a matching endpoint
   since: '2026-09-04'
 - id: zone2_cardio_2x_week
-  reason: catalog entry has a non-null typed mortality or QoL effect without a linked verified study row
+  reason: catalog entry claims a quality-of-life effect with no linked direct or transport study row on
+    a matching endpoint
   since: '2026-09-04'

@@ -33,6 +33,10 @@ STUDY_ROLES = frozenset(
     {"direct", "mechanism", "transport", "harm", "baseline_risk", "calibration"}
 )
 RATIO_ESTIMATE_TYPES = frozenset({"HR", "RR", "OR"})
+# The two roles that carry an estimate into a live model claim.  A transport
+# row needs a transport step, but it is still evidence for the claim; the other
+# roles calibrate, explain a mechanism, or bound a harm.
+SUPPORTING_ROLES = frozenset({"direct", "transport"})
 
 # Confidence levels outside this open interval are either a typo or a credible
 # interval that does not belong in a frequentist confidence-level field.

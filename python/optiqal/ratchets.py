@@ -28,6 +28,7 @@ from .evidence import (
     DEFAULT_FIXTURE_PATH,
     DEFAULT_STUDIES_PATH,
     RATIO_ESTIMATE_TYPES,
+    SUPPORTING_ROLES,
     EvidenceValidationError,
     StudyRow,
     load_studies,
@@ -155,25 +156,45 @@ def _verified_studies(
         return []
 
 
+def _supporting_rows(
+    entry: CatalogEntry, rows_by_id: Mapping[str, StudyRow]
+) -> list[StudyRow]:
+    """Return the linked rows whose role carries evidence into a claim."""
+    return [
+        rows_by_id[study_id]
+        for study_id in entry.study_ids
+        if study_id in rows_by_id and rows_by_id[study_id].role in SUPPORTING_ROLES
+    ]
+
+
 def generate_known_unsourced_claims(
     catalog: Mapping[str, CatalogEntry] | None = None,
     studies: Iterable[StudyRow] | None = None,
     *,
     since: str | date | datetime | None = None,
 ) -> list[RatchetEntry]:
-    """List typed catalog effects without a linked, verified study row."""
+    """List typed catalog effects with no endpoint-compatible study row.
+
+    A linked row only discharges the leg it can speak to: a mortality hazard
+    ratio needs a row on a mortality endpoint, and an annual QoL effect needs a
+    row on a quality-of-life endpoint.  A composite cardiovascular endpoint
+    discharges neither, so linking one no longer hides the debt.
+    """
     live_catalog = CATALOG if catalog is None else catalog
-    verified_ids = {row.id for row in _verified_studies(studies)}
+    rows_by_id = {row.id: row for row in _verified_studies(studies)}
     reasons: dict[str, str] = {}
     for item_id, entry in live_catalog.items():
-        claims_effect = entry.hr_observed != 1.0 or entry.qol_annual != 0.0
-        has_verified_link = any(
-            study_id in verified_ids for study_id in entry.study_ids
-        )
-        if claims_effect and not has_verified_link:
+        supporting = _supporting_rows(entry, rows_by_id)
+        endpoint_classes = {row.endpoint_class for row in supporting}
+        missing: list[str] = []
+        if entry.hr_observed != 1.0 and "mortality" not in endpoint_classes:
+            missing.append("mortality")
+        if entry.qol_annual != 0.0 and "quality_of_life" not in endpoint_classes:
+            missing.append("quality-of-life")
+        if missing:
             reasons[item_id] = (
-                "catalog entry has a non-null typed mortality or QoL effect "
-                "without a linked verified study row"
+                f"catalog entry claims a {' and '.join(missing)} effect with no "
+                "linked direct or transport study row on a matching endpoint"
             )
     return _entries(reasons, since)
 
@@ -506,7 +527,7 @@ def _catalog_unverified_reasons(
             for study_id in entry.study_ids
             if study_id in studies_by_id
         ]
-        has_supporting_link = any(row.role == "direct" for row in linked_rows)
+        has_supporting_link = any(row.role in SUPPORTING_ROLES for row in linked_rows)
         source_text = " ".join(_citation_text(source) for source in entry.sources)
         citation_text = f"{source_text} {entry.notes}".strip()
         has_citation = _contains_catalog_citation(citation_text)
