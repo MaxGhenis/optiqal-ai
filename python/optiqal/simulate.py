@@ -455,8 +455,7 @@ def _has_direct_mortality_effect(intervention: Intervention) -> bool:
         return False
     hazard_ratio = intervention.mortality.hazard_ratio
     return not (
-        hazard_ratio.type == "point"
-        and float(hazard_ratio.params["value"]) == 1.0
+        hazard_ratio.type == "point" and float(hazard_ratio.params["value"]) == 1.0
     )
 
 
@@ -631,9 +630,7 @@ def simulate_qaly_profile_vectorized(
     # Sample HRs and causal fractions (n_simulations,)
     has_direct_mortality_effect = _has_direct_mortality_effect(intervention)
     if has_direct_mortality_effect:
-        hr_samples = intervention.mortality.hazard_ratio.sample(
-            n_simulations, hr_rng
-        )
+        hr_samples = intervention.mortality.hazard_ratio.sample(n_simulations, hr_rng)
 
         if intervention_effect_modifier != 1.0:
             hr_samples = np.exp(np.log(hr_samples) * intervention_effect_modifier)

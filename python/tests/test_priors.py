@@ -82,9 +82,7 @@ def test_loaded_priors_equal_frozen_fixture() -> None:
 
 
 def test_runtime_tables_equal_frozen_fixture() -> None:
-    expected = _literal_projection(
-        json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
-    )
+    expected = _literal_projection(json.loads(FIXTURE_PATH.read_text(encoding="utf-8")))
     confounding = expected["confounding"]
     assert _runtime_beta_values(CATEGORY_PRIORS) == confounding["categories"]
     assert _runtime_beta_values(INTERVENTION_PRIORS) == confounding["interventions"]

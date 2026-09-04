@@ -16,7 +16,9 @@ PAPER_RESULTS_PATH = REPO_ROOT / "docs" / "optiqal_results.py"
 
 
 def _load_paper_results():
-    spec = importlib.util.spec_from_file_location("optiqal_paper_results", PAPER_RESULTS_PATH)
+    spec = importlib.util.spec_from_file_location(
+        "optiqal_paper_results", PAPER_RESULTS_PATH
+    )
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
@@ -56,9 +58,7 @@ def test_paper_e_values_match_model(hazard_ratio: float, attribute: str) -> None
 def test_paper_renders_corrected_values_from_eval_properties() -> None:
     paper = (REPO_ROOT / "docs" / "index.md").read_text(encoding="utf-8")
     appendix = (REPO_ROOT / "docs" / "appendix.md").read_text(encoding="utf-8")
-    methodology = (REPO_ROOT / "docs" / "methodology.md").read_text(
-        encoding="utf-8"
-    )
+    methodology = (REPO_ROOT / "docs" / "methodology.md").read_text(encoding="utf-8")
 
     for property_name in (
         "confounding_ci",
