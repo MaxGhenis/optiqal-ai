@@ -4,11 +4,20 @@ Branch `rebuild/e-load-snapshots`. Charter: `REBUILD.md` (PR E row). Updated as 
 
 ## State
 
-Complete. From `python/`, `uv run ruff check .` reports `All checks passed!` and the full
-`uv run pytest -q` reports `490 passed in 1212.12s (0:20:12)`. The pytest environment used
-the worktree on `PYTHONPATH` because sandboxed base `uv sync` could not install the optional
-dev runner; the command and test set were otherwise unchanged. `tests/test_model_regression.py`
-and `tests/test_sleep.py` remain untouched and pass.
+Complete and verified on 2026-09-04.
+
+From `python/`:
+
+- `uv run ruff check .` -> `All checks passed!`
+- `uv run ruff format --check .` -> `80 files already formatted` (CI runs this too, in
+  `.github/workflows/ci.yml`)
+- `uv run pytest -q -n auto` -> `490 passed in 771.90s (0:12:51)`, exit code 0
+- `uv run pytest -q tests/test_model_regression.py tests/test_sleep.py tests/test_snapshots.py
+  tests/test_lifecycle.py` -> `47 passed in 17.26s`
+
+`tests/test_model_regression.py` and `tests/test_sleep.py` are untouched by this branch and
+pass. Note for future lanes: `pytest` lives in the `dev` extra, so a bare `uv sync` does not
+install it; use `uv sync --extra dev` or CI's `uv run --all-extras pytest -q`.
 
 ## Findings that shape the work (verified 2026-09-04, this lane)
 
@@ -65,6 +74,18 @@ and `tests/test_sleep.py` remain untouched and pass.
   retaining the PR B action items for the MEPS parquet and unsourced condition distribution.
 - Added the snapshots README and appended dated PR E notes to `REBUILD.md`, including the
   explicit finding that production does not use the cited CDC 2021 table.
+- Ran `ruff format` over the five files this branch touched. CI runs `ruff format --check`
+  (`.github/workflows/ci.yml`), and the branch would have failed it. Formatting only; no
+  statement changed, so no number moved.
+- Pointed the cause-fraction provenance at the file and symbol that hold the matching values
+  (`CAUSE_FRACTIONS_BY_AGE` in `src/whatnut/lifecycle_pathways.py` at What Nut `c67a7232`).
+  The bare commit hash resolved to a path that does not exist at that commit.
+- Re-verified independently of the test suite: every loaded value equals the pre-PR literal in
+  `009acd90:python/optiqal/lifecycle.py` exactly (max delta 0.0 across `get_mortality_rate`,
+  `get_quality_weight`, and `get_cause_fraction` for ages 0-100, both sexes); the dated fixture
+  is an exact copy of those literals; int age keys and the float scalar are preserved; and all
+  44 rows of the NVSR 72-12 comparison artifact reproduce a fresh parse of the CDC PDF
+  (`nvsr72-12.pdf`, sha256 `f8aa394521fce65bfa6aa7a31516ab8b5247d6c918810597be27881ea5ee5875`).
 - Passed full Ruff and all 490 Python tests. A targeted run of snapshots, lifecycle,
   model-regression, and sleep tests also passed all 47 tests before the full suite.
 
