@@ -389,12 +389,11 @@
         "alpha": 3.0,
         "beta": 3.0,
         "calibration_sources": [
-          "PREDIMED RCT (Estruch 2018)",
-          "Larsson 2020 (Mendelian randomization)",
-          "Sofi 2014 (observational meta-analysis)"
+          "PREDIMED Trial 2018 (RCT, n=7447, 30% CVD reduction)",
+          "Aune et al. 2016 (nut meta-analysis)"
         ],
-        "rationale": "PREDIMED RCT shows robust causal effects on CVD endpoints. Observational estimates attenuated but RCT confirms large causal component. Mendelian randomization studies (Larsson 2020) support causality. Beta(3.0, 3.0) → mean 50%, 95% CI: 15-85%",
-        "source": "RCT evidence (PREDIMED) but strong healthy user effect in observational studies. RCT shows a substantial causal component of observational effects."
+        "rationale": "Serves the diet category prior, not an item-specific calibration. PREDIMED confirms a substantial causal effect (RCT, n=7447, 30% CVD reduction), and nuts and olive oil have RCT backing, so diet carries a higher causal fraction than exercise. Beta(3.0, 3.0) → mean 50%, 95% CI: 15-85% The item-level estimate this row replaced, Beta(6.0, 2.5) at mean 71% argued from Larsson 2020 and Sofi 2014, is superseded; PR G removes the per-item row in favour of one global prior plus paired-row overrides.",
+        "source": "Carries the diet category value verbatim: the same Beta(3.0, 3.0) as confounding.categories.diet, so the served number is the category calibration and not a separate item-level one."
       },
       "melatonin_300mcg": {
         "alpha": 1.2,
@@ -629,12 +628,12 @@
         "alpha": 1.2,
         "beta": 6.0,
         "calibration_sources": [
-          "Hamer & Stamatakis 2012 (sibling comparison)",
-          "Arem et al 2015 (dose-response modeling)",
-          "Ekelund et al 2019 (device-measured PA)"
+          "Ballin et al. 2021 (RCT critical review, n=50k)",
+          "Finnish Twin Cohort 2024 (twin discordance)",
+          "Mendelian randomization studies (null for mortality)"
         ],
-        "rationale": "Walking studies show substantial healthy user bias. Sibling comparisons (Hamer & Stamatakis 2012) suggest ~33% causal. Device-measured PA studies (Ekelund 2019) show attenuated effects. Beta(1.2, 6.0) → mean 17%, 95% CI: 0.8-49.0%",
-        "source": "Exercise shows strong healthy user bias. RCT effects typically 30-50% of observational estimates."
+        "rationale": "Serves the exercise category prior, not an item-specific calibration. RCTs show exercise does not reduce mortality (Ballin 2021, n=50k), identical twins discordant for physical activity show no mortality difference (Finnish Twin Cohort 2024), and Mendelian randomization is null for mortality. Beta(1.2, 6.0) → mean 17%, 95% CI: 0.8-49.0% The item-level sibling-comparison estimate (Hamer & Stamatakis 2012, ~33% causal) is superseded and no longer calibrates this row; PR G removes the per-item row in favour of one global prior plus paired-row overrides.",
+        "source": "Carries the exercise category value verbatim: the same Beta(1.2, 6.0) as confounding.categories.exercise, so the served number is the category calibration and not a separate item-level one."
       },
       "zinc_carnosine_75": {
         "alpha": 1.5,

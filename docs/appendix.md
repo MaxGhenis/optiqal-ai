@@ -294,7 +294,18 @@ The confounding prior Beta({eval}`r.confounding.alpha`, {eval}`r.confounding.bet
 | Diet → mortality | HR 0.91 | HR 0.79 | 0.67 |
 | Omega-3 supplements | HR 0.97 | HR 0.82 | 0.17 |
 
-Weighted average: ~0.33 of observational effect is causal.
+The printed ratios span 0.17 to 0.67 and no weights were recorded for combining
+them. They are also not internally consistent: under the risk-difference
+convention $(1 - \text{HR}_{\text{RCT}}) / (1 - \text{HR}_{\text{obs}})$ the three
+rows compute to 0.47, 0.43 and 0.17 against the printed 0.48, 0.67 and 0.17.
+
+The served exercise prior is not derived from this table. Its mean is 17%, from
+the exercise row of `python/optiqal/data/priors.yaml`, whose recorded calibration
+sources are Ballin et al. 2021 (RCT critical review, n=50,000), the Finnish Twin
+Cohort 2024 discordant-twin analysis, and Mendelian randomization studies null for
+mortality. The table is kept as context for the RCT-versus-observational
+discrepancy, not as a derivation. PR G replaces these priors with one global prior
+plus paired-row overrides drawn from the evidence table.
 
 ### F.2 E-value Analysis
 
@@ -302,7 +313,12 @@ For observed HR = 0.70, the E-value is {eval}`r.exercise_e_value`—meaning unme
 
 ### F.3 Within-Sibling Designs
 
-Sibling-comparison studies typically find 30-50% attenuation versus unpaired estimates, consistent with our prior.
+The sibling-comparison estimate that formerly justified the exercise and walking
+priors, roughly 33% causal, is not what the model serves. The exercise row of
+`python/optiqal/data/priors.yaml` is calibrated to Ballin et al. 2021, the Finnish
+Twin Cohort 2024 discordant-twin analysis, and Mendelian randomization studies, for
+a mean causal fraction of 17%. The sibling figure is superseded pending PR G and no
+longer supports the served prior.
 
 ## G. Monte Carlo Simulation
 

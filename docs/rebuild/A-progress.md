@@ -67,6 +67,15 @@ State: fixing the read-only review findings in place on `rebuild/a-rng-priors`.
   Seeded mean 0.101699, reference mean 0.102334, gap 0.000635 against a three-sigma
   bound of 0.002199 (0.29 of the bound).
 
+- Item 3: rewrote walking's and Mediterranean diet's rationale, source and
+  calibration sources in `priors.yaml`, the frozen fixture, both shipped intervention
+  YAMLs and `docs/methodology.md` so each cites the category justification it actually
+  serves, and records the superseded item-level estimate as pending PR G. Verified
+  leaf by leaf that no numeric value in the registry moved.
+- Item 5 (second half): replaced `docs/appendix.md`'s uncomputed "Weighted average:
+  ~0.33" conclusion, corrected the adjacent within-sibling paragraph, and restated the
+  paper's exercise-prior derivation sentence against the registry's recorded sources.
+
 ### Next
 
-- Item 3: rewrite the walking and Mediterranean-diet rationales and calibration sources.
+- Item 5 (first half): list the eight item-level prior overrides in `REBUILD.md`.

@@ -250,7 +250,7 @@ We use **category-specific priors** calibrated to the available RCT evidence for
 | Social | Beta(1.0, 5.5) | 15% | Social relationships have no mortality-endpoint RCT evidence |
 | Other | Beta(1.2, 4.8) | 20% | Conservative default for an unknown intervention type |
 
-For exercise, the default prior Beta(1.2, 6.0) yields mean {eval}`r.confounding_mean` and 95% CI {eval}`r.confounding_ci`. This was derived by matching: (a) E[f] = 0.17 from meta-regression of RCT vs observational effect ratios {cite:p}`angrist2010credibility`, (b) mode consistent with E-value threshold for typical lifestyle interventions (HR ≈ 1.5), and (c) sibling study attenuation {cite:p}`lundborg2018schooling`. Its actual upper-tail probability is P(f > 0.45) = {eval}`r.confounding_tail_above_45`.
+For exercise, the default prior Beta(1.2, 6.0) yields mean {eval}`r.confounding_mean` and 95% CI {eval}`r.confounding_ci`. The served value is the exercise row of `python/optiqal/data/priors.yaml`, which records its calibration as Ballin et al. 2021 (RCT critical review, n=50,000), the Finnish Twin Cohort 2024 analysis of twins discordant for physical activity, and Mendelian randomization studies null for mortality. Earlier drafts attributed it instead to a meta-regression of RCT-versus-observational effect ratios {cite:p}`angrist2010credibility` and to sibling-design attenuation {cite:p}`lundborg2018schooling`; neither is recorded in the registry as a calibration source for this value, and the sibling estimate is superseded pending PR G. Its actual upper-tail probability is P(f > 0.45) = {eval}`r.confounding_tail_above_45`.
 
 ### Causal Identification Assumptions
 
