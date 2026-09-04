@@ -263,6 +263,21 @@ def test_invalid_gate_results_are_rejected(tmp_path, bad_result, message):
         _run(tmp_path, registry=registry)
 
 
+@pytest.mark.parametrize(
+    "result",
+    (
+        KernelResult({"tier": "certified"}),
+        KernelResult(None, {"tier": "certified"}),
+        KernelResult({"verification_state": "sourced"}),
+        KernelResult(None, {"verification_state": "sourced"}),
+    ),
+)
+def test_compute_kernels_cannot_author_tiers_or_verification_state(tmp_path, result):
+    registry, _ = _registry(compute_function=lambda context: result)
+    with pytest.raises(NodeRejectedError, match="tier|verification_state"):
+        _run(tmp_path, registry=registry)
+
+
 def test_registry_and_runtime_contract_errors_are_explicit(tmp_path):
     compiled = compile_graph(_graph())
     store = ContentStore(tmp_path / "store")
@@ -366,6 +381,38 @@ def test_context_inputs_are_detached_read_only_and_order_is_inert(tmp_path):
             ContentStore(tmp_path / "mutation-store"),
             {"input": {"values": np.array([3.0])}},
         )
+
+
+def test_direct_sources_are_normative_before_keys_and_kernel_inputs(tmp_path):
+    observed: list[object] = []
+
+    def inspect(context):
+        observed.append(context.inputs["input"])
+        return KernelResult(context.inputs["input"]["value"] * 2)
+
+    registry, kernels = _registry(compute_function=inspect)
+    store = ContentStore(tmp_path / "store")
+    first = _run(
+        tmp_path,
+        store=store,
+        registry=registry,
+    )
+    decorated = run_graph(
+        compile_graph(_graph()),
+        registry,
+        store,
+        {
+            "input": {
+                "value": 3,
+                "description": "changed",
+                "provenance": {"source": "changed"},
+            }
+        },
+    )
+    assert decorated.key == first.key
+    assert decorated.hit_count == len(decorated.nodes)
+    assert set(observed[0]) == {"value"}
+    assert kernels["compute"].calls == 1
 
 
 def test_numeric_scopes_propagate_and_platform_partitions_keys(tmp_path, monkeypatch):

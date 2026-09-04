@@ -37,7 +37,7 @@ from .kernel import (
     NumericScope,
     Tolerance,
 )
-from .keys import artifact_key, node_key, seed, source_key
+from .keys import _source_projection, artifact_key, node_key, seed, source_key
 from .manifest import NodeReceipt, RunManifest
 from .store import ContentStore, ResumePolicy, StoredResult
 
@@ -153,7 +153,9 @@ def _loaded_sources(
             raise KeyError(
                 f"No content supplied for source {source.name!r}."
             ) from error
-        normalized[source.name] = _canonical_copy(content, f"Source {source.name!r}")
+        normalized[source.name] = _canonical_copy(
+            _source_projection(content), f"Source {source.name!r}"
+        )
     return MappingProxyType(normalized)
 
 
@@ -281,8 +283,18 @@ def _validate_result(node: Node, result: object) -> KernelResult:
             f"Kernel {node.kernel!r} returned {type(result).__name__}, "
             "not KernelResult."
         )
-    if "tier" in result.receipt:
+    if "tier" in result.receipt or (
+        isinstance(result.value, Mapping) and "tier" in result.value
+    ):
         raise NodeRejectedError(f"Kernel {node.kernel!r} may not set tier.")
+    if isinstance(result.value, Mapping) and "verification_state" in result.value:
+        raise NodeRejectedError(
+            f"Kernel {node.kernel!r} may only set verification_state in a gate receipt."
+        )
+    if node.role != "gate" and "verification_state" in result.receipt:
+        raise NodeRejectedError(
+            f"Kernel {node.kernel!r} may only set verification_state in a gate receipt."
+        )
     if node.role == "gate":
         if "outcome" not in result.receipt or "evidence" not in result.receipt:
             raise NodeRejectedError(

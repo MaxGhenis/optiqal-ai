@@ -144,11 +144,11 @@ def test_unknown_declaration_lookups_raise_useful_errors():
 
 def test_tolerance_and_numeric_scope_validation():
     assert Tolerance(1, 2) == Tolerance(1.0, 2.0)
+    assert Tolerance() == Tolerance(0.0, 0.0)
     for kwargs in (
         {"rtol": -1},
         {"atol": math.inf},
         {"rtol": True},
-        {},
     ):
         with pytest.raises((TypeError, ValueError)):
             Tolerance(**kwargs)

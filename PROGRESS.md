@@ -4,7 +4,7 @@
 
 In progress on `rebuild/i-graph`. The graph contract, identity/store/manifest runtime,
 registered normative source loaders, executor, one-screen view, and fast toy graph are
-implemented. The HTML explorer and adversarial runtime hardening are next.
+implemented and adversarially hardened. The HTML explorer and final verification are next.
 
 ## Done
 
@@ -45,9 +45,14 @@ implemented. The HTML explorer and adversarial runtime hardening are next.
   and seeded computation, all five gate outcomes, cached failed and raising gates, release
   tiers, selection independence, source overrides, and exact descendant invalidation.
 - Verified the toy's focused suite passes in under two seconds with the local Python toolchain.
+- Hardened direct source handling so every descriptive field and snapshot provenance block
+  is removed before both identity and kernel execution, matching registered-loader behavior.
+- Made tier derivation an invariant of every manifest construction/load and prohibited kernels
+  or serialized receipts from authoring tiers or non-gate verification states.
+- Aligned the frozen `Tolerance()` zero defaults with the authority and refreshed the interface
+  lock; all 137 graph-focused tests and the lock verification pass.
 
 ## Next
 
 - Finish and test the self-contained explorer CLI.
-- Apply the adversarial review's source-normalization and tier-authentication hardening.
 - Run all requested verification and record the three toy-run outputs.

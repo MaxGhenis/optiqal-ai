@@ -239,10 +239,17 @@ class NodeReceipt:
         frozen_receipt = _freeze(self.receipt)
         if not isinstance(frozen_receipt, Mapping):  # pragma: no cover - guarded above
             raise TypeError("NodeReceipt.receipt must be a mapping")
+        frozen_value = _freeze(self.value)
         object.__setattr__(self, "receipt", frozen_receipt)
-        object.__setattr__(self, "value", _freeze(self.value))
-        if "tier" in frozen_receipt:
+        object.__setattr__(self, "value", frozen_value)
+        if "tier" in frozen_receipt or (
+            isinstance(frozen_value, Mapping) and "tier" in frozen_value
+        ):
             raise ValueError("Kernel receipts may not set tier")
+        if isinstance(frozen_value, Mapping) and "verification_state" in frozen_value:
+            raise ValueError("verification_state may only appear in a gate receipt")
+        if self.capabilities.role != "gate" and "verification_state" in frozen_receipt:
+            raise ValueError("verification_state may only appear in a gate receipt")
         if self.capabilities.role == "gate":
             if "outcome" not in frozen_receipt or "evidence" not in frozen_receipt:
                 raise ValueError("A gate receipt requires outcome and evidence")
@@ -355,7 +362,7 @@ class RunManifest:
     def __post_init__(self) -> None:
         if not isinstance(self.graph, Graph):
             raise TypeError("RunManifest.graph must be a Graph")
-        compile_graph(self.graph)
+        compiled = compile_graph(self.graph)
         _string(self.engine_commit, "RunManifest.engine_commit")
         _string(
             self.platform_fingerprint,
@@ -426,6 +433,19 @@ class RunManifest:
                 raise ValueError(
                     f"Receipt for {node.id!r} does not match its declared identity"
                 )
+            if node.role == "release":
+                gates = [
+                    ancestor
+                    for ancestor in compiled.ancestors(node.id)
+                    if self.graph.node(ancestor).role == "gate"
+                ]
+                expected_tier = _tier_from_outcomes(
+                    [nodes[gate].receipt["outcome"] for gate in gates]
+                )
+                if receipt.tier != expected_tier:
+                    raise ValueError(
+                        f"Receipt for {node.id!r} tier does not match its gate ancestry"
+                    )
         object.__setattr__(self, "nodes", MappingProxyType(nodes))
 
         normalized_decisions: list[Decision] = []

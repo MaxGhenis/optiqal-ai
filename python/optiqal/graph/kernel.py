@@ -74,8 +74,6 @@ class Tolerance:
             if not math.isfinite(normalized) or normalized < 0:
                 raise ValueError(f"Tolerance.{name} must be finite and non-negative.")
             object.__setattr__(self, name, normalized)
-        if self.rtol == 0.0 and self.atol == 0.0:
-            raise ValueError("Tolerance must declare a positive rtol or atol.")
 
 
 @dataclass(frozen=True)

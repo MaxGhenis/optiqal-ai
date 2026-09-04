@@ -173,8 +173,17 @@ def test_manifest_key_excludes_run_observations_and_decisions():
             "verification_state": "sourced",
         },
     )
-    assert replace(manifest, nodes={**manifest.nodes, "gate": changed_receipt}).key != (
-        manifest.key
+    changed_release = replace(manifest.node("release"), tier="evidence")
+    assert (
+        replace(
+            manifest,
+            nodes={
+                **manifest.nodes,
+                "gate": changed_receipt,
+                "release": changed_release,
+            },
+        ).key
+        != manifest.key
     )
 
 
@@ -198,7 +207,6 @@ def test_decision_mapping_compatibility_and_manifest_lookup_errors():
     [
         ("fail", "evidence", "not certified"),
         ("unreached", "unreached", "not certified"),
-        ("pass", "evidence", "does not match"),
     ],
 )
 def test_certified_loader_rederives_tiers(outcome, tier, message, tmp_path):
@@ -206,6 +214,11 @@ def test_certified_loader_rederives_tiers(outcome, tier, message, tmp_path):
     path = manifest.save(tmp_path / "manifest.json")
     with pytest.raises(ManifestError, match=message):
         load_certified(path)
+
+
+def test_manifest_always_rederives_release_tiers():
+    with pytest.raises(ValueError, match="tier does not match"):
+        _manifest(outcome="pass", tier="evidence")
 
 
 def test_certified_loader_rejects_heuristic_and_bad_gate_receipts(tmp_path):
@@ -262,7 +275,7 @@ def test_manifest_detects_tampering_schema_counters_and_bad_files(tmp_path):
     manifest = _manifest()
     payload = json.loads(manifest.to_json())
     payload["nodes"]["release"]["tier"] = "evidence"
-    with pytest.raises(ManifestError, match="key mismatch"):
+    with pytest.raises(ManifestError, match="tier does not match"):
         RunManifest.from_json(json.dumps(payload))
 
     payload = json.loads(manifest.to_json())
@@ -326,6 +339,10 @@ def test_manifest_constructors_validate_every_portable_field():
     release = _manifest().node("release")
     with pytest.raises(ValueError, match="requires"):
         replace(release, tier=None)
+    with pytest.raises(ValueError, match="may not set tier"):
+        replace(base, value={"tier": "certified"})
+    with pytest.raises(ValueError, match="verification_state"):
+        replace(base, receipt={"verification_state": "sourced"})
 
     manifest = _manifest()
     for changes in (

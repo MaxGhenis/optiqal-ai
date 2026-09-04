@@ -8,7 +8,7 @@ import sys
 from collections.abc import Mapping
 
 from .canonical import canonical_json, normative, sha256_domain
-from .decl import Node
+from .decl import DESCRIPTIVE_FIELDS, Node
 from .kernel import Capabilities, Kernel, Numeric
 
 __all__ = [
@@ -22,6 +22,37 @@ __all__ = [
 
 def _hash_parts(domain: str, *parts: object) -> str:
     return sha256_domain(domain, canonical_json(parts))
+
+
+_SOURCE_DESCRIPTIVE_FIELDS = DESCRIPTIVE_FIELDS | {
+    "calibration_sources",
+    "provenance",
+    "rationale",
+    "sources",
+}
+
+
+def _source_projection(value: object) -> object:
+    """Drop inert source metadata recursively before hashing or execution.
+
+    The interface names the common descriptive fields and separately declares
+    snapshot provenance, catalog ``sources``, and prior calibration prose
+    inert. Keeping this projection at the source boundary ensures direct
+    in-memory sources obey the same contract as registered loaders.
+    """
+
+    projected = normative(value)
+    if isinstance(projected, Mapping):
+        return {
+            key: _source_projection(child)
+            for key, child in projected.items()
+            if key not in _SOURCE_DESCRIPTIVE_FIELDS
+        }
+    if isinstance(projected, tuple):
+        return tuple(_source_projection(child) for child in projected)
+    if isinstance(projected, list):
+        return [_source_projection(child) for child in projected]
+    return projected
 
 
 def _capabilities_projection(capabilities: Capabilities) -> dict[str, object]:
@@ -44,7 +75,7 @@ def source_key(name: str, content: object) -> str:
 
     if not isinstance(name, str) or not name:
         raise ValueError("source name must be a non-empty string")
-    return _hash_parts("source", name, normative(content))
+    return _hash_parts("source", name, _source_projection(content))
 
 
 def node_key(

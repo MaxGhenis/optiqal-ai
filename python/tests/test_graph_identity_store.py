@@ -150,6 +150,24 @@ def test_key_helpers_validate_and_match_seed_formula():
         node_key(Node("node", "identity@1", ("missing",)), {}, _Kernel())
 
 
+def test_source_keys_recursively_ignore_every_descriptive_field():
+    normative_content = {"id": "row", "estimate": 1.5, "nested": {"value": 2}}
+    decorated = {
+        **normative_content,
+        "description": "inert",
+        "citation": "inert",
+        "notes": "inert",
+        "extracted_by": "inert",
+        "source": "inert",
+        "sources": ["inert"],
+        "rationale": "inert",
+        "calibration_sources": ["inert"],
+        "provenance": {"version": "inert"},
+        "nested": {"value": 2, "notes": "also inert"},
+    }
+    assert source_key("row", decorated) == source_key("row", normative_content)
+
+
 def test_store_round_trips_values_receipts_and_artifacts(tmp_path):
     store = ContentStore(tmp_path / "store")
     key = "a" * 64
