@@ -5,7 +5,7 @@ import json
 import pytest
 
 from optiqal import snapshots
-from optiqal.data_build import meps_quality_weights
+from optiqal.data_build import cdc_life_table, meps_quality_weights
 
 
 def _snapshot(data: dict) -> dict:
@@ -123,3 +123,7 @@ def test_meps_snapshot_matches_committed_calibration():
         actual.provenance["source_artifact_sha256"]
         == meps_quality_weights.file_checksum(calibration_path)
     )
+
+
+def test_cdc_life_table_snapshot_and_source_comparison_are_pinned():
+    cdc_life_table.validate_committed_artifacts()

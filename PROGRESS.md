@@ -4,8 +4,8 @@ Branch `rebuild/e-load-snapshots`. Charter: `REBUILD.md` (PR E row). Updated as 
 
 ## State
 
-Working. The fail-closed loader is landed; the deterministic MEPS snapshot builder and
-`fetch_meps.py` integration are ready to land next.
+Working. The fail-closed loader and MEPS build are landed; the transcribed CDC snapshot,
+pinned validator, and complete NVSR 72-12 source comparison are ready to land next.
 Verification (`uv run ruff check .`, `uv run pytest -q` from `python/`) is run before the
 final commit; `tests/test_model_regression.py` and `tests/test_sleep.py` must pass untouched
 because this PR changes no number.
@@ -30,11 +30,12 @@ because this PR changes no number.
   published table exactly. So the snapshot's provenance says *transcribed*, and the deltas are
   committed as evidence. Adopting the published table is a number change and belongs to a
   later PR.
-- `CAUSE_FRACTIONS` at ages 40-80 is byte-identical to the hand-authored
-  `cause_fractions.yaml` in the sibling whatnut repo before its 2026-04 data rebuild (commit
+- `CAUSE_FRACTIONS` at ages 40-80 is numerically identical to the hand-authored
+  `cause_fractions.yaml` in the sibling What Nut repo before its 2026-04 data rebuild (commit
   `0ff87e2`, header "CDC WONDER, 2021 US mortality data (approximate)"); the age-90 row
-  differs (0.45/0.12/0.43 here vs 0.45/0.10/0.45 there). No WONDER query id exists anywhere.
-  whatnut has since replaced its copy with values derived from NVSR 73-08 Table 6.
+  differs (0.45/0.12/0.43 here vs 0.45/0.10/0.45 there). The inheritance is likely but not
+  proven. No WONDER query id exists anywhere. What Nut has since replaced its copy with
+  values derived from NVSR 73-08 Table 6.
 
 ## Done
 
@@ -48,10 +49,13 @@ because this PR changes no number.
   retaining the authored age-95 extrapolation with an explicit provenance note.
 - Made `fetch_meps.py` refresh that runtime snapshot whenever it rewrites the calibration and
   added a drift test against the committed calibration's exact byte checksum.
+- Snapshotted the legacy life-table anchors as transcribed data and pinned their independent
+  checksum rather than falsely regenerating them from the publication they do not match.
+- Committed all 44 deltas from NVSR 72-12 Tables 2-3: none match; excluding CDC's open-ended
+  age-100 rows, snapshot/source ratios range from 0.632411 to 1.309524.
 
 ## Next
 
-1. CDC life-table generator, snapshot, and published-table comparison artifact.
-2. Cause-fractions generator and snapshot.
-3. `lifecycle.py` loads all three snapshots; fixture equality test at 1e-12.
-4. `docs/DATA_PROVENANCE.md`, snapshots README, `REBUILD.md` PR E notes.
+1. Cause-fractions generator and snapshot.
+2. `lifecycle.py` loads all three snapshots; fixture equality test at 1e-12.
+3. `docs/DATA_PROVENANCE.md`, snapshots README, `REBUILD.md` PR E notes.
