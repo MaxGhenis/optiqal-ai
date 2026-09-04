@@ -6,24 +6,10 @@ sibling rebuild lanes each write a root `PROGRESS.md` and those would collide on
 
 ## State
 
-Review round 1 in progress: closing the nine findings from the read-only review.
-
-The verification recorded below covers commit `136c12cb`, not the branch tip. The review
-round-1 tails, naming the commit they cover, are appended under "Verification" at the end of
-this file.
-
-Stale (commit `136c12cb`), from `python/`:
-
-- `uv run ruff check .` -> `All checks passed!`
-- `uv run ruff format --check .` -> `80 files already formatted` (CI runs this too, in
-  `.github/workflows/ci.yml`)
-- `uv run pytest -q -n auto` -> `490 passed in 771.90s (0:12:51)`, exit code 0
-- `uv run pytest -q tests/test_model_regression.py tests/test_sleep.py tests/test_snapshots.py
-  tests/test_lifecycle.py` -> `47 passed in 17.26s`
-
-`tests/test_model_regression.py` and `tests/test_sleep.py` are untouched by this branch and
-pass. Note for future lanes: `pytest` lives in the `dev` extra, so a bare `uv sync` does not
-install it; use `uv sync --extra dev` or CI's `uv run --all-extras pytest -q`.
+Review round 1 complete. All nine findings from the read-only review are closed,
+plus one wart the review's verification recipe exposed (the generators swallowed
+`--check`). Verification tails, naming the commit they cover, are under
+"Verification" at the end of this file.
 
 ## Findings that shape the work (verified 2026-09-04, this lane)
 
@@ -94,9 +80,159 @@ install it; use `uv sync --extra dev` or CI's `uv run --all-extras pytest -q`.
   (`nvsr72-12.pdf`, sha256 `f8aa394521fce65bfa6aa7a31516ab8b5247d6c918810597be27881ea5ee5875`).
 - Passed full Ruff and all 490 Python tests. A targeted run of snapshots, lifecycle,
   model-regression, and sleep tests also passed all 47 tests before the full suite.
+  (Those counts describe the build through `136c12cb`. Round 1 adds 14 tests and
+  re-runs everything at the tip; see "Verification" below.)
+
+## Review round 1 (2026-09-04)
+
+Findings closed, in the order the review numbered them.
+
+1. **Verification now covers the tip.** The earlier report's tails covered
+   `136c12cb` while HEAD was `42cb63de`. Ruff and the full suite were re-run at
+   `d29ed48d` and the tails are recorded below.
+2. **The two What Nut citations are reconciled.** Both are true and they are the
+   same numbers. `CAUSE_FRACTIONS_BY_AGE` in `src/whatnut/lifecycle_pathways.py`
+   at What Nut commit `c67a7232` (2025-12-20, the day before Optiqal's
+   `5e472e22`) is the origin, under the comment "CDC WONDER, 2021 US mortality
+   data (approximate)". What Nut later mirrored the same values into
+   `src/whatnut/data/cause_fractions.yaml` at commit `0ff87e2` (2026-02-20) under
+   the same header; the two What Nut spellings are numerically identical, so the
+   YAML is a mirror of the constant and not a second source. Against either,
+   Optiqal ages 40-80 are identical and age 90 is `0.45/0.12/0.43` here versus
+   `0.45/0.10/0.45` there. Similarity is evidence, not proof of inheritance.
+   Verified read-only with `git -C /Users/maxghenis/whatnut show`. The same facts
+   in the same order now appear in `cause_fractions.json`'s provenance, in
+   `docs/DATA_PROVENANCE.md`, and here.
+3. **`age_table` pins its age set.** `ages: tuple[int, ...] = ()` mirrors
+   `named_table`'s `keys=`. `lifecycle.py` passes `LIFE_TABLE_AGES` (22) and
+   `QUALITY_WEIGHT_AGES` (8). A missing or extra age raises `SnapshotError`
+   naming the file and printing both sets. Tests:
+   `test_age_table_rejects_a_missing_age_and_names_file`,
+   `test_age_table_rejects_an_extra_age_and_names_file`,
+   `test_age_table_without_a_pin_still_accepts_any_increasing_ages`,
+   `test_dropped_life_table_age_fails_during_lifecycle_import`,
+   `test_extra_quality_weight_age_fails_during_lifecycle_import`,
+   `test_life_table_age_pin_matches_the_generator_pin`,
+   `test_runtime_age_pins_match_the_committed_snapshots`.
+4. **The overflow literal no longer escapes bare.** `1e400` is valid JSON grammar,
+   so `parse_constant` never sees it; `json` parses it to `inf` through
+   `parse_float`, and `canonical_json`'s `allow_nan=False` raised a bare
+   `ValueError` naming no file. `data_checksum` is now inside a try block and
+   re-raises `SnapshotError` with the path. Test:
+   `test_overflowing_float_literal_fails_closed_and_names_file`.
+5. **`_fail` is `NoReturn`.** `data_build/cdc_life_table.py` now matches
+   `Snapshot.fail`.
+6. **`1` and `1.0` hash alike.** `canonical_json` coerces numeric leaves to
+   `float` before dumping, booleans excluded. Tests:
+   `test_canonical_json_hashes_int_and_float_spellings_alike`,
+   `test_canonical_json_keeps_booleans_out_of_the_numeric_coercion`,
+   `test_int_and_float_spellings_load_under_one_committed_checksum`.
+7. **`cdc_life_table.json` carries a `retrieval_note`**, matching the MEPS
+   snapshot's: the date is when the legacy artifact was inspected, not a
+   retrieval. Provenance only; the data block and its digest did not move.
+8. **Progress moved** from the repository root to `docs/rebuild/E-progress.md`,
+   referenced from `REBUILD.md`'s PR E notes.
+9. **Import cost and reads measured**, below.
+
+### Regeneration and byte identity
+
+Each generator was run at the tip. `git status` stayed clean, so every committed
+byte is unchanged by regeneration. The MEPS generator genuinely rewrites its file
+and reproduced it byte for byte; the other two validate pinned checksums.
+
+Against the pre-review tip `786fc905`, all four snapshots' `data` blocks are
+byte-identical. Three `sha256_of_data` values are unchanged. One moved:
+`cdc_life_table_2021_source_comparison.json`, `a7d0c351...` -> `574890b2...`,
+because its `data` holds four integer leaves (`summary.anchors_compared` 44,
+`summary.exact_matches` 0, and the two `summary.*_ratio.age` entries) that the
+new canonical form renders as floats. That file is audit evidence, not runtime
+data; no comparison value changed. Re-pinned in the snapshot provenance and in
+`data_build.cdc_life_table.EXPECTED_COMPARISON_DATA_SHA256`.
+
+Independently of the test suite, every loaded value still equals the pre-PR
+literal in `009acd90:python/optiqal/lifecycle.py` exactly: max delta `0.0` across
+all five blocks, and `0.0` for `get_mortality_rate` over ages 0-100 for both
+sexes. `QUALITY_WEIGHT_STD` is still `float` and age keys are still `int`.
+
+### Beyond the findings: `--check` was a write path
+
+The review's verification recipe runs each generator with `--check`. All three
+modules read `sys.argv` and ignored it, so `--check` was silently swallowed and
+`python -m optiqal.data_build.meps_quality_weights --check` *rewrote* the
+snapshot. A flag that reads as a dry run must not write. All three now parse
+arguments: `--check` writes nothing and exits non-zero on drift (for MEPS by
+comparing committed bytes against a rebuild), and unknown flags are rejected.
+Tests: `test_meps_check_mode_confirms_the_committed_bytes`,
+`test_meps_check_mode_detects_drift`,
+`test_generator_check_flags_are_parsed_not_ignored`.
+
+### Import cost and what import reads
+
+`python -c "import optiqal.lifecycle"` takes about **0.39 s** wall (five in-process
+measurements: 583.7, 378.8, 389.0, 398.2, 373.5 ms; `/usr/bin/time -p` on the
+whole process reads `real 0.54`). Loading and validating all three snapshots is
+**0.41 ms** of that. The rest is SciPy: `optiqal/__init__.py` imports
+`analyzer` -> `catalog` -> `confounding` -> `scipy.stats`, which `-X importtime`
+attributes 447 ms of cumulative import time.
+
+The review asked whether import reads anything outside `optiqal/data/snapshots/`
+and noted `strace` is unavailable. Rather than reason from the code, this was
+measured: a `sys.addaudithook` on CPython's `open` audit event recorded every
+file opened during the import, with the calling `optiqal` module attributed by
+walking the stack. Result:
+
+| opened file | opened by |
+| --- | --- |
+| `data/snapshots/cdc_life_table.json` | `snapshots.py` |
+| `data/snapshots/cause_fractions.json` | `snapshots.py` |
+| `data/snapshots/meps_quality_weights.json` | `snapshots.py` |
+| `data/public_policy_lanes.json` | `catalog.py` |
+| `data/public_policy_conditions.json` | `catalog.py` |
+| `data/public_policy_items.json` | `catalog.py` |
+| `data/public_frontier_benchmark_scenarios.json` | `public_frontier_benchmark.py` |
+
+So the strict form of the claim is false and should be stated precisely: the
+*import statement* reads four files outside the snapshot directory, because
+`import optiqal.lifecycle` executes `optiqal/__init__.py`, which pulls in
+`catalog.py` and `public_frontier_benchmark.py`. Those four reads pre-date this
+branch and are untouched by it. What is true is the part PR E owns:
+**`lifecycle.py` itself reads only `optiqal/data/snapshots/`.** `baselines.json`
+was confirmed *not* opened during import -- `load_precomputed_baselines()` is
+lazy. No file outside the `optiqal` package (and outside `.venv`) is opened.
+
+## Verification
+
+At commit `d29ed48d`, from `python/`:
+
+```
+$ uv run --no-sync ruff check .
+All checks passed!
+
+$ uv run --no-sync ruff format --check .
+80 files already formatted
+
+$ PYTHONPATH=. uv run --no-sync pytest -q -n auto
+504 passed in 245.26s (0:04:05)
+
+$ PYTHONPATH=. uv run --no-sync pytest -q tests/test_model_regression.py \
+      tests/test_sleep.py tests/test_snapshots.py tests/test_lifecycle.py
+61 passed in 10.00s
+
+$ for m in cdc_life_table cause_fractions meps_quality_weights; do
+    PYTHONPATH=. uv run --no-sync python -m optiqal.data_build.$m --check; done
+Validated the transcribed CDC snapshot and NVSR 72-12 comparison.
+Validated the transcribed cause-fraction snapshot against its checksum.
+.../optiqal/data/snapshots/meps_quality_weights.json is byte-identical to a rebuild.
+```
+
+504 tests is the previous 490 plus the 14 added this round.
+`tests/test_model_regression.py` and `tests/test_sleep.py` have no diff against
+`009acd90` and pass.
 
 ## Next
 
 1. No work remains in PR E.
 2. A later behavior-changing PR should replace the legacy life-table anchors from an agreed
    source and replace the cause fractions only with a committed reproducible query/export.
+3. Optional, outside this lane: wire `--check` on the three generators into CI so snapshot
+   drift fails the build rather than waiting for a reviewer.
