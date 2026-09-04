@@ -4,8 +4,9 @@ Branch `rebuild/e-load-snapshots`. Charter: `REBUILD.md` (PR E row). Updated as 
 
 ## State
 
-Working. Verification (`uv run ruff check .`, `uv run pytest -q` from `python/`) is run before
-the final commit; `tests/test_model_regression.py` and `tests/test_sleep.py` must pass untouched
+Working. The fail-closed loader and its isolated failure-path tests are ready to land.
+Verification (`uv run ruff check .`, `uv run pytest -q` from `python/`) is run before the
+final commit; `tests/test_model_regression.py` and `tests/test_sleep.py` must pass untouched
 because this PR changes no number.
 
 ## Findings that shape the work (verified 2026-09-04, this lane)
@@ -36,13 +37,15 @@ because this PR changes no number.
 
 ## Done
 
-- (nothing yet)
+- Added `python/optiqal/snapshots.py`, which validates required provenance, a canonical data
+  checksum, finite non-negative values, bounded rates, and strictly increasing age keys.
+- Added loader tests using a monkeypatched temporary snapshot directory for missing files,
+  missing provenance, NaN, negative rates, non-monotone ages, and checksum drift.
 
 ## Next
 
-1. `python/optiqal/snapshots.py`: fail-closed loader + `data_build` package skeleton.
-2. MEPS generator, snapshot, and the drift test; `fetch_meps.py` writes the snapshot.
-3. CDC life-table generator, snapshot, committed raw NVSR artifacts, source-check artifact.
-4. Cause-fractions generator and snapshot.
-5. `lifecycle.py` loads all three snapshots; fixture equality test at 1e-12.
-6. `docs/DATA_PROVENANCE.md`, snapshots README, `REBUILD.md` PR E notes.
+1. MEPS generator, snapshot, and drift test; `fetch_meps.py` writes the snapshot.
+2. CDC life-table generator, snapshot, and published-table comparison artifact.
+3. Cause-fractions generator and snapshot.
+4. `lifecycle.py` loads all three snapshots; fixture equality test at 1e-12.
+5. `docs/DATA_PROVENANCE.md`, snapshots README, `REBUILD.md` PR E notes.
