@@ -2,10 +2,8 @@
 
 ## State
 
-In progress on `rebuild/i-graph`. The graph contract, identity/store/manifest runtime,
-registered normative source loaders, executor, one-screen view, and fast toy graph are
-implemented and adversarially hardened. Only final whole-project verification and reporting
-remain.
+In progress on `rebuild/i-graph`. Every PR I deliverable is implemented and the resumed
+independent audit is addressing one fallback-source semantic defect before final verification.
 
 ## Done
 
@@ -56,8 +54,16 @@ remain.
   fragment-driven `describe` details, strict escaping, and a tested manifest CLI.
 - Documented nodes, kernels, gates, tiers, and manifests in the Python README using the
   required kernel definition; all 138 graph-focused tests pass.
+- Verified all 616 project tests pass after repairing only the ignored, incomplete `.venv`
+  left by the network-blocked sync; Ruff reports all 95 files formatted and lint-clean.
+- Verified the frozen interface lock at
+  `cfc039d2f15cc034a1422af363d8460c71e6f147dc11a98a6aa1da04d9131fa8`.
+- Recorded cold, fully warm, and one-parameter-changed toy runs, including the exact 13-node
+  descendant miss set, in `FINAL_REPORT.md`.
+- Corrected the pre-PR-A study-quality fallback to convert the legacy shrinkage fraction to
+  PR A's normative retention value, preserving its meaning across the optional-module boundary.
 
 ## Next
 
-- Run all requested verification and record the three toy-run outputs.
-- Write and commit the final report with the complete verification evidence.
+- Complete the independent reference/spec audit.
+- Repeat whole-project verification and commit the final report.

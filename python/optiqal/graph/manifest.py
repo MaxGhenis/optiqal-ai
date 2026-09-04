@@ -8,7 +8,7 @@ import os
 import re
 import uuid
 from collections.abc import Iterator, Mapping
-from dataclasses import dataclass, field, is_dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from types import MappingProxyType
@@ -16,7 +16,7 @@ from typing import Self
 
 import numpy as np
 
-from .canonical import _restore_json, canonical_json, normative, sha256_domain
+from .canonical import _restore_json, canonical_json, sha256_domain
 from .decl import GATE_OUTCOMES, TIERS, Graph, Node, SourceRef, compile_graph
 from .errors import ManifestError
 from .kernel import Capabilities, Determinism, Numeric, NumericScope, Tolerance
@@ -42,8 +42,6 @@ def _freeze(value: object) -> object:
 
     if isinstance(value, Enum):
         return _freeze(value.value)
-    if is_dataclass(value) and not isinstance(value, type):
-        return _freeze(normative(value))
     if value is None or isinstance(value, (bool, int, float, str)):
         if isinstance(value, float) and not math.isfinite(value):
             raise ValueError("manifest values must be finite")

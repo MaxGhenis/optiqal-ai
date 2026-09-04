@@ -186,7 +186,7 @@ def test_priors_fall_back_to_confounding_numeric_tables():
     exercise = loaded["confounding"]["categories"]["exercise"]
     assert exercise == {"alpha": 1.2, "beta": 6.0}
     assert loaded["evidence_adjustments"]["rct"] == {"alpha_multiplier": 1.5}
-    assert loaded["study_quality_shrinkage"]["rct_standard"] == {"retention": 0.2}
+    assert loaded["study_quality_shrinkage"]["rct_standard"] == {"retention": 0.8}
     _assert_no_descriptive_keys(loaded)
 
 

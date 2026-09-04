@@ -54,8 +54,6 @@ def _json_value(value: object) -> object:
         return _json_value(value.item())
     if isinstance(value, Enum):
         return _json_value(value.value)
-    if is_dataclass(value) and not isinstance(value, type):
-        return _json_value(normative(value))
     if isinstance(value, Mapping):
         converted: dict[str, object] = {}
         for key, child in value.items():

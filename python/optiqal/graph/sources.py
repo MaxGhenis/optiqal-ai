@@ -179,8 +179,10 @@ def _load_priors(source: SourceRef) -> object:
             for name, multiplier in confounding.EVIDENCE_ADJUSTMENTS.items()
         },
         "study_quality_shrinkage": {
-            name: {"retention": retention}
-            for name, retention in confounding.STUDY_QUALITY_SHRINKAGE.items()
+            # The legacy table stores the fraction removed; PR A's registry
+            # stores the complementary fraction retained.
+            name: {"retention": 1.0 - shrinkage}
+            for name, shrinkage in confounding.STUDY_QUALITY_SHRINKAGE.items()
         },
     }
     return _canonical_source(content)

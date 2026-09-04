@@ -87,7 +87,12 @@ def test_canonical_json_rejects_every_nonfinite_number(value):
 
 @pytest.mark.parametrize(
     "value",
-    [{1: "non-string key"}, {"set": {1}}, np.array([object()], dtype=object)],
+    [
+        {1: "non-string key"},
+        {"set": {1}},
+        np.array([object()], dtype=object),
+        _Declared(1, "not a canonical value"),
+    ],
 )
 def test_canonical_json_rejects_values_outside_its_grammar(value):
     with pytest.raises(TypeError):
