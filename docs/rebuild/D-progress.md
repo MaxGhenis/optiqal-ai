@@ -3,8 +3,9 @@
 ## State
 
 Review round one of PR D is closed on `rebuild/d-evidence-table`. All eleven findings are
-addressed; each landed as its own commit. What remains is the verification sweep and the
-rewritten `FINAL_REPORT.md`.
+addressed and the verification sweep is green: 535 tests pass, ruff and the formatter are
+clean, `verify_evidence.py --check` reports 48 rows and 46 identifiers, and the three ratchets
+stand at 85 / 114 / 130. Nothing is outstanding.
 
 ## Done
 
@@ -42,6 +43,11 @@ rewritten `FINAL_REPORT.md`.
 
 ## Next
 
-- Finish the verification sweep and paste real tails into `FINAL_REPORT.md`.
-- Rewrite `FINAL_REPORT.md`'s verification claims: the original lane never cross-checked
-  citations through publisher pages.
+Nothing for round one. Open for a later PR:
+
+- `known_unsourced_claims` is 85 and `known_judgment_atoms` is 130; PR G adjudicates the ten
+  catalog items whose linked row disagrees with the typed `hr_observed` by more than 1%.
+- Only abstracts were read. A later lane with full-text access could confirm the estimates
+  the abstracts state, and check the numbers no abstract carries.
+- `black2015_mindfulness_sleep` is a `direct` row linked to nothing; either wire it to a
+  claim it supports or reclassify it.
