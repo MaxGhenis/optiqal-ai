@@ -4,11 +4,11 @@ Branch `rebuild/e-load-snapshots`. Charter: `REBUILD.md` (PR E row). Updated as 
 
 ## State
 
-Working. Implementation and provenance documentation are complete. Targeted snapshot,
-lifecycle, model-regression, and sleep tests are green; full verification remains.
-Verification (`uv run ruff check .`, `uv run pytest -q` from `python/`) is run before the
-final commit; `tests/test_model_regression.py` and `tests/test_sleep.py` must pass untouched
-because this PR changes no number.
+Complete. From `python/`, `uv run ruff check .` reports `All checks passed!` and the full
+`uv run pytest -q` reports `490 passed in 1212.12s (0:20:12)`. The pytest environment used
+the worktree on `PYTHONPATH` because sandboxed base `uv sync` could not install the optional
+dev runner; the command and test set were otherwise unchanged. `tests/test_model_regression.py`
+and `tests/test_sleep.py` remain untouched and pass.
 
 ## Findings that shape the work (verified 2026-09-04, this lane)
 
@@ -65,8 +65,11 @@ because this PR changes no number.
   retaining the PR B action items for the MEPS parquet and unsourced condition distribution.
 - Added the snapshots README and appended dated PR E notes to `REBUILD.md`, including the
   explicit finding that production does not use the cited CDC 2021 table.
+- Passed full Ruff and all 490 Python tests. A targeted run of snapshots, lifecycle,
+  model-regression, and sleep tests also passed all 47 tests before the full suite.
 
 ## Next
 
-1. Run the required full `uv run ruff check .` and `uv run pytest -q` verification.
-2. Record the exact final outputs and mark this progress file complete in the final commit.
+1. No work remains in PR E.
+2. A later behavior-changing PR should replace the legacy life-table anchors from an agreed
+   source and replace the cause fractions only with a committed reproducible query/export.
