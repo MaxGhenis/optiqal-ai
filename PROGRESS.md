@@ -2,8 +2,8 @@
 
 ## State
 
-In progress on `rebuild/d-evidence-table`. The rebuild charter, data provenance note,
-canonical model, and required evidence-bearing code and documentation are under review.
+In progress on `rebuild/d-evidence-table`. The fail-closed loader is committed and the
+abstract-verifiable evidence seed is ready; catalog/YAML linkage and debt snapshots remain.
 
 ## Done
 
@@ -13,11 +13,15 @@ canonical model, and required evidence-bearing code and documentation are under 
   lineage parsing, and the live judgment vocabularies.
 - Attempted `uv sync`; the sandbox blocks the global uv cache and external package DNS,
   so dependency setup is being recovered from the existing local cache.
+- Added canonical `study_ids` to catalog entries and intervention lineage parsing, and
+  added a lineage block to all ten legacy intervention YAMLs.
+- Added the strict `StudyRow` loader, offline fixture checker, Europe PMC refresh path,
+  CI wiring, validation tests, and the two missing study-design tiers.
+- Resolved the requested citation inventory and seeded 48 abstract-supported estimate
+  rows backed by 46 offline PMID fixture records; unsupported estimates remain debt.
 
 ## Next
 
-- Add the fail-closed study schema, fixture verification command, and tests.
-- Resolve and seed eligible study rows; record every refused atom with its reason.
-- Wire verified study ids into the catalog and intervention lineage.
+- Link every applicable catalog and intervention YAML claim to the seeded study rows.
 - Generate the three ratchets and add the lint report.
 - Run all required verification commands and record their results.

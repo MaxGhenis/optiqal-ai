@@ -1,1 +1,370 @@
-{}
+{
+  "15514282": {
+    "doi": "10.1093/jn/134.11.3100",
+    "journal": "The Journal of Nutrition",
+    "pmid": "15514282",
+    "resolved_at": "2026-09-04",
+    "title": "Dietary intake of menaquinone is associated with a reduced risk of coronary heart disease: the Rotterdam Study",
+    "year": 2004
+  },
+  "17132769": {
+    "doi": "10.1158/1055-9965.epi-06-0352",
+    "journal": "Cancer Epidemiology, Biomarkers & Prevention",
+    "pmid": "17132769",
+    "resolved_at": "2026-09-04",
+    "title": "Prolonged prevention of squamous cell carcinoma of the skin by regular sunscreen use",
+    "year": 2006
+  },
+  "18048441": {
+    "doi": "10.1136/bjsm.2007.039974",
+    "journal": "British Journal of Sports Medicine",
+    "pmid": "18048441",
+    "resolved_at": "2026-09-04",
+    "title": "Walking and primary prevention: a meta-analysis of prospective cohort studies",
+    "year": 2008
+  },
+  "18460664": {
+    "doi": "10.1001/jama.299.17.2037",
+    "journal": "JAMA",
+    "pmid": "18460664",
+    "resolved_at": "2026-09-04",
+    "title": "Smoking and smoking cessation in relation to mortality in women",
+    "year": 2008
+  },
+  "18786971": {
+    "doi": "10.1136/bmj.a1344",
+    "journal": "BMJ",
+    "pmid": "18786971",
+    "resolved_at": "2026-09-04",
+    "title": "Adherence to Mediterranean diet and health status: meta-analysis",
+    "year": 2008
+  },
+  "19299006": {
+    "doi": "10.1016/s0140-6736(09)60318-4",
+    "journal": "Lancet",
+    "pmid": "19299006",
+    "resolved_at": "2026-09-04",
+    "title": "Body-mass index and cause-specific mortality in 900 000 adults: collaborative analyses of 57 prospective studies",
+    "year": 2009
+  },
+  "20469800": {
+    "doi": "10.1093/sleep/33.5.585",
+    "journal": "Sleep",
+    "pmid": "20469800",
+    "resolved_at": "2026-09-04",
+    "title": "Sleep duration and all-cause mortality: a systematic review and meta-analysis of prospective studies",
+    "year": 2010
+  },
+  "20668659": {
+    "doi": "10.1371/journal.pmed.1000316",
+    "journal": "PLoS Medicine",
+    "pmid": "20668659",
+    "resolved_at": "2026-09-04",
+    "title": "Social relationships and mortality risk: a meta-analytic review",
+    "year": 2010
+  },
+  "21067804": {
+    "doi": "10.1016/s0140-6736(10)61350-5",
+    "journal": "Lancet",
+    "pmid": "21067804",
+    "resolved_at": "2026-09-04",
+    "title": "Efficacy and safety of more intensive lowering of LDL cholesterol: a meta-analysis of data from 170,000 participants in 26 randomised trials",
+    "year": 2010
+  },
+  "21135266": {
+    "doi": "10.1200/jco.2010.28.7078",
+    "journal": "Journal of Clinical Oncology",
+    "pmid": "21135266",
+    "resolved_at": "2026-09-04",
+    "title": "Reduced melanoma after regular sunscreen use: randomized trial follow-up",
+    "year": 2011
+  },
+  "21846575": {
+    "doi": "10.1016/s0140-6736(11)60749-6",
+    "journal": "Lancet",
+    "pmid": "21846575",
+    "resolved_at": "2026-09-04",
+    "title": "Minimum amount of physical activity for reduced mortality and extended life expectancy: a prospective cohort study",
+    "year": 2011
+  },
+  "23107252": {
+    "doi": "10.1016/s0140-6736(12)61720-6",
+    "journal": "Lancet",
+    "pmid": "23107252",
+    "resolved_at": "2026-09-04",
+    "title": "The 21st century hazards of smoking and benefits of stopping: a prospective study of one million women in the UK",
+    "year": 2013
+  },
+  "23343063": {
+    "doi": "10.1056/nejmsa1211128",
+    "journal": "The New England Journal of Medicine",
+    "pmid": "23343063",
+    "resolved_at": "2026-09-04",
+    "title": "21st-century hazards of smoking and benefits of cessation in the United States",
+    "year": 2013
+  },
+  "23525435": {
+    "doi": "10.1161/jaha.112.004473",
+    "journal": "Journal of the American Heart Association",
+    "pmid": "23525435",
+    "resolved_at": "2026-09-04",
+    "title": "Exercise training for blood pressure: a systematic review and meta-analysis",
+    "year": 2013
+  },
+  "23691095": {
+    "doi": "10.1371/journal.pone.0063773",
+    "journal": "PLoS ONE",
+    "pmid": "23691095",
+    "resolved_at": "2026-09-04",
+    "title": "Meta-analysis: melatonin for the treatment of primary sleep disorders",
+    "year": 2013
+  },
+  "23944298": {
+    "doi": "10.1056/nejmoa1215932",
+    "journal": "The New England Journal of Medicine",
+    "pmid": "23944298",
+    "resolved_at": "2026-09-04",
+    "title": "Long-term survival of participants in the prostate cancer prevention trial",
+    "year": 2013
+  },
+  "24256379": {
+    "doi": "10.1056/nejmoa1307352",
+    "journal": "The New England Journal of Medicine",
+    "pmid": "24256379",
+    "resolved_at": "2026-09-04",
+    "title": "Association of nut consumption with total and cause-specific mortality",
+    "year": 2013
+  },
+  "24395196": {
+    "doi": "10.1001/jamainternmed.2013.13018",
+    "journal": "JAMA Internal Medicine",
+    "pmid": "24395196",
+    "resolved_at": "2026-09-04",
+    "title": "Meditation programs for psychological stress and well-being: a systematic review and meta-analysis",
+    "year": 2014
+  },
+  "24414552": {
+    "doi": "10.1002/14651858.cd007470.pub3",
+    "journal": "The Cochrane Database of Systematic Reviews",
+    "pmid": "24414552",
+    "resolved_at": "2026-09-04",
+    "title": "Vitamin D supplementation for prevention of mortality in adults",
+    "year": 2014
+  },
+  "25011450": {
+    "doi": "10.1136/bmj.g4164",
+    "journal": "BMJ",
+    "pmid": "25011450",
+    "resolved_at": "2026-09-04",
+    "title": "Association between alcohol and cardiovascular disease: Mendelian randomisation analysis based on individual participant data",
+    "year": 2014
+  },
+  "25686304": {
+    "doi": "10.1001/jamainternmed.2014.8081",
+    "journal": "JAMA Internal Medicine",
+    "pmid": "25686304",
+    "resolved_at": "2026-09-04",
+    "title": "Mindfulness meditation and improvement in sleep quality and daytime impairment among older adults with sleep disturbances: a randomized clinical trial",
+    "year": 2015
+  },
+  "25705824": {
+    "doi": "10.1001/jamainternmed.2014.8187",
+    "journal": "JAMA Internal Medicine",
+    "pmid": "25705824",
+    "resolved_at": "2026-09-04",
+    "title": "Association between sauna bathing and fatal cardiovascular and all-cause mortality events",
+    "year": 2015
+  },
+  "25844730": {
+    "doi": "10.1001/jamainternmed.2015.0533",
+    "journal": "JAMA Internal Medicine",
+    "pmid": "25844730",
+    "resolved_at": "2026-09-04",
+    "title": "Leisure time physical activity and mortality: a detailed pooled analysis of the dose-response relationship",
+    "year": 2015
+  },
+  "26238869": {
+    "doi": "10.1136/bjsports-2014-094306",
+    "journal": "British Journal of Sports Medicine",
+    "pmid": "26238869",
+    "resolved_at": "2026-09-04",
+    "title": "Even a low-dose of moderate-to-vigorous physical activity reduces mortality by 22% in adults aged 60 years or older: a systematic review and meta-analysis",
+    "year": 2015
+  },
+  "26378978": {
+    "doi": "10.1056/nejmoa1504720",
+    "journal": "The New England Journal of Medicine",
+    "pmid": "26378978",
+    "resolved_at": "2026-09-04",
+    "title": "Empagliflozin, cardiovascular outcomes, and mortality in type 2 diabetes",
+    "year": 2015
+  },
+  "26997174": {
+    "doi": "10.15288/jsad.2016.77.185",
+    "journal": "Journal of Studies on Alcohol and Drugs",
+    "pmid": "26997174",
+    "resolved_at": "2026-09-04",
+    "title": "Do moderate drinkers have reduced mortality risk? A systematic review and meta-analysis of alcohol consumption and all-cause mortality",
+    "year": 2016
+  },
+  "27465053": {
+    "doi": "10.1136/heartjnl-2015-309223",
+    "journal": "Heart",
+    "pmid": "27465053",
+    "resolved_at": "2026-09-04",
+    "title": "Phosphodiesterase type-5 inhibitor use in type 2 diabetes is associated with a reduction in all-cause mortality",
+    "year": 2016
+  },
+  "27743803": {
+    "doi": "10.1016/j.sleep.2016.08.006",
+    "journal": "Sleep Medicine",
+    "pmid": "27743803",
+    "resolved_at": "2026-09-04",
+    "title": "Short sleep duration and health outcomes: a systematic review, meta-analysis, and meta-regression",
+    "year": 2017
+  },
+  "27927203": {
+    "doi": "10.1186/s12916-016-0742-z",
+    "journal": "BMC Medicine",
+    "pmid": "27927203",
+    "resolved_at": "2026-09-04",
+    "title": "Dietary magnesium intake and the risk of cardiovascular disease, type 2 diabetes, and all-cause mortality: a dose-response meta-analysis of prospective cohort studies",
+    "year": 2016
+  },
+  "28499102": {
+    "doi": "10.15288/jsad.2017.78.375",
+    "journal": "Journal of Studies on Alcohol and Drugs",
+    "pmid": "28499102",
+    "resolved_at": "2026-09-04",
+    "title": "Alcohol consumption and mortality from coronary heart disease: an updated meta-analysis of cohort studies",
+    "year": 2017
+  },
+  "27916000": {
+    "doi": "10.1186/s12916-016-0730-3",
+    "journal": "BMC Medicine",
+    "pmid": "27916000",
+    "resolved_at": "2026-09-04",
+    "title": "Nut consumption and risk of cardiovascular disease, total cancer, all-cause and cause-specific mortality: a systematic review and dose-response meta-analysis of prospective studies",
+    "year": 2016
+  },
+  "28889101": {
+    "doi": "10.1161/jaha.117.005947",
+    "journal": "Journal of the American Heart Association",
+    "pmid": "28889101",
+    "resolved_at": "2026-09-04",
+    "title": "Relationship of sleep duration with all-cause mortality and cardiovascular events: a systematic review and dose-response meta-analysis of prospective cohort studies",
+    "year": 2017
+  },
+  "29387889": {
+    "doi": "10.1001/jamacardio.2017.5205",
+    "journal": "JAMA Cardiology",
+    "pmid": "29387889",
+    "resolved_at": "2026-09-04",
+    "title": "Associations of omega-3 fatty acid supplement use with cardiovascular disease risks: meta-analysis of 10 trials involving 77,917 individuals",
+    "year": 2018
+  },
+  "29676281": {
+    "doi": "10.1016/s0140-6736(18)30134-x",
+    "journal": "Lancet",
+    "pmid": "29676281",
+    "resolved_at": "2026-09-04",
+    "title": "Risk thresholds for alcohol consumption: combined analysis of individual-participant data for 599,912 current drinkers in 83 prospective studies",
+    "year": 2018
+  },
+  "29897866": {
+    "doi": "10.1056/nejmoa1800389",
+    "journal": "The New England Journal of Medicine",
+    "pmid": "29897866",
+    "resolved_at": "2026-09-04",
+    "title": "Primary prevention of cardiovascular disease with a Mediterranean diet supplemented with extra-virgin olive oil or nuts",
+    "year": 2018
+  },
+  "30221595": {
+    "doi": "10.1056/nejmoa1803955",
+    "journal": "The New England Journal of Medicine",
+    "pmid": "30221595",
+    "resolved_at": "2026-09-04",
+    "title": "Effect of aspirin on all-cause mortality in the healthy elderly",
+    "year": 2018
+  },
+  "30415628": {
+    "doi": "10.1056/nejmoa1812792",
+    "journal": "The New England Journal of Medicine",
+    "pmid": "30415628",
+    "resolved_at": "2026-09-04",
+    "title": "Cardiovascular risk reduction with icosapent ethyl for hypertriglyceridemia",
+    "year": 2019
+  },
+  "30415637": {
+    "doi": "10.1056/nejmoa1811403",
+    "journal": "The New England Journal of Medicine",
+    "pmid": "30415637",
+    "resolved_at": "2026-09-04",
+    "title": "Marine n-3 fatty acids and prevention of cardiovascular disease and cancer",
+    "year": 2019
+  },
+  "30955975": {
+    "doi": "10.1016/s0140-6736(18)31772-0",
+    "journal": "Lancet",
+    "pmid": "30955975",
+    "resolved_at": "2026-09-04",
+    "title": "Conventional and genetic evidence on alcohol and vascular disease aetiology: a prospective study of 500,000 men and women in China",
+    "year": 2019
+  },
+  "31434697": {
+    "doi": "10.1136/bmj.l4570",
+    "journal": "BMJ",
+    "pmid": "31434697",
+    "resolved_at": "2026-09-04",
+    "title": "Dose-response associations between accelerometry measured physical activity and sedentary time and all cause mortality: systematic review and harmonised meta-analysis",
+    "year": 2019
+  },
+  "31488267": {
+    "doi": "10.1016/j.jacc.2019.07.022",
+    "journal": "Journal of the American College of Cardiology",
+    "pmid": "31488267",
+    "resolved_at": "2026-09-04",
+    "title": "Sleep duration and myocardial infarction",
+    "year": 2019
+  },
+  "32114706": {
+    "doi": "10.1002/14651858.cd003177.pub5",
+    "journal": "The Cochrane Database of Systematic Reviews",
+    "pmid": "32114706",
+    "resolved_at": "2026-09-04",
+    "title": "Omega-3 fatty acids for the primary and secondary prevention of cardiovascular disease",
+    "year": 2020
+  },
+  "32253185": {
+    "doi": "10.1136/annrheumdis-2020-217176",
+    "journal": "Annals of the Rheumatic Diseases",
+    "pmid": "32253185",
+    "resolved_at": "2026-09-04",
+    "title": "Associations of regular glucosamine use with all-cause and cause-specific mortality: a large prospective cohort study",
+    "year": 2020
+  },
+  "35294962": {
+    "doi": "10.1093/ajcn/nqac055",
+    "journal": "The American Journal of Clinical Nutrition",
+    "pmid": "35294962",
+    "resolved_at": "2026-09-04",
+    "title": "Effect of cocoa flavanol supplementation for prevention of cardiovascular disease events: the COSMOS randomized clinical trial",
+    "year": 2022
+  },
+  "36029480": {
+    "doi": "10.1002/pds.5535",
+    "journal": "Pharmacoepidemiology and Drug Safety",
+    "pmid": "36029480",
+    "resolved_at": "2026-09-04",
+    "title": "Glucosamine and lower mortality and cancer incidence: selection bias in the observational studies",
+    "year": 2022
+  },
+  "37952131": {
+    "doi": "10.1056/nejmoa2307563",
+    "journal": "The New England Journal of Medicine",
+    "pmid": "37952131",
+    "resolved_at": "2026-09-04",
+    "title": "Semaglutide and cardiovascular outcomes in obesity without diabetes",
+    "year": 2023
+  }
+}

@@ -1,1 +1,624 @@
-[]
+- id: arem2015_physical_activity_mortality
+  pmid: "25844730"
+  design: cohort_meta_analysis
+  population: "661,137 adults pooled from six prospective cohorts"
+  exposure: "one to two times the recommended minimum leisure-time physical activity"
+  comparator: "no leisure-time physical activity"
+  endpoint: all_cause_mortality
+  estimate: {type: HR, value: 0.69, ci_low: 0.67, ci_high: 0.70}
+  role: calibration
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "The corresponding HR was 0.69 (95% CI, 0.67-0.70)."'
+
+- id: arem2015_below_minimum_activity_mortality
+  pmid: "25844730"
+  design: cohort_meta_analysis
+  population: "661,137 adults pooled from six prospective cohorts"
+  exposure: "less than the recommended minimum leisure-time physical activity"
+  comparator: "no leisure-time physical activity"
+  endpoint: all_cause_mortality
+  estimate: {type: HR, value: 0.80, ci_low: 0.78, ci_high: 0.82}
+  role: calibration
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "hazard ratio, 0.80; 95% CI, 0.78-0.82."
+'
+
+- id: green2011_sunscreen_melanoma
+  pmid: "21135266"
+  design: rct_standard
+  population: "1,621 Australian adults randomized in a community sunscreen trial"
+  exposure: "daily sunscreen application"
+  comparator: "discretionary sunscreen application"
+  endpoint: invasive_melanoma_incidence
+  estimate: {type: HR, value: 0.50, ci_low: 0.24, ci_high: 1.02}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "hazard ratio [HR], 0.50; 95% CI, 0.24 to 1.02."
+'
+- id: vanderpols2006_sunscreen_scc
+  pmid: "17132769"
+  design: rct_standard
+  population: "Australian adults in the Nambour randomized sunscreen trial follow-up"
+  exposure: "daily sunscreen application"
+  comparator: "discretionary sunscreen application"
+  endpoint: squamous_cell_carcinoma_incidence
+  estimate: {type: RR, value: 0.62, ci_low: 0.38, ci_high: 0.99}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "rate ratio, 0.62; 95% confidence interval, 0.38-0.99."
+'
+- id: manson2019_vital_cvd
+  pmid: "30415637"
+  design: rct_preregistered_hard_endpoint
+  population: "25,871 adults in the VITAL primary-prevention trial"
+  exposure: "1 g daily marine omega-3 fatty acids"
+  comparator: "placebo"
+  endpoint: major_cardiovascular_event
+  estimate: {type: HR, value: 0.92, ci_low: 0.80, ci_high: 1.06}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "hazard ratio, 0.92; 95% confidence interval [CI], 0.80 to 1.06."
+'
+- id: abdelhamid2020_omega3_mortality
+  pmid: "32114706"
+  design: meta_analysis_rcts
+  population: "participants in randomized trials of long-chain omega-3 supplementation"
+  exposure: "increased long-chain omega-3 fatty acids"
+  comparator: "usual or lower omega-3 intake"
+  endpoint: all_cause_mortality
+  estimate: {type: RR, value: 0.97, ci_low: 0.93, ci_high: 1.01}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "little or no effect on all-cause mortality (RR 0.97, 95% CI 0.93 to 1.01)."'
+
+- id: goyal2014_meditation_anxiety
+  pmid: "24395196"
+  design: meta_analysis_rcts
+  population: "3,515 adults in randomized meditation-program trials"
+  exposure: "mindfulness meditation programs"
+  comparator: "active control"
+  endpoint: anxiety_symptoms_at_eight_weeks
+  estimate: {type: SMD, value: 0.38, ci_low: 0.12, ci_high: 0.64}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "anxiety (effect size, 0.38 [95% CI, 0.12-0.64] at 8 weeks)."'
+
+- id: sofi2008_mediterranean_mortality
+  pmid: "18786971"
+  design: cohort_meta_analysis
+  population: "participants in prospective cohorts evaluating Mediterranean-diet adherence"
+  exposure: "two-point increase in Mediterranean-diet adherence score"
+  comparator: "two-point lower adherence score"
+  endpoint: all_cause_mortality
+  estimate: {type: RR, value: 0.91, ci_low: 0.89, ci_high: 0.94}
+  role: calibration
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "pooled relative risk 0.91, 95% confidence interval 0.89 to 0.94."
+'
+- id: stockwell2016_low_volume_alcohol
+  pmid: "26997174"
+  design: cohort_meta_analysis
+  population: "participants in cohort studies of alcohol use and all-cause mortality"
+  exposure: "low-volume alcohol consumption"
+  comparator: "abstinence"
+  endpoint: all_cause_mortality
+  estimate: {type: RR, value: 0.97, ci_low: 0.88, ci_high: 1.07}
+  role: calibration
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "low-volume alcohol consumption conferred no mortality risk benefit (RR = 0.97, 95% CI [0.88, 1.07])."'
+
+- id: yin2017_sleep_mortality
+  pmid: "28889101"
+  design: cohort_meta_analysis
+  population: "participants in prospective cohorts of sleep duration"
+  exposure: "each hour below seven hours of sleep"
+  comparator: "seven hours of sleep"
+  endpoint: all_cause_mortality
+  estimate: {type: RR, value: 1.06, ci_low: 1.04, ci_high: 1.07}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "RR was 1.06 (95% CI, 1.04-1.07) per 1-hour reduction."
+'
+- id: itani2017_short_sleep_mortality
+  pmid: "27743803"
+  design: cohort_meta_analysis
+  population: "participants in prospective cohort studies of short sleep"
+  exposure: "short sleep duration"
+  comparator: "reference sleep duration"
+  endpoint: all_cause_mortality
+  estimate: {type: RR, value: 1.12, ci_low: 1.08, ci_high: 1.16}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "all-cause mortality (RR: 1.12, 95% CI: 1.08-1.16)."'
+
+- id: hamer2008_walking_mortality
+  pmid: "18048441"
+  design: cohort_meta_analysis
+  population: "459,833 participants in prospective walking cohorts"
+  exposure: "highest walking category"
+  comparator: "lowest walking category"
+  endpoint: all_cause_mortality
+  estimate: {type: HR, value: 0.68, ci_low: 0.59, ci_high: 0.78}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "all-cause mortality (HR = 0.68, 95% CI 0.59 to 0.78)."'
+
+- id: holtlunstad2010_social_survival
+  pmid: "20668659"
+  design: cohort_meta_analysis
+  population: "308,849 participants in prospective social-relationship studies"
+  exposure: "stronger social relationships"
+  comparator: "weaker social relationships"
+  endpoint: survival
+  estimate: {type: OR, value: 1.50, ci_low: 1.42, ci_high: 1.59}
+  role: calibration
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "50% increased likelihood of survival (OR = 1.50, 95% CI 1.42 to 1.59)."'
+
+- id: bao2013_nuts_mortality
+  pmid: "24256379"
+  design: cohort_large
+  population: "76,464 women and 42,498 men in two prospective US cohorts"
+  exposure: "nuts seven or more times per week"
+  comparator: "no nut consumption"
+  endpoint: all_cause_mortality
+  estimate: {type: HR, value: 0.80, ci_low: 0.73, ci_high: 0.86}
+  role: calibration
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "hazard ratio, 0.80; 95% CI, 0.73 to 0.86."
+'
+- id: black2015_mindfulness_sleep
+  pmid: "25686304"
+  design: rct_standard
+  population: "49 older adults with moderate sleep disturbances"
+  exposure: "mindfulness-awareness practices intervention"
+  comparator: "sleep-hygiene education"
+  endpoint: pittsburgh_sleep_quality_index_improvement
+  estimate: {type: MD, value: 1.80, ci_low: 0.60, ci_high: 2.90}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "a between-group mean difference of 1.8 (95% CI, 0.6-2.9)."'
+
+- id: lincoff2023_select_mace
+  pmid: "37952131"
+  design: rct_preregistered_hard_endpoint
+  population: "17,604 adults with cardiovascular disease and overweight or obesity without diabetes"
+  exposure: "weekly semaglutide 2.4 mg"
+  comparator: "placebo"
+  endpoint: major_adverse_cardiovascular_event
+  estimate: {type: HR, value: 0.80, ci_low: 0.72, ci_high: 0.90}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "hazard ratio, 0.80; 95% confidence interval, 0.72 to 0.90."
+'
+- id: zinman2015_empareg_mace
+  pmid: "26378978"
+  design: rct_preregistered_hard_endpoint
+  population: "7,020 adults with type 2 diabetes and high cardiovascular risk"
+  exposure: "empagliflozin"
+  comparator: "placebo"
+  endpoint: major_adverse_cardiovascular_event
+  estimate: {type: HR, value: 0.86, ci_low: 0.74, ci_high: 0.99}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "hazard ratio in the empagliflozin group, 0.86; 95.02% confidence interval, 0.74 to 0.99."
+'
+- id: anderson2016_pde5_mortality
+  pmid: "27465053"
+  design: cohort_large
+  population: "men with type 2 diabetes in a retrospective cohort"
+  exposure: "phosphodiesterase type-5 inhibitor use"
+  comparator: "no phosphodiesterase type-5 inhibitor use"
+  endpoint: all_cause_mortality
+  estimate: {type: HR, value: 0.54, ci_low: 0.36, ci_high: 0.80}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "adjusted HR=0.54 (95% CI 0.36 to 0.80)."'
+
+- id: geleijnse2004_k2_mortality
+  pmid: "15514282"
+  design: cohort_large
+  population: "4,807 older adults in the Rotterdam Study"
+  exposure: "middle tertile of dietary menaquinone intake"
+  comparator: "lowest tertile of dietary menaquinone intake"
+  endpoint: all_cause_mortality
+  estimate: {type: RR, value: 0.91, ci_low: 0.75, ci_high: 1.09}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "RRs ... were 0.91 (0.75, 1.09) and 0.74 (0.59, 0.92)."'
+
+- id: mcneil2018_aspree_mortality
+  pmid: "30221595"
+  design: rct_preregistered_hard_endpoint
+  population: "19,114 community-dwelling older adults in ASPREE"
+  exposure: "100 mg daily aspirin"
+  comparator: "placebo"
+  endpoint: all_cause_mortality
+  estimate: {type: HR, value: 1.14, ci_low: 1.01, ci_high: 1.29}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "hazard ratio, 1.14; 95% confidence interval, 1.01 to 1.29."
+'
+- id: thompson2013_pcpt_survival
+  pmid: "23944298"
+  design: rct_preregistered_hard_endpoint
+  population: "18,880 men randomized in the Prostate Cancer Prevention Trial"
+  exposure: "finasteride"
+  comparator: "placebo"
+  endpoint: all_cause_mortality
+  estimate: {type: HR, value: 1.02, ci_low: 0.97, ci_high: 1.08}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "unadjusted hazard ratio, 1.02; 95% confidence interval [CI], 0.97 to 1.08."
+'
+- id: ctt2010_ldl_vascular
+  pmid: "21067804"
+  design: meta_analysis_rcts
+  population: "participants in 26 randomized statin trials"
+  exposure: "1 mmol/L LDL-cholesterol reduction"
+  comparator: "higher LDL cholesterol"
+  endpoint: major_vascular_event
+  estimate: {type: RR, value: 0.78, ci_low: 0.76, ci_high: 0.80}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "rate ratio [RR] 0.78, 95% CI 0.76-0.80; p<0.0001."
+'
+- id: bjelakovic2014_vitamin_d3_mortality
+  pmid: "24414552"
+  design: meta_analysis_rcts
+  population: "participants in randomized vitamin D supplementation trials"
+  exposure: "vitamin D3 supplementation"
+  comparator: "placebo or no intervention"
+  endpoint: all_cause_mortality
+  estimate: {type: RR, value: 0.94, ci_low: 0.91, ci_high: 0.98}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "vitamin D3 ... decreased mortality (RR 0.94, 95% CI 0.91 to 0.98)."'
+
+- id: sesso2022_cosmos_cvd
+  pmid: "35294962"
+  design: rct_preregistered_hard_endpoint
+  population: "21,442 US adults randomized in COSMOS"
+  exposure: "daily cocoa extract supplementation"
+  comparator: "placebo"
+  endpoint: total_cardiovascular_event
+  estimate: {type: HR, value: 0.90, ci_low: 0.78, ci_high: 1.02}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "HR: 0.90; 95% CI: 0.78, 1.02; P = 0.11."
+'
+- id: aune2016_nuts_allcause
+  pmid: "27916000"
+  design: cohort_meta_analysis
+  population: "819,448 participants in prospective studies of nut consumption"
+  exposure: "28 g/day nut consumption"
+  comparator: "no nut consumption"
+  endpoint: all_cause_mortality
+  estimate: {type: RR, value: 0.78, ci_low: 0.72, ci_high: 0.84}
+  role: calibration
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "all-cause mortality, 0.78 (0.72-0.84)."'
+
+- id: psc2009_bmi_mortality
+  pmid: "19299006"
+  design: cohort_meta_analysis
+  population: "894,576 adults in 57 prospective studies"
+  exposure: "5 kg/m2 higher body-mass index above the optimum range"
+  comparator: "5 kg/m2 lower body-mass index"
+  endpoint: all_cause_mortality
+  estimate: {type: HR, value: 1.29, ci_low: 1.27, ci_high: 1.32}
+  role: calibration
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "hazard ratio per 5 kg/m2, 1.29 [95% CI 1.27-1.32]."'
+- id: estruch2018_predimed_evoo_mace
+  pmid: "29897866"
+  design: rct_preregistered_hard_endpoint
+  population: "7,447 adults at high cardiovascular risk in PREDIMED"
+  exposure: "Mediterranean diet supplemented with extra-virgin olive oil"
+  comparator: "advice to reduce dietary fat"
+  endpoint: major_adverse_cardiovascular_event
+  estimate: {type: HR, value: 0.69, ci_low: 0.53, ci_high: 0.91}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "hazard ratio, 0.69; 95% CI, 0.53 to 0.91."
+'
+- id: estruch2018_predimed_nuts_mace
+  pmid: "29897866"
+  design: rct_preregistered_hard_endpoint
+  population: "7,447 adults at high cardiovascular risk in PREDIMED"
+  exposure: "Mediterranean diet supplemented with nuts"
+  comparator: "advice to reduce dietary fat"
+  endpoint: major_adverse_cardiovascular_event
+  estimate: {type: HR, value: 0.72, ci_low: 0.54, ci_high: 0.95}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "hazard ratio, 0.72; 95% CI, 0.54 to 0.95."
+'
+- id: cappuccio2010_short_sleep_mortality
+  pmid: "20469800"
+  design: cohort_meta_analysis
+  population: "1,382,999 participants in prospective sleep cohorts"
+  exposure: "short sleep duration"
+  comparator: "reference sleep duration"
+  endpoint: all_cause_mortality
+  estimate: {type: RR, value: 1.12, ci_low: 1.06, ci_high: 1.18}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "short duration of sleep was associated with a greater risk of death (RR 1.12, 95% CI 1.06-1.18)."'
+
+- id: jha2013_male_smoking_mortality
+  pmid: "23343063"
+  design: cohort_large
+  population: "US adults aged 25 to 79 years in a nationally representative cohort"
+  exposure: "current cigarette smoking among men"
+  comparator: "never smoking"
+  endpoint: all_cause_mortality
+  estimate: {type: HR, value: 2.80, ci_low: 2.40, ci_high: 3.10}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "hazard ratio for men, 2.8; 99% CI, 2.4 to 3.1."'
+- id: aung2018_omega3_vascular
+  pmid: "29387889"
+  design: meta_analysis_rcts
+  population: "77,917 participants in ten randomized omega-3 trials"
+  exposure: "marine-derived omega-3 fatty-acid supplementation"
+  comparator: "control"
+  endpoint: major_vascular_event
+  estimate: {type: RR, value: 0.97, ci_low: 0.93, ci_high: 1.01}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "major vascular events (RR, 0.97; 95% CI, 0.93-1.01; P = .10)."'
+
+- id: ferraciolioda2013_melatonin_sleep_quality
+  pmid: "23691095"
+  design: meta_analysis_rcts
+  population: "participants in randomized trials of primary sleep disorders"
+  exposure: "melatonin"
+  comparator: "placebo"
+  endpoint: sleep_quality
+  estimate: {type: SMD, value: 0.22, ci_low: 0.12, ci_high: 0.32}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "overall sleep quality ... standardized mean difference = 0.22 [95% CI 0.12 to 0.32]."'
+
+- id: li2020_glucosamine_mortality
+  pmid: "32253185"
+  design: cohort_large
+  population: "495,077 UK Biobank participants"
+  exposure: "regular glucosamine use"
+  comparator: "no regular glucosamine use"
+  endpoint: all_cause_mortality
+  estimate: {type: HR, value: 0.85, ci_low: 0.82, ci_high: 0.89}
+  role: transport
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "all-cause mortality (HR 0.85, 95% CI 0.82 to 0.89)."'
+
+- id: fang2016_magnesium_mortality
+  pmid: "27927203"
+  design: cohort_meta_analysis
+  population: "participants in prospective cohorts of dietary magnesium intake"
+  exposure: "100 mg/day higher dietary magnesium intake"
+  comparator: "100 mg/day lower dietary magnesium intake"
+  endpoint: all_cause_mortality
+  estimate: {type: RR, value: 0.90, ci_low: 0.81, ci_high: 0.99}
+  role: transport
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "all-cause mortality (RR: 0.90; 95% CI: 0.81, 0.99)."'
+
+- id: laukkanen2015_sauna_scd
+  pmid: "25705824"
+  design: cohort_large
+  population: "2,315 middle-aged men in eastern Finland"
+  exposure: "four to seven sauna sessions per week"
+  comparator: "one sauna session per week"
+  endpoint: sudden_cardiac_death
+  estimate: {type: HR, value: 0.37, ci_low: 0.18, ci_high: 0.75}
+  role: transport
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "hazard ratio was 0.37 (95% CI, 0.18-0.75) for 4 to 7 sauna sessions per week."
+'
+
+- id: wen2011_low_volume_activity_mortality
+  pmid: "21846575"
+  design: cohort_large
+  population: "416,175 adults in a prospective Taiwanese cohort"
+  exposure: "15 minutes per day of low-volume physical activity"
+  comparator: "inactive"
+  endpoint: all_cause_mortality
+  estimate: {type: HR, value: 0.86, ci_low: 0.81, ci_high: 0.91}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "all-cause mortality was 14% lower (hazard ratio [HR] 0.86, 95% CI 0.81-0.91)."'
+
+- id: bhatt2019_reduceit_primary
+  pmid: "30415628"
+  design: rct_preregistered_hard_endpoint
+  population: "8,179 statin-treated adults with elevated triglycerides and cardiovascular risk"
+  exposure: "4 g daily icosapent ethyl"
+  comparator: "mineral-oil placebo"
+  endpoint: primary_cardiovascular_composite
+  estimate: {type: HR, value: 0.75, ci_low: 0.68, ci_high: 0.83}
+  role: transport
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "hazard ratio, 0.75; 95% confidence interval [CI], 0.68 to 0.83."
+'
+- id: kenfield2008_smoking_mortality
+  pmid: "18460664"
+  design: cohort_large
+  population: "104,519 women in the Nurses Health Study"
+  exposure: "current cigarette smoking"
+  comparator: "never smoking"
+  endpoint: all_cause_mortality
+  estimate: {type: HR, value: 2.81, ci_low: 2.68, ci_high: 2.95}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "current smokers had an increased risk of all-cause mortality (HR, 2.81; 95% CI, 2.68-2.95)."'
+
+- id: cornelissen2013_endurance_sbp
+  pmid: "23525435"
+  design: meta_analysis_rcts
+  population: "participants in randomized controlled trials of exercise training"
+  exposure: "endurance exercise training"
+  comparator: "non-exercise control"
+  endpoint: resting_systolic_blood_pressure_mmhg
+  estimate: {type: MD, value: -3.5, ci_low: -4.6, ci_high: -2.3}
+  role: mechanism
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "Systolic BP was reduced after endurance (-3.5 [-4.6/-2.3] mm Hg)."'
+
+- id: holmes2014_alcohol_chd
+  pmid: "25011450"
+  design: mendelian_randomization
+  population: "261,991 participants in 56 epidemiological studies"
+  exposure: "ADH1B allele associated with lower alcohol consumption"
+  comparator: "non-carriers"
+  endpoint: coronary_heart_disease
+  estimate: {type: OR, value: 0.90, ci_low: 0.84, ci_high: 0.96}
+  role: calibration
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "coronary heart disease (odds ratio 0.90 (0.84 to 0.96))."'
+
+- id: pirie2013_smoking_mortality
+  pmid: "23107252"
+  design: cohort_large
+  population: "1.2 million women in the United Kingdom"
+  exposure: "current cigarette smoking"
+  comparator: "never smoking"
+  endpoint: all_cause_mortality
+  estimate: {type: RR, value: 2.76, ci_low: 2.71, ci_high: 2.81}
+  role: direct
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "mortality rate ratio 2.76, 95% CI 2.71-2.81."
+'
+- id: hupin2015_low_dose_activity_mortality
+  pmid: "26238869"
+  design: cohort_meta_analysis
+  population: "122,417 adults aged 60 years or older in nine prospective cohorts"
+  exposure: "1 to 499 MET-minutes per week of moderate-to-vigorous activity"
+  comparator: "inactive"
+  endpoint: all_cause_mortality
+  estimate: {type: RR, value: 0.78, ci_low: 0.71, ci_high: 0.87}
+  role: calibration
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "RR=0.78 (95% CI 0.71 to 0.87)."'
+
+- id: ekelund2019_activity_mortality
+  pmid: "31434697"
+  design: cohort_meta_analysis
+  population: "36,383 middle-aged and older adults in eight harmonized cohorts"
+  exposure: "second quartile of accelerometer-measured total physical activity"
+  comparator: "least-active quartile"
+  endpoint: all_cause_mortality
+  estimate: {type: HR, value: 0.48, ci_low: 0.43, ci_high: 0.54}
+  role: calibration
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "0.48 (95% confidence interval 0.43 to 0.54) in the second quarter."
+'
+- id: daghlas2019_short_sleep_mi
+  pmid: "31488267"
+  design: mendelian_randomization
+  population: "UK Biobank participants and two-sample genetic association datasets"
+  exposure: "genetic liability to short sleep duration"
+  comparator: "normal sleep duration"
+  endpoint: myocardial_infarction
+  estimate: {type: OR, value: 1.19, ci_low: 1.09, ci_high: 1.29}
+  role: calibration
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "short sleep duration increased risk of incident MI (OR: 1.19; 95% CI: 1.09 to 1.29)."'
+
+- id: millwood2019_alcohol_stroke
+  pmid: "30955975"
+  design: mendelian_randomization
+  population: "512,715 adults in the China Kadoorie Biobank"
+  exposure: "280 g/week higher genotype-predicted alcohol intake"
+  comparator: "lower genotype-predicted alcohol intake"
+  endpoint: intracerebral_hemorrhage
+  estimate: {type: RR, value: 1.58, ci_low: 1.36, ci_high: 1.84}
+  role: calibration
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "relative risk [RR] per 280 g per week 1.58, 95% CI 1.36-1.84."
+'
+- id: wood2018_alcohol_stroke
+  pmid: "29676281"
+  design: cohort_meta_analysis
+  population: "599,912 current drinkers in 83 prospective studies"
+  exposure: "100 g/week higher alcohol consumption"
+  comparator: "100 g/week lower alcohol consumption"
+  endpoint: stroke
+  estimate: {type: HR, value: 1.14, ci_low: 1.10, ci_high: 1.17}
+  role: calibration
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "stroke (hazard ratio [HR] per 100 g per week higher consumption 1.14, 95% CI, 1.10-1.17)."'
+
+- id: zhao2017_alcohol_chd
+  pmid: "28499102"
+  design: cohort_meta_analysis
+  population: "participants in 45 cohort studies of alcohol use and coronary mortality"
+  exposure: "current low-volume alcohol consumption"
+  comparator: "abstinence"
+  endpoint: coronary_heart_disease_mortality
+  estimate: {type: RR, value: 0.80, ci_low: 0.69, ci_high: 0.93}
+  role: calibration
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "relative risk [RR] = 0.80, 95% CI [0.69, 0.93]."'
+
+- id: suissa2022_glucosamine_selection_bias
+  pmid: "36029480"
+  design: cohort_meta_analysis
+  population: "11 observational studies of glucosamine use"
+  exposure: "prevalent glucosamine use"
+  comparator: "no prevalent glucosamine use"
+  endpoint: all_cause_mortality
+  estimate: {type: HR, value: 0.84, ci_low: 0.81, ci_high: 0.87}
+  role: calibration
+  extracted_by: "Codex PR D lane 2026-09-04"
+  verified: 2026-09-04
+  notes: 'Abstract: "hazard ratio [HR] 0.84, 95% CI: 0.81-0.87."
+'
