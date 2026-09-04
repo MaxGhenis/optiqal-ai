@@ -25,6 +25,9 @@ INTERVENTIONS_DIR = (
 
 #: Seeds at which the quality and log-hazard-ratio streams were formerly identical.
 INDEPENDENCE_SEEDS = (42, 1, 7)
+#: Fixed reference seeds, so the seeded-versus-independent comparison below is
+#: reproducible run to run instead of redrawing from the OS entropy pool.
+REFERENCE_SEEDS = (101, 102, 103, 104, 105, 106, 107, 108, 109, 110)
 
 
 @pytest.fixture
@@ -424,27 +427,36 @@ def test_seeded_walking_mean_matches_independent_runs_within_mc_error(
     walking: Intervention,
     default_profile: Profile,
 ):
+    """Seed 42 is not a lucky draw: it sits within Monte Carlo error of others.
+
+    The reference arm formerly redrew from the OS entropy pool on every run, so
+    a three-sigma bound failed roughly one run in a few hundred for reasons no
+    code change caused. Ten fixed seeds keep the same comparison and make the
+    outcome reproducible.
+    """
     n_simulations = 20_000
+    assert 42 not in REFERENCE_SEEDS
     seeded = simulate_qaly_profile_vectorized(
         walking,
         default_profile,
         n_simulations=n_simulations,
         random_state=42,
     )
-    unseeded = [
+    reference = [
         simulate_qaly_profile_vectorized(
             walking,
             default_profile,
             n_simulations=n_simulations,
+            random_state=seed,
         )
-        for _ in range(10)
+        for seed in REFERENCE_SEEDS
     ]
 
-    unseeded_mean = float(np.mean([result.mean for result in unseeded]))
+    reference_mean = float(np.mean([result.mean for result in reference]))
     seeded_variance = seeded.std**2 / n_simulations
-    unseeded_mean_variance = (
-        float(np.mean([result.std**2 / n_simulations for result in unseeded])) / 10
-    )
-    three_standard_errors = 3 * np.sqrt(seeded_variance + unseeded_mean_variance)
+    reference_mean_variance = float(
+        np.mean([result.std**2 / n_simulations for result in reference])
+    ) / len(REFERENCE_SEEDS)
+    three_standard_errors = 3 * np.sqrt(seeded_variance + reference_mean_variance)
 
-    assert abs(seeded.mean - unseeded_mean) <= three_standard_errors
+    assert abs(seeded.mean - reference_mean) <= three_standard_errors

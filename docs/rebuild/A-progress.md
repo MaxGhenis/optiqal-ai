@@ -62,6 +62,11 @@ State: fixing the read-only review findings in place on `rebuild/a-rng-priors`.
   `override_hr=0.85` moved from 0.0 to 0.104779 QALY, the no-override ADD decision
   stays exactly 0.0, and a 1.0 override stays exactly 0.0.
 
+- Item 8 (nice to have): the seeded-versus-independent walking comparison now draws
+  its ten reference runs from fixed seeds 101-110 instead of the OS entropy pool.
+  Seeded mean 0.101699, reference mean 0.102334, gap 0.000635 against a three-sigma
+  bound of 0.002199 (0.29 of the bound).
+
 ### Next
 
-- Item 8: de-flake the seeded-versus-unseeded walking comparison.
+- Item 3: rewrite the walking and Mediterranean-diet rationales and calibration sources.
