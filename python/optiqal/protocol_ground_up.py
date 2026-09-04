@@ -1250,9 +1250,10 @@ def sample_qol_component_draws(
     item_id: str,
     component: str,
     evidence_quality: str | None,
-    n_simulations: int = N_SIMULATIONS,
+    n_simulations: int | None = None,
 ) -> np.ndarray:
     """Sample QOL overlay uncertainty while preserving the authored mean."""
+    n_simulations = N_SIMULATIONS if n_simulations is None else n_simulations
     if abs(mean_qaly) <= 1e-12:
         return np.zeros(n_simulations)
     relative_sd = qol_uncertainty_relative_sd(evidence_quality)
@@ -1272,7 +1273,7 @@ def _evidence_scaled_draws(
     component: str,
     evidence_quality: str | None,
     evidence: QolEvidence | None,
-    n_simulations: int = N_SIMULATIONS,
+    n_simulations: int | None = None,
 ) -> np.ndarray:
     """QoL draws around an evidence-guarded mean, with transport-prior spread.
 
@@ -1281,6 +1282,7 @@ def _evidence_scaled_draws(
     transport) uncertainty on top of the effect-size noise; draws are then
     recentered so the reported mean stays the deterministic guarded value.
     """
+    n_simulations = N_SIMULATIONS if n_simulations is None else n_simulations
     base = sample_qol_component_draws(
         mean_qaly,
         item_id=item_id,
@@ -1308,8 +1310,12 @@ def _standardize_draws(draws: np.ndarray) -> np.ndarray:
     return (standardized - float(np.mean(standardized))) / sd
 
 
-def latent_protocol_factor(name: str, n_simulations: int = N_SIMULATIONS) -> np.ndarray:
+def latent_protocol_factor(
+    name: str,
+    n_simulations: int | None = None,
+) -> np.ndarray:
     """Stable latent-world factor used to pair protocol-state counterfactuals."""
+    n_simulations = N_SIMULATIONS if n_simulations is None else n_simulations
     rng = np.random.default_rng(stable_random_seed("protocol_latent", name))
     return _standardize_draws(rng.normal(size=n_simulations))
 
@@ -1317,8 +1323,9 @@ def latent_protocol_factor(name: str, n_simulations: int = N_SIMULATIONS) -> np.
 def _combined_latent_mechanism_factor(
     item_id: str,
     entry: CatalogEntry,
-    n_simulations: int = N_SIMULATIONS,
+    n_simulations: int | None = None,
 ) -> np.ndarray | None:
+    n_simulations = N_SIMULATIONS if n_simulations is None else n_simulations
     tags = [f"benefit:{tag}" for tag in sorted(set(entry.benefit_tags))]
     tags.extend(f"interaction:{tag}" for tag in sorted(set(entry.interaction_tags)))
     if not tags:
@@ -1330,7 +1337,7 @@ def _combined_latent_mechanism_factor(
 def latent_protocol_item_score(
     item_id: str,
     entry: CatalogEntry | None = None,
-    n_simulations: int = N_SIMULATIONS,
+    n_simulations: int | None = None,
 ) -> np.ndarray:
     """Return the latent-world ordering score for one protocol item.
 
@@ -1338,6 +1345,7 @@ def latent_protocol_item_score(
     The score is intentionally shared across related items through global,
     mechanism, and category factors, with item-specific residual variation.
     """
+    n_simulations = N_SIMULATIONS if n_simulations is None else n_simulations
     entry = entry or CATALOG[item_id]
     weighted_components: list[tuple[float, np.ndarray]] = [
         (

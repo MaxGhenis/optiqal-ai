@@ -20,6 +20,7 @@ Implementation in progress on `rebuild/a-rng-priors`.
 - Corrected the exercise-prior interval and tail, the protective E-value formula, both reported E-values, and the sensitivity-analysis label through executable paper values.
 - Ran the model-regression rebaseline exactly once and recorded mortality-bearing and QoL-only comparison values.
 - Rebased the optimizer sign regression: aspirin remains a negative drop case, while vitamin D is now a positive keep case under independent streams.
+- Made protocol draw-count defaults resolve at call time so the end-to-end shape/I/O smoke test can use 1,000 draws while production remains at 40,000.
 
 ## Next
 

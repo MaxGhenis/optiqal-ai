@@ -1521,8 +1521,9 @@ def test_no_mix_component_carries_a_mortality_signal():
     assert gluc["sources"]
 
 
-def test_main_runs_to_temp_dir_and_writes_valid_outputs(tmp_path):
+def test_main_runs_to_temp_dir_and_writes_valid_outputs(tmp_path, monkeypatch):
     """End-to-end: main() writes parseable JSON + non-empty Markdown."""
+    monkeypatch.setattr(protocol_ground_up, "N_SIMULATIONS", 1_000)
     out_json = tmp_path / "protocol-ground-up.json"
     out_md = tmp_path / "protocol-ground-up.md"
     context = replace(
