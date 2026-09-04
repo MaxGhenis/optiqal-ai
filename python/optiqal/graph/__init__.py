@@ -1,5 +1,6 @@
 """Content-addressed computation graphs for Optiqal."""
 
+from .canonical import canonical_json, normative, sha256_domain
 from .decl import (
     DESCRIPTIVE_FIELDS,
     GATE_OUTCOMES,
@@ -36,6 +37,8 @@ from .kernel import (
     Tolerance,
     source_hash,
 )
+from .keys import artifact_key, node_key, platform_fingerprint, seed, source_key
+from .store import ContentStore, ResumePolicy, StoredResult
 
 __all__ = [
     "DESCRIPTIVE_FIELDS",
@@ -44,6 +47,7 @@ __all__ = [
     "TIERS",
     "Capabilities",
     "CompiledGraph",
+    "ContentStore",
     "Determinism",
     "Graph",
     "GraphError",
@@ -61,11 +65,21 @@ __all__ = [
     "Numeric",
     "NumericScope",
     "Param",
+    "ResumePolicy",
     "SourceRef",
     "StoreCorruptError",
     "StoreMissError",
     "StoreUnavailableError",
+    "StoredResult",
     "Tolerance",
+    "artifact_key",
+    "canonical_json",
     "compile_graph",
+    "node_key",
+    "normative",
+    "platform_fingerprint",
+    "seed",
+    "sha256_domain",
     "source_hash",
+    "source_key",
 ]

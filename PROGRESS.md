@@ -2,8 +2,8 @@
 
 ## State
 
-In progress on `rebuild/i-graph`. The frozen declaration and kernel interfaces are
-implemented, tested, formatted, and locked. Runtime identity and storage are next.
+In progress on `rebuild/i-graph`. The frozen interface plus canonical identity and atomic
+content storage are implemented and focused tests pass. Manifest execution is next.
 
 ## Done
 
@@ -19,10 +19,16 @@ implemented, tested, formatted, and locked. Runtime identity and storage are nex
   scope, context, result, protocol, registry, and source-hash contracts.
 - Added deliberate interface validation/error tests (24 passing) and recorded the canonical
   interface hash in `docs/rebuild/graph-interface.lock`.
+- Implemented canonical JSON with domain-separated hashing, NumPy dtype/shape/base64
+  encoding, and strict rejection of non-finite or unsupported values.
+- Implemented source, node, artifact, seed, and platform identities with declared-input-only
+  factorization.
+- Implemented `ContentStore` at the required sharded path with JSON and artifact checksums,
+  atomic visibility, corruption/miss separation, and NumPy restoration (17 focused tests
+  passing).
 
 ## Next
 
-- Implement canonical encoding, keys, and the atomic content store with corruption tests.
 - Implement the manifest and executor with gates, tiers, numerics, and resume policies.
 - Implement source loaders, the toy graph, views, and the explorer CLI.
 - Run all requested verification and record the three toy-run outputs.
