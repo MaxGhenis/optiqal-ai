@@ -307,26 +307,117 @@ def test_point_null_hr_is_exactly_zero_on_every_simulator(default_profile: Profi
     assert profile_loop.mean == 0.0
 
 
+def _analyze_hiit(default_profile: Profile, decision: Decision):
+    """Run one decision against the QoL-only ``hiit_2x_week`` entry."""
+    entry = CATALOG["hiit_2x_week"]
+    assert not entry.has_direct_mortality_effect
+    return analyze(
+        AnalysisConfig(
+            profile=default_profile,
+            n_simulations=1_000,
+            random_state=42,
+        ),
+        decisions=[decision],
+        catalog_entries={entry.id: entry},
+    )
+
+
 def test_catalog_null_mortality_is_exact_through_analyzer(default_profile: Profile):
     entry = CATALOG["hiit_2x_week"]
+    result = _analyze_hiit(
+        default_profile,
+        Decision(type="add", item_id=entry.id, label=f"ADD: {entry.name}"),
+    )
+
+    assert result.item_results_by_id[entry.id]["mort_qaly"] == 0.0
+    assert result.decisions[0]["mort_qaly"] == 0.0
+
+
+def test_qol_only_item_keeps_its_mortality_arm_under_an_hr_override(
+    default_profile: Profile,
+):
+    """An explicit ``override_hr`` is a mortality claim about the adjusted item.
+
+    ``hiit_2x_week`` carries ``has_direct_mortality_effect=False``, so both the
+    catalog path and an un-overridden decision are exactly zero. A decision that
+    supplies a hazard ratio is asking what the item would be worth carrying that
+    hazard ratio, so the decision path must simulate the arm instead of dropping
+    it. Before this fix the override was computed and then discarded, and the
+    decision returned exactly 0.0.
+    """
+    entry = CATALOG["hiit_2x_week"]
+    overridden = _analyze_hiit(
+        default_profile,
+        Decision(
+            type="adjust",
+            item_id=entry.id,
+            label=f"ADJUST: {entry.name}",
+            override_hr=0.85,
+        ),
+    )
+
+    decision = overridden.decisions[0]
+    assert decision["mort_qaly"] > 0.0
+    assert decision["posterior_hr"] < 1.0
+    # The catalog leg is untouched: only the decision asked for a hazard ratio.
+    assert overridden.item_results_by_id[entry.id]["mort_qaly"] == 0.0
+
+
+def test_qol_only_item_keeps_its_mortality_arm_under_an_added_hr_override(
+    default_profile: Profile,
+):
+    """The ADD branch computes an overridden hazard ratio the same way."""
+    entry = CATALOG["hiit_2x_week"]
+    added = _analyze_hiit(
+        default_profile,
+        Decision(
+            type="add",
+            item_id=entry.id,
+            label=f"ADD: {entry.name}",
+            override_hr=0.85,
+        ),
+    )
+
+    assert added.decisions[0]["mort_qaly"] > 0.0
+    assert added.decisions[0]["posterior_hr"] < 1.0
+
+
+def test_qol_only_item_stays_exactly_zero_for_a_null_hr_override(
+    default_profile: Profile,
+):
+    """An override of exactly 1.0 is still a null arm and must stay exact."""
+    entry = CATALOG["hiit_2x_week"]
+    result = _analyze_hiit(
+        default_profile,
+        Decision(
+            type="adjust",
+            item_id=entry.id,
+            label=f"ADJUST: {entry.name}",
+            override_hr=1.0,
+        ),
+    )
+
+    assert result.decisions[0]["mort_qaly"] == 0.0
+    assert result.decisions[0]["posterior_hr"] == 1.0
+
+
+def test_mortality_bearing_item_is_unaffected_by_the_override_gate(
+    default_profile: Profile,
+):
+    """An entry that already claims mortality keeps its arm with no override."""
+    entry = CATALOG["statin_5mg"]
+    assert entry.has_direct_mortality_effect
     result = analyze(
         AnalysisConfig(
             profile=default_profile,
             n_simulations=1_000,
             random_state=42,
         ),
-        decisions=[
-            Decision(
-                type="add",
-                item_id=entry.id,
-                label=f"ADD: {entry.name}",
-            )
-        ],
+        decisions=[Decision(type="add", item_id=entry.id, label=f"ADD: {entry.name}")],
         catalog_entries={entry.id: entry},
     )
 
-    assert result.item_results_by_id[entry.id]["mort_qaly"] == 0.0
-    assert result.decisions[0]["mort_qaly"] == 0.0
+    assert result.decisions[0]["mort_qaly"] != 0.0
 
 
 def test_seeded_walking_mean_matches_independent_runs_within_mc_error(

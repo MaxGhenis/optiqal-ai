@@ -123,6 +123,22 @@ class AnalysisResult:
         return self.total_qaly * 365.25
 
 
+def _decision_has_mortality_arm(entry: CatalogEntry, decision: Decision) -> bool:
+    """Whether the item a decision simulates carries a direct mortality arm.
+
+    A QoL-only catalog entry carries none, so its mortality leg is exactly zero.
+    An explicit ``override_hr`` is a mortality claim about the adjusted item, so
+    a non-null override restores an arm the entry does not itself have; an
+    override of exactly 1.0 is still null and stays exact. The DROP branch never
+    reads ``override_hr``, so it keeps the entry's own flag.
+    """
+    if entry.has_direct_mortality_effect:
+        return True
+    if decision.type == "drop":
+        return False
+    return decision.override_hr is not None and decision.override_hr != 1.0
+
+
 def _simulate_one(
     name: str,
     hr: float,
@@ -261,7 +277,7 @@ def evaluate_decisions(
                 entry.log_sd,
                 entry.conf_alpha,
                 entry.conf_beta,
-                entry.has_direct_mortality_effect,
+                _decision_has_mortality_arm(entry, d),
                 cost,
                 qol,
                 entry.qol_years,
@@ -285,7 +301,7 @@ def evaluate_decisions(
                 entry.log_sd,
                 entry.conf_alpha,
                 entry.conf_beta,
-                entry.has_direct_mortality_effect,
+                _decision_has_mortality_arm(entry, d),
                 -entry.annual_cost,  # Savings
                 -entry.effective_qol_annual(),  # Lose QoL benefit
                 entry.qol_years,
@@ -317,7 +333,7 @@ def evaluate_decisions(
                 entry.log_sd,
                 entry.conf_alpha,
                 entry.conf_beta,
-                entry.has_direct_mortality_effect,
+                _decision_has_mortality_arm(entry, d),
                 cost,
                 qol,
                 entry.qol_years,

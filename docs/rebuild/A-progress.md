@@ -55,6 +55,13 @@ State: fixing the read-only review findings in place on `rebuild/a-rng-priors`.
   Confirmed by experiment that the rewritten test fails when the four-line coupling is
   restored in `simulate_qaly_profile_vectorized` (4 failures) and passes on the branch.
 
+- Applied `ruff format` to the four files the branch left unformatted.
+- Item 2: `_decision_has_mortality_arm` restores the mortality arm on the decisions
+  path when a decision supplies an `override_hr` other than 1.0. Measured at n=1,000,
+  seed 42, the 45-year-old male never-smoker profile: `hiit_2x_week` with
+  `override_hr=0.85` moved from 0.0 to 0.104779 QALY, the no-override ADD decision
+  stays exactly 0.0, and a 1.0 override stays exactly 0.0.
+
 ### Next
 
-- Item 2: build the mortality arm on the decisions path when `override_hr` is not 1.0.
+- Item 8: de-flake the seeded-versus-unseeded walking comparison.
