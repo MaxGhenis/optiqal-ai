@@ -343,6 +343,18 @@ def test_manifest_constructors_validate_every_portable_field():
         replace(base, value={"tier": "certified"})
     with pytest.raises(ValueError, match="verification_state"):
         replace(base, receipt={"verification_state": "sourced"})
+    with pytest.raises(ValueError, match="tier"):
+        replace(base, value={"nested": [{"tier": "certified"}]})
+    with pytest.raises(ValueError, match="verification_state"):
+        replace(base, receipt={"nested": {"verification_state": "sourced"}})
+    with pytest.raises(ValueError, match="verification_state"):
+        replace(
+            _manifest().node("gate"),
+            receipt={
+                "outcome": "pass",
+                "evidence": {"verification_state": "sourced"},
+            },
+        )
 
     manifest = _manifest()
     for changes in (

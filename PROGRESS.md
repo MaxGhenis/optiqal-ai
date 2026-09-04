@@ -62,6 +62,8 @@ independent audit is addressing one fallback-source semantic defect before final
   descendant miss set, in `FINAL_REPORT.md`.
 - Corrected the pre-PR-A study-quality fallback to convert the legacy shrinkage fraction to
   PR A's normative retention value, preserving its meaning across the optional-module boundary.
+- Closed nested provenance-field bypasses so only the root of a gate receipt may carry
+  `verification_state` and no kernel-authored value or receipt may carry `tier`.
 
 ## Next
 

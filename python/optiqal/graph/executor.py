@@ -38,7 +38,7 @@ from .kernel import (
     Tolerance,
 )
 from .keys import _source_projection, artifact_key, node_key, seed, source_key
-from .manifest import NodeReceipt, RunManifest
+from .manifest import NodeReceipt, RunManifest, _reserved_field
 from .store import ContentStore, ResumePolicy, StoredResult
 
 __all__ = ["run_graph"]
@@ -283,34 +283,49 @@ def _validate_result(node: Node, result: object) -> KernelResult:
             f"Kernel {node.kernel!r} returned {type(result).__name__}, "
             "not KernelResult."
         )
-    if "tier" in result.receipt or (
-        isinstance(result.value, Mapping) and "tier" in result.value
-    ):
-        raise NodeRejectedError(f"Kernel {node.kernel!r} may not set tier.")
-    if isinstance(result.value, Mapping) and "verification_state" in result.value:
+    value = _canonical_copy(result.value, f"Node {node.id!r} value")
+    receipt = _canonical_copy(result.receipt, f"Node {node.id!r} receipt")
+    if not isinstance(receipt, Mapping):  # pragma: no cover - KernelResult guards it
+        raise NodeRejectedError(f"Node {node.id!r} receipt is not a mapping.")
+    value_reserved = _reserved_field(
+        value,
+        frozenset({"tier", "verification_state"}),
+        path="value",
+    )
+    receipt_reserved = _reserved_field(
+        receipt,
+        frozenset({"tier", "verification_state"}),
+        path="receipt",
+        allowed_here=(
+            frozenset({"verification_state"}) if node.role == "gate" else frozenset()
+        ),
+    )
+    reserved = value_reserved or receipt_reserved
+    if reserved is not None:
+        name, path = reserved
+        if name == "tier":
+            raise NodeRejectedError(
+                f"Kernel {node.kernel!r} may not set tier at {path}."
+            )
         raise NodeRejectedError(
-            f"Kernel {node.kernel!r} may only set verification_state in a gate receipt."
-        )
-    if node.role != "gate" and "verification_state" in result.receipt:
-        raise NodeRejectedError(
-            f"Kernel {node.kernel!r} may only set verification_state in a gate receipt."
+            f"Kernel {node.kernel!r} may only set verification_state at the "
+            f"root of a gate receipt, not {path}."
         )
     if node.role == "gate":
-        if "outcome" not in result.receipt or "evidence" not in result.receipt:
+        if "outcome" not in receipt or "evidence" not in receipt:
             raise NodeRejectedError(
                 f"Gate {node.id!r} must record outcome and evidence."
             )
-        outcome = result.receipt["outcome"]
+        outcome = receipt["outcome"]
         if outcome not in GATE_OUTCOMES:
             raise NodeRejectedError(
                 f"Gate {node.id!r} returned invalid outcome {outcome!r}."
             )
-        verification = result.receipt.get("verification_state")
-        if verification is not None and verification not in {
-            "sourced",
-            "authored",
-            "heuristic",
-        }:
+        verification = receipt.get("verification_state")
+        if verification is not None and (
+            not isinstance(verification, str)
+            or verification not in {"sourced", "authored", "heuristic"}
+        ):
             raise NodeRejectedError(
                 f"Gate {node.id!r} returned invalid verification state "
                 f"{verification!r}."
@@ -319,10 +334,6 @@ def _validate_result(node: Node, result: object) -> KernelResult:
             raise NodeRejectedError(
                 f"Evidence gate {node.id!r} must record verification_state."
             )
-    value = _canonical_copy(result.value, f"Node {node.id!r} value")
-    receipt = _canonical_copy(result.receipt, f"Node {node.id!r} receipt")
-    if not isinstance(receipt, Mapping):  # pragma: no cover - KernelResult guards it
-        raise NodeRejectedError(f"Node {node.id!r} receipt is not a mapping.")
     return KernelResult(value=value, receipt=receipt, artifacts=result.artifacts)
 
 

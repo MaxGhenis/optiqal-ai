@@ -37,6 +37,35 @@ _KEY = re.compile(r"[0-9a-f]{64}\Z")
 _VERIFICATION_STATES = frozenset({"sourced", "authored", "heuristic"})
 
 
+def _reserved_field(
+    value: object,
+    forbidden: frozenset[str],
+    *,
+    path: str,
+    allowed_here: frozenset[str] = frozenset(),
+) -> tuple[str, str] | None:
+    """Return the first recursively reserved mapping field and its path."""
+
+    if isinstance(value, Mapping):
+        for key, child in value.items():
+            child_path = f"{path}.{key}"
+            if key in forbidden and key not in allowed_here:
+                return key, child_path
+            found = _reserved_field(child, forbidden, path=child_path)
+            if found is not None:
+                return found
+    elif isinstance(value, (list, tuple)):
+        for index, child in enumerate(value):
+            found = _reserved_field(
+                child,
+                forbidden,
+                path=f"{path}[{index}]",
+            )
+            if found is not None:
+                return found
+    return None
+
+
 def _freeze(value: object) -> object:
     """Detach canonical values into recursively immutable containers."""
 
@@ -240,14 +269,36 @@ class NodeReceipt:
         frozen_value = _freeze(self.value)
         object.__setattr__(self, "receipt", frozen_receipt)
         object.__setattr__(self, "value", frozen_value)
-        if "tier" in frozen_receipt or (
-            isinstance(frozen_value, Mapping) and "tier" in frozen_value
-        ):
-            raise ValueError("Kernel receipts may not set tier")
-        if isinstance(frozen_value, Mapping) and "verification_state" in frozen_value:
-            raise ValueError("verification_state may only appear in a gate receipt")
-        if self.capabilities.role != "gate" and "verification_state" in frozen_receipt:
-            raise ValueError("verification_state may only appear in a gate receipt")
+        value_reserved = _reserved_field(
+            frozen_value,
+            frozenset({"tier", "verification_state"}),
+            path="value",
+        )
+        if value_reserved is not None:
+            name, path = value_reserved
+            if name == "tier":
+                raise ValueError(f"Kernel values may not set tier at {path}")
+            raise ValueError(
+                f"verification_state may only appear in a gate receipt, not {path}"
+            )
+        receipt_reserved = _reserved_field(
+            frozen_receipt,
+            frozenset({"tier", "verification_state"}),
+            path="receipt",
+            allowed_here=(
+                frozenset({"verification_state"})
+                if self.capabilities.role == "gate"
+                else frozenset()
+            ),
+        )
+        if receipt_reserved is not None:
+            name, path = receipt_reserved
+            if name == "tier":
+                raise ValueError(f"Kernel receipts may not set tier at {path}")
+            raise ValueError(
+                f"verification_state may only appear at the root of a gate receipt, "
+                f"not {path}"
+            )
         if self.capabilities.role == "gate":
             if "outcome" not in frozen_receipt or "evidence" not in frozen_receipt:
                 raise ValueError("A gate receipt requires outcome and evidence")
@@ -257,7 +308,10 @@ class NodeReceipt:
                     f"got {frozen_receipt['outcome']!r}"
                 )
             verification = frozen_receipt.get("verification_state")
-            if verification is not None and verification not in _VERIFICATION_STATES:
+            if verification is not None and (
+                not isinstance(verification, str)
+                or verification not in _VERIFICATION_STATES
+            ):
                 raise ValueError("A gate receipt has an invalid verification state")
             if self.kernel_ref == "evidence_gate@1" and verification is None:
                 raise ValueError(
@@ -665,9 +719,9 @@ class RunManifest:
                 if "evidence" not in receipt.receipt:
                     raise ManifestError(f"Gate {node.id!r} has no evidence.")
                 verification = receipt.receipt.get("verification_state")
-                if (
-                    verification is not None
-                    and verification not in _VERIFICATION_STATES
+                if verification is not None and (
+                    not isinstance(verification, str)
+                    or verification not in _VERIFICATION_STATES
                 ):
                     raise ManifestError(
                         f"Gate {node.id!r} has invalid verification state."

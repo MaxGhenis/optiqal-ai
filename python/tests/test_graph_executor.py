@@ -252,6 +252,16 @@ def test_raising_gate_becomes_cached_failure_but_compute_exception_aborts(tmp_pa
             "may not set tier",
         ),
         (
+            KernelResult(
+                None,
+                {
+                    "outcome": "pass",
+                    "evidence": {"nested": {"tier": "certified"}},
+                },
+            ),
+            "may not set tier",
+        ),
+        (
             KernelResult(float("nan"), {"outcome": "pass", "evidence": None}),
             "not canonical",
         ),
@@ -270,6 +280,8 @@ def test_invalid_gate_results_are_rejected(tmp_path, bad_result, message):
         KernelResult(None, {"tier": "certified"}),
         KernelResult({"verification_state": "sourced"}),
         KernelResult(None, {"verification_state": "sourced"}),
+        KernelResult({"nested": {"tier": "certified"}}),
+        KernelResult(None, {"nested": {"verification_state": "sourced"}}),
     ),
 )
 def test_compute_kernels_cannot_author_tiers_or_verification_state(tmp_path, result):
