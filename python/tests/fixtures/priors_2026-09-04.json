@@ -19,7 +19,7 @@
           "Finnish Twin Cohort 2024 (twin discordance)",
           "Mendelian randomization studies (null for mortality)"
         ],
-        "rationale": "CALIBRATED: RCTs show exercise does not reduce mortality (Ballin 2021, n=50k). Finnish Twin Cohort 2024: identical twins discordant for PA show no mortality difference. Beta(1.2, 6.0) → mean 17%, 95% CI: 2-45%",
+        "rationale": "CALIBRATED: RCTs show exercise does not reduce mortality (Ballin 2021, n=50k). Finnish Twin Cohort 2024: identical twins discordant for PA show no mortality difference. Beta(1.2, 6.0) → mean 17%, 95% CI: 0.8-49.0%",
         "source": "Category-specific confounding priors calibrated against actual RCT versus observational discrepancies: exercise uses Ballin 2021 and the Finnish Twin Cohort; diet uses PREDIMED; medical uses the statin observational-versus-RCT discrepancy. Exercise: VERY skeptical - RCTs and twin studies show ~0 causal effect."
       },
       "medical": {

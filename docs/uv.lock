@@ -1130,6 +1130,7 @@ dependencies = [
     { name = "ipykernel" },
     { name = "jupyter" },
     { name = "mystmd" },
+    { name = "pyyaml" },
 ]
 
 [package.metadata]
@@ -1137,6 +1138,7 @@ requires-dist = [
     { name = "ipykernel", specifier = ">=6.0" },
     { name = "jupyter", specifier = ">=1.0" },
     { name = "mystmd", specifier = ">=1.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
 ]
 
 [package.metadata.requires-dev]

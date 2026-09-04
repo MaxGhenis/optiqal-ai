@@ -298,7 +298,7 @@ Weighted average: ~0.33 of observational effect is causal.
 
 ### F.2 E-value Analysis
 
-For observed HR = 0.70, the E-value is 2.22—meaning unmeasured confounding would need HR ≥ 2.22 with both exposure AND outcome to fully explain the association. Given typical confounder strengths of 1.3-1.8, substantial causal effect likely remains.
+For observed HR = 0.70, the E-value is {eval}`r.exercise_e_value`—meaning unmeasured confounding would need that risk-ratio association with both exposure AND outcome to fully explain the association. Given typical confounder strengths of 1.3-1.8, substantial causal effect likely remains.
 
 ### F.3 Within-Sibling Designs
 

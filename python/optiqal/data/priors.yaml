@@ -13,7 +13,7 @@ confounding:
       rationale: >-
         CALIBRATED: RCTs show exercise does not reduce mortality (Ballin 2021, n=50k).
         Finnish Twin Cohort 2024: identical twins discordant for PA show no mortality difference.
-        Beta(1.2, 6.0) → mean 17%, 95% CI: 2-45%
+        Beta(1.2, 6.0) → mean 17%, 95% CI: 0.8-49.0%
       calibration_sources:
         - Ballin et al. 2021 (RCT critical review, n=50k)
         - Finnish Twin Cohort 2024 (twin discordance)

@@ -126,7 +126,7 @@ $$
 **Exercise interventions** (walking, moderate exercise):
 - Prior: $\text{Beta}(1.2, 6.0)$
 - Mean causal fraction: 17%
-- 95% CI: [2%, 45%]
+- 95% CI: [0.8%, 49.0%]
 - **Rationale**: RCTs show minimal causal effect on mortality (Ballin et al., 2021, n=50,000). Finnish Twin Cohort study of identical twins discordant for physical activity found no mortality difference (2024). Mendelian randomization studies show null effects. Strong healthy user bias in observational studies.
 - **Calibration sources**: Ballin et al. 2021 (RCT critical review); Finnish Twin Cohort 2024; Hamer & Stamatakis 2012 (sibling comparison); Ekelund et al. 2019 (device-measured activity)
 
@@ -191,8 +191,8 @@ For each intervention, the framework samples from both the hazard ratio distribu
 This propagates both epistemic uncertainty (parameter uncertainty) and causal uncertainty (confounding) into final estimates.
 
 Note: the Beta parameters in this section are the live values in
-`optiqal/confounding.py`. That file is canonical; if the two ever disagree,
-the code wins and this document is stale.
+`python/optiqal/data/priors.yaml`. That file is canonical; if the two ever
+disagree, the registry wins and this document is stale.
 
 ## Quality-of-Life Evidence Guarding
 
