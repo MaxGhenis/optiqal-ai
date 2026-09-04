@@ -76,6 +76,13 @@ State: fixing the read-only review findings in place on `rebuild/a-rng-priors`.
   ~0.33" conclusion, corrected the adjacent within-sibling paragraph, and restated the
   paper's exercise-prior derivation sentence against the registry's recorded sources.
 
+- Item 5 (first half) and item 10: `REBUILD.md`'s PR A notes now list the eight
+  item-level overrides with their category values, explain why the question is only
+  well formed for the ten shipped-YAML ids, say that the drift test compares against
+  `priors.yaml` rather than the category so it cannot see the divergence, and correct
+  the protocol prior count from 76 to 77 (61 of the 75 non-branch keys differ from the
+  catalog value, 63 of 77 counting the two semaglutide branches).
+
 ### Next
 
-- Item 5 (first half): list the eight item-level prior overrides in `REBUILD.md`.
+- Item 4: add the three missing facts to `PR_A_REPORT.md`.
