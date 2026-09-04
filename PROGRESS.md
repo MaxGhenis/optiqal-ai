@@ -4,7 +4,8 @@
 
 In progress on `rebuild/i-graph`. The graph contract, identity/store/manifest runtime,
 registered normative source loaders, executor, one-screen view, and fast toy graph are
-implemented and adversarially hardened. The HTML explorer and final verification are next.
+implemented and adversarially hardened. Only final whole-project verification and reporting
+remain.
 
 ## Done
 
@@ -51,8 +52,12 @@ implemented and adversarially hardened. The HTML explorer and final verification
   or serialized receipts from authoring tiers or non-gate verification states.
 - Aligned the frozen `Tolerance()` zero defaults with the authority and refreshed the interface
   lock; all 137 graph-focused tests and the lock verification pass.
+- Added the zero-dependency HTML explorer with an inline SVG DAG, cache/gate/tier facts,
+  fragment-driven `describe` details, strict escaping, and a tested manifest CLI.
+- Documented nodes, kernels, gates, tiers, and manifests in the Python README using the
+  required kernel definition; all 138 graph-focused tests pass.
 
 ## Next
 
-- Finish and test the self-contained explorer CLI.
 - Run all requested verification and record the three toy-run outputs.
+- Write and commit the final report with the complete verification evidence.

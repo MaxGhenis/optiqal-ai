@@ -37,6 +37,14 @@ result = simulate_qaly(
 print(f"QALY gain: {result.median:.2f} [{result.ci95[0]:.2f}, {result.ci95[1]:.2f}]")
 ```
 
+## Graph runtime
+
+- A node declares a computation, its inputs and parameters, and its compute, gate, or release role.
+- A kernel is a pure function from declared inputs and a seed to declared outputs, hashed by its source.
+- A gate is a node whose receipt records a pass, fail, evidence-absent, not-applicable, or unreached outcome.
+- A tier is the certified, evidence, or unreached status derived from every gate in a release node's ancestry.
+- A manifest is the content-keyed provenance record for a run, including every node receipt and release value.
+
 ## Bayesian Inference
 
 For full posterior distributions, install with MCMC support:
