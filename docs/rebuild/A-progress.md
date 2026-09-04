@@ -28,3 +28,28 @@ Complete on `rebuild/a-rng-priors`; final evidence is recorded in `PR_A_REPORT.m
 ## Next
 
 - Ready for review; the branch has not been pushed.
+
+## Review round 1 (2026-09-04)
+
+State: fixing the read-only review findings in place on `rebuild/a-rng-priors`.
+
+### Round-1 items
+
+1. Rewrite the RNG independence test so it observes the simulator's own draws.
+2. Restore the mortality arm on the decisions path when `override_hr` is set.
+3. Rewrite walking and Mediterranean rationales off the superseded sibling estimate.
+4. Add the three missing facts to `PR_A_REPORT.md`.
+5. Document the eight item-level prior overrides and fix the appendix conclusion.
+6. Nice-to-have: extend the drift test to the methodology YAML blocks and the paper Mean column.
+7. Nice-to-have: extend the AST guard to `make_spec` / `StackSpec`.
+8. Nice-to-have: de-flake the seeded-versus-unseeded walking test.
+9. Nice-to-have: add a slow 40,000-draw protocol smoke test.
+10. Nice-to-have: correct the hand-set protocol prior count.
+
+### Done
+
+- Moved the progress file to `docs/rebuild/A-progress.md`.
+
+### Next
+
+- Item 1: rewrite `tests/test_simulate_streams.py::test_quality_and_log_hr_streams_are_independent`.
