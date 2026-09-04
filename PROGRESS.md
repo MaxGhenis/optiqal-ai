@@ -4,8 +4,8 @@ Branch `rebuild/e-load-snapshots`. Charter: `REBUILD.md` (PR E row). Updated as 
 
 ## State
 
-Working. The fail-closed loader and MEPS build are landed; the transcribed CDC snapshot,
-pinned validator, and complete NVSR 72-12 source comparison are ready to land next.
+Working. The loader, MEPS build, and CDC life-table evidence are landed; the pinned,
+explicitly unverified cause-fraction snapshot is ready to land next.
 Verification (`uv run ruff check .`, `uv run pytest -q` from `python/`) is run before the
 final commit; `tests/test_model_regression.py` and `tests/test_sleep.py` must pass untouched
 because this PR changes no number.
@@ -53,9 +53,10 @@ because this PR changes no number.
   checksum rather than falsely regenerating them from the publication they do not match.
 - Committed all 44 deltas from NVSR 72-12 Tables 2-3: none match; excluding CDC's open-ended
   age-100 rows, snapshot/source ratios range from 0.632411 to 1.309524.
+- Snapshotted `CAUSE_FRACTIONS` as the transcribed approximation it is. Its validator refuses
+  to invent the absent WONDER query and prints the evidence a future replacement must save.
 
 ## Next
 
-1. Cause-fractions generator and snapshot.
-2. `lifecycle.py` loads all three snapshots; fixture equality test at 1e-12.
-3. `docs/DATA_PROVENANCE.md`, snapshots README, `REBUILD.md` PR E notes.
+1. `lifecycle.py` loads all three snapshots; fixture equality test at 1e-12.
+2. `docs/DATA_PROVENANCE.md`, snapshots README, `REBUILD.md` PR E notes.

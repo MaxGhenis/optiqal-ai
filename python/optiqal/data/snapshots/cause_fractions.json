@@ -1,0 +1,48 @@
+{
+  "provenance": {
+    "source": "Transcribed from legacy Optiqal CAUSE_FRACTIONS introduced in commit 5e472e228ea95573cab3dee57542cbe4e3bdb278; ages 40-80 match What Nut's hand-authored CDC WONDER 2021 approximation, age 90 differs, and no saved query or export records the derivation",
+    "url": "https://wonder.cdc.gov/",
+    "table": "No saved query or table id; legacy age anchors 40-90",
+    "retrieved": "2026-09-04",
+    "generator": "python -m optiqal.data_build.cause_fractions",
+    "version": 1,
+    "status": "transcribed approximation; not source-validated",
+    "retrieval_note": "The legacy repository history and current CDC WONDER landing page were inspected on this date; the original query and retrieval date were not recorded.",
+    "whatnut_history": "Likely adapted from What Nut c67a72322d277a42415b5553896baf757f771631; similarity is evidence, not proof of inheritance.",
+    "sha256_of_data": "e653f6864d8fc5c537e6ca5783932982dea7e11487a2c54e90da5b1111dfcb0c"
+  },
+  "data": {
+    "cause_fractions": {
+      "40": {
+        "cvd": 0.2,
+        "cancer": 0.25,
+        "other": 0.55
+      },
+      "50": {
+        "cvd": 0.25,
+        "cancer": 0.35,
+        "other": 0.4
+      },
+      "60": {
+        "cvd": 0.3,
+        "cancer": 0.35,
+        "other": 0.35
+      },
+      "70": {
+        "cvd": 0.35,
+        "cancer": 0.3,
+        "other": 0.35
+      },
+      "80": {
+        "cvd": 0.4,
+        "cancer": 0.2,
+        "other": 0.4
+      },
+      "90": {
+        "cvd": 0.45,
+        "cancer": 0.12,
+        "other": 0.43
+      }
+    }
+  }
+}

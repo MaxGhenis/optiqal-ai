@@ -5,7 +5,7 @@ import json
 import pytest
 
 from optiqal import snapshots
-from optiqal.data_build import cdc_life_table, meps_quality_weights
+from optiqal.data_build import cause_fractions, cdc_life_table, meps_quality_weights
 
 
 def _snapshot(data: dict) -> dict:
@@ -127,3 +127,7 @@ def test_meps_snapshot_matches_committed_calibration():
 
 def test_cdc_life_table_snapshot_and_source_comparison_are_pinned():
     cdc_life_table.validate_committed_artifacts()
+
+
+def test_cause_fraction_snapshot_is_pinned():
+    cause_fractions.validate_committed_snapshot()
