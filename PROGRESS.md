@@ -18,7 +18,8 @@ Implementation in progress on `rebuild/a-rng-priors`.
 - Aligned shipped walking and Mediterranean-diet priors plus both documentation tables to the served registry values.
 - Added drift tests covering all eight documented categories and every shipped intervention YAML.
 - Corrected the exercise-prior interval and tail, the protective E-value formula, both reported E-values, and the sensitivity-analysis label through executable paper values.
+- Ran the model-regression rebaseline exactly once and recorded mortality-bearing and QoL-only comparison values.
 
 ## Next
 
-- Rebaseline once, run Ruff and the full pytest suite, and record the final comparison report.
+- Run Ruff and the full pytest suite, rerun the public frontier, and record the final comparison report.
