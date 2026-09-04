@@ -1,0 +1,8 @@
+{
+  "command": "python -m optiqal.graph.lock --verify",
+  "files": [
+    "python/optiqal/graph/decl.py",
+    "python/optiqal/graph/kernel.py"
+  ],
+  "sha256": "1a52944c42c4650de2eeed98f37aca9fef1cb39242548db67e3a1e6aa169d43b"
+}
