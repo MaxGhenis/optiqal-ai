@@ -220,7 +220,9 @@ def get_confounding_prior(
 StudyQuality = Literal[
     "rct_preregistered_hard_endpoint",
     "rct_standard",
+    "mendelian_randomization",
     "meta_analysis_rcts",
+    "cohort_meta_analysis",
     "cohort_large",
     "cohort_small",
     "case_control",
@@ -246,7 +248,11 @@ StudyQuality = Literal[
 STUDY_QUALITY_SHRINKAGE: dict[StudyQuality, float] = {
     "rct_preregistered_hard_endpoint": 0.10,
     "rct_standard": 0.20,
+    # Copied from rct_standard, the closest existing design tier.
+    "mendelian_randomization": 0.20,
     "meta_analysis_rcts": 0.20,
+    # Copied from cohort_large, the closest existing design tier.
+    "cohort_meta_analysis": 0.30,
     "cohort_large": 0.30,
     "cohort_small": 0.35,
     "case_control": 0.40,
