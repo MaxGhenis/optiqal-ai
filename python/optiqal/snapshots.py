@@ -209,15 +209,23 @@ class Snapshot:
         self,
         *path: str,
         columns: tuple[str, ...],
+        ages: tuple[int, ...] = (),
         sums_to: Optional[float] = None,
         tolerance: float = 1e-9,
     ) -> dict[int, dict[str, float]]:
-        """An age -> {column: number} table, e.g. the cause fractions."""
+        """An age -> {column: number} table, e.g. the cause fractions.
+
+        ``ages`` pins the exact age set, exactly as in :meth:`age_table`: the
+        cause-fraction interpolator clamps and spans holes the same way, so an
+        unpinned row table loses an anchor just as silently.
+        """
         where = f"data.{'.'.join(path)}"
         node = self._node(path)
-        ages = self._age_keys(node, where)
+        actual = self._age_keys(node, where)
+        if ages and tuple(actual) != ages:
+            self.fail(f"{where} ages are {tuple(actual)}, expected {ages}")
         rows: dict[int, dict[str, float]] = {}
-        for age in ages:
+        for age in actual:
             row = node[str(age)]
             row_where = f"{where}.{age}"
             if not isinstance(row, dict):

@@ -166,17 +166,79 @@ def test_age_table_without_a_pin_still_accepts_any_increasing_ages(
     assert snapshots.load_snapshot("free_ages").age_table("rates") == {5: 0.05}
 
 
+def _row_snapshot(rows: dict) -> dict:
+    return _snapshot({"fractions": rows})
+
+
+def test_age_rows_rejects_a_missing_age_and_names_file(snapshot_directory):
+    """age_rows clamps and spans holes exactly as age_table does."""
+    _write(
+        snapshot_directory,
+        "short_rows",
+        _row_snapshot({"40": {"cvd": 0.2, "other": 0.8}}),
+    )
+
+    with pytest.raises(snapshots.SnapshotError) as error:
+        snapshots.load_snapshot("short_rows").age_rows(
+            "fractions", columns=("cvd", "other"), ages=(40, 50)
+        )
+
+    assert "short_rows.json" in str(error.value)
+    assert "ages are (40,), expected (40, 50)" in str(error.value)
+
+
+def test_age_rows_rejects_an_extra_age_and_names_file(snapshot_directory):
+    _write(
+        snapshot_directory,
+        "long_rows",
+        _row_snapshot(
+            {
+                "40": {"cvd": 0.2, "other": 0.8},
+                "45": {"cvd": 0.3, "other": 0.7},
+                "50": {"cvd": 0.4, "other": 0.6},
+            }
+        ),
+    )
+
+    with pytest.raises(snapshots.SnapshotError) as error:
+        snapshots.load_snapshot("long_rows").age_rows(
+            "fractions", columns=("cvd", "other"), ages=(40, 50)
+        )
+
+    assert "long_rows.json" in str(error.value)
+    assert "ages are (40, 45, 50), expected (40, 50)" in str(error.value)
+
+
+def test_age_rows_without_a_pin_still_accepts_any_increasing_ages(snapshot_directory):
+    """The pin is opt-in; the generator's own validator relies on that."""
+    _write(
+        snapshot_directory,
+        "free_rows",
+        _row_snapshot({"40": {"cvd": 0.2, "other": 0.8}}),
+    )
+
+    assert snapshots.load_snapshot("free_rows").age_rows(
+        "fractions", columns=("cvd", "other")
+    ) == {40: {"cvd": 0.2, "other": 0.8}}
+
+
 def test_life_table_age_pin_matches_the_generator_pin():
     """lifecycle.py and the standalone validator must name one age set."""
     assert lifecycle.LIFE_TABLE_AGES == cdc_life_table.EXPECTED_AGES
+
+
+def test_cause_fraction_age_pin_matches_the_generator_pin():
+    assert lifecycle.CAUSE_FRACTION_AGES == cause_fractions.EXPECTED_AGES
 
 
 def test_runtime_age_pins_match_the_committed_snapshots():
     assert tuple(lifecycle.CDC_LIFE_TABLE["male"]) == lifecycle.LIFE_TABLE_AGES
     assert tuple(lifecycle.CDC_LIFE_TABLE["female"]) == lifecycle.LIFE_TABLE_AGES
     assert tuple(lifecycle.QUALITY_WEIGHTS) == lifecycle.QUALITY_WEIGHT_AGES
+    assert tuple(lifecycle.CAUSE_FRACTIONS) == lifecycle.CAUSE_FRACTION_AGES
     assert len(lifecycle.LIFE_TABLE_AGES) == 22
     assert len(lifecycle.QUALITY_WEIGHT_AGES) == 8
+    assert len(lifecycle.CAUSE_FRACTION_AGES) == 6
 
 
 def test_checksum_mismatch_fails_closed_and_names_file(snapshot_directory):
@@ -372,6 +434,23 @@ def test_extra_quality_weight_age_fails_during_lifecycle_import(tmp_path, monkey
 
     assert "meps_quality_weights.json" in message
     assert "data.quality_weights ages are" in message
+
+
+def test_dropped_cause_fraction_age_fails_during_lifecycle_import(
+    tmp_path, monkeypatch
+):
+    """Every remaining row still sums to 1.0, so only the age pin can catch this."""
+
+    def drop_age_90(data):
+        del data["cause_fractions"]["90"]
+
+    message = _reload_lifecycle_against(
+        tmp_path, monkeypatch, "cause_fractions", drop_age_90
+    )
+
+    assert "cause_fractions.json" in message
+    assert "data.cause_fractions ages are" in message
+    assert "expected (40, 50, 60, 70, 80, 90)" in message
 
 
 def test_bad_snapshot_fails_during_lifecycle_import(tmp_path, monkeypatch):

@@ -16,8 +16,10 @@ from .snapshots import load_snapshot
 
 # The exact anchor ages the interpolators expect. Pinned so a snapshot that has
 # lost or gained an age fails at import instead of being silently interpolated
-# across the hole. `data_build.cdc_life_table.EXPECTED_AGES` repeats the life
-# table set for standalone validation; test_snapshots.py holds the two equal.
+# across the hole. `data_build.cdc_life_table.EXPECTED_AGES` and
+# `data_build.cause_fractions.EXPECTED_AGES` repeat the life-table and
+# cause-fraction sets for standalone validation; test_snapshots.py holds each
+# pair equal.
 LIFE_TABLE_AGES = (
     0,
     1,
@@ -43,6 +45,7 @@ LIFE_TABLE_AGES = (
     100,
 )
 QUALITY_WEIGHT_AGES = (25, 35, 45, 55, 65, 75, 85, 95)
+CAUSE_FRACTION_AGES = (40, 50, 60, 70, 80, 90)
 
 # Runtime data is loaded and validated at import. The snapshot provenance records
 # which values are derived, authored, or only transcribed from the legacy engine.
@@ -60,6 +63,7 @@ _CAUSE_FRACTION_SNAPSHOT = load_snapshot("cause_fractions")
 CAUSE_FRACTIONS = _CAUSE_FRACTION_SNAPSHOT.age_rows(
     "cause_fractions",
     columns=("cvd", "cancer", "other"),
+    ages=CAUSE_FRACTION_AGES,
     sums_to=1.0,
     tolerance=1e-12,
 )
