@@ -254,9 +254,7 @@ def test_meps_check_mode_confirms_the_committed_bytes():
 
 def test_meps_check_mode_detects_drift(tmp_path):
     drifted = tmp_path / "meps_quality_weights.json"
-    payload = json.loads(
-        meps_quality_weights.SNAPSHOT_PATH.read_text(encoding="utf-8")
-    )
+    payload = json.loads(meps_quality_weights.SNAPSHOT_PATH.read_text(encoding="utf-8"))
     payload["data"]["quality_weights"]["25"] = 0.5
     drifted.write_text(json.dumps(payload), encoding="utf-8")
 
@@ -322,7 +320,8 @@ def _reload_lifecycle_against(tmp_path, monkeypatch, name: str, mutate) -> str:
     real_snapshot_dir = snapshots.snapshot_dir()
     for runtime_name in ("cdc_life_table", "cause_fractions", "meps_quality_weights"):
         shutil.copy2(
-            real_snapshot_dir / f"{runtime_name}.json", tmp_path / f"{runtime_name}.json"
+            real_snapshot_dir / f"{runtime_name}.json",
+            tmp_path / f"{runtime_name}.json",
         )
 
     target = tmp_path / f"{name}.json"

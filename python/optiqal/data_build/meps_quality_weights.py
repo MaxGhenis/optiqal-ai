@@ -130,9 +130,7 @@ def render_quality_weight_snapshot(
 ) -> str:
     """Render the snapshot bytes this generator would write."""
     calibration = _load_calibration(calibration_path)
-    return render_snapshot(
-        build_provenance(calibration_path), build_data(calibration)
-    )
+    return render_snapshot(build_provenance(calibration_path), build_data(calibration))
 
 
 def write_quality_weight_snapshot(
@@ -176,8 +174,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
             print(f"{SNAPSHOT_PATH} is byte-identical to a rebuild.")
             return
         print(
-            f"{SNAPSHOT_PATH} differs from a rebuild; "
-            "run this module without --check.",
+            f"{SNAPSHOT_PATH} differs from a rebuild; run this module without --check.",
             file=sys.stderr,
         )
         raise SystemExit(1)
