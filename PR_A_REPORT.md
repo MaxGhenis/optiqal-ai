@@ -70,7 +70,56 @@ Mortality-bearing catalog comparisons for the same profile and seed:
 | statin_5mg | 0.104691626716 / 0.066800365657 | 0.131761542229 / 0.093868791877 |
 | tadalafil_2.5mg | 0.098460016335 / 0.336333670569 | 0.120221341127 / 0.358027437699 |
 
-QoL-only `hiit_2x_week` remains `0.014792646571` total QALY and `strength_maintenance` remains `0.002015135813`; both now have exactly `0.0` mortality QALY.
+QoL-only `hiit_2x_week` remains `0.014792646571` total QALY and `strength_maintenance` remains `0.002015135813`; both now have exactly `0.0` mortality QALY. Those are catalog-path figures, and the catalog path already gated on `has_direct_mortality_effect` before PR A, so `0.0` there is not what changed. The change is on the decisions path; see "Decision-path mortality for a QoL-only item" below.
+
+## Why the shift is larger than the brief expected
+
+The charter's reading of `simulate.py` predicted that seeded means ran 6 to 8% low. Walking's net mean moved +6.23%, inside that band. The three mortality-bearing personal items did not: their mortality legs moved +22.10% to +25.86%, and statin's total QALY moved +40.52%.
+
+| Item | Leg | Before | After | Absolute | Relative |
+| --- | --- | ---: | ---: | ---: | ---: |
+| walking_30min_daily | net | 0.191573422864 | 0.203502549408 | +0.011929 | +6.23% |
+| finasteride_1.25mg | mortality | 0.111285351332 | 0.137994815642 | +0.026709 | +24.00% |
+| finasteride_1.25mg | total | 0.282027340208 | 0.308851301752 | +0.026824 | +9.51% |
+| statin_5mg | mortality | 0.104691626716 | 0.131761542229 | +0.027070 | +25.86% |
+| statin_5mg | total | 0.066800365657 | 0.093868791877 | +0.027068 | +40.52% |
+| tadalafil_2.5mg | mortality | 0.098460016335 | 0.120221341127 | +0.021761 | +22.10% |
+| tadalafil_2.5mg | total | 0.336333670569 | 0.358027437699 | +0.021694 | +6.45% |
+
+Two separate things drive the gap between +6% and +40%.
+
+The shift itself is a covariance term. Under the old code the quality offset and the standardized log-hazard-ratio draw were the same number, so every draw that received the larger survival gain also received the lower quality weight, and the mean carried a negative covariance between life-years gained and the quality weight they are valued at. Independent streams remove it, which is why every item's mean rose rather than moving in both directions. Relative to the mean, that term scales with how dispersed the draws are: under coupling walking's net-QALY draws have a coefficient of variation of 0.89 and its mean moves +5.3% at the current prior, while the three items' draws have coefficients of variation of 1.82 to 1.85 and their mortality legs move 22 to 26%.
+
+Then a difference of larger legs amplifies whatever lands in one of them. Statin's total is a small net of a positive mortality leg against a negative quality-of-life leg (+0.104692 against -0.037891 before). The mortality leg moved +0.027070 in absolute terms, which is 25.86% of that leg but 40.52% of the 0.066800 net. Finasteride and tadalafil run the other way: their totals are dominated by a large positive QoL leg (+0.201805 and +0.239128), so the same size of absolute shift is under 10% of the total. The absolute move is confined to the mortality leg in all three cases; only the denominator differs.
+
+## Decision-path mortality for a QoL-only item
+
+The `0.0` figures above were measured on the catalog path (`item_results_by_id`), which gated on `has_direct_mortality_effect` before PR A as well, so it read `0.0` on the base commit too. What PR A changed is the decisions path, where `_simulate_one` formerly always built a mortality arm.
+
+Measured on `hiit_2x_week` at n=1,000, seed 42, the 45-year-old male never-smoker profile:
+
+| Decision | Base `009acd90` | PR A, review round 1 | Catalog leg (all three) |
+| --- | ---: | ---: | ---: |
+| ADD, no override | -0.004055991723 | 0.0 | 0.0 |
+| ADJUST, `override_hr=0.85` | 0.105118835077 | 0.104778860915 | 0.0 |
+| ADJUST, `override_hr=1.0` | -0.004055991723 | 0.0 | 0.0 |
+
+The base's `-0.004056` on a QoL-only item is the coupled RNG's residual on an arm that should not have existed; independent streams plus the flag make it exactly `0.0`. The middle row is the review's finding: between the first PR A pass and this round the overridden hazard ratio was computed and then discarded, so the decision returned exactly `0.0` where the base returned a real effect. `_decision_has_mortality_arm` restores it.
+
+## Null-item residual
+
+The stochastic mean-null regression in `tests/test_simulate.py` (log_sd 0.12, diet prior Beta(3.0, 3.0), seed 1, n=100,000) moved from `-0.013928386234` to `+0.009530169552` QALY. The docstring on the base commit claimed "around -0.035 QALY" for that case; re-running it on `009acd90` gives `-0.013928`, so the -0.035 was already stale before PR A. The current docstring's "around +0.01" is correct.
+
+## Protocol optimizer verdict flip
+
+`ef1e2221` rebased two optimizer sign cases, and one of them is a changed verdict rather than a changed magnitude. On the base commit the protocol optimizer dropped `vitamin_d_2000`; under independent streams it keeps it.
+
+| Item | Base `009acd90` | PR A | Verdict before | Verdict after |
+| --- | ---: | ---: | --- | --- |
+| vitamin_d_2000 | -0.0013 | +0.0018 | drop | keep |
+| aspirin_81mg | -0.0064 | -0.0048 | drop | drop |
+
+Aspirin keeps its sign and its verdict, which is why the negative-item drop case was moved onto aspirin instead of being weakened to a list literal. Vitamin D's deterministic estimate crosses zero, so `test_protocol_optimizer_keeps_positive_current_item` now asserts the keep. This is a recommendation change on a personal-protocol item, not only a test rebase.
 
 ## Default public frontier, top six
 

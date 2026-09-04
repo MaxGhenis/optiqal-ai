@@ -83,6 +83,13 @@ State: fixing the read-only review findings in place on `rebuild/a-rng-priors`.
   the protocol prior count from 76 to 77 (61 of the 75 non-branch keys differ from the
   catalog value, 63 of 77 counting the two semaglutide branches).
 
+- Item 4: `PR_A_REPORT.md` now carries the protocol optimizer's verdict flip on
+  `vitamin_d_2000` (base -0.0013 drop, branch +0.0018 keep, with aspirin unchanged at
+  -0.0064 to -0.0048), the size of the mortality-leg moves against the brief's 6 to 8%
+  expectation with the arithmetic that explains statin's +40.52% total, the
+  decision-path `hiit_2x_week` table with the catalog-path caveat, and the measured
+  null-item residual (-0.013928 to +0.009530, not the docstring's -0.035).
+
 ### Next
 
-- Item 4: add the three missing facts to `PR_A_REPORT.md`.
+- Nice-to-have items 6, 7 and 9, then full verification.
