@@ -11,7 +11,11 @@ category: sleep
 lineage:
   estimand: Lifetime net QALY delta versus not doing the intervention
   model_version: canonical-v1
-  study_ids: []
+  study_ids:
+    - cappuccio2010_short_sleep_mortality
+    - yin2017_sleep_mortality
+    - itani2017_short_sleep_mortality
+    - daghlas2019_short_sleep_mi
   studies: []
   parameter_lineage: []
   prior_lineage: []

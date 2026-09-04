@@ -2,8 +2,8 @@
 
 ## State
 
-In progress on `rebuild/d-evidence-table`. The fail-closed loader is committed and the
-abstract-verifiable evidence seed is ready; catalog/YAML linkage and debt snapshots remain.
+In progress on `rebuild/d-evidence-table`. The fail-closed loader and evidence seed are
+committed, and all applicable catalog/YAML lineages are linked; debt snapshots remain.
 
 ## Done
 
@@ -19,9 +19,10 @@ abstract-verifiable evidence seed is ready; catalog/YAML linkage and debt snapsh
   CI wiring, validation tests, and the two missing study-design tiers.
 - Resolved the requested citation inventory and seeded 48 abstract-supported estimate
   rows backed by 46 offline PMID fixture records; unsupported estimates remain debt.
+- Linked 14 catalog entries and nine intervention YAMLs to their applicable validated
+  rows, with a regression test rejecting any dangling live lineage id.
 
 ## Next
 
-- Link every applicable catalog and intervention YAML claim to the seeded study rows.
 - Generate the three ratchets and add the lint report.
 - Run all required verification commands and record their results.

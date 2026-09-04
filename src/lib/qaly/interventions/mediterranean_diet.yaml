@@ -12,7 +12,10 @@ category: diet
 lineage:
   estimand: Lifetime net QALY delta versus not doing the intervention
   model_version: canonical-v1
-  study_ids: []
+  study_ids:
+    - estruch2018_predimed_evoo_mace
+    - estruch2018_predimed_nuts_mace
+    - sofi2008_mediterranean_mortality
   studies: []
   parameter_lineage: []
   prior_lineage: []

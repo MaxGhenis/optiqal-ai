@@ -11,7 +11,12 @@ category: exercise
 lineage:
   estimand: Lifetime net QALY delta versus not doing the intervention
   model_version: canonical-v1
-  study_ids: []
+  study_ids:
+    - hamer2008_walking_mortality
+    - cornelissen2013_endurance_sbp
+    - arem2015_physical_activity_mortality
+    - arem2015_below_minimum_activity_mortality
+    - ekelund2019_activity_mortality
   studies: []
   parameter_lineage: []
   prior_lineage: []

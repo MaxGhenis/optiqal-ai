@@ -11,7 +11,12 @@ category: substance
 lineage:
   estimand: Lifetime net QALY delta versus not doing the intervention
   model_version: canonical-v1
-  study_ids: []
+  study_ids:
+    - wood2018_alcohol_stroke
+    - zhao2017_alcohol_chd
+    - holmes2014_alcohol_chd
+    - stockwell2016_low_volume_alcohol
+    - millwood2019_alcohol_stroke
   studies: []
   parameter_lineage: []
   prior_lineage: []

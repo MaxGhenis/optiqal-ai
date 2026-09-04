@@ -6,28 +6,62 @@ import numpy as np
 import pytest
 
 from optiqal.catalog import CATALOG
+from optiqal.evidence import load_studies
 from optiqal.intervention import Distribution, Intervention, MortalityEffect
 
 INTERVENTION_DIR = (
     Path(__file__).resolve().parents[2] / "src" / "lib" / "qaly" / "interventions"
 )
 EXPECTED_YAML_STUDY_IDS = {
-    "daily_exercise_moderate": ["arem2015_physical_activity_mortality"],
+    "daily_exercise_moderate": [
+        "wen2011_low_volume_activity_mortality",
+        "arem2015_physical_activity_mortality",
+        "arem2015_below_minimum_activity_mortality",
+        "hupin2015_low_dose_activity_mortality",
+        "ekelund2019_activity_mortality",
+        "cornelissen2013_endurance_sbp",
+    ],
     "daily_sunscreen": [
         "green2011_sunscreen_melanoma",
         "vanderpols2006_sunscreen_scc",
     ],
     "fish_oil_supplement": [
         "manson2019_vital_cvd",
+        "bhatt2019_reduceit_primary",
         "abdelhamid2020_omega3_mortality",
     ],
-    "meditation_daily": [],
-    "mediterranean_diet": [],
-    "moderate_alcohol": [],
-    "quit_smoking": [],
-    "sleep_8_hours": [],
+    "meditation_daily": ["goyal2014_meditation_anxiety"],
+    "mediterranean_diet": [
+        "estruch2018_predimed_evoo_mace",
+        "estruch2018_predimed_nuts_mace",
+        "sofi2008_mediterranean_mortality",
+    ],
+    "moderate_alcohol": [
+        "wood2018_alcohol_stroke",
+        "zhao2017_alcohol_chd",
+        "holmes2014_alcohol_chd",
+        "stockwell2016_low_volume_alcohol",
+        "millwood2019_alcohol_stroke",
+    ],
+    "quit_smoking": [
+        "jha2013_male_smoking_mortality",
+        "pirie2013_smoking_mortality",
+        "kenfield2008_smoking_mortality",
+    ],
+    "sleep_8_hours": [
+        "cappuccio2010_short_sleep_mortality",
+        "yin2017_sleep_mortality",
+        "itani2017_short_sleep_mortality",
+        "daghlas2019_short_sleep_mi",
+    ],
     "strength_training": [],
-    "walking_30min_daily": [],
+    "walking_30min_daily": [
+        "hamer2008_walking_mortality",
+        "cornelissen2013_endurance_sbp",
+        "arem2015_physical_activity_mortality",
+        "arem2015_below_minimum_activity_mortality",
+        "ekelund2019_activity_mortality",
+    ],
 }
 
 
@@ -284,11 +318,24 @@ def test_repository_intervention_yamls_have_canonical_lineage():
 
 def test_catalog_study_ids_propagate_to_intervention_lineage():
     expected = {
+        "finasteride_1.25mg": ["thompson2013_pcpt_survival"],
+        "tadalafil_2.5mg": ["anderson2016_pde5_mortality"],
+        "aspirin_81mg": ["mcneil2018_aspree_mortality"],
         "semaglutide": ["lincoff2023_select_mace"],
         "empagliflozin": ["zinman2015_empareg_mace"],
+        "statin_5mg": ["ctt2010_ldl_vascular"],
         "cocoa_flavanols_500": ["sesso2022_cosmos_cvd"],
-        "omega3_clo": ["manson2019_vital_cvd"],
+        "omega3_clo": ["manson2019_vital_cvd", "aung2018_omega3_vascular"],
+        "omega3_epa_2g": ["manson2019_vital_cvd", "bhatt2019_reduceit_primary"],
         "vitamin_d_2000": ["bjelakovic2014_vitamin_d3_mortality"],
+        "vitamin_k2": ["geleijnse2004_k2_mortality"],
+        "melatonin_300mcg": ["ferraciolioda2013_melatonin_sleep_quality"],
+        "glucosamine_sulfate_750": [
+            "li2020_glucosamine_mortality",
+            "suissa2022_glucosamine_selection_bias",
+        ],
+        "magnesium_citrate_150": ["fang2016_magnesium_mortality"],
+        "traditional_sauna_4x_week": ["laukkanen2015_sauna_scd"],
     }
 
     for item_id, study_ids in expected.items():
@@ -298,6 +345,17 @@ def test_catalog_study_ids_propagate_to_intervention_lineage():
         assert intervention.lineage is not None
         assert intervention.lineage.model_version == "canonical-v1"
         assert intervention.lineage.study_ids == study_ids
+
+
+def test_every_live_lineage_study_id_resolves_to_a_validated_row():
+    known_ids = {row.id for row in load_studies()}
+
+    for entry in CATALOG.values():
+        assert set(entry.study_ids) <= known_ids, entry.id
+    for path in sorted(INTERVENTION_DIR.glob("*.yaml")):
+        intervention = Intervention.from_yaml(path)
+        assert intervention.lineage is not None
+        assert set(intervention.lineage.study_ids) <= known_ids, path.name
 
 
 class TestInterventionPathwayHRs:

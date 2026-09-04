@@ -13,6 +13,7 @@ lineage:
   model_version: canonical-v1
   study_ids:
     - manson2019_vital_cvd
+    - bhatt2019_reduceit_primary
     - abdelhamid2020_omega3_mortality
   studies: []
   parameter_lineage: []

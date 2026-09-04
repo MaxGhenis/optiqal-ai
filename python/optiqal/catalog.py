@@ -3326,11 +3326,24 @@ STUDY_QUALITY_BY_ID: Dict[str, str] = {
 }
 
 STUDY_IDS_BY_ID: Dict[str, List[str]] = {
+    "finasteride_1.25mg": ["thompson2013_pcpt_survival"],
+    "tadalafil_2.5mg": ["anderson2016_pde5_mortality"],
+    "aspirin_81mg": ["mcneil2018_aspree_mortality"],
     "semaglutide": ["lincoff2023_select_mace"],
     "empagliflozin": ["zinman2015_empareg_mace"],
+    "statin_5mg": ["ctt2010_ldl_vascular"],
     "cocoa_flavanols_500": ["sesso2022_cosmos_cvd"],
-    "omega3_clo": ["manson2019_vital_cvd"],
+    "omega3_clo": ["manson2019_vital_cvd", "aung2018_omega3_vascular"],
+    "omega3_epa_2g": ["manson2019_vital_cvd", "bhatt2019_reduceit_primary"],
     "vitamin_d_2000": ["bjelakovic2014_vitamin_d3_mortality"],
+    "vitamin_k2": ["geleijnse2004_k2_mortality"],
+    "melatonin_300mcg": ["ferraciolioda2013_melatonin_sleep_quality"],
+    "glucosamine_sulfate_750": [
+        "li2020_glucosamine_mortality",
+        "suissa2022_glucosamine_selection_bias",
+    ],
+    "magnesium_citrate_150": ["fang2016_magnesium_mortality"],
+    "traditional_sauna_4x_week": ["laukkanen2015_sauna_scd"],
 }
 
 # Bundle cost allocation. Each tuple is (bundle_id, annual_dollar_share).

@@ -11,7 +11,8 @@ category: stress
 lineage:
   estimand: Lifetime net QALY delta versus not doing the intervention
   model_version: canonical-v1
-  study_ids: []
+  study_ids:
+    - goyal2014_meditation_anxiety
   studies: []
   parameter_lineage: []
   prior_lineage: []
