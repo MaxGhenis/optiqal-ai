@@ -33,7 +33,8 @@ Branch: `rebuild/a-rng-priors`
 | `d7c28c1a` | Cover the protocol pipeline at its production draw count |
 | `6e3703cd` | Parse the documented means and example blocks for drift |
 | `8eee0971` | Guard protocol spec constructors against numeric priors |
-| `fecf4019` | Record the review round 1 verification |
+| `d68da368` | Record the review round 1 verification |
+| branch tip | Refresh the round 1 commit hashes (documentation only) |
 
 ## What review round 1 changed
 
@@ -210,7 +211,8 @@ All checks passed!
 512 passed in 1071.86s (0:17:51)
 ```
 
-Review round 1, covering every commit through `fecf4019`.
+Review round 1, covering every commit through `d68da368`. The hash-refresh commit
+after it is documentation only and changes no code, test or data file.
 `uv run --no-sync ruff check .`:
 
 ```text
