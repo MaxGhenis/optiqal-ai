@@ -242,11 +242,13 @@ We use **category-specific priors** calibrated to the available RCT evidence for
 | Category | Prior | Mean | Calibration Source |
 |----------|-------|------|-------------------|
 | Exercise | Beta(1.2, 6.0) | 17% | Ballin 2021 RCT meta-analysis shows ~30% attenuation |
-| Diet | Beta(1.5, 4.5) | 25% | PREDIMED and dietary RCTs suggest moderate causal fraction |
-| Smoking | Beta(2.5, 4.0) | 38% | Strong MR evidence; Mendelian randomization confirms effects |
-| Sleep | Beta(1.0, 5.5) | 15% | Limited RCT evidence; primarily observational |
-| Social | Beta(2.0, 4.0) | 33% | Intervention studies show real but attenuated effects |
-| Supplements | Beta(1.2, 5.0) | 19% | Most supplement RCTs show null or attenuated effects |
+| Diet | Beta(3.0, 3.0) | 50% | PREDIMED confirms a substantial causal component |
+| Sleep | Beta(1.5, 4.5) | 25% | No mortality RCTs; high reverse-causation risk |
+| Stress | Beta(1.2, 5.0) | 19% | Meditation RCT effects are smaller than observational estimates |
+| Substance | Beta(2.0, 4.0) | 33% | Smoking cessation has stronger causal evidence than the alcohol J-curve |
+| Medical | Beta(2.5, 4.0) | 38% | Drug observational estimates can exceed their RCT estimates |
+| Social | Beta(1.0, 5.5) | 15% | Social relationships have no mortality-endpoint RCT evidence |
+| Other | Beta(1.2, 4.8) | 20% | Conservative default for an unknown intervention type |
 
 For exercise, the default prior Beta(1.2, 6.0) yields mean 17% and 95% CI [2%, 45%]. This was derived by matching: (a) E[f] = 0.17 from meta-regression of RCT vs observational effect ratios {cite:p}`angrist2010credibility`, (b) mode consistent with E-value threshold for typical lifestyle interventions (HR ≈ 1.5), and (c) upper bound P(f > 0.45) < 0.025 from sibling study attenuation {cite:p}`lundborg2018schooling`.
 

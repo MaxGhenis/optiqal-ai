@@ -15,8 +15,10 @@ Implementation in progress on `rebuild/a-rng-priors`.
 - Added regressions for stream correlation, seeded reproducibility, null mortality, and seeded-vs-unseeded agreement.
 - Moved category, intervention, protocol, evidence-tier, and QoL transport priors into one validated registry.
 - Added a frozen 2026-09-04 fixture, runtime-equivalence checks, and a guard against numeric `ConfoundingPrior` literals.
+- Aligned shipped walking and Mediterranean-diet priors plus both documentation tables to the served registry values.
+- Added drift tests covering all eight documented categories and every shipped intervention YAML.
 
 ## Next
 
-- Add cross-artifact drift tests and correct the documentation.
+- Correct the paper's derived confidence interval, tail probability, sensitivity label, and E-values.
 - Rebaseline once, run Ruff and the full pytest suite, and record the final comparison report.

@@ -44,14 +44,14 @@ confounding:
   # RCT effects typically 30-50% of observational estimates
   prior:
     type: beta
-    alpha: 2.5
-    beta: 5.0
+    alpha: 1.2
+    beta: 6.0
 
   rationale: |
     Walking studies show substantial healthy user bias.
     Sibling comparisons (Hamer & Stamatakis 2012) suggest ~33% causal.
     Device-measured PA studies (Ekelund 2019) show attenuated effects.
-    Beta(2.5, 5.0) → mean 33%, 95% CI: 8-65%
+    Beta(1.2, 6.0) → mean 17%, 95% CI: 0.8-49.0%
 
   calibration_sources:
     - "Hamer & Stamatakis 2012 (sibling comparison)"

@@ -172,6 +172,12 @@ $$
 - **Rationale**: Social relationships heavily confounded with SES, mental health, physical health. No RCT evidence possible for mortality.
 - **Calibration sources**: Holt-Lunstad et al. 2010 (observational only)
 
+**Other interventions**:
+- Prior: $\text{Beta}(1.2, 4.8)$
+- Mean causal fraction: 20%
+- 95% CI: [2%, 50%]
+- **Rationale**: Unknown intervention types use a conservative prior reflecting general observational bias in the calibration data.
+
 ### Monte Carlo Sampling
 
 For each intervention, the framework samples from both the hazard ratio distribution and the causal fraction prior:
@@ -464,9 +470,9 @@ mortality:
 confounding:
   prior:
     type: beta
-    alpha: 6.0
-    beta: 2.5
-  # Mean causal fraction: 71%
+    alpha: 3.0
+    beta: 3.0
+  # Mean causal fraction: 50%
   # Calibrated to PREDIMED RCT (Estruch 2018)
 ```
 
@@ -481,9 +487,9 @@ mortality:
 confounding:
   prior:
     type: beta
-    alpha: 2.5
-    beta: 5.0
-  # Mean causal fraction: 33%
+    alpha: 1.2
+    beta: 6.0
+  # Mean causal fraction: 17%
   # Calibrated to sibling comparisons and device-measured PA studies
 ```
 

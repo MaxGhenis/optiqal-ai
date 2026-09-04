@@ -386,15 +386,15 @@
         "source": "Meditation practitioners show strong selection effects. Those who meditate regularly differ in many ways (educated, health-conscious, low stress baseline?). RCT evidence exists but limited follow-up, high dropout."
       },
       "mediterranean_diet": {
-        "alpha": 6.0,
-        "beta": 2.5,
+        "alpha": 3.0,
+        "beta": 3.0,
         "calibration_sources": [
           "PREDIMED RCT (Estruch 2018)",
           "Larsson 2020 (Mendelian randomization)",
           "Sofi 2014 (observational meta-analysis)"
         ],
-        "rationale": "PREDIMED RCT shows robust causal effects on CVD endpoints. Observational estimates attenuated but RCT confirms large causal component. Mendelian randomization studies (Larsson 2020) support causality. Beta(6.0, 2.5) → mean 71%, 95% CI: 42-90%",
-        "source": "RCT evidence (PREDIMED) but strong healthy user effect in observational studies. RCT shows ~70% of observational effects are causal."
+        "rationale": "PREDIMED RCT shows robust causal effects on CVD endpoints. Observational estimates attenuated but RCT confirms large causal component. Mendelian randomization studies (Larsson 2020) support causality. Beta(3.0, 3.0) → mean 50%, 95% CI: 15-85%",
+        "source": "RCT evidence (PREDIMED) but strong healthy user effect in observational studies. RCT shows a substantial causal component of observational effects."
       },
       "melatonin_300mcg": {
         "alpha": 1.2,
@@ -626,14 +626,14 @@
         "source": "No item-specific prior source was recorded in catalog.py."
       },
       "walking_30min_daily": {
-        "alpha": 2.5,
-        "beta": 5.0,
+        "alpha": 1.2,
+        "beta": 6.0,
         "calibration_sources": [
           "Hamer & Stamatakis 2012 (sibling comparison)",
           "Arem et al 2015 (dose-response modeling)",
           "Ekelund et al 2019 (device-measured PA)"
         ],
-        "rationale": "Walking studies show substantial healthy user bias. Sibling comparisons (Hamer & Stamatakis 2012) suggest ~33% causal. Device-measured PA studies (Ekelund 2019) show attenuated effects. Beta(2.5, 5.0) → mean 33%, 95% CI: 8-65%",
+        "rationale": "Walking studies show substantial healthy user bias. Sibling comparisons (Hamer & Stamatakis 2012) suggest ~33% causal. Device-measured PA studies (Ekelund 2019) show attenuated effects. Beta(1.2, 6.0) → mean 17%, 95% CI: 0.8-49.0%",
         "source": "Exercise shows strong healthy user bias. RCT effects typically 30-50% of observational estimates."
       },
       "zinc_carnosine_75": {
