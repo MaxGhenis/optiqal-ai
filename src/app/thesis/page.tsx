@@ -641,8 +641,8 @@ export default function ThesisPage() {
                 desc: "Working app with profile input, intervention comparison, combination calculator, and optimizer flow.",
               },
               {
-                title: "Bayesian simulation core",
-                desc: "Python and TypeScript simulation paths, precomputed profiles, and uncertainty-aware outputs.",
+                title: "Simulation core",
+                desc: "One Python engine behind /api/baseline and /api/frontier, with confounding priors and uncertainty-aware outputs.",
               },
               {
                 title: "Manuscript and docs",

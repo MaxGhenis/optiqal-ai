@@ -5,8 +5,8 @@ Lane brief: `docs/rebuild/B-deletion.md`. Branch `rebuild/b-deletion`, worktree
 
 ## State
 
-Step 1 of 5 done: the ten shipped intervention YAMLs now live inside the Python
-package.
+Steps 1 and 2 of 5 done: the intervention YAMLs moved into the Python package,
+and the TypeScript engine plus its served JSON are gone.
 
 ## Baseline captured before the first deletion (at `550f5cf0`)
 
@@ -36,9 +36,21 @@ Reference measurements at the base commit:
    (PR A's glob), `tests/test_simulate_streams.py`, `scripts/precompute_all.py`,
    `scripts/precompute_profiles.py`, `scripts/README.md`, `python/README.md`.
 
+2. **Delete the TypeScript engine.** `src/lib/qaly` (41 files after the YAML move),
+   `src/lib/evidence` (11 files) and `public/precomputed` (14 JSON files, 11 MB).
+   Grep before deleting `public/precomputed`: the only readers of `/precomputed/*`
+   are `src/lib/evidence/baseline/precomputed.ts`,
+   `src/lib/evidence/baseline/precomputed-profiles.ts` and
+   `src/lib/qaly/precomputed-profiles.ts`, all inside the deleted directories.
+   Nothing under `src/app`, `src/components` or `next.config.ts` reads it.
+   `seedrandom` and `@types/seedrandom` went with `src/lib/qaly/random.ts`, their
+   only importer. `scripts/precompute_all.py`, `precompute_profiles.py` and
+   `validate_precomputed.py` now write and read `build/precomputed/` (gitignored);
+   `precompute_baselines.py` writes only the Python copy. The thesis page no longer
+   claims a TypeScript simulation path.
+
 ## Next
 
-2. Delete `src/lib/qaly`, `src/lib/evidence` and `public/precomputed`.
 3. Delete `bayesian.py`, `bayesian_updating.py`, `markov.py`, `population.py`, their
    tests and `scripts/precompute_baseline_profiles.py`; strip the MCMC branch from
    `precompute.py` and `run_mcmc` from `__init__.py`; drop the `bayesian` extra.

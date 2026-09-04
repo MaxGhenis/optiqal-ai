@@ -19,7 +19,8 @@ Usage:
     python scripts/precompute_profiles.py --full-activity  # Include all activity levels
 
 Output:
-    public/precomputed/{intervention_id}_profiles.json
+    build/precomputed/{intervention_id}_profiles.json (a local artifact;
+    nothing the site serves reads it)
 """
 
 import argparse
@@ -70,8 +71,8 @@ def main():
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=project_root / "public" / "precomputed",
-        help="Output directory (default: public/precomputed)",
+        default=project_root / "build" / "precomputed",
+        help="Output directory (default: build/precomputed)",
     )
     parser.add_argument(
         "--no-resume",

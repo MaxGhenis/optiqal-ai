@@ -6,7 +6,10 @@ This directory contains utility scripts for the Optiqal project.
 
 ### precompute_all.py
 
-Generates precomputed QALY results for all interventions defined in YAML files. This allows the web application to show instant results without running full simulations.
+Generates precomputed QALY results for every intervention YAML in
+`python/optiqal/data/interventions/`, as a local artifact. Nothing the site
+serves reads it; `/predict` and `/analyze` call the Python engine live through
+`/api/baseline` and `/api/frontier`.
 
 **Usage:**
 
@@ -31,7 +34,7 @@ python3 scripts/precompute_all.py --help
 ```
 
 **Output:**
-- Generates JSON files in `public/precomputed/`
+- Generates JSON files in `build/precomputed/` (gitignored)
 - One file per intervention (e.g., `walking_30min_daily.json`)
 - Each file contains results for all age/sex combinations
 
@@ -64,13 +67,13 @@ When adding a new intervention or updating existing ones:
 1. Create/update the YAML file in `python/optiqal/data/interventions/`
 2. Run precomputation: `python3 scripts/precompute_all.py`
 3. Validate output: `python3 scripts/validate_precomputed.py`
-4. Commit both YAML and generated JSON files
+4. Commit the YAML. The generated JSON is a local artifact and is not committed.
 
 ## File Structure
 
 ```
 python/optiqal/data/interventions/  # Input: Intervention YAML definitions
-public/precomputed/             # Output: Precomputed JSON results
+build/precomputed/                  # Output: local JSON, gitignored
 scripts/
   precompute_all.py            # Generate precomputed results
   validate_precomputed.py      # Validate JSON structure

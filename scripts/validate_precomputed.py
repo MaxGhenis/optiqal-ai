@@ -98,7 +98,7 @@ def validate_precomputed_intervention(file_path: Path) -> tuple[bool, list]:
 
 def main():
     project_root = Path(__file__).parent.parent
-    precomputed_dir = project_root / "public" / "precomputed"
+    precomputed_dir = project_root / "build" / "precomputed"
 
     if not precomputed_dir.exists():
         print(f"Error: Precomputed directory not found: {precomputed_dir}")
