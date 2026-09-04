@@ -10,10 +10,12 @@ Implementation in progress on `rebuild/a-rng-priors`.
 - Prepared the Python environment with the system packages available to the sandbox.
 - Captured the pre-change RNG coupling, walking estimate, catalog mortality estimates, and default public frontier.
 - Audited the prior-loading and documentation-drift surfaces in parallel.
+- Derived independent quality, hazard-ratio, causal-fraction, and harm streams from one seed sequence.
+- Made point-null and absent direct mortality arms exact across vectorized, loop, catalog, and analyzer paths.
+- Added regressions for stream correlation, seeded reproducibility, null mortality, and seeded-vs-unseeded agreement.
 
 ## Next
 
-- Separate all simulation random streams and make null mortality arms exactly null.
 - Consolidate hand-set priors in `python/optiqal/data/priors.yaml` with validation and a frozen fixture.
 - Add cross-artifact drift tests and correct the documentation.
 - Rebaseline once, run Ruff and the full pytest suite, and record the final comparison report.

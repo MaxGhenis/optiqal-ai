@@ -110,7 +110,11 @@ class Distribution:
             log_mean = float(self.params["log_mean"])
         return log_mean, log_sd
 
-    def sample(self, n: int = 1, random_state: Optional[int] = None) -> np.ndarray:
+    def sample(
+        self,
+        n: int = 1,
+        random_state: Optional[Union[int, np.random.Generator]] = None,
+    ) -> np.ndarray:
         """Sample from the distribution."""
         rng = np.random.default_rng(random_state)
 

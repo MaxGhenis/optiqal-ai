@@ -6,7 +6,7 @@ Based on whatnut methodology.
 """
 
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
 import numpy as np
 from scipy import stats
@@ -55,7 +55,11 @@ class ConfoundingPrior:
         dist = stats.beta(self.alpha, self.beta)
         return (dist.ppf(tail), dist.ppf(1 - tail))
 
-    def sample(self, n: int = 1, random_state: Optional[int] = None) -> np.ndarray:
+    def sample(
+        self,
+        n: int = 1,
+        random_state: Optional[Union[int, np.random.Generator]] = None,
+    ) -> np.ndarray:
         """Sample from the prior."""
         rng = np.random.default_rng(random_state)
         return rng.beta(self.alpha, self.beta, size=n)

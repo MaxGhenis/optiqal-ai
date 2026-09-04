@@ -129,6 +129,7 @@ def _simulate_one(
     log_sd: float,
     conf_a: float,
     conf_b: float,
+    has_direct_mortality_effect: bool,
     annual_cost: float,
     qol_annual: float,
     qol_years: float,
@@ -137,17 +138,22 @@ def _simulate_one(
     config: AnalysisConfig,
 ) -> dict:
     """Simulate a single intervention (used for decisions with overrides)."""
-    intervention = Intervention(
-        id=name,
-        name=name,
-        category="diet",
-        mortality=MortalityEffect(
+    mortality = None
+    confounding_prior = None
+    if has_direct_mortality_effect:
+        mortality = MortalityEffect(
             hazard_ratio=Distribution(
                 type="lognormal",
                 params={"hr": hr, "log_sd": log_sd},
             ),
-        ),
-        confounding_prior=ConfoundingPrior(alpha=conf_a, beta=conf_b),
+        )
+        confounding_prior = ConfoundingPrior(alpha=conf_a, beta=conf_b)
+    intervention = Intervention(
+        id=name,
+        name=name,
+        category="diet",
+        mortality=mortality,
+        confounding_prior=confounding_prior,
     )
     r = simulate_qaly_profile_vectorized(
         intervention,
@@ -255,6 +261,7 @@ def evaluate_decisions(
                 entry.log_sd,
                 entry.conf_alpha,
                 entry.conf_beta,
+                entry.has_direct_mortality_effect,
                 cost,
                 qol,
                 entry.qol_years,
@@ -278,6 +285,7 @@ def evaluate_decisions(
                 entry.log_sd,
                 entry.conf_alpha,
                 entry.conf_beta,
+                entry.has_direct_mortality_effect,
                 -entry.annual_cost,  # Savings
                 -entry.effective_qol_annual(),  # Lose QoL benefit
                 entry.qol_years,
@@ -309,6 +317,7 @@ def evaluate_decisions(
                 entry.log_sd,
                 entry.conf_alpha,
                 entry.conf_beta,
+                entry.has_direct_mortality_effect,
                 cost,
                 qol,
                 entry.qol_years,
