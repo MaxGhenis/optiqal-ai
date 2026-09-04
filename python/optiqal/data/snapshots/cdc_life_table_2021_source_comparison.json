@@ -11,7 +11,7 @@
     "female_spreadsheet": "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/NVSR/72-12/Table03.xlsx",
     "status": "published qx transcribed from and verified against the official PDF; comparison computed mechanically",
     "generator_note": "The generator validates this committed evidence and prints manual refresh steps; it does not fetch the source.",
-    "sha256_of_data": "a7d0c35126bb8f3559f220613c81d5dbb984fd5b90c9cc4290c1e49256f72c54"
+    "sha256_of_data": "574890b25cfd151c6948c68aeb79c1b0a36ebaf6558f819d2061e5641c434954"
   },
   "data": {
     "summary": {

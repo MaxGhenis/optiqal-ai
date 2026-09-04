@@ -20,6 +20,10 @@ increasing all raise :class:`SnapshotError` naming the file. Because
 ``optiqal.lifecycle`` loads its snapshots at import, every one of those failures
 surfaces at import rather than as a wrong number in a card.
 
+The checksum is defined over a canonical serialization in which every numeric
+leaf is a float, because the loader reads every number through ``float()``: the
+engine cannot distinguish ``1`` from ``1.0`` and neither may its checksum.
+
 The generators that write these files are in ``optiqal.data_build``; each
 snapshot names its own regenerate command in ``provenance.generator``.
 """
@@ -64,9 +68,37 @@ def snapshot_dir() -> Path:
     return Path(__file__).parent / "data" / "snapshots"
 
 
+def _canonical_numbers(node: Any) -> Any:
+    """Coerce every numeric leaf to ``float``, leaving booleans alone.
+
+    The loader reads every number through ``float()``, so ``1`` and ``1.0`` are
+    the same value to the engine. Without this coercion ``json.dumps`` spells
+    them ``1`` and ``1.0`` and the checksum would separate two snapshots the
+    engine cannot tell apart.
+    """
+    if isinstance(node, bool):
+        return node
+    if isinstance(node, int):
+        return float(node)
+    if isinstance(node, dict):
+        return {key: _canonical_numbers(value) for key, value in node.items()}
+    if isinstance(node, list):
+        return [_canonical_numbers(value) for value in node]
+    return node
+
+
 def canonical_json(data: Any) -> str:
-    """Serialize ``data`` the one way the checksum is defined over."""
-    return json.dumps(data, allow_nan=False, sort_keys=True, separators=(",", ":"))
+    """Serialize ``data`` the one way the checksum is defined over.
+
+    Raises ``ValueError`` on a non-finite float, including one a JSON literal
+    such as ``1e400`` produced by overflowing during parsing.
+    """
+    return json.dumps(
+        _canonical_numbers(data),
+        allow_nan=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
 
 
 def data_checksum(data: Any) -> str:

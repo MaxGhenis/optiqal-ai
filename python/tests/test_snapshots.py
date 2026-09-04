@@ -115,6 +115,44 @@ def test_checksum_mismatch_fails_closed_and_names_file(snapshot_directory):
     assert "sha256_of_data" in str(error.value)
 
 
+def test_canonical_json_hashes_int_and_float_spellings_alike():
+    """``1`` and ``1.0`` are one value to the loader, so one checksum."""
+    integer_spelling = {"rows": {"1": 1, "2": 0}, "flag": True, "count": 44}
+    float_spelling = {"rows": {"1": 1.0, "2": 0.0}, "flag": True, "count": 44.0}
+
+    assert snapshots.canonical_json(integer_spelling) == snapshots.canonical_json(
+        float_spelling
+    )
+    assert snapshots.data_checksum(integer_spelling) == snapshots.data_checksum(
+        float_spelling
+    )
+
+
+def test_canonical_json_keeps_booleans_out_of_the_numeric_coercion():
+    """``True`` must not canonicalize to ``1.0``; the audit rows carry flags."""
+    assert snapshots.canonical_json({"flag": True}) != snapshots.canonical_json(
+        {"flag": 1}
+    )
+    assert snapshots.canonical_json({"flag": False}) != snapshots.canonical_json(
+        {"flag": 0}
+    )
+
+
+def test_int_and_float_spellings_load_under_one_committed_checksum(
+    snapshot_directory,
+):
+    """The equality holds end to end: either spelling passes the same pin."""
+    checksum = snapshots.data_checksum({"rates": {"1": 1.0}})
+    payload = _snapshot({"rates": {"1": 1.0}})
+    payload["data"]["rates"]["1"] = 1
+    _write(snapshot_directory, "spelling", payload)
+
+    loaded = snapshots.load_snapshot("spelling")
+
+    assert loaded.provenance["sha256_of_data"] == checksum
+    assert loaded.age_table("rates", maximum=1.0) == {1: 1.0}
+
+
 def test_meps_snapshot_matches_committed_calibration():
     calibration_path = meps_quality_weights.CALIBRATION_PATH
     calibration = json.loads(calibration_path.read_text(encoding="utf-8"))
