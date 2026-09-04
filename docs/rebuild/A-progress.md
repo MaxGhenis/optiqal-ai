@@ -95,6 +95,12 @@ State: fixing the read-only review findings in place on `rebuild/a-rng-priors`.
   40,000. The slow case takes about nine seconds, so it stays in the default suite;
   `pytest -m "not slow"` deselects it.
 
+- Item 6 (nice to have): the drift test now parses the two `### Example:` YAML blocks
+  in `docs/methodology.md` against the registry's item rows, and the `Mean` column of
+  the paper's category table plus the methodology's `Mean causal fraction` lines
+  against the Beta mean in whole percent. Each of the four new assertions was checked
+  by mutating the document and confirming the failure.
+
 ### Next
 
-- Nice-to-have items 6 and 7, then full verification.
+- Nice-to-have item 7, then full verification.
