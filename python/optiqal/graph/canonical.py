@@ -27,7 +27,9 @@ def _array_value(value: np.ndarray) -> dict[str, object]:
         raise TypeError("object and structured arrays are not canonical")
     if np.issubdtype(array.dtype, np.inexact) and not np.isfinite(array).all():
         raise ValueError("non-finite numbers are not canonical JSON")
-    contiguous = np.ascontiguousarray(array)
+    # ``ascontiguousarray`` promotes a zero-dimensional array to shape ``(1,)``;
+    # an explicit C-order copy preserves the declared shape in identity.
+    contiguous = np.array(array, copy=True, order="C", subok=False)
     return {
         _ARRAY_MARKER: {
             "base64": base64.b64encode(contiguous.tobytes(order="C")).decode("ascii"),

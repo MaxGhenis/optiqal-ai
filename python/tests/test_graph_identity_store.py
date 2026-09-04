@@ -72,6 +72,8 @@ def test_canonical_json_supports_closed_values_and_numpy_arrays():
     assert encoded == canonical_json(payload)
     assert payload["array"]["__ndarray__"]["dtype"] == "<i2"
     assert payload["array"]["__ndarray__"]["shape"] == [3, 2]
+    scalar = json.loads(canonical_json(np.array(1.0)))
+    assert scalar["__ndarray__"]["shape"] == []
 
 
 @pytest.mark.parametrize(

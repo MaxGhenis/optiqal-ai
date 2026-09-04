@@ -24,6 +24,7 @@ from .errors import (
     StoreMissError,
     StoreUnavailableError,
 )
+from .executor import run_graph
 from .kernel import (
     Capabilities,
     Determinism,
@@ -38,7 +39,16 @@ from .kernel import (
     source_hash,
 )
 from .keys import artifact_key, node_key, platform_fingerprint, seed, source_key
+from .manifest import Decision, NodeReceipt, RunManifest, load, load_certified, save
+from .sources import (
+    DEFAULT_SOURCE_LOADERS,
+    SOURCE_LOADERS,
+    SourceLoader,
+    SourceLoaderRegistry,
+    load_sources,
+)
 from .store import ContentStore, ResumePolicy, StoredResult
+from .view import describe
 
 __all__ = [
     "DESCRIPTIVE_FIELDS",
@@ -48,6 +58,8 @@ __all__ = [
     "Capabilities",
     "CompiledGraph",
     "ContentStore",
+    "DEFAULT_SOURCE_LOADERS",
+    "Decision",
     "Determinism",
     "Graph",
     "GraphError",
@@ -60,13 +72,18 @@ __all__ = [
     "KernelResult",
     "ManifestError",
     "Node",
+    "NodeReceipt",
     "NodeRejectedError",
     "NodeExecutionError",
     "Numeric",
     "NumericScope",
     "Param",
     "ResumePolicy",
+    "RunManifest",
+    "SOURCE_LOADERS",
     "SourceRef",
+    "SourceLoader",
+    "SourceLoaderRegistry",
     "StoreCorruptError",
     "StoreMissError",
     "StoreUnavailableError",
@@ -75,11 +92,17 @@ __all__ = [
     "artifact_key",
     "canonical_json",
     "compile_graph",
+    "describe",
+    "load",
+    "load_certified",
+    "load_sources",
     "node_key",
     "normative",
     "platform_fingerprint",
     "seed",
     "sha256_domain",
+    "run_graph",
+    "save",
     "source_hash",
     "source_key",
 ]

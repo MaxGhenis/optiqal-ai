@@ -2,9 +2,9 @@
 
 ## State
 
-In progress on `rebuild/i-graph`. The frozen interface, canonical identity, atomic content
-storage, and fail-closed portable manifest are implemented. The executor and source loaders
-are next.
+In progress on `rebuild/i-graph`. The graph contract, identity/store/manifest runtime,
+registered normative source loaders, executor, and one-screen view are implemented. The toy
+graph and HTML explorer are next.
 
 ## Done
 
@@ -33,9 +33,16 @@ are next.
 - Implemented certified loading that re-derives every release tier, requires complete gate
   evidence, permits authored evidence, and refuses failed, unreached, heuristic, empty, or
   tampered releases (52 graph-focused tests passing).
+- Implemented registered prior, study, snapshot, catalog, and profile loaders, including
+  optional-PR fallbacks, granular study/catalog source aliases, and explicit removal of
+  descriptive content before source identity is computed.
+- Implemented the executor's full resume contract, artifact-keyed storage, immutable input
+  projection, identity-derived generators, gate exception semantics, transitive numeric
+  scopes, derived release tiers, and portable run receipts.
+- Implemented deterministic one-screen node descriptions from the embedded graph and
+  manifest; all 117 graph-focused tests pass.
 
 ## Next
 
-- Implement source loaders and the executor with gates, tiers, numerics, and resume policies.
-- Implement the toy graph, views, and the explorer CLI.
+- Implement the toy graph and the explorer CLI.
 - Run all requested verification and record the three toy-run outputs.

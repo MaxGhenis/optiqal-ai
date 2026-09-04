@@ -49,11 +49,15 @@ def _freeze(value: object) -> object:
             raise ValueError("manifest values must be finite")
         return value
     if isinstance(value, np.ndarray):
-        array = np.array(value, copy=True, order="C")
-        if np.issubdtype(array.dtype, np.inexact) and not np.isfinite(array).all():
+        contiguous = np.array(value, copy=True, order="C", subok=False)
+        if (
+            np.issubdtype(contiguous.dtype, np.inexact)
+            and not np.isfinite(contiguous).all()
+        ):
             raise ValueError("manifest arrays must be finite")
-        array.setflags(write=False)
-        return array
+        return np.frombuffer(
+            contiguous.tobytes(order="C"), dtype=contiguous.dtype
+        ).reshape(contiguous.shape)
     if isinstance(value, np.generic):
         return _freeze(value.item())
     if isinstance(value, Mapping):
