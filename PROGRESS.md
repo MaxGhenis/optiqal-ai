@@ -2,8 +2,8 @@
 
 ## State
 
-In progress on `rebuild/i-graph`. Every PR I deliverable is implemented and the resumed
-independent audit is addressing one fallback-source semantic defect before final verification.
+Complete on `rebuild/i-graph`. Every PR I deliverable and audit fix is implemented,
+independently reviewed, tested, documented, and locked; final verification evidence is recorded.
 
 ## Done
 
@@ -66,8 +66,9 @@ independent audit is addressing one fallback-source semantic defect before final
   `verification_state` and no kernel-authored value or receipt may carry `tier`.
 - Added direct coverage for every `KernelContext` validation branch and for the public
   interface-lock hash, verifier, CLI, mismatch, and malformed-lock paths.
+- Re-ran the final whole-project lane after all audit fixes: all 629 tests pass, all 96 Python
+  files are lint-clean and formatted, the interface lock verifies, and the toy smoke passes.
 
 ## Next
 
-- Complete the independent reference/spec audit.
-- Repeat whole-project verification and commit the final report.
+- None for PR I after committing this report update.
