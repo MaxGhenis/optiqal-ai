@@ -90,7 +90,7 @@
   comparator: active control
   endpoint: anxiety_symptoms_at_eight_weeks
   estimate: {type: SMD, value: 0.38, ci_low: 0.12, ci_high: 0.64}
-  role: direct
+  role: transport
   extracted_by: gpt-5.6-sol lane 2026-09-04
   verified: 2026-09-04
   verified_by: claude-opus-5 review lane 2026-09-04; europepmc refresh 2026-09-04
@@ -206,7 +206,7 @@
   extracted_by: gpt-5.6-sol lane 2026-09-04
   verified: 2026-09-04
   verified_by: claude-opus-5 review lane 2026-09-04; europepmc refresh 2026-09-04
-  notes: With the SHE intervention, the mean (SD) PSQIs were 10.2 (1.8) at baseline and 9.1 (2.0) at postintervention. The between-group mean difference was 1.8 (95% CI, 0.6-2.9), with an effect size of 0.89.
+  notes: The between-group mean difference was 1.8 (95% CI, 0.6-2.9), with an effect size of 0.89.
 
 - id: lincoff2023_select_mace
   pmid: '37952131'
@@ -272,7 +272,7 @@
   comparator: placebo
   endpoint: all_cause_mortality
   estimate: {type: HR, value: 1.14, ci_low: 1.01, ci_high: 1.29}
-  role: direct
+  role: transport
   extracted_by: gpt-5.6-sol lane 2026-09-04
   verified: 2026-09-04
   verified_by: claude-opus-5 review lane 2026-09-04; europepmc refresh 2026-09-04
@@ -286,7 +286,7 @@
   comparator: placebo
   endpoint: all_cause_mortality
   estimate: {type: HR, value: 1.02, ci_low: 0.97, ci_high: 1.08}
-  role: direct
+  role: transport
   extracted_by: gpt-5.6-sol lane 2026-09-04
   verified: 2026-09-04
   verified_by: claude-opus-5 review lane 2026-09-04; europepmc refresh 2026-09-04
@@ -314,7 +314,7 @@
   comparator: placebo or no intervention
   endpoint: all_cause_mortality
   estimate: {type: RR, value: 0.94, ci_low: 0.91, ci_high: 0.98}
-  role: direct
+  role: transport
   extracted_by: gpt-5.6-sol lane 2026-09-04
   verified: 2026-09-04
   verified_by: claude-opus-5 review lane 2026-09-04; europepmc refresh 2026-09-04
