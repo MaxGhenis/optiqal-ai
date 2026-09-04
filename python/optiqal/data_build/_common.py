@@ -22,14 +22,20 @@ def snapshot_payload(provenance: dict[str, Any], data: dict[str, Any]) -> dict:
     return {"provenance": stamped_provenance, "data": data}
 
 
+def render_snapshot(provenance: dict[str, Any], data: dict[str, Any]) -> str:
+    """Render the exact bytes a generator commits, insertion order intact.
+
+    Kept separate from writing so ``--check`` can compare against the committed
+    file without touching it.
+    """
+    payload = snapshot_payload(provenance, data)
+    return json.dumps(payload, allow_nan=False, ensure_ascii=False, indent=2) + "\n"
+
+
 def write_snapshot(
     output_path: Path, provenance: dict[str, Any], data: dict[str, Any]
 ) -> Path:
     """Write a snapshot without disturbing numeric insertion order."""
-    payload = snapshot_payload(provenance, data)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        json.dumps(payload, allow_nan=False, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    output_path.write_text(render_snapshot(provenance, data), encoding="utf-8")
     return output_path

@@ -12,6 +12,9 @@ and prints the evidence that a future, number-changing replacement must record.
 
 from __future__ import annotations
 
+import argparse
+from typing import Optional, Sequence
+
 from optiqal.snapshots import SnapshotError, data_checksum, load_snapshot
 
 SNAPSHOT_NAME = "cause_fractions"
@@ -52,11 +55,20 @@ def print_manual_regeneration_steps() -> None:
     )
 
 
-def main() -> None:
+def main(argv: Optional[Sequence[str]] = None) -> None:
     """Validate the snapshot and explain the manual replacement process."""
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="validate the committed snapshot only, without the replacement steps",
+    )
+    args = parser.parse_args(argv)
+
     validate_committed_snapshot()
     print("Validated the transcribed cause-fraction snapshot against its checksum.")
-    print_manual_regeneration_steps()
+    if not args.check:
+        print_manual_regeneration_steps()
 
 
 if __name__ == "__main__":

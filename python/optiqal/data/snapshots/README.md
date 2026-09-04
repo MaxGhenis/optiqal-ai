@@ -42,6 +42,16 @@ uv run python -m optiqal.data_build.cdc_life_table
 uv run python -m optiqal.data_build.cause_fractions
 ```
 
+Each module also takes `--check`, which writes nothing and exits non-zero on
+drift. For MEPS that compares the committed bytes with a rebuild; for the other
+two it validates the pinned checksums and suppresses the manual-refresh text:
+
+```bash
+uv run python -m optiqal.data_build.meps_quality_weights --check
+uv run python -m optiqal.data_build.cdc_life_table --check
+uv run python -m optiqal.data_build.cause_fractions --check
+```
+
 The MEPS command regenerates its snapshot from
 `optiqal/data/meps/quality_weight_calibration.json`. The CDC and cause-fraction
 commands validate pinned checksums and print manual source-refresh steps. They

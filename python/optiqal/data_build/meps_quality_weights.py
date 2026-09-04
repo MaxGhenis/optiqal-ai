@@ -13,12 +13,14 @@ is identified as such in the output provenance.
 
 from __future__ import annotations
 
+import argparse
 import json
 import math
+import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional, Sequence
 
-from optiqal.data_build._common import file_checksum, write_snapshot
+from optiqal.data_build._common import file_checksum, render_snapshot, write_snapshot
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 CALIBRATION_PATH = PACKAGE_ROOT / "data" / "meps" / "quality_weight_calibration.json"
@@ -113,17 +115,32 @@ def build_provenance(calibration_path: Path) -> dict:
     }
 
 
-def write_quality_weight_snapshot(
-    calibration_path: Path = CALIBRATION_PATH,
-    output_path: Path = SNAPSHOT_PATH,
-) -> Path:
-    """Build and write the runtime snapshot from a calibration JSON file."""
+def _load_calibration(calibration_path: Path) -> dict:
     try:
         calibration = json.loads(calibration_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise CalibrationError(f"cannot read {calibration_path}: {exc}") from exc
     if not isinstance(calibration, dict):
         raise CalibrationError(f"{calibration_path} is not a JSON object")
+    return calibration
+
+
+def render_quality_weight_snapshot(
+    calibration_path: Path = CALIBRATION_PATH,
+) -> str:
+    """Render the snapshot bytes this generator would write."""
+    calibration = _load_calibration(calibration_path)
+    return render_snapshot(
+        build_provenance(calibration_path), build_data(calibration)
+    )
+
+
+def write_quality_weight_snapshot(
+    calibration_path: Path = CALIBRATION_PATH,
+    output_path: Path = SNAPSHOT_PATH,
+) -> Path:
+    """Build and write the runtime snapshot from a calibration JSON file."""
+    calibration = _load_calibration(calibration_path)
     return write_snapshot(
         output_path,
         build_provenance(calibration_path),
@@ -131,8 +148,40 @@ def write_quality_weight_snapshot(
     )
 
 
-def main() -> None:
-    """Regenerate the committed quality-weight snapshot."""
+def check_quality_weight_snapshot(
+    calibration_path: Path = CALIBRATION_PATH,
+    output_path: Path = SNAPSHOT_PATH,
+) -> bool:
+    """Report whether the committed snapshot is byte-identical to a rebuild."""
+    expected = render_quality_weight_snapshot(calibration_path)
+    try:
+        actual = output_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return False
+    return actual == expected
+
+
+def main(argv: Optional[Sequence[str]] = None) -> None:
+    """Regenerate the committed quality-weight snapshot, or check it."""
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="compare the committed snapshot with a rebuild and write nothing",
+    )
+    args = parser.parse_args(argv)
+
+    if args.check:
+        if check_quality_weight_snapshot():
+            print(f"{SNAPSHOT_PATH} is byte-identical to a rebuild.")
+            return
+        print(
+            f"{SNAPSHOT_PATH} differs from a rebuild; "
+            "run this module without --check.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+
     output_path = write_quality_weight_snapshot()
     print(f"Wrote {output_path}")
 

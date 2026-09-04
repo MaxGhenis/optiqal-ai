@@ -242,6 +242,42 @@ def test_meps_snapshot_matches_committed_calibration():
     ] == meps_quality_weights.file_checksum(calibration_path)
 
 
+def test_meps_check_mode_confirms_the_committed_bytes():
+    """--check must compare, and must not be the write path in disguise."""
+    before = meps_quality_weights.SNAPSHOT_PATH.read_bytes()
+
+    assert meps_quality_weights.check_quality_weight_snapshot() is True
+    meps_quality_weights.main(["--check"])
+
+    assert meps_quality_weights.SNAPSHOT_PATH.read_bytes() == before
+
+
+def test_meps_check_mode_detects_drift(tmp_path):
+    drifted = tmp_path / "meps_quality_weights.json"
+    payload = json.loads(
+        meps_quality_weights.SNAPSHOT_PATH.read_text(encoding="utf-8")
+    )
+    payload["data"]["quality_weights"]["25"] = 0.5
+    drifted.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert meps_quality_weights.check_quality_weight_snapshot(output_path=drifted) is (
+        False
+    )
+    assert (
+        meps_quality_weights.check_quality_weight_snapshot(
+            output_path=tmp_path / "absent.json"
+        )
+        is False
+    )
+
+
+def test_generator_check_flags_are_parsed_not_ignored():
+    """A silently swallowed --check once let a dry run rewrite the snapshot."""
+    for module in (cause_fractions, cdc_life_table, meps_quality_weights):
+        with pytest.raises(SystemExit):
+            module.main(["--nonexistent-flag"])
+
+
 def test_cdc_life_table_snapshot_and_source_comparison_are_pinned():
     cdc_life_table.validate_committed_artifacts()
 

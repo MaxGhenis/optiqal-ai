@@ -13,8 +13,9 @@ the manual steps for refreshing the published-source evidence.
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
-from typing import NoReturn
+from typing import NoReturn, Optional, Sequence
 
 from optiqal.snapshots import SnapshotError, data_checksum, load_snapshot
 
@@ -152,11 +153,20 @@ def print_manual_regeneration_steps() -> None:
     )
 
 
-def main() -> None:
+def main(argv: Optional[Sequence[str]] = None) -> None:
     """Validate committed artifacts and explain how to refresh source evidence."""
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="validate the committed artifacts only, without the refresh steps",
+    )
+    args = parser.parse_args(argv)
+
     validate_committed_artifacts()
     print("Validated the transcribed CDC snapshot and NVSR 72-12 comparison.")
-    print_manual_regeneration_steps()
+    if not args.check:
+        print_manual_regeneration_steps()
 
 
 if __name__ == "__main__":
