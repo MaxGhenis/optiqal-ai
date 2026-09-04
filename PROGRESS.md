@@ -2,7 +2,7 @@
 
 ## State
 
-Implementation in progress on `rebuild/a-rng-priors`.
+Complete on `rebuild/a-rng-priors`; final evidence is recorded in `PR_A_REPORT.md`.
 
 ## Done
 
@@ -21,7 +21,10 @@ Implementation in progress on `rebuild/a-rng-priors`.
 - Ran the model-regression rebaseline exactly once and recorded mortality-bearing and QoL-only comparison values.
 - Rebased the optimizer sign regression: aspirin remains a negative drop case, while vitamin D is now a positive keep case under independent streams.
 - Made protocol draw-count defaults resolve at call time so the end-to-end shape/I/O smoke test can use 1,000 draws while production remains at 40,000.
+- Verified the canonical default public frontier after the changes.
+- Passed the exact full Python suite (512 tests) and Ruff check.
+- Recorded the final handoff report.
 
 ## Next
 
-- Run Ruff and the full pytest suite, rerun the public frontier, and record the final comparison report.
+- Ready for review; the branch has not been pushed.
