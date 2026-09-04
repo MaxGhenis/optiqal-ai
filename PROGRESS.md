@@ -2,9 +2,9 @@
 
 ## State
 
-In progress on `rebuild/d-evidence-table`. The loader, evidence seed, live lineage
-links, debt ratchets, and lint report are implemented; final full-suite verification
-and the delivery report remain.
+Complete on `rebuild/d-evidence-table`. The loader, evidence seed, live lineage
+links, debt ratchets, lint report, full verification, and delivery report are all
+committed.
 
 ## Done
 
@@ -28,7 +28,15 @@ and the delivery report remain.
   output with the three summary counts.
 - Restored the fallback virtualenv's editable package link offline so subprocess tests
   use the same checkout; the first complete run otherwise reached 499 passing tests.
+- Verified the final committed implementation: 519 tests pass, Ruff and format checks
+  pass, the offline evidence check reports 48 rows/46 identifiers, and lint reports
+  ratchet counts of 74/114/130.
+- Recorded the complete delivery, PR G mismatch list, verification tails, and external
+  environment limitations in `FINAL_REPORT.md`.
 
 ## Next
 
-- Run all required verification commands and record their results.
+- In PR G, adjudicate the ten typed-value differences recorded in the judgment
+  ratchet without silently copying estimates across doses, populations, or endpoints.
+- Reduce the committed evidence-debt snapshots only when a claim gains traceable
+  abstract-supported provenance or a hand-set judgment is removed.
