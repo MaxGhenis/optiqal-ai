@@ -10,8 +10,19 @@ paper corrections), `docs/DATA_PROVENANCE.md`, `REPRODUCIBILITY.md`, `python/REA
 `src/app/api/frontier/route.ts`, `src/app/api/baseline/route.ts`, `src/lib/python-bridge.ts`,
 and `scripts/prepare-model-deploy.mjs`.
 
-Setup: `cd /Users/maxghenis/optiqal-ai-rebuild-b/python && uv sync`; then at the worktree root
-`bun install` (the lockfile is `bun.lock`). Use `bun`, never npm.
+Setup: `cd /Users/maxghenis/optiqal-ai-rebuild-b/python && uv sync` (if the dev extra cannot
+be downloaded, run Python commands with `PYTHONPATH=. uv run --no-sync`). The worktree root
+already carries a `node_modules/` copied from the main clone, so `bun run typecheck`, `lint`,
+`test` and `build` work without network; run `bun install` only if it succeeds offline
+(`bun install --frozen-lockfile`), and never let a failed install stop the TypeScript checks.
+Use `bun`, never npm. Keep your progress file at `docs/rebuild/B-progress.md`, not the
+repository root, and commit it with each step.
+
+PRs A and E have landed on the base since this brief was written: priors live in
+`python/optiqal/data/priors.yaml` with a drift test in `python/tests/test_priors_drift.py` that
+globs `src/lib/qaly/interventions/*.yaml` (update that glob when you move the YAMLs), and
+`lifecycle.py` loads snapshots through `python/optiqal/snapshots.py`. Read `REBUILD.md`'s "PR A
+notes" and "PR E notes" sections before starting.
 
 ## HEADLESS EXECUTION
 
