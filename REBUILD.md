@@ -147,3 +147,21 @@ the generated list no longer has (a fixed debt that must be removed).
        "verification_state": "sourced|authored|heuristic", "study_ids": [...]}]}
 
 A card with `verification_state: heuristic` never reaches the public site.
+
+## PR E notes (2026-09-04)
+
+- `lifecycle.py` now loads its five public data blocks from three committed,
+  provenance-stamped JSON snapshots through a fail-closed loader. The dated
+  fixture proves every numeric value stayed unchanged to `1e-12`.
+- The MEPS snapshot regenerates from the committed calibration artifact, and
+  `fetch_meps.py` refreshes it after recalibration. The age-95 quality weight is
+  labeled as an authored extrapolation rather than attributed to MEPS.
+- The production life-table anchors are transcribed legacy data. A committed
+  comparison against NVSR 72-12 Tables 2–3 finds zero matches across 44 anchors;
+  production is not using the CDC 2021 table the earlier docs cited. Correcting
+  those values requires a later behavior-changing PR.
+- Cause fractions remain a transcribed approximation because no saved CDC WONDER
+  query or export exists. Their pinned validator prints the raw evidence a
+  future replacement must record instead of inventing a regeneration path.
+- `condition_joint_distribution.json` and the committed MEPS parquet remain in
+  place for PR B, as required by the lane boundaries.

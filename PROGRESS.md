@@ -4,8 +4,8 @@ Branch `rebuild/e-load-snapshots`. Charter: `REBUILD.md` (PR E row). Updated as 
 
 ## State
 
-Working. All snapshot artifacts and generators are landed; `lifecycle.py` now loads them at
-import and the dated pre-refactor fixture proves every value is unchanged.
+Working. Implementation and provenance documentation are complete. Targeted snapshot,
+lifecycle, model-regression, and sleep tests are green; full verification remains.
 Verification (`uv run ruff check .`, `uv run pytest -q` from `python/`) is run before the
 final commit; `tests/test_model_regression.py` and `tests/test_sleep.py` must pass untouched
 because this PR changes no number.
@@ -61,8 +61,12 @@ because this PR changes no number.
   and compared every loaded numeric leaf at absolute tolerance `1e-12`.
 - Added an integration test that reloads `lifecycle.py` against a malformed temporary snapshot
   and proves the named-file `SnapshotError` occurs during import.
+- Rewrote `docs/DATA_PROVENANCE.md` around the snapshot chain and regenerate commands, while
+  retaining the PR B action items for the MEPS parquet and unsourced condition distribution.
+- Added the snapshots README and appended dated PR E notes to `REBUILD.md`, including the
+  explicit finding that production does not use the cited CDC 2021 table.
 
 ## Next
 
-1. `docs/DATA_PROVENANCE.md`, snapshots README, `REBUILD.md` PR E notes.
-2. Run targeted untouched regressions, then the required full Ruff and pytest verification.
+1. Run the required full `uv run ruff check .` and `uv run pytest -q` verification.
+2. Record the exact final outputs and mark this progress file complete in the final commit.
