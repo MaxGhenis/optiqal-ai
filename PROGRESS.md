@@ -4,7 +4,8 @@ Branch `rebuild/e-load-snapshots`. Charter: `REBUILD.md` (PR E row). Updated as 
 
 ## State
 
-Working. The fail-closed loader and its isolated failure-path tests are ready to land.
+Working. The fail-closed loader is landed; the deterministic MEPS snapshot builder and
+`fetch_meps.py` integration are ready to land next.
 Verification (`uv run ruff check .`, `uv run pytest -q` from `python/`) is run before the
 final commit; `tests/test_model_regression.py` and `tests/test_sleep.py` must pass untouched
 because this PR changes no number.
@@ -43,11 +44,14 @@ because this PR changes no number.
   missing provenance, NaN, negative rates, non-monotone ages, and checksum drift.
 - Hardened parsing so bare JSON NaN/Infinity fail before caching, age spellings cannot leak a
   raw `KeyError`, provenance types and dates are validated, and named row order is irrelevant.
+- Built the MEPS runtime snapshot deterministically from the committed calibration artifact,
+  retaining the authored age-95 extrapolation with an explicit provenance note.
+- Made `fetch_meps.py` refresh that runtime snapshot whenever it rewrites the calibration and
+  added a drift test against the committed calibration's exact byte checksum.
 
 ## Next
 
-1. MEPS generator, snapshot, and drift test; `fetch_meps.py` writes the snapshot.
-2. CDC life-table generator, snapshot, and published-table comparison artifact.
-3. Cause-fractions generator and snapshot.
-4. `lifecycle.py` loads all three snapshots; fixture equality test at 1e-12.
-5. `docs/DATA_PROVENANCE.md`, snapshots README, `REBUILD.md` PR E notes.
+1. CDC life-table generator, snapshot, and published-table comparison artifact.
+2. Cause-fractions generator and snapshot.
+3. `lifecycle.py` loads all three snapshots; fixture equality test at 1e-12.
+4. `docs/DATA_PROVENANCE.md`, snapshots README, `REBUILD.md` PR E notes.

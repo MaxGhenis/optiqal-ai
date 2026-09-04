@@ -25,6 +25,8 @@ import numpy as np
 import pandas as pd
 import requests
 
+from optiqal.data_build.meps_quality_weights import write_quality_weight_snapshot
+
 # MEPS data URLs (Full-Year Consolidated Files)
 # Format: HC-XXX where XXX is the file number
 MEPS_FILES = {
@@ -347,6 +349,9 @@ def main():
     with open(output_file, "w") as f:
         json.dump(convert_for_json(results), f, indent=2)
     print(f"\nSaved calibration to {output_file}")
+
+    snapshot_file = write_quality_weight_snapshot(calibration_path=output_file)
+    print(f"Saved runtime snapshot to {snapshot_file}")
 
     # Save processed data
     df.to_parquet(cache_dir / "meps_combined.parquet")

@@ -1,0 +1,37 @@
+{
+  "provenance": {
+    "source": "Committed AHRQ MEPS 2019-2022 quality_weight_calibration.json; age 95 is an authored extrapolation transcribed from lifecycle.py",
+    "url": "https://meps.ahrq.gov/mepsweb/data_stats/download_data_files.jsp",
+    "table": "by_age.mean, within_age_std, and by_condition.*.decrement; AHRQ HC-209, HC-216, HC-224, and HC-233",
+    "retrieved": "2026-09-04",
+    "generator": "python -m optiqal.data_build.meps_quality_weights",
+    "version": 1,
+    "source_artifact": "optiqal/data/meps/quality_weight_calibration.json",
+    "source_artifact_sha256": "d2728dbcf5e026bf5cc11a93515f4989198124bb1fbadcf040df51d886a92a3e",
+    "retrieval_note": "The committed artifact and source URLs were verified on this date; the original AHRQ download date was not recorded.",
+    "mapping": "SF-12 PCS/MCS to EQ-5D, Franks et al. 2004",
+    "rounding": "Derived runtime values are rounded to three decimals.",
+    "sha256_of_data": "e13dd48b68eb51fbe1505134af5ef1b5e26d9091b1fe5dfde4204b22db1fd7f1"
+  },
+  "data": {
+    "quality_weights": {
+      "25": 0.935,
+      "35": 0.922,
+      "45": 0.904,
+      "55": 0.878,
+      "65": 0.865,
+      "75": 0.847,
+      "85": 0.792,
+      "95": 0.75
+    },
+    "quality_weight_std": 0.117,
+    "condition_decrements": {
+      "diabetes": 0.092,
+      "hypertension": 0.081,
+      "heart_disease": 0.108,
+      "stroke": 0.133,
+      "cancer": 0.05,
+      "arthritis": 0.108
+    }
+  }
+}

@@ -5,6 +5,7 @@ import json
 import pytest
 
 from optiqal import snapshots
+from optiqal.data_build import meps_quality_weights
 
 
 def _snapshot(data: dict) -> dict:
@@ -108,3 +109,17 @@ def test_checksum_mismatch_fails_closed_and_names_file(snapshot_directory):
 
     assert "checksum.json" in str(error.value)
     assert "sha256_of_data" in str(error.value)
+
+
+def test_meps_snapshot_matches_committed_calibration():
+    calibration_path = meps_quality_weights.CALIBRATION_PATH
+    calibration = json.loads(calibration_path.read_text(encoding="utf-8"))
+    expected = meps_quality_weights.build_data(calibration)
+
+    actual = snapshots.load_snapshot("meps_quality_weights")
+
+    assert actual.data == expected
+    assert (
+        actual.provenance["source_artifact_sha256"]
+        == meps_quality_weights.file_checksum(calibration_path)
+    )
