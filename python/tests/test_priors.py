@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import inspect
 import json
 import math
 from copy import deepcopy
@@ -18,9 +19,11 @@ from optiqal.confounding import (
     INTERVENTION_PRIORS,
     PROTOCOL_INTERVENTION_PRIORS,
     STUDY_QUALITY_SHRINKAGE,
+    ConfoundingPrior,
 )
 from optiqal.intervention import Intervention
 from optiqal.priors import load_priors
+from optiqal.protocol_ground_up import StackSpec, make_spec
 from optiqal.qol_evidence import (
     AUTHORED_RESIDUAL_OPTIMISM_PRIOR,
     QOL_STUDY_QUALITY_SHRINKAGE,
@@ -270,7 +273,63 @@ def _is_numeric_literal(node: ast.AST) -> bool:
     )
 
 
-def test_no_numeric_literal_confounding_prior_constructors_in_runtime_code() -> None:
+def _parameter_order(target) -> list[str]:
+    """Positional parameter names of a callable, for resolving positional args."""
+    return [
+        name
+        for name, parameter in inspect.signature(target).parameters.items()
+        if parameter.kind
+        in (parameter.POSITIONAL_ONLY, parameter.POSITIONAL_OR_KEYWORD)
+    ]
+
+
+#: Call sites where a numeric literal would reintroduce a hand-set Beta prior into
+#: runtime code. ``None`` guards every argument; a set guards only those parameters,
+#: because ``make_spec`` and ``StackSpec`` legitimately take numeric literals for
+#: observed_hr, log_sd, qol_annual and the rest.
+_PRIOR_BEARING_CALLS: dict[str, frozenset[str] | None] = {
+    "ConfoundingPrior": None,
+    "make_spec": frozenset({"conf_alpha", "conf_beta"}),
+    "StackSpec": frozenset({"conf_alpha", "conf_beta"}),
+}
+_POSITIONAL_NAMES = {
+    "ConfoundingPrior": _parameter_order(ConfoundingPrior),
+    "make_spec": _parameter_order(make_spec),
+    "StackSpec": _parameter_order(StackSpec),
+}
+
+
+def _guarded_literal_arguments(node: ast.Call, function_name: str) -> bool:
+    """Whether this call passes a numeric literal in a prior-bearing position."""
+    guarded = _PRIOR_BEARING_CALLS[function_name]
+    positional = _POSITIONAL_NAMES[function_name]
+
+    for index, argument in enumerate(node.args):
+        if isinstance(argument, ast.Starred):
+            continue
+        name = positional[index] if index < len(positional) else None
+        if guarded is not None and name not in guarded:
+            continue
+        if _is_numeric_literal(argument):
+            return True
+
+    for keyword in node.keywords:
+        if guarded is not None and keyword.arg not in guarded:
+            continue
+        if _is_numeric_literal(keyword.value):
+            return True
+
+    return False
+
+
+def test_no_numeric_literal_prior_constructors_in_runtime_code() -> None:
+    """Beta parameters must reach runtime objects through priors.yaml, not literals.
+
+    ConfoundingPrior is guarded on every argument. make_spec and StackSpec carry the
+    protocol pipeline's per-item priors alongside genuinely literal fields, so only
+    their conf_alpha and conf_beta are guarded, by name for keywords and by
+    signature position for positional arguments.
+    """
     violations = []
     for path in sorted((PYTHON_ROOT / "optiqal").rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
@@ -284,9 +343,34 @@ def test_no_numeric_literal_confounding_prior_constructors_in_runtime_code() -> 
                 if isinstance(node.func, ast.Attribute)
                 else None
             )
-            if function_name != "ConfoundingPrior":
+            if function_name not in _PRIOR_BEARING_CALLS:
                 continue
-            values = list(node.args) + [keyword.value for keyword in node.keywords]
-            if any(_is_numeric_literal(value) for value in values):
-                violations.append(f"{path.relative_to(PYTHON_ROOT)}:{node.lineno}")
-    assert not violations, "numeric ConfoundingPrior literals: " + ", ".join(violations)
+            if _guarded_literal_arguments(node, function_name):
+                violations.append(
+                    f"{path.relative_to(PYTHON_ROOT)}:{node.lineno} ({function_name})"
+                )
+    assert not violations, "numeric prior literals: " + ", ".join(violations)
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("ConfoundingPrior(alpha=1.2, beta=6.0)", True),
+        ("ConfoundingPrior(1.2, 6.0)", True),
+        ("ConfoundingPrior(alpha=row['alpha'], beta=row['beta'])", False),
+        ("make_spec('x', observed_hr=0.9, log_sd=0.1)", False),
+        ("make_spec('x', observed_hr=0.9, conf_alpha=2.0)", True),
+        ("make_spec('x', observed_hr=0.9, conf_beta=-4.0)", True),
+        ("make_spec('x', conf_alpha=prior['alpha'])", False),
+        ("StackSpec(item_id='x', observed_hr=0.9, qol_annual=0.003)", False),
+        ("StackSpec(item_id='x', conf_alpha=2.5, conf_beta=4.0)", True),
+    ],
+)
+def test_prior_literal_guard_recognizes_its_call_shapes(
+    source: str, expected: bool
+) -> None:
+    """The guard is only worth having if it fires on the shapes it claims to catch."""
+    call = ast.parse(source, mode="eval").body
+    assert isinstance(call, ast.Call)
+    name = call.func.id
+    assert _guarded_literal_arguments(call, name) is expected

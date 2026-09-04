@@ -101,6 +101,12 @@ State: fixing the read-only review findings in place on `rebuild/a-rng-priors`.
   against the Beta mean in whole percent. Each of the four new assertions was checked
   by mutating the document and confirming the failure.
 
+- Item 7 (nice to have): the AST literal guard now covers `make_spec` and `StackSpec`
+  calls carrying numeric `conf_alpha` or `conf_beta`, resolving positional arguments
+  through the real signatures, and carries a parametrized table of the call shapes it
+  must and must not fire on. Verified end to end by injecting `conf_alpha=4.5` into
+  the statin `make_spec` call and confirming the scan reports it.
+
 ### Next
 
-- Nice-to-have item 7, then full verification.
+- Full verification: ruff check, ruff format --check, and the whole pytest suite.
