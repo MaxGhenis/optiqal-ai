@@ -3,8 +3,8 @@
 ## State
 
 In progress on `rebuild/i-graph`. The graph contract, identity/store/manifest runtime,
-registered normative source loaders, executor, and one-screen view are implemented. The toy
-graph and HTML explorer are next.
+registered normative source loaders, executor, one-screen view, and fast toy graph are
+implemented. The HTML explorer and adversarial runtime hardening are next.
 
 ## Done
 
@@ -41,8 +41,13 @@ graph and HTML explorer are next.
   scopes, derived release tiers, and portable run receipts.
 - Implemented deterministic one-screen node descriptions from the embedded graph and
   manifest; all 117 graph-focused tests pass.
+- Implemented a 28-node toy graph over two interventions and four profiles, with deterministic
+  and seeded computation, all five gate outcomes, cached failed and raising gates, release
+  tiers, selection independence, source overrides, and exact descendant invalidation.
+- Verified the toy's focused suite passes in under two seconds with the local Python toolchain.
 
 ## Next
 
-- Implement the toy graph and the explorer CLI.
+- Finish and test the self-contained explorer CLI.
+- Apply the adversarial review's source-normalization and tier-authentication hardening.
 - Run all requested verification and record the three toy-run outputs.
