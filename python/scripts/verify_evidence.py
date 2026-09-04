@@ -25,13 +25,24 @@ from optiqal.evidence import (  # noqa: E402
     DEFAULT_FIXTURE_PATH,
     DEFAULT_STUDIES_PATH,
     EvidenceValidationError,
+    canonical_text,
     load_studies,
     normalize_doi,
     normalize_pmid,
+    text_digest,
 )
 
 EUROPE_PMC_SEARCH_URL = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
-FIXTURE_FIELDS = ("title", "journal", "year", "pmid", "doi", "resolved_at")
+FIXTURE_FIELDS = (
+    "title",
+    "journal",
+    "year",
+    "pmid",
+    "doi",
+    "resolved_at",
+    "abstract_sha256",
+    "quotes",
+)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -46,6 +57,16 @@ def _parser() -> argparse.ArgumentParser:
         "--check",
         action="store_true",
         help="Validate the table against the committed fixture without network access.",
+    )
+    parser.add_argument(
+        "--abstracts-cache",
+        type=Path,
+        default=None,
+        help=(
+            "Refresh from a local JSON abstract cache instead of the network. "
+            "Each entry maps an identifier to at least {title, journal, year, "
+            "abstract}."
+        ),
     )
     parser.add_argument(
         "--studies-path",
@@ -134,6 +155,34 @@ def _normalized_result_identifier(result: dict[str, Any], kind: str) -> str | No
         return None
 
 
+def _journal_title(result: dict[str, Any]) -> str:
+    """Return the journal title from either shape Europe PMC uses.
+
+    A ``resultType=core`` search result carries the title at
+    ``journalInfo.journal.title`` and has no top-level ``journalTitle``; the
+    lighter result shapes carry ``journalTitle``.  Reading only the latter is
+    what left every journal empty in the previously committed fixture.
+    """
+    journal_info = result.get("journalInfo")
+    if isinstance(journal_info, dict):
+        journal = journal_info.get("journal")
+        if isinstance(journal, dict):
+            for key in ("title", "medlineAbbreviation", "isoabbreviation"):
+                value = journal.get(key)
+                if isinstance(value, str) and value.strip():
+                    return value.strip()
+    value = result.get("journalTitle")
+    return value.strip() if isinstance(value, str) else ""
+
+
+def _publication_year(raw_year: Any) -> int | str | None:
+    if isinstance(raw_year, str) and raw_year.isdigit():
+        return int(raw_year)
+    if isinstance(raw_year, (int, str)) and not isinstance(raw_year, bool):
+        return raw_year
+    return None
+
+
 def _resolve_identifier(
     kind: str,
     identifier: str,
@@ -182,22 +231,77 @@ def _resolve_identifier(
     if match is None:
         raise EvidenceValidationError(f"Europe PMC did not resolve {identifier}")
 
-    result_pmid = _normalized_result_identifier(match, "pmid")
-    result_doi = _normalized_result_identifier(match, "doi")
-    raw_year = match.get("pubYear")
-    year: int | str | None
-    if isinstance(raw_year, str) and raw_year.isdigit():
-        year = int(raw_year)
-    elif isinstance(raw_year, (int, str)) and not isinstance(raw_year, bool):
-        year = raw_year
-    else:
-        year = None
     return {
         "title": str(match.get("title") or "").strip(),
-        "journal": str(match.get("journalTitle") or "").strip(),
-        "year": year,
-        "pmid": result_pmid,
-        "doi": result_doi,
+        "journal": _journal_title(match),
+        "year": _publication_year(match.get("pubYear")),
+        "pmid": _normalized_result_identifier(match, "pmid"),
+        "doi": _normalized_result_identifier(match, "doi"),
+        "abstract": str(match.get("abstractText") or ""),
+        "resolved_at": date.today().isoformat(),
+    }
+
+
+def _load_abstracts_cache(path: Path) -> dict[str, dict[str, Any]]:
+    """Read a local abstract cache keyed by DOI or PMID."""
+    try:
+        raw_cache = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise EvidenceValidationError(
+            f"abstracts cache does not exist: {path}"
+        ) from None
+    except (OSError, json.JSONDecodeError) as error:
+        raise EvidenceValidationError(
+            f"cannot read abstracts cache {path}: {error}"
+        ) from error
+    if not isinstance(raw_cache, dict):
+        raise EvidenceValidationError(f"abstracts cache {path} must be a JSON object")
+
+    records: dict[str, dict[str, Any]] = {}
+    for key, metadata in raw_cache.items():
+        if not isinstance(key, str) or not isinstance(metadata, dict):
+            raise EvidenceValidationError(
+                f"abstracts cache {path} entry {key!r} must map to a JSON object"
+            )
+        aliases = [key, metadata.get("pmid"), metadata.get("doi")]
+        for alias in aliases:
+            if alias is None:
+                continue
+            try:
+                normalized = (
+                    normalize_doi(alias)
+                    if isinstance(alias, str) and "/" in alias
+                    else normalize_pmid(alias)
+                )
+            except ValueError:
+                continue
+            records[normalized] = metadata
+    return records
+
+
+def _cached_identifier(
+    identifier: str, cache: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
+    """Build the same record ``_resolve_identifier`` builds, without network."""
+    metadata = cache.get(identifier)
+    if metadata is None:
+        raise EvidenceValidationError(
+            f"the abstracts cache has no entry for {identifier}"
+        )
+    abstract = metadata.get("abstract")
+    if not isinstance(abstract, str) or not abstract.strip():
+        raise EvidenceValidationError(
+            f"the abstracts cache entry for {identifier} carries no abstract"
+        )
+    cached_doi = metadata.get("doi")
+    cached_pmid = metadata.get("pmid")
+    return {
+        "title": str(metadata.get("title") or "").strip(),
+        "journal": str(metadata.get("journal") or "").strip(),
+        "year": _publication_year(metadata.get("year")),
+        "pmid": None if cached_pmid is None else normalize_pmid(cached_pmid),
+        "doi": None if cached_doi is None else normalize_doi(cached_doi),
+        "abstract": abstract,
         "resolved_at": date.today().isoformat(),
     }
 
@@ -225,15 +329,94 @@ def _atomic_write_fixture(path: Path, fixture: dict[str, dict[str, Any]]) -> Non
         raise
 
 
-def refresh_fixture(studies_path: Path, fixture_path: Path) -> tuple[int, int]:
+def _table_rows(path: Path) -> list[dict[str, Any]]:
+    """Read the raw table rows that carry an id, a quote and an identifier."""
+    raw_rows = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(raw_rows, list):
+        raise EvidenceValidationError(f"evidence table {path} must be a YAML list")
+    return [row for row in raw_rows if isinstance(row, dict)]
+
+
+def _row_identifiers(raw_row: dict[str, Any]) -> list[str]:
+    identifiers: list[str] = []
+    if raw_row.get("doi") is not None:
+        identifiers.append(normalize_doi(raw_row["doi"]))
+    if raw_row.get("pmid") is not None:
+        identifiers.append(normalize_pmid(raw_row["pmid"]))
+    return identifiers
+
+
+def _confirm_quotes(
+    rows: list[dict[str, Any]],
+    identifier: str,
+    abstract: str,
+) -> tuple[dict[str, str], list[str]]:
+    """Confirm every row quote is a substring of ``abstract``.
+
+    Returns the ``{row id: sha256}`` map to store and the list of failures.
+    The substring relation is established here, with the abstract in hand; the
+    offline check re-establishes it by comparing digests against
+    ``abstract_sha256``, so an edited quote or a changed abstract fails.
+    """
+    canonical_abstract = canonical_text(abstract)
+    quotes: dict[str, str] = {}
+    failures: list[str] = []
+    for raw_row in rows:
+        if identifier not in _row_identifiers(raw_row):
+            continue
+        row_id = str(raw_row.get("id") or "").strip()
+        notes = raw_row.get("notes")
+        if not isinstance(notes, str) or not notes.strip():
+            failures.append(
+                f"study row {row_id!r} has no quoted abstract sentence in notes"
+            )
+            continue
+        quote = canonical_text(notes)
+        if quote not in canonical_abstract:
+            failures.append(
+                f"study row {row_id!r}: the quoted sentence is not a substring of the "
+                f"abstract for {identifier}"
+            )
+            continue
+        quotes[row_id] = text_digest(notes)
+    return quotes, failures
+
+
+def refresh_fixture(
+    studies_path: Path,
+    fixture_path: Path,
+    *,
+    abstracts_cache_path: Path | None = None,
+) -> tuple[int, int]:
+    """Rewrite the fixture from Europe PMC, or from a local abstract cache."""
     identifiers = _table_identifiers(studies_path)
+    rows = _table_rows(studies_path)
+    cache = (
+        None
+        if abstracts_cache_path is None
+        else _load_abstracts_cache(abstracts_cache_path)
+    )
     fixture: dict[str, dict[str, Any]] = {}
     failures: list[str] = []
     for kind, identifier in identifiers:
         try:
-            fixture[identifier] = _resolve_identifier(kind, identifier)
+            record = (
+                _resolve_identifier(kind, identifier)
+                if cache is None
+                else _cached_identifier(identifier, cache)
+            )
         except EvidenceValidationError as error:
             failures.append(str(error))
+            continue
+        abstract = str(record.pop("abstract", ""))
+        if not abstract.strip():
+            failures.append(f"{identifier} resolved without an abstract")
+            continue
+        quotes, quote_failures = _confirm_quotes(rows, identifier, abstract)
+        failures.extend(quote_failures)
+        record["abstract_sha256"] = text_digest(abstract)
+        record["quotes"] = quotes
+        fixture[identifier] = record
     if failures:
         failure_lines = "\n".join(f"- {failure}" for failure in failures)
         raise EvidenceValidationError(
@@ -241,8 +424,8 @@ def refresh_fixture(studies_path: Path, fixture_path: Path) -> tuple[int, int]:
         )
 
     _atomic_write_fixture(fixture_path, fixture)
-    rows = load_studies(studies_path, fixture_path)
-    return len(rows), len(identifiers)
+    rows_loaded = load_studies(studies_path, fixture_path)
+    return len(rows_loaded), len(identifiers)
 
 
 def check_fixture(studies_path: Path, fixture_path: Path) -> tuple[int, int]:
@@ -253,11 +436,16 @@ def check_fixture(studies_path: Path, fixture_path: Path) -> tuple[int, int]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = _parser().parse_args(argv)
+    parser = _parser()
+    args = parser.parse_args(argv)
+    if args.check and args.abstracts_cache is not None:
+        parser.error("--abstracts-cache is only meaningful with --refresh")
     try:
         if args.refresh:
             row_count, identifier_count = refresh_fixture(
-                args.studies_path, args.fixture_path
+                args.studies_path,
+                args.fixture_path,
+                abstracts_cache_path=args.abstracts_cache,
             )
             print(
                 f"Refreshed evidence fixture: {row_count} study rows, "

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import html
 import json
 import math
 import re
@@ -24,11 +26,55 @@ StudyRole = Literal[
     "calibration",
 ]
 
+EndpointClass = Literal["mortality", "quality_of_life", "intermediate"]
+
 ESTIMATE_TYPES = frozenset({"HR", "RR", "OR", "MD", "SMD"})
 STUDY_ROLES = frozenset(
     {"direct", "mechanism", "transport", "harm", "baseline_risk", "calibration"}
 )
 RATIO_ESTIMATE_TYPES = frozenset({"HR", "RR", "OR"})
+
+# Confidence levels outside this open interval are either a typo or a credible
+# interval that does not belong in a frequentist confidence-level field.
+CI_LEVEL_BOUNDS = (0.5, 1.0)
+DEFAULT_CI_LEVEL = 0.95
+
+# Every endpoint the table may carry, classified by which model leg it can
+# discharge.  The map is exhaustive on purpose: an endpoint that is not listed
+# fails the loader, so a new endpoint must be classified before it can be used.
+# ``intermediate`` means the endpoint is neither a death count nor a
+# quality-of-life scale, so it supports neither leg without a transport step.
+ENDPOINT_CLASSES: Mapping[str, EndpointClass] = {
+    "all_cause_mortality": "mortality",
+    "coronary_heart_disease_mortality": "mortality",
+    "sudden_cardiac_death": "mortality",
+    "survival": "mortality",
+    "anxiety_symptoms_at_eight_weeks": "quality_of_life",
+    "pittsburgh_sleep_quality_index_improvement": "quality_of_life",
+    "sleep_quality": "quality_of_life",
+    "coronary_heart_disease": "intermediate",
+    "intracerebral_hemorrhage": "intermediate",
+    "major_adverse_cardiovascular_event": "intermediate",
+    "major_cardiovascular_event": "intermediate",
+    "major_vascular_event": "intermediate",
+    "myocardial_infarction": "intermediate",
+    "primary_cardiovascular_composite": "intermediate",
+    "primary_melanoma_incidence": "intermediate",
+    "resting_systolic_blood_pressure_mmhg": "intermediate",
+    "squamous_cell_carcinoma_incidence": "intermediate",
+    "stroke": "intermediate",
+    "total_cardiovascular_event": "intermediate",
+}
+MORTALITY_ENDPOINTS = frozenset(
+    endpoint
+    for endpoint, endpoint_class in ENDPOINT_CLASSES.items()
+    if endpoint_class == "mortality"
+)
+QUALITY_OF_LIFE_ENDPOINTS = frozenset(
+    endpoint
+    for endpoint, endpoint_class in ENDPOINT_CLASSES.items()
+    if endpoint_class == "quality_of_life"
+)
 
 DATA_DIRECTORY = Path(__file__).resolve().parent / "data" / "evidence"
 DEFAULT_STUDIES_PATH = DATA_DIRECTORY / "studies.yaml"
@@ -41,10 +87,68 @@ _DOI_PREFIX_PATTERN = re.compile(
 _PUBMED_URL_PATTERN = re.compile(
     r"^https?://pubmed\.ncbi\.nlm\.nih\.gov/(\d+)/?$", re.IGNORECASE
 )
+# Europe PMC abstracts arrive as HTML fragments: ``<h4>`` section headings and
+# ``<sup>``/``<sub>`` runs, with bare ``<`` characters inside text such as
+# ``p<0.001``.  Requiring a letter after the bracket keeps those bare
+# comparisons intact while still removing every real tag.
+_HTML_TAG_PATTERN = re.compile(r"</?[A-Za-z][^<>]*>")
+_WHITESPACE_PATTERN = re.compile(r"\s+")
+# Lancet-family journals typeset decimals with a middle dot and use several
+# dash characters; normalizing them lets a quoted sentence keep its verbatim
+# glyphs while the numeric check still recognizes the estimate.
+_DECIMAL_TRANSLATION = str.maketrans(
+    {"\u00b7": ".", "\u2013": "-", "\u2212": "-", "\u2014": "-"}
+)
 
 
 class EvidenceValidationError(ValueError):
     """Raised when the evidence table cannot be trusted."""
+
+
+def canonical_text(value: str) -> str:
+    """Return the comparison form of an abstract or a quoted sentence.
+
+    HTML entities are decoded, real tags become a single space, and every run
+    of whitespace collapses.  Abstracts and quotes go through the same function
+    so that a quote taken from an abstract stays a substring of it.
+    """
+    unescaped = html.unescape(value)
+    without_tags = _HTML_TAG_PATTERN.sub(" ", unescaped)
+    return _WHITESPACE_PATTERN.sub(" ", without_tags).strip()
+
+
+def text_digest(value: str) -> str:
+    """Return the sha256 of the canonical form of ``value``."""
+    return hashlib.sha256(canonical_text(value).encode("utf-8")).hexdigest()
+
+
+def _number_renderings(value: float) -> set[str]:
+    """Return every decimal rendering an abstract may use for ``value``."""
+    renderings: set[str] = set()
+    for text in (f"{value:g}", f"{value:.1f}", f"{value:.2f}", f"{value:.3f}"):
+        if float(text) != value:
+            continue
+        renderings.add(text)
+        if text.startswith("0."):
+            renderings.add(text[1:])
+        elif text.startswith("-0."):
+            renderings.add("-" + text[2:])
+    return renderings
+
+
+def number_appears(text: str, value: float) -> bool:
+    """Report whether ``value`` appears in ``text`` as a standalone number."""
+    haystack = canonical_text(text).translate(_DECIMAL_TRANSLATION)
+    for rendering in sorted(_number_renderings(value), key=len, reverse=True):
+        pattern = r"(?<![\d.])" + re.escape(rendering) + r"(?![\d])"
+        if re.search(pattern, haystack):
+            return True
+    return False
+
+
+def endpoint_class(endpoint: str) -> EndpointClass | None:
+    """Return which model leg ``endpoint`` can discharge, or ``None``."""
+    return ENDPOINT_CLASSES.get(endpoint)
 
 
 @dataclass(frozen=True)
@@ -55,6 +159,7 @@ class StudyEstimate:
     value: float
     ci_low: float
     ci_high: float
+    ci_level: float = DEFAULT_CI_LEVEL
 
 
 @dataclass(frozen=True)
@@ -74,11 +179,27 @@ class StudyRow:
     extracted_by: str
     verified: date
     notes: str
+    verified_by: str | None = None
 
     @property
     def identifiers(self) -> tuple[str, ...]:
         """Return every normalized external identifier carried by the row."""
         return tuple(identifier for identifier in (self.doi, self.pmid) if identifier)
+
+    @property
+    def quote(self) -> str:
+        """Return the verbatim abstract sentence this row was extracted from."""
+        return canonical_text(self.notes)
+
+    @property
+    def quote_digest(self) -> str:
+        """Return the sha256 the fixture records for this row's quote."""
+        return text_digest(self.notes)
+
+    @property
+    def endpoint_class(self) -> EndpointClass | None:
+        """Return which model leg this row's endpoint can discharge."""
+        return endpoint_class(self.endpoint)
 
 
 def normalize_doi(value: object) -> str:
@@ -146,7 +267,8 @@ def _verified_date(value: object, row_id: str) -> date:
     raise _row_error(row_id, "verified must be an ISO calendar date")
 
 
-def _fixture_identifiers(path: Path) -> frozenset[str]:
+def _fixture_records(path: Path) -> dict[str, dict[str, Any]]:
+    """Read the offline fixture keyed by normalized identifier."""
     try:
         raw_fixture = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -160,7 +282,7 @@ def _fixture_identifiers(path: Path) -> frozenset[str]:
     if not isinstance(raw_fixture, dict):
         raise EvidenceValidationError(f"evidence fixture {path} must be a JSON object")
 
-    normalized: set[str] = set()
+    records: dict[str, dict[str, Any]] = {}
     for identifier, metadata in raw_fixture.items():
         if not isinstance(identifier, str):
             raise EvidenceValidationError(
@@ -187,16 +309,22 @@ def _fixture_identifiers(path: Path) -> frozenset[str]:
             raise EvidenceValidationError(
                 f"evidence fixture entry {identifier!r} must be a JSON object"
             )
-        if normalized_identifier in normalized:
+        if normalized_identifier in records:
             raise EvidenceValidationError(
                 f"evidence fixture {path} has duplicate normalized identifier "
                 f"{normalized_identifier!r}"
             )
-        normalized.add(normalized_identifier)
-    return frozenset(normalized)
+        records[normalized_identifier] = metadata
+    return records
 
 
-def _parse_row(raw: object, index: int, fixture_ids: frozenset[str]) -> StudyRow:
+def _fixture_identifiers(path: Path) -> frozenset[str]:
+    return frozenset(_fixture_records(path))
+
+
+def _parse_row(
+    raw: object, index: int, fixture: Mapping[str, Mapping[str, Any]]
+) -> StudyRow:
     missing_id = f"<missing id at index {index}>"
     if not isinstance(raw, dict):
         raise _row_error(missing_id, "row must be a mapping")
@@ -221,6 +349,7 @@ def _parse_row(raw: object, index: int, fixture_ids: frozenset[str]) -> StudyRow
         "role",
         "extracted_by",
         "verified",
+        "verified_by",
         "notes",
     }
     extra_keys = set(raw) - allowed_keys
@@ -241,7 +370,13 @@ def _parse_row(raw: object, index: int, fixture_ids: frozenset[str]) -> StudyRow
     raw_estimate = raw.get("estimate")
     if not isinstance(raw_estimate, dict):
         raise _row_error(row_id, "estimate must be a mapping")
-    estimate_extra_keys = set(raw_estimate) - {"type", "value", "ci_low", "ci_high"}
+    estimate_extra_keys = set(raw_estimate) - {
+        "type",
+        "value",
+        "ci_low",
+        "ci_high",
+        "ci_level",
+    }
     if estimate_extra_keys:
         raise _row_error(
             row_id, f"unknown estimate fields: {sorted(estimate_extra_keys)}"
@@ -254,6 +389,18 @@ def _parse_row(raw: object, index: int, fixture_ids: frozenset[str]) -> StudyRow
     value = _finite_number(raw_estimate.get("value"), "value", row_id)
     ci_low = _finite_number(raw_estimate.get("ci_low"), "ci_low", row_id)
     ci_high = _finite_number(raw_estimate.get("ci_high"), "ci_high", row_id)
+    ci_level = (
+        DEFAULT_CI_LEVEL
+        if raw_estimate.get("ci_level") is None
+        else _finite_number(raw_estimate.get("ci_level"), "ci_level", row_id)
+    )
+    lower_bound, upper_bound = CI_LEVEL_BOUNDS
+    if not lower_bound < ci_level < upper_bound:
+        raise _row_error(
+            row_id,
+            f"estimate.ci_level must be between {lower_bound:g} and {upper_bound:g}, "
+            f"exclusive; got {ci_level:g}",
+        )
     if estimate_type in RATIO_ESTIMATE_TYPES:
         if min(value, ci_low, ci_high) <= 0:
             raise _row_error(
@@ -267,6 +414,14 @@ def _parse_row(raw: object, index: int, fixture_ids: frozenset[str]) -> StudyRow
         scale = "log scale" if estimate_type in RATIO_ESTIMATE_TYPES else "linear scale"
         raise _row_error(
             row_id, f"confidence interval must bracket value on the {scale}"
+        )
+
+    endpoint = _required_string(raw, "endpoint", row_id)
+    if endpoint not in ENDPOINT_CLASSES:
+        raise _row_error(
+            row_id,
+            f"endpoint {endpoint!r} is not classified in ENDPOINT_CLASSES; "
+            "classify it as mortality, quality_of_life or intermediate first",
         )
 
     doi: str | None = None
@@ -284,15 +439,47 @@ def _parse_row(raw: object, index: int, fixture_ids: frozenset[str]) -> StudyRow
     if doi is None and pmid is None:
         raise _row_error(row_id, "a DOI or PMID is required")
     for identifier in (doi, pmid):
-        if identifier is not None and identifier not in fixture_ids:
+        if identifier is not None and identifier not in fixture:
             raise _row_error(
                 row_id,
                 f"identifier {identifier!r} is absent from the DOI fixture",
             )
 
     notes = raw.get("notes", "")
-    if not isinstance(notes, str):
-        raise _row_error(row_id, "notes must be a string")
+    if not isinstance(notes, str) or not notes.strip():
+        raise _row_error(
+            row_id,
+            "notes must be the verbatim abstract sentence that states the estimate",
+        )
+    quote = canonical_text(notes)
+    for field_name, number in (
+        ("value", value),
+        ("ci_low", ci_low),
+        ("ci_high", ci_high),
+    ):
+        if not number_appears(quote, number):
+            raise _row_error(
+                row_id,
+                f"estimate.{field_name} ({number:g}) does not appear as a number in "
+                "the quoted abstract sentence",
+            )
+    digest = text_digest(notes)
+    for identifier in (doi, pmid):
+        if identifier is None:
+            continue
+        quotes = fixture[identifier].get("quotes")
+        if not isinstance(quotes, dict) or row_id not in quotes:
+            raise _row_error(
+                row_id,
+                f"the fixture entry for {identifier!r} records no confirmed quote for "
+                "this row; rerun scripts/verify_evidence.py --refresh",
+            )
+        if quotes[row_id] != digest:
+            raise _row_error(
+                row_id,
+                f"the quoted sentence does not match the abstract confirmed for "
+                f"{identifier!r}; rerun scripts/verify_evidence.py --refresh",
+            )
 
     return StudyRow(
         id=row_id,
@@ -302,17 +489,23 @@ def _parse_row(raw: object, index: int, fixture_ids: frozenset[str]) -> StudyRow
         population=_required_string(raw, "population", row_id),
         exposure=_required_string(raw, "exposure", row_id),
         comparator=_required_string(raw, "comparator", row_id),
-        endpoint=_required_string(raw, "endpoint", row_id),
+        endpoint=endpoint,
         estimate=StudyEstimate(
             type=estimate_type,
             value=value,
             ci_low=ci_low,
             ci_high=ci_high,
+            ci_level=ci_level,
         ),
         role=role,
         extracted_by=_required_string(raw, "extracted_by", row_id),
         verified=_verified_date(raw.get("verified"), row_id),
-        notes=notes,
+        notes=quote,
+        verified_by=(
+            None
+            if raw.get("verified_by") is None
+            else _required_string(raw, "verified_by", row_id)
+        ),
     )
 
 
@@ -325,7 +518,7 @@ def load_studies(
     resolved_fixture_path = (
         Path(fixture_path) if fixture_path is not None else DEFAULT_FIXTURE_PATH
     )
-    fixture_ids = _fixture_identifiers(resolved_fixture_path)
+    fixture = _fixture_records(resolved_fixture_path)
     try:
         raw_rows = yaml.safe_load(studies_path.read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -344,7 +537,7 @@ def load_studies(
     rows: list[StudyRow] = []
     seen_ids: set[str] = set()
     for index, raw_row in enumerate(raw_rows):
-        row = _parse_row(raw_row, index, fixture_ids)
+        row = _parse_row(raw_row, index, fixture)
         if row.id in seen_ids:
             raise _row_error(row.id, "id is duplicated")
         seen_ids.add(row.id)
