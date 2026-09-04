@@ -1,12 +1,18 @@
 # PR E progress: load the life table and quality weights from committed snapshots
 
 Branch `rebuild/e-load-snapshots`. Charter: `REBUILD.md` (PR E row). Updated as work lands.
+This file lives at `docs/rebuild/E-progress.md` rather than the repository root because the
+sibling rebuild lanes each write a root `PROGRESS.md` and those would collide on merge.
 
 ## State
 
-Complete and verified on 2026-09-04.
+Review round 1 in progress: closing the nine findings from the read-only review.
 
-From `python/`:
+The verification recorded below covers commit `136c12cb`, not the branch tip. The review
+round-1 tails, naming the commit they cover, are appended under "Verification" at the end of
+this file.
+
+Stale (commit `136c12cb`), from `python/`:
 
 - `uv run ruff check .` -> `All checks passed!`
 - `uv run ruff format --check .` -> `80 files already formatted` (CI runs this too, in
