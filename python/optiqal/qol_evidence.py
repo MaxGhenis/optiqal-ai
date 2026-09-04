@@ -63,6 +63,7 @@ from typing import Any, Dict, Literal, Optional
 import numpy as np
 
 from .confounding import ConfoundingPrior
+from .priors import load_priors
 
 
 def stable_seed(*parts: str) -> int:
@@ -81,17 +82,11 @@ QolStudyQuality = Literal[
     "mechanistic_or_self_experiment",
 ]
 
-# Reporting/publication shrinkage for symptom endpoints. Same shape as the
-# mortality table; the weak tiers are harsher because subjective endpoints are
-# easier to p-hack and selectively report than hard endpoints.
+_QOL_PRIOR_DATA = load_priors()["qol_transport"]
+
 QOL_STUDY_QUALITY_SHRINKAGE: Dict[QolStudyQuality, float] = {
-    "rct_objective_endpoint": 0.10,
-    "meta_analysis_placebo_rcts": 0.15,
-    "rct_placebo_patient_reported": 0.20,
-    "rct_open_label": 0.40,
-    "supplement_industry_rct": 0.50,
-    "observational_symptom": 0.55,
-    "mechanistic_or_self_experiment": 0.70,
+    key: round(1.0 - row["retention"], 12)
+    for key, row in _QOL_PRIOR_DATA["study_quality_shrinkage"].items()
 }
 
 QolClaimCategory = Literal[
@@ -108,140 +103,22 @@ QolClaimCategory = Literal[
     "general_vitality",
 ]
 
-# Transport priors: fraction of a *published/claimed* effect expected to
-# survive placebo stripping plus population transport. Reuses ConfoundingPrior
-# purely for its Beta mechanics (mean/CI/sampling).
+
+def _prior_from_row(row: dict) -> ConfoundingPrior:
+    return ConfoundingPrior(
+        alpha=row["alpha"],
+        beta=row["beta"],
+        rationale=row["rationale"],
+        calibration_sources=list(row["calibration_sources"]),
+    )
+
+
 QOL_TRANSPORT_PRIORS: Dict[QolClaimCategory, ConfoundingPrior] = {
-    "sleep_symptom": ConfoundingPrior(
-        alpha=2.4,
-        beta=5.6,
-        rationale=(
-            "Placebo response averages ~64% of drug response for subjective "
-            "insomnia outcomes (Winkler & Rief 2015); objective deltas are far "
-            "smaller than felt ones. Beta(2.4, 5.6) -> mean 30%."
-        ),
-        calibration_sources=[
-            "Winkler & Rief 2015 (placebo response in insomnia trials)",
-            "Ferracioli-Oda 2013 (melatonin objective latency)",
-        ],
-    ),
-    "respiratory_airway": ConfoundingPrior(
-        alpha=4.5,
-        beta=4.5,
-        rationale=(
-            "Airway interventions mix objective mechanics (AHI, resistance) "
-            "with subjective sleepiness; sham-controlled CPAP trials show real "
-            "but roughly halved subjective gains vs open-label. "
-            "Beta(4.5, 4.5) -> mean 50%."
-        ),
-        calibration_sources=[
-            "Jenkinson 1999 (sham-controlled CPAP)",
-            "Kiely 2004 (nasal steroid in snorers)",
-        ],
-    ),
-    "sexual_function": ConfoundingPrior(
-        alpha=5.5,
-        beta=4.5,
-        rationale=(
-            "PDE5 pivotal RCTs show large placebo-adjusted IIEF deltas, and "
-            "continued revealed use signals response; transport still shrinks "
-            "toward a milder-severity user. Beta(5.5, 4.5) -> mean 55%."
-        ),
-        calibration_sources=["Goldstein 1998 (sildenafil RCT)"],
-    ),
-    "mood_stress": ConfoundingPrior(
-        alpha=2.0,
-        beta=7.0,
-        rationale=(
-            "Commercial adaptogen/mood trials are small, unregistered, and "
-            "shrink in better designs; placebo share of subjective mood gains "
-            "is large. Beta(2.0, 7.0) -> mean 22%."
-        ),
-        calibration_sources=[
-            "Speers 2021 (ashwagandha review)",
-            "Kirsch 2008 (placebo share, subjective mood endpoints)",
-        ],
-    ),
-    "pain_joint": ConfoundingPrior(
-        alpha=2.5,
-        beta=6.0,
-        rationale=(
-            "OA/joint trials show very large placebo responses; GAIT found "
-            "glucosamine no better than placebo on its primary endpoint. "
-            "Beta(2.5, 6.0) -> mean 29%."
-        ),
-        calibration_sources=["Clegg 2006 (GAIT)"],
-    ),
-    "gi_symptom": ConfoundingPrior(
-        alpha=2.8,
-        beta=5.2,
-        rationale=(
-            "Fiber/probiotic RCTs exist but endpoints are subjective and "
-            "strain/formulation-specific effects transport poorly. "
-            "Beta(2.8, 5.2) -> mean 35%."
-        ),
-        calibration_sources=["Ford 2018 (probiotics in IBS, meta-analysis)"],
-    ),
-    "cognitive": ConfoundingPrior(
-        alpha=1.8,
-        beta=7.2,
-        rationale=(
-            "Cognitive-supplement effects in healthy adults rarely replicate "
-            "outside industry trials; expectancy effects dominate. "
-            "Beta(1.8, 7.2) -> mean 20%."
-        ),
-        calibration_sources=["Docherty 2023 (lion's mane pilot, n=41)"],
-    ),
-    "hair_skin": ConfoundingPrior(
-        alpha=4.0,
-        beta=4.0,
-        rationale=(
-            "Finasteride hair outcomes are objective (photographic RCTs), but "
-            "mapping appearance change to utility leans on proxy TTO weights. "
-            "Beta(4.0, 4.0) -> mean 50%."
-        ),
-        calibration_sources=["Kaufman 1998 (finasteride RCT)"],
-    ),
-    "fitness_function": ConfoundingPrior(
-        alpha=5.0,
-        beta=3.0,
-        rationale=(
-            "CRF/strength gains from structured training are objective and "
-            "RCT-backed; the shrink covers the indirect CRF-to-utility "
-            "mapping, not the training response. Beta(5.0, 3.0) -> mean 63%."
-        ),
-        calibration_sources=["Milanovic 2015 (HIIT VO2max meta-analysis)"],
-    ),
-    "metabolic_symptom": ConfoundingPrior(
-        alpha=3.0,
-        beta=5.0,
-        rationale=(
-            "Glycemic/metabolic symptom claims ride on objective markers but "
-            "subjective wellbeing mapping is indirect. Beta(3.0, 5.0) -> mean 38%."
-        ),
-        calibration_sources=["SELECT 2023 (semaglutide, hard endpoints)"],
-    ),
-    "general_vitality": ConfoundingPrior(
-        alpha=1.5,
-        beta=8.5,
-        rationale=(
-            "Diffuse 'energy/vitality/longevity support' claims have the "
-            "weakest evidence-to-feeling mapping. Beta(1.5, 8.5) -> mean 15%."
-        ),
-        calibration_sources=[],
-    ),
+    key: _prior_from_row(row) for key, row in _QOL_PRIOR_DATA["categories"].items()
 }
 
-# Residual-optimism prior for authored_shaded anchors: the authored mean
-# already embeds a personal-severity judgment, so only residual author
-# optimism is stripped, not the full placebo share.
-AUTHORED_RESIDUAL_OPTIMISM_PRIOR = ConfoundingPrior(
-    alpha=6.0,
-    beta=2.0,
-    rationale=(
-        "Authored qol_annual values were hand-shaded for personal severity; "
-        "this strips residual optimism only. Beta(6, 2) -> mean 75%."
-    ),
+AUTHORED_RESIDUAL_OPTIMISM_PRIOR = _prior_from_row(
+    _QOL_PRIOR_DATA["authored_residual_optimism"]
 )
 
 QolAnchor = Literal["authored_shaded", "published_delta"]

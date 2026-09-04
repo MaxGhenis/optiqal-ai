@@ -27,6 +27,7 @@ from .intervention import (
     MortalityEffect,
     allocate_interaction_rule,
 )
+from .priors import load_priors
 from .profile import Profile
 from .qol_annotations import (
     general_qol_evidence_for,
@@ -140,6 +141,11 @@ GLP1_SOURCES = (
     "https://pubmed.ncbi.nlm.nih.gov/35441470/",
     "https://www.ncbi.nlm.nih.gov/books/NBK601688/",
 )
+PROTOCOL_CONFOUNDING_PRIORS = load_priors()["confounding"][
+    "protocol_interventions"
+]
+SEMAGLUTIDE_WEIGHT_INDICATED_PRIOR_KEY = "semaglutide:weight_indicated"
+SEMAGLUTIDE_NOT_WEIGHT_INDICATED_PRIOR_KEY = "semaglutide:not_weight_indicated"
 
 
 @dataclass(frozen=True)
@@ -275,6 +281,37 @@ class ResolvedStackSpec:
     airway_target_weights: dict[str, float] = field(default_factory=dict)
     apply_profile_effect_rules: bool = True
     model_details: dict[str, Any] | None = None
+
+
+def _protocol_confounding_prior_values(prior_key: str) -> tuple[float, float]:
+    prior = PROTOCOL_CONFOUNDING_PRIORS[prior_key]
+    return float(prior["alpha"]), float(prior["beta"])
+
+
+def _apply_protocol_confounding_priors(
+    specs: dict[str, StackSpec],
+) -> dict[str, StackSpec]:
+    """Fill shipped protocol priors without overriding explicit caller values."""
+    resolved: dict[str, StackSpec] = {}
+    for item_id, spec in specs.items():
+        prior = PROTOCOL_CONFOUNDING_PRIORS.get(item_id)
+        if prior is None:
+            resolved[item_id] = spec
+            continue
+        resolved[item_id] = replace(
+            spec,
+            conf_alpha=(
+                spec.conf_alpha
+                if spec.conf_alpha is not None
+                else float(prior["alpha"])
+            ),
+            conf_beta=(
+                spec.conf_beta
+                if spec.conf_beta is not None
+                else float(prior["beta"])
+            ),
+        )
+    return resolved
 
 
 def resolve_protocol_context(context: ProtocolContext | None = None) -> ProtocolContext:
@@ -669,6 +706,12 @@ def build_semaglutide_spec(
 ) -> StackSpec:
     model = build_glp1_phenotype_model(baseline, profile)
     is_weight_indicated = profile.bmi_category != "normal"
+    prior_key = (
+        SEMAGLUTIDE_WEIGHT_INDICATED_PRIOR_KEY
+        if is_weight_indicated
+        else SEMAGLUTIDE_NOT_WEIGHT_INDICATED_PRIOR_KEY
+    )
+    conf_alpha, conf_beta = _protocol_confounding_prior_values(prior_key)
     phenotype_note = (
         "No obesity, diabetes, hypertension, or strong cardiometabolic signal is present, "
         "so benefits are zeroed except for a small off-label lean-mass/appetite downside."
@@ -683,8 +726,8 @@ def build_semaglutide_spec(
         "semaglutide",
         observed_hr=float(model["observed_hr"]),
         log_sd=0.10,
-        conf_alpha=2.2 if is_weight_indicated else 1.3,
-        conf_beta=4.8 if is_weight_indicated else 7.0,
+        conf_alpha=conf_alpha,
+        conf_beta=conf_beta,
         qol_annual=float(model["net_qol_annual"]),
         qol_years=10,
         low_qaly=-0.12,
@@ -1959,13 +2002,11 @@ def build_specs(
     age = context.profile.age
     activity_level = context.profile.activity_level
 
-    return {
+    return _apply_protocol_confounding_priors({
         "tadalafil_2.5mg": StackSpec(
             item_id="tadalafil_2.5mg",
             observed_hr=math.exp(math.log(0.90) * cardio_multiplier),
             log_sd=0.10,
-            conf_alpha=1.2,
-            conf_beta=6.0,
             qol_annual=0.0032,
             qol_years=15,
             general_qol_utility_weight_ids=SEXUAL_FUNCTION_QOL,
@@ -1993,8 +2034,6 @@ def build_specs(
             item_id="finasteride_1.25mg",
             observed_hr=1.0,
             log_sd=0.03,
-            conf_alpha=1.0,
-            conf_beta=8.0,
             qol_annual=0.0024,
             qol_years=15,
             general_qol_utility_weight_ids=HAIR_QOL,
@@ -2022,8 +2061,6 @@ def build_specs(
             item_id="magnesium_200",
             observed_hr=math.exp(math.log(0.96) * cardio_multiplier),
             log_sd=0.08,
-            conf_alpha=2.8,
-            conf_beta=4.0,
             qol_annual=0.0018 * sleep_multiplier,
             qol_years=12,
             general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
@@ -2055,8 +2092,6 @@ def build_specs(
         "trazodone_50mg": StackSpec(
             item_id="trazodone_50mg",
             log_sd=0.06,
-            conf_alpha=1.5,
-            conf_beta=6.0,
             qol_annual=0.0030 * sleep_multiplier,
             qol_years=10,
             general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
@@ -2083,8 +2118,6 @@ def build_specs(
             item_id="melatonin_300mcg",
             observed_hr=1.0,
             log_sd=0.05,
-            conf_alpha=1.7,
-            conf_beta=5.5,
             qol_annual=0.0014 * sleep_multiplier,
             qol_years=10,
             general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
@@ -2204,8 +2237,6 @@ def build_specs(
         ),
         "head_elevation_nightly": StackSpec(
             item_id="head_elevation_nightly",
-            conf_alpha=2.1,
-            conf_beta=4.4,
             qol_annual=0.0001,
             qol_years=10,
             general_qol_utility_weight_ids=AIRWAY_SLEEP_QOL,
@@ -2227,8 +2258,6 @@ def build_specs(
             item_id="cocoa_flavanols_500",
             observed_hr=math.exp(math.log(0.95) * cardio_multiplier),
             log_sd=0.09,
-            conf_alpha=2.5,
-            conf_beta=4.5,
             qol_annual=0.0,
             qol_years=15,
             low_qaly=0.0,
@@ -2245,8 +2274,6 @@ def build_specs(
             item_id="creatine_5g",
             observed_hr=1.0,
             log_sd=0.04,
-            conf_alpha=2.0,
-            conf_beta=5.0,
             qol_annual=0.0014 * exercise_multiplier * kidney_safe_multiplier,
             qol_years=15,
             general_qol_utility_weight_ids=FUNCTION_QOL,
@@ -2273,8 +2300,6 @@ def build_specs(
             item_id="omega3_clo",
             observed_hr=math.exp(math.log(0.97) * cardio_multiplier),
             log_sd=0.08,
-            conf_alpha=3.2,
-            conf_beta=4.2,
             qol_annual=0.0,
             qol_years=15,
             low_qaly=0.0,
@@ -2294,8 +2319,6 @@ def build_specs(
             item_id="garlic_1200",
             observed_hr=math.exp(math.log(0.95) * cardio_multiplier),
             log_sd=0.08,
-            conf_alpha=2.8,
-            conf_beta=4.2,
             qol_annual=0.0,
             qol_years=15,
             low_qaly=0.0,
@@ -2315,8 +2338,6 @@ def build_specs(
             item_id="prebiotics",
             observed_hr=1.0,
             log_sd=0.05,
-            conf_alpha=1.7,
-            conf_beta=5.5,
             qol_annual=0.0008,
             qol_years=10,
             general_qol_utility_weight_ids=BOWEL_HABIT_QOL,
@@ -2340,8 +2361,6 @@ def build_specs(
             item_id="vitamin_d_2000",
             observed_hr=math.exp(math.log(0.94) * vitamin_d_multiplier),
             log_sd=0.08,
-            conf_alpha=3.0,
-            conf_beta=4.0,
             qol_annual=0.0,
             qol_years=15,
             low_qaly=-0.02,
@@ -2361,8 +2380,6 @@ def build_specs(
             item_id="astaxanthin_12",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.2,
-            conf_beta=6.0,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
@@ -2382,8 +2399,6 @@ def build_specs(
             item_id="nac_1200",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.4,
-            conf_beta=5.8,
             qol_annual=0.0010 * fatigue_multiplier,
             qol_years=10,
             general_qol_utility_weight_ids=FUNCTION_QOL,
@@ -2417,8 +2432,6 @@ def build_specs(
             item_id="curcumin_250",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.5,
-            conf_beta=5.5,
             qol_annual=0.0008 * fatigue_multiplier,
             qol_years=10,
             general_qol_utility_weight_ids=JOINT_QOL,
@@ -2444,8 +2457,6 @@ def build_specs(
                 item_id="collagen_22g",
                 observed_hr=1.0,
                 log_sd=0.05,
-                conf_alpha=1.8,
-                conf_beta=5.0,
                 qol_annual=0.0008 * joint_multiplier,
                 qol_years=10,
                 general_qol_utility_weight_ids=JOINT_QOL,
@@ -2475,8 +2486,6 @@ def build_specs(
             item_id="lutein_zeaxanthin",
             observed_hr=1.0,
             log_sd=0.04,
-            conf_alpha=2.4,
-            conf_beta=4.5,
             qol_annual=0.0004 * eye_multiplier,
             qol_years=20,
             general_qol_utility_weight_ids=VISION_QOL,
@@ -2501,8 +2510,6 @@ def build_specs(
             item_id="vitamin_k2",
             observed_hr=1.0,
             log_sd=0.05,
-            conf_alpha=2.0,
-            conf_beta=4.8,
             qol_annual=0.0,
             qol_years=20,
             low_qaly=0.0,
@@ -2522,8 +2529,6 @@ def build_specs(
             item_id="ubiquinol_50",
             observed_hr=1.0,
             log_sd=0.05,
-            conf_alpha=1.8,
-            conf_beta=5.2,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
@@ -2543,8 +2548,6 @@ def build_specs(
             item_id="ubiquinol_50_unbundled",
             observed_hr=1.0,
             log_sd=0.05,
-            conf_alpha=1.8,
-            conf_beta=5.2,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
@@ -2565,8 +2568,6 @@ def build_specs(
             item_id="nr_300",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.2,
-            conf_beta=6.0,
             qol_annual=0.0009 * fatigue_multiplier,
             qol_years=10,
             general_qol_utility_weight_ids=FUNCTION_QOL,
@@ -2591,8 +2592,6 @@ def build_specs(
             item_id="nr_300_unbundled",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.2,
-            conf_beta=6.0,
             qol_annual=0.0009 * fatigue_multiplier,
             qol_years=10,
             general_qol_utility_weight_ids=FUNCTION_QOL,
@@ -2618,8 +2617,6 @@ def build_specs(
             item_id="luteolin_100",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.0,
-            conf_beta=6.5,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
@@ -2636,8 +2633,6 @@ def build_specs(
             item_id="luteolin_100_unbundled",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.0,
-            conf_beta=6.5,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
@@ -2654,8 +2649,6 @@ def build_specs(
             item_id="lithium_1mg_orotate",
             observed_hr=1.0,
             log_sd=0.05,
-            conf_alpha=1.1,
-            conf_beta=6.2,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
@@ -2673,8 +2666,6 @@ def build_specs(
                 item_id="hyaluronic_acid_120",
                 observed_hr=1.0,
                 log_sd=0.05,
-                conf_alpha=1.4,
-                conf_beta=5.5,
                 qol_annual=0.0006 * joint_multiplier,
                 qol_years=10,
                 general_qol_utility_weight_ids=JOINT_QOL,
@@ -2703,8 +2694,6 @@ def build_specs(
             item_id="broccoli_seed_200",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.2,
-            conf_beta=6.0,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
@@ -2719,8 +2708,6 @@ def build_specs(
             item_id="spermidine_10",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.2,
-            conf_beta=6.0,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
@@ -2737,8 +2724,6 @@ def build_specs(
             item_id="fisetin_100_unbundled",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.0,
-            conf_beta=6.8,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=-0.01,
@@ -2751,8 +2736,6 @@ def build_specs(
             item_id="lycopene_15",
             observed_hr=1.0,
             log_sd=0.05,
-            conf_alpha=1.4,
-            conf_beta=5.2,
             qol_annual=0.0,
             qol_years=15,
             low_qaly=0.0,
@@ -2770,8 +2753,6 @@ def build_specs(
                 item_id="ginger_400",
                 observed_hr=1.0,
                 log_sd=0.05,
-                conf_alpha=1.5,
-                conf_beta=5.0,
                 qol_annual=0.0005 * joint_multiplier,
                 qol_years=10,
                 general_qol_utility_weight_ids=JOINT_QOL,
@@ -2798,8 +2779,6 @@ def build_specs(
             item_id="boron_3",
             observed_hr=1.0,
             log_sd=0.05,
-            conf_alpha=1.0,
-            conf_beta=6.2,
             qol_annual=0.0,
             qol_years=15,
             low_qaly=0.0,
@@ -2816,8 +2795,6 @@ def build_specs(
             item_id="fisetin_100",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.0,
-            conf_beta=6.5,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=-0.002,
@@ -2830,7 +2807,7 @@ def build_specs(
             ),
             sources=(),
         ),
-    }
+    })
 
 
 def build_additional_specs(
@@ -2847,13 +2824,11 @@ def build_additional_specs(
     stress_multiplier = 0.45 + 0.55 * sleep_need
     metabolic_multiplier = 0.10 + 0.35 * cardio_need
     semaglutide_spec = build_semaglutide_spec(baseline, context.profile)
-    return {
+    return _apply_protocol_confounding_priors({
         "statin_5mg": make_spec(
             "statin_5mg",
             observed_hr=math.exp(math.log(0.95) * (0.15 + 0.55 * cardio_need)),
             log_sd=0.08,
-            conf_alpha=3.8,
-            conf_beta=3.2,
             qol_annual=0.0,
             qol_years=20,
             low_qaly=-0.01,
@@ -2866,8 +2841,6 @@ def build_additional_specs(
             "metformin_500mg",
             observed_hr=math.exp(math.log(0.97) * metabolic_multiplier),
             log_sd=0.10,
-            conf_alpha=2.0,
-            conf_beta=5.5,
             qol_annual=0.0,
             qol_years=12,
             low_qaly=-0.01,
@@ -2880,8 +2853,6 @@ def build_additional_specs(
             "empagliflozin",
             observed_hr=math.exp(math.log(0.98) * metabolic_multiplier),
             log_sd=0.10,
-            conf_alpha=1.8,
-            conf_beta=6.0,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=-0.01,
@@ -2894,8 +2865,6 @@ def build_additional_specs(
             "aspirin_81mg",
             observed_hr=math.exp(math.log(0.985) * (0.20 + 0.40 * cardio_need)),
             log_sd=0.08,
-            conf_alpha=2.2,
-            conf_beta=5.8,
             qol_annual=0.0,
             qol_years=12,
             low_qaly=-0.03,
@@ -2909,8 +2878,6 @@ def build_additional_specs(
             "rapamycin_5mg_wk",
             observed_hr=1.0,
             log_sd=0.12,
-            conf_alpha=1.1,
-            conf_beta=6.5,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=-0.01,
@@ -2923,8 +2890,6 @@ def build_additional_specs(
             "lithium_5mg",
             observed_hr=1.0,
             log_sd=0.07,
-            conf_alpha=1.3,
-            conf_beta=6.0,
             qol_annual=0.0002,
             qol_years=15,
             general_qol_utility_weight_ids=STRESS_QOL,
@@ -2940,8 +2905,6 @@ def build_additional_specs(
             "17a_estradiol",
             observed_hr=1.0,
             log_sd=0.10,
-            conf_alpha=1.0,
-            conf_beta=6.8,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=-0.01,
@@ -2953,8 +2916,6 @@ def build_additional_specs(
             "acarbose_50mg",
             observed_hr=1.0,
             log_sd=0.08,
-            conf_alpha=1.4,
-            conf_beta=6.0,
             qol_annual=-0.0005,
             qol_years=10,
             general_qol_utility_weight_ids=GUT_QOL,
@@ -2970,8 +2931,6 @@ def build_additional_specs(
             "glycine_2g",
             observed_hr=1.0,
             log_sd=0.05,
-            conf_alpha=1.5,
-            conf_beta=6.0,
             qol_annual=0.0010 * stress_multiplier,
             qol_years=10,
             general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
@@ -2994,8 +2953,6 @@ def build_additional_specs(
             "apigenin_50",
             observed_hr=1.0,
             log_sd=0.05,
-            conf_alpha=1.2,
-            conf_beta=6.3,
             qol_annual=0.0008 * stress_multiplier,
             qol_years=10,
             general_qol_utility_weight_ids=STRESS_QOL,
@@ -3015,8 +2972,6 @@ def build_additional_specs(
             "omega3_epa_2g",
             observed_hr=math.exp(math.log(0.97) * (0.25 + 0.60 * cardio_need)),
             log_sd=0.09,
-            conf_alpha=2.5,
-            conf_beta=4.5,
             qol_annual=0.0,
             qol_years=15,
             low_qaly=-0.002,
@@ -3028,8 +2983,6 @@ def build_additional_specs(
             "taurine_500_topup",
             observed_hr=1.0,
             log_sd=0.05,
-            conf_alpha=1.2,
-            conf_beta=6.0,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
@@ -3045,8 +2998,6 @@ def build_additional_specs(
             "urolithin_a_500",
             observed_hr=1.0,
             log_sd=0.07,
-            conf_alpha=1.5,
-            conf_beta=5.8,
             qol_annual=0.0003,
             qol_years=12,
             general_qol_utility_weight_ids=FUNCTION_QOL,
@@ -3062,8 +3013,6 @@ def build_additional_specs(
             "ergothioneine_5",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.1,
-            conf_beta=6.2,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
@@ -3075,8 +3024,6 @@ def build_additional_specs(
             "quercetin_500",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.3,
-            conf_beta=5.8,
             qol_annual=0.0003,
             qol_years=10,
             general_qol_utility_weight_ids=FUNCTION_QOL,
@@ -3092,8 +3039,6 @@ def build_additional_specs(
             "sulforaphane_20_extra",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.2,
-            conf_beta=6.0,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
@@ -3105,8 +3050,6 @@ def build_additional_specs(
             "pterostilbene_50",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.0,
-            conf_beta=6.5,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=-0.002,
@@ -3118,8 +3061,6 @@ def build_additional_specs(
             "egcg_400",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.2,
-            conf_beta=6.0,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=-0.01,
@@ -3131,8 +3072,6 @@ def build_additional_specs(
             "berberine_500",
             observed_hr=math.exp(math.log(0.98) * metabolic_multiplier),
             log_sd=0.08,
-            conf_alpha=1.6,
-            conf_beta=5.8,
             qol_annual=-0.0005,
             qol_years=10,
             general_qol_utility_weight_ids=GUT_QOL,
@@ -3148,8 +3087,6 @@ def build_additional_specs(
             "alpha_lipoic_acid_300",
             observed_hr=1.0,
             log_sd=0.05,
-            conf_alpha=1.2,
-            conf_beta=6.0,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
@@ -3161,8 +3098,6 @@ def build_additional_specs(
             "pqq_20",
             observed_hr=1.0,
             log_sd=0.05,
-            conf_alpha=1.1,
-            conf_beta=6.2,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
@@ -3174,8 +3109,6 @@ def build_additional_specs(
             "tmg_1g",
             observed_hr=1.0,
             log_sd=0.05,
-            conf_alpha=1.1,
-            conf_beta=6.0,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
@@ -3187,8 +3120,6 @@ def build_additional_specs(
             "ashwagandha_600",
             observed_hr=1.0,
             log_sd=0.07,
-            conf_alpha=1.8,
-            conf_beta=5.5,
             qol_annual=0.0012 * stress_multiplier,
             qol_years=10,
             general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
@@ -3210,8 +3141,6 @@ def build_additional_specs(
             "lions_mane_1g",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.3,
-            conf_beta=6.0,
             qol_annual=0.0006,
             qol_years=15,
             general_qol_utility_weight_ids=FUNCTION_QOL,
@@ -3227,8 +3156,6 @@ def build_additional_specs(
             "black_seed_oil_1g",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.2,
-            conf_beta=6.0,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
@@ -3240,8 +3167,6 @@ def build_additional_specs(
             "cistanche_200",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.3,
-            conf_beta=6.0,
             qol_annual=0.00075,
             qol_years=15,
             general_qol_utility_weight_ids=FUNCTION_QOL,
@@ -3257,8 +3182,6 @@ def build_additional_specs(
             "nmn_500",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.2,
-            conf_beta=6.0,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
@@ -3270,8 +3193,6 @@ def build_additional_specs(
             "ghk_cu",
             observed_hr=1.0,
             log_sd=0.05,
-            conf_alpha=1.1,
-            conf_beta=6.2,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=0.0,
@@ -3283,8 +3204,6 @@ def build_additional_specs(
             "vitamin_c_500_extra",
             observed_hr=1.0,
             log_sd=0.05,
-            conf_alpha=1.3,
-            conf_beta=5.8,
             qol_annual=0.0,
             qol_years=10,
             low_qaly=-0.002,
@@ -3296,8 +3215,6 @@ def build_additional_specs(
             "zinc_carnosine_75",
             observed_hr=1.0,
             log_sd=0.05,
-            conf_alpha=1.5,
-            conf_beta=5.0,
             qol_annual=0.0002,
             qol_years=10,
             general_qol_utility_weight_ids=UPPER_GI_QOL,
@@ -3313,8 +3230,6 @@ def build_additional_specs(
             "probiotic_daily",
             observed_hr=1.0,
             log_sd=0.05,
-            conf_alpha=1.3,
-            conf_beta=5.5,
             qol_annual=0.0004,
             qol_years=10,
             general_qol_utility_weight_ids=GUT_QOL,
@@ -3486,8 +3401,6 @@ def build_additional_specs(
             "hiit_1x_week",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=2.0,
-            conf_beta=4.8,
             qol_annual=0.0028 * hiit_headroom,
             qol_years=12,
             general_qol_utility_weight_ids=FUNCTION_QOL,
@@ -3513,8 +3426,6 @@ def build_additional_specs(
             "hiit_2x_week",
             observed_hr=1.0,
             log_sd=0.07,
-            conf_alpha=1.9,
-            conf_beta=5.0,
             qol_annual=0.0045 * hiit_headroom,
             qol_years=12,
             general_qol_utility_weight_ids=FUNCTION_QOL,
@@ -3539,8 +3450,6 @@ def build_additional_specs(
             "hiit_3x_week",
             observed_hr=1.0,
             log_sd=0.08,
-            conf_alpha=1.7,
-            conf_beta=5.4,
             qol_annual=0.0038 * hiit_headroom - 0.0008 * (1.0 - sleep_need),
             qol_years=12,
             general_qol_utility_weight_ids=FUNCTION_QOL,
@@ -3565,8 +3474,6 @@ def build_additional_specs(
             "zone2_cardio_2x_week",
             observed_hr=1.0,
             log_sd=0.05,
-            conf_alpha=1.8,
-            conf_beta=5.0,
             qol_annual=0.0018 * hiit_headroom,
             qol_years=12,
             general_qol_utility_weight_ids=FUNCTION_QOL,
@@ -3587,8 +3494,6 @@ def build_additional_specs(
             "tempo_run_1x_week",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.9,
-            conf_beta=4.9,
             qol_annual=0.0034 * hiit_headroom,
             qol_years=12,
             general_qol_utility_weight_ids=FUNCTION_QOL,
@@ -3612,8 +3517,6 @@ def build_additional_specs(
             "strength_maintenance",
             observed_hr=1.0,
             log_sd=0.04,
-            conf_alpha=1.4,
-            conf_beta=5.6,
             qol_annual=0.0003,
             qol_years=12,
             general_qol_utility_weight_ids=FUNCTION_QOL,
@@ -3634,8 +3537,6 @@ def build_additional_specs(
             "traditional_sauna_4x_week",
             observed_hr=1.0,
             log_sd=0.08,
-            conf_alpha=1.8,
-            conf_beta=4.8,
             qol_annual=0.0008,
             qol_years=15,
             general_qol_utility_weight_ids=STRESS_QOL + FUNCTION_QOL,
@@ -3660,8 +3561,6 @@ def build_additional_specs(
             "infrared_sauna_4x_week",
             observed_hr=1.0,
             log_sd=0.07,
-            conf_alpha=1.5,
-            conf_beta=5.2,
             qol_annual=0.00035,
             qol_years=10,
             general_qol_utility_weight_ids=STRESS_QOL + FUNCTION_QOL,
@@ -3686,8 +3585,6 @@ def build_additional_specs(
             "hbot_60sessions",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.2,
-            conf_beta=6.4,
             qol_annual=0.0,
             qol_years=5,
             low_qaly=-0.01,
@@ -3707,8 +3604,6 @@ def build_additional_specs(
             "bpc157_cycle",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.0,
-            conf_beta=6.8,
             qol_annual=0.0,
             qol_years=2,
             low_qaly=-0.01,
@@ -3728,8 +3623,6 @@ def build_additional_specs(
             "tb500_cycle",
             observed_hr=1.0,
             log_sd=0.06,
-            conf_alpha=1.0,
-            conf_beta=7.0,
             qol_annual=0.0,
             qol_years=2,
             low_qaly=-0.012,
@@ -3761,7 +3654,7 @@ def build_additional_specs(
         "magnesium_citrate_150": make_spec(
             "magnesium_citrate_150", low_qaly=-0.01, high_qaly=0.01
         ),
-    }
+    })
 
 
 def format_cost_per_qaly(item: dict[str, Any]) -> str:

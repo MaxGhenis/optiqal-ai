@@ -13,9 +13,10 @@ Implementation in progress on `rebuild/a-rng-priors`.
 - Derived independent quality, hazard-ratio, causal-fraction, and harm streams from one seed sequence.
 - Made point-null and absent direct mortality arms exact across vectorized, loop, catalog, and analyzer paths.
 - Added regressions for stream correlation, seeded reproducibility, null mortality, and seeded-vs-unseeded agreement.
+- Moved category, intervention, protocol, evidence-tier, and QoL transport priors into one validated registry.
+- Added a frozen 2026-09-04 fixture, runtime-equivalence checks, and a guard against numeric `ConfoundingPrior` literals.
 
 ## Next
 
-- Consolidate hand-set priors in `python/optiqal/data/priors.yaml` with validation and a frozen fixture.
 - Add cross-artifact drift tests and correct the documentation.
 - Rebaseline once, run Ruff and the full pytest suite, and record the final comparison report.

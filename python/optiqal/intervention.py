@@ -11,7 +11,21 @@ from typing import Any, Dict, List, Literal, Optional, Union
 import numpy as np
 import yaml
 
-from .confounding import ConfoundingPrior, get_confounding_prior
+from .confounding import (
+    INTERVENTION_PRIORS,
+    ConfoundingPrior,
+    get_confounding_prior,
+)
+
+
+def _copy_confounding_prior(prior: ConfoundingPrior) -> ConfoundingPrior:
+    """Return a per-intervention prior without sharing mutable registry state."""
+    return ConfoundingPrior(
+        alpha=prior.alpha,
+        beta=prior.beta,
+        rationale=prior.rationale,
+        calibration_sources=list(prior.calibration_sources),
+    )
 
 
 @dataclass
@@ -401,12 +415,30 @@ class Intervention:
             prior_dist = Distribution.from_dict(prior_data)
             if prior_dist.type != "beta":
                 raise ValueError("Confounding prior must be Beta distribution")
-            confounding_prior = ConfoundingPrior(
-                alpha=prior_dist.params["alpha"],
-                beta=prior_dist.params["beta"],
-                rationale=data["confounding"].get("rationale", ""),
-                calibration_sources=data["confounding"].get("calibration_sources", []),
-            )
+            canonical_prior = INTERVENTION_PRIORS.get(data["id"])
+            if canonical_prior is not None:
+                inline_parameters = (
+                    prior_dist.params["alpha"],
+                    prior_dist.params["beta"],
+                )
+                canonical_parameters = (
+                    canonical_prior.alpha,
+                    canonical_prior.beta,
+                )
+                if inline_parameters != canonical_parameters:
+                    raise ValueError(
+                        f"Confounding prior for {data['id']} does not match priors.yaml"
+                    )
+                confounding_prior = _copy_confounding_prior(canonical_prior)
+            else:
+                confounding_prior = ConfoundingPrior(
+                    alpha=prior_dist.params["alpha"],
+                    beta=prior_dist.params["beta"],
+                    rationale=data["confounding"].get("rationale", ""),
+                    calibration_sources=data["confounding"].get(
+                        "calibration_sources", []
+                    ),
+                )
         elif "category" in data:
             # Use default prior for category
             confounding_prior = get_confounding_prior(

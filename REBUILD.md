@@ -147,3 +147,17 @@ the generated list no longer has (a fixed debt that must be removed).
        "verification_state": "sourced|authored|heuristic", "study_ids": [...]}]}
 
 A card with `verification_state: heuristic` never reaches the public site.
+
+## PR A notes (2026-09-04)
+
+- `confounding.protocol_interventions` is a sibling of `confounding.interventions`.
+  The protocol pipeline has 76 hand-set Beta priors, 61 of which intentionally differ
+  from the catalog value for the same item. Keeping the context explicit preserves both
+  behaviors while making `priors.yaml` the only numeric source. Semaglutide's two
+  phenotype branches use the keys `semaglutide:weight_indicated` and
+  `semaglutide:not_weight_indicated`.
+- Beta rows may also carry `rationale` and `calibration_sources` so moving a prior does
+  not discard the runtime metadata that accompanied it.
+- Study-quality rows store the retained fraction named by the schema. Runtime
+  `*_SHRINKAGE` dictionaries are reconstructed as one minus retention, rounded to avoid
+  representational drift from the former decimal literals.

@@ -1,0 +1,642 @@
+version: 1
+
+confounding:
+  categories:
+    exercise:
+      alpha: 1.2
+      beta: 6.0
+      source: >-
+        Category-specific confounding priors calibrated against actual RCT versus
+        observational discrepancies: exercise uses Ballin 2021 and the Finnish Twin
+        Cohort; diet uses PREDIMED; medical uses the statin observational-versus-RCT
+        discrepancy. Exercise: VERY skeptical - RCTs and twin studies show ~0 causal effect.
+      rationale: >-
+        CALIBRATED: RCTs show exercise does not reduce mortality (Ballin 2021, n=50k).
+        Finnish Twin Cohort 2024: identical twins discordant for PA show no mortality difference.
+        Beta(1.2, 6.0) → mean 17%, 95% CI: 2-45%
+      calibration_sources:
+        - Ballin et al. 2021 (RCT critical review, n=50k)
+        - Finnish Twin Cohort 2024 (twin discordance)
+        - Mendelian randomization studies (null for mortality)
+    diet:
+      alpha: 3.0
+      beta: 3.0
+      source: "Diet: Less skeptical - PREDIMED RCT confirms substantial causal effect."
+      rationale: >-
+        CALIBRATED: PREDIMED RCT confirms 30% CVD reduction, consistent with observational.
+        Nuts, olive oil have RCT backing. Diet has higher causal fraction than exercise.
+        Beta(3.0, 3.0) → mean 50%, 95% CI: 15-85%
+      calibration_sources:
+        - PREDIMED Trial 2018 (RCT, n=7447, 30% CVD reduction)
+        - Aune et al. 2016 (nut meta-analysis)
+    sleep:
+      alpha: 1.5
+      beta: 4.5
+      source: "Sleep: Skeptical - no RCT evidence for mortality."
+      rationale: >-
+        No RCTs for sleep duration and mortality. High reverse causation risk:
+        illness affects sleep patterns. CBT-I shows causal quality-of-life effects.
+        Beta(1.5, 4.5) → mean 25%, 95% CI: 3-58%
+      calibration_sources:
+        - Cappuccio et al. 2010 (observational only)
+        - No mortality RCTs available
+    stress:
+      alpha: 1.2
+      beta: 5.0
+      source: "Stress: Very skeptical."
+      rationale: >-
+        Meditation/mindfulness RCTs show much smaller effects than observational.
+        Stress levels heavily confounded with SES, health behaviors.
+        Beta(1.2, 5.0) → mean 19%, 95% CI: 2-50%
+      calibration_sources:
+        - Goyal et al. 2014 (meditation RCT meta-analysis)
+        - Khoury et al. 2015
+    substance:
+      alpha: 2.0
+      beta: 4.0
+      source: "Substance: Mixed - smoking has RCT backing, alcohol J-curve is confounded."
+      rationale: >-
+        CALIBRATED: Smoking cessation has strong RCT backing (causal fraction ~56%).
+        Alcohol J-curve is entirely confounded (MR shows no benefit).
+        Beta(2.0, 4.0) → mean 33%, 95% CI: 6-68%
+      calibration_sources:
+        - Taylor et al. 2014 (smoking cessation RCTs, ~56% causal)
+        - Stockwell et al. 2016 (alcohol J-curve is bias)
+    medical:
+      alpha: 2.5
+      beta: 4.0
+      source: "Medical: Moderate skepticism - even RCT-based drugs show observational inflation."
+      rationale: >-
+        CALIBRATED: Even RCT-based drugs show observational inflation.
+        Statins: HR 0.54 observational vs 0.84 RCT (causal fraction ~28%).
+        Beta(2.5, 4.0) → mean 38%, 95% CI: 8-73%
+      calibration_sources:
+        - Danaei et al. 2012 (statin RCT vs observational)
+        - ARRIVE/ASPREE trials (aspirin less effective)
+    social:
+      alpha: 1.0
+      beta: 5.5
+      source: "Social: Very skeptical - no RCT possible."
+      rationale: >-
+        Social relationships heavily confounded with SES, mental health, physical health.
+        No RCT evidence possible for mortality endpoints.
+        Beta(1.0, 5.5) → mean 15%, 95% CI: 1-42%
+      calibration_sources:
+        - Holt-Lunstad et al. 2010 (observational only)
+    other:
+      alpha: 1.2
+      beta: 4.8
+      source: "Other: Conservative prior."
+      rationale: >-
+        Unknown intervention type; using conservative prior
+        reflecting general observational bias from calibration data.
+        Beta(1.2, 4.8) → mean 20%, 95% CI: 2-50%
+      calibration_sources: []
+
+  interventions:
+    daily_exercise_moderate:
+      alpha: 3.0
+      beta: 5.0
+      source: >-
+        Exercise shows strong healthy user bias, similar to walking.
+        Device-measured PA (Ekelund 2019) shows ~40% of observational effect.
+        RCT effects typically 30-50% of observational.
+      rationale: >-
+        Exercise studies show substantial healthy user effect.
+        Those who exercise differ in many unmeasured ways (diet, stress, genetics).
+        Device-measured PA studies show attenuated effects vs self-report.
+        RCTs limited by short duration but support causality.
+        Beta(3.0, 5.0) → mean 38%, 95% CI: 11-70%
+      calibration_sources:
+        - Ekelund et al 2019 (accelerometer-measured PA)
+        - Arem et al 2015 (dose-response with covariate adjustment)
+        - Hupin et al 2015 (older adults, sensitivity analyses)
+    daily_sunscreen:
+      alpha: 8.0
+      beta: 2.0
+      source: "High confidence in causality (RCT evidence). Mean ~0.80 causal fraction."
+      rationale: RCT evidence with 15-year follow-up supports high causal fraction
+      calibration_sources: []
+    fish_oil_supplement:
+      alpha: 7.0
+      beta: 2.0
+      source: >-
+        RCT evidence available, so confounding should be minimal.
+        However, large RCTs (VITAL, Cochrane) show null/small effects.
+        Observational studies showed larger benefits (likely confounded).
+      rationale: >-
+        Multiple large RCTs now available (VITAL, REDUCE-IT, Cochrane review).
+        Early observational studies showed larger benefits (healthy user bias).
+        RCTs show null to small effects in general population.
+        REDUCE-IT showed benefit but used high-dose purified EPA (4g/day).
+        Standard dose fish oil (1g EPA+DHA) shows minimal CV benefit.
+        Beta(7.0, 2.0) → mean 78%, 95% CI: 50-94%
+      calibration_sources:
+        - VITAL trial 2019 (RCT)
+        - Cochrane review 2020 (RCT meta-analysis)
+        - REDUCE-IT 2019 (high-dose EPA RCT)
+    meditation_daily:
+      alpha: 4.0
+      beta: 4.0
+      source: >-
+        Meditation practitioners show strong selection effects.
+        Those who meditate regularly differ in many ways (educated, health-conscious, low stress baseline?).
+        RCT evidence exists but limited follow-up, high dropout.
+      rationale: >-
+        Meditation RCTs show consistent effects on stress/anxiety (moderate size).
+        Selection bias: regular meditators likely differ in baseline characteristics.
+        RCT evidence moderate quality (short follow-up, high dropout rates).
+        Mechanisms plausible (HPA axis, inflammatory pathways).
+        Beta(4.0, 4.0) → mean 50%, 95% CI: 21-79%
+      calibration_sources:
+        - Goyal et al 2014 (RCT meta-analysis)
+        - Creswell et al 2016 (biomarker RCT)
+        - Pascoe et al 2017 (cortisol meta-analysis)
+    mediterranean_diet:
+      alpha: 6.0
+      beta: 2.5
+      source: >-
+        RCT evidence (PREDIMED) but strong healthy user effect in observational studies.
+        RCT shows ~70% of observational effects are causal.
+      rationale: >-
+        PREDIMED RCT shows robust causal effects on CVD endpoints.
+        Observational estimates attenuated but RCT confirms large causal component.
+        Mendelian randomization studies (Larsson 2020) support causality.
+        Beta(6.0, 2.5) → mean 71%, 95% CI: 42-90%
+      calibration_sources:
+        - PREDIMED RCT (Estruch 2018)
+        - Larsson 2020 (Mendelian randomization)
+        - Sofi 2014 (observational meta-analysis)
+    moderate_alcohol:
+      alpha: 2.0
+      beta: 6.0
+      source: >-
+        Alcohol shows strong confounding - the "J-curve" is largely artifact.
+        Mendelian randomization (Holmes 2014, Millwood 2019) shows linear harm.
+        Abstainers include sick quitters (reverse causation).
+        Light drinkers tend to be healthier, wealthier.
+      rationale: >-
+        Observational studies show J-curve (benefit at 1-2 drinks/day).
+        Mendelian randomization studies (Holmes 2014, Millwood 2019) show:
+        - No cardioprotective effect
+        - Linear increase in BP, stroke risk with any alcohol
+        Confounding by abstainer characteristics (sick quitters, religious).
+        Benefits largely artifact. Harm reduction is real benefit.
+        Beta(2.0, 6.0) → mean 25%, 95% CI: 5-56%
+      calibration_sources:
+        - Holmes et al 2014 (Mendelian randomization)
+        - Millwood et al 2019 (China Kadoorie Biobank MR)
+        - Stockwell et al 2016 (abstainer bias review)
+    quit_smoking:
+      alpha: 9.0
+      beta: 1.0
+      source: >-
+        Smoking cessation has high causal evidence.
+        Minimal healthy user bias (smokers who quit similar to continuing smokers).
+        Dose-response very strong, reversibility supports causation.
+      rationale: >-
+        Smoking causation extremely well-established through:
+        - Dose-response (pack-years)
+        - Temporality (reversal of risk after cessation)
+        - Biological plausibility (multiple mechanisms)
+        - Animal models and biochemical evidence
+        Confounding minimal due to strong causal evidence.
+        Beta(9.0, 1.0) → mean 90%, 95% CI: 71-99%
+      calibration_sources:
+        - Surgeon General Reports (1964-2020)
+        - Doll & Hill 1950s physician studies
+        - Multiple RCTs of cessation interventions
+    sleep_8_hours:
+      alpha: 2.0
+      beta: 5.5
+      source: >-
+        Sleep studies show strong reverse causation and healthy user bias.
+        Mendelian randomization (Daghlas 2019) suggests ~25-40% causal.
+        Short sleep often marker of stress, illness, shift work.
+      rationale: >-
+        Sleep duration shows U-shaped mortality curve with strong confounding.
+        Short sleep often due to stress, illness, shift work (reverse causation).
+        Long sleep may be marker of poor health.
+        Mendelian randomization studies suggest ~25-35% causal for short sleep.
+        Beta(2.0, 5.5) → mean 27%, 95% CI: 6-58%
+      calibration_sources:
+        - Daghlas et al 2019 (Mendelian randomization)
+        - Cappuccio 2010 (meta-analysis with subgroup analysis)
+        - Grandner 2016 (review of causality)
+    strength_training:
+      alpha: 2.5
+      beta: 6.0
+      source: >-
+        Strength training shows even stronger healthy user bias than aerobic exercise.
+        Those who lift weights tend to be more health-conscious, younger, male.
+        Limited RCT data on mortality outcomes.
+      rationale: >-
+        Resistance training observational studies show strong healthy user effect.
+        Population that lifts weights highly selected for health consciousness.
+        Limited long-term RCT data (too expensive, compliance issues).
+        Mechanisms well-established but mortality effects uncertain.
+        Beta(2.5, 6.0) → mean 29%, 95% CI: 7-61%
+      calibration_sources:
+        - Liu et al 2019 (sensitivity analyses)
+        - Momma et al 2022 (dose-response)
+        - Westcott 2012 (mechanism review)
+    walking_30min_daily:
+      alpha: 2.5
+      beta: 5.0
+      source: >-
+        Exercise shows strong healthy user bias.
+        RCT effects typically 30-50% of observational estimates.
+      rationale: >-
+        Walking studies show substantial healthy user bias.
+        Sibling comparisons (Hamer & Stamatakis 2012) suggest ~33% causal.
+        Device-measured PA studies (Ekelund 2019) show attenuated effects.
+        Beta(2.5, 5.0) → mean 33%, 95% CI: 8-65%
+      calibration_sources:
+        - Hamer & Stamatakis 2012 (sibling comparison)
+        - Arem et al 2015 (dose-response modeling)
+        - Ekelund et al 2019 (device-measured PA)
+
+    finasteride_1.25mg: {alpha: 4.0, beta: 2.5, source: "No item-specific prior source was recorded in catalog.py."}
+    tadalafil_2.5mg: {alpha: 2.0, beta: 4.0, source: "No item-specific prior source was recorded in catalog.py."}
+    trazodone_50mg: {alpha: 3.0, beta: 3.0, source: "No item-specific prior source was recorded in catalog.py."}
+    doxepin_3mg: {alpha: 2.0, beta: 4.5, source: "No item-specific prior source was recorded in catalog.py."}
+    daridorexant_25mg: {alpha: 2.4, beta: 4.2, source: "No item-specific prior source was recorded in catalog.py."}
+    lemborexant_5mg: {alpha: 2.5, beta: 4.1, source: "No item-specific prior source was recorded in catalog.py."}
+    suvorexant_10mg: {alpha: 2.2, beta: 4.8, source: "No item-specific prior source was recorded in catalog.py."}
+    nasacort_nightly: {alpha: 2.0, beta: 4.5, source: "No item-specific prior source was recorded in catalog.py."}
+    nasal_strips_nightly: {alpha: 1.8, beta: 4.8, source: "No item-specific prior source was recorded in catalog.py."}
+    humidifier_nightly: {alpha: 1.2, beta: 6.2, source: "No item-specific prior source was recorded in catalog.py."}
+    mouth_tape_nightly: {alpha: 1.3, beta: 6.0, source: "No item-specific prior source was recorded in catalog.py."}
+    head_elevation_nightly: {alpha: 2.2, beta: 4.2, source: "No item-specific prior source was recorded in catalog.py."}
+    apap_nightly: {alpha: 3.0, beta: 3.8, source: "No item-specific prior source was recorded in catalog.py."}
+    oral_appliance_custom: {alpha: 2.6, beta: 4.2, source: "No item-specific prior source was recorded in catalog.py."}
+    hiit_1x_week: {alpha: 2.0, beta: 4.8, source: "No item-specific prior source was recorded in catalog.py."}
+    hiit_2x_week: {alpha: 1.9, beta: 5.0, source: "No item-specific prior source was recorded in catalog.py."}
+    hiit_3x_week: {alpha: 1.7, beta: 5.4, source: "No item-specific prior source was recorded in catalog.py."}
+    zone2_cardio_2x_week: {alpha: 1.8, beta: 5.0, source: "No item-specific prior source was recorded in catalog.py."}
+    tempo_run_1x_week: {alpha: 1.9, beta: 4.9, source: "No item-specific prior source was recorded in catalog.py."}
+    strength_maintenance: {alpha: 1.4, beta: 5.6, source: "No item-specific prior source was recorded in catalog.py."}
+    rapamycin_5mg_wk: {alpha: 2.0, beta: 3.0, source: "No item-specific prior source was recorded in catalog.py."}
+    metformin_500mg: {alpha: 2.5, beta: 3.5, source: "No item-specific prior source was recorded in catalog.py."}
+    acarbose_50mg: {alpha: 2.0, beta: 4.0, source: "No item-specific prior source was recorded in catalog.py."}
+    aspirin_81mg: {alpha: 2.5, beta: 5.0, source: "Aspirin at age 39 with no CVD risk factors. ASPREE (>70y) and ARRIVE (moderate-risk) showed null/harm in healthy primary prevention. The default conf_alpha=4.0, conf_beta=2.0 implies a 67% causal fraction too generous for a healthy 39-year-old. Shrink causal prior and raise bleeding event probability to reflect primary-prevention harm. Final mean causal fraction ~0.33."}
+    semaglutide: {alpha: 3.5, beta: 2.0, source: "No item-specific prior source was recorded in catalog.py."}
+    lithium_5mg: {alpha: 1.5, beta: 4.5, source: "No item-specific prior source was recorded in catalog.py."}
+    17a_estradiol: {alpha: 1.5, beta: 4.5, source: "No item-specific prior source was recorded in catalog.py."}
+    empagliflozin: {alpha: 3.5, beta: 2.5, source: "No item-specific prior source was recorded in catalog.py."}
+    statin_5mg: {alpha: 4.5, beta: 1.5, source: "No item-specific prior source was recorded in catalog.py."}
+    omega3_clo: {alpha: 2.5, beta: 3.5, source: "No item-specific prior source was recorded in catalog.py."}
+    vitamin_d_2000: {alpha: 3.0, beta: 4.0, source: "No item-specific prior source was recorded in catalog.py."}
+    magnesium_200: {alpha: 2.0, beta: 3.5, source: "No item-specific prior source was recorded in catalog.py."}
+    garlic_1200: {alpha: 2.0, beta: 4.0, source: "No item-specific prior source was recorded in catalog.py."}
+    creatine_5g: {alpha: 1.0, beta: 6.0, source: "No item-specific prior source was recorded in catalog.py."}
+    nac_1200: {alpha: 1.5, beta: 4.0, source: "No item-specific prior source was recorded in catalog.py."}
+    curcumin_250: {alpha: 1.5, beta: 4.5, source: "No item-specific prior source was recorded in catalog.py."}
+    ginger_400: {alpha: 1.0, beta: 5.0, source: "No item-specific prior source was recorded in catalog.py."}
+    vitamin_k2: {alpha: 1.5, beta: 4.0, source: "No item-specific prior source was recorded in catalog.py."}
+    melatonin_300mcg: {alpha: 1.2, beta: 4.5, source: "No item-specific prior source was recorded in catalog.py."}
+    collagen_22g: {alpha: 1.0, beta: 7.0, source: "No item-specific prior source was recorded in catalog.py."}
+    prebiotics: {alpha: 1.0, beta: 5.5, source: "No item-specific prior source was recorded in catalog.py."}
+    probiotic_daily: {alpha: 1.2, beta: 5.6, source: "No item-specific prior source was recorded in catalog.py."}
+    lutein_zeaxanthin: {alpha: 1.0, beta: 5.5, source: "No item-specific prior source was recorded in catalog.py."}
+    astaxanthin_12: {alpha: 1.0, beta: 5.0, source: "No item-specific prior source was recorded in catalog.py."}
+    lycopene_15: {alpha: 1.2, beta: 4.8, source: "No item-specific prior source was recorded in catalog.py."}
+    nr_300: {alpha: 1.2, beta: 5.0, source: "No item-specific prior source was recorded in catalog.py."}
+
+    nr_300_unbundled: {alpha: 1.2, beta: 5.0, source: "No item-specific prior source was recorded in catalog.py."}
+    fisetin_100: {alpha: 1.0, beta: 5.5, source: "No item-specific prior source was recorded in catalog.py."}
+    fisetin_100_unbundled: {alpha: 1.0, beta: 5.5, source: "No item-specific prior source was recorded in catalog.py."}
+    spermidine_10: {alpha: 1.2, beta: 5.0, source: "No item-specific prior source was recorded in catalog.py."}
+    luteolin_100: {alpha: 1.0, beta: 5.5, source: "No item-specific prior source was recorded in catalog.py."}
+    luteolin_100_unbundled: {alpha: 1.0, beta: 5.5, source: "No item-specific prior source was recorded in catalog.py."}
+    ubiquinol_50: {alpha: 1.5, beta: 4.5, source: "No item-specific prior source was recorded in catalog.py."}
+    ubiquinol_50_unbundled: {alpha: 1.5, beta: 4.5, source: "No item-specific prior source was recorded in catalog.py."}
+    boron_3: {alpha: 1.0, beta: 5.5, source: "No item-specific prior source was recorded in catalog.py."}
+    lithium_1mg_orotate: {alpha: 1.2, beta: 5.0, source: "No item-specific prior source was recorded in catalog.py."}
+    broccoli_seed_200: {alpha: 1.5, beta: 4.5, source: "No item-specific prior source was recorded in catalog.py."}
+    cocoa_flavanols_500: {alpha: 2.5, beta: 3.0, source: "No item-specific prior source was recorded in catalog.py."}
+    hyaluronic_acid_120: {alpha: 1.0, beta: 7.0, source: "No item-specific prior source was recorded in catalog.py."}
+    glycine_2g: {alpha: 1.5, beta: 6.0, source: "No item-specific prior source was recorded in catalog.py."}
+    apigenin_50: {alpha: 1.0, beta: 6.0, source: "No item-specific prior source was recorded in catalog.py."}
+    omega3_epa_2g: {alpha: 2.5, beta: 3.0, source: "No item-specific prior source was recorded in catalog.py."}
+    taurine_500_topup: {alpha: 1.2, beta: 6.0, source: "No item-specific prior source was recorded in catalog.py."}
+    urolithin_a_500: {alpha: 1.5, beta: 4.5, source: "No item-specific prior source was recorded in catalog.py."}
+    ergothioneine_5: {alpha: 1.2, beta: 5.0, source: "No item-specific prior source was recorded in catalog.py."}
+    quercetin_500: {alpha: 1.5, beta: 4.5, source: "No item-specific prior source was recorded in catalog.py."}
+    sulforaphane_20_extra: {alpha: 1.5, beta: 4.5, source: "No item-specific prior source was recorded in catalog.py."}
+    pterostilbene_50: {alpha: 1.0, beta: 5.5, source: "No item-specific prior source was recorded in catalog.py."}
+    egcg_400: {alpha: 1.5, beta: 4.5, source: "No item-specific prior source was recorded in catalog.py."}
+    berberine_500: {alpha: 1.5, beta: 4.5, source: "No item-specific prior source was recorded in catalog.py."}
+    alpha_lipoic_acid_300: {alpha: 1.2, beta: 5.0, source: "No item-specific prior source was recorded in catalog.py."}
+    pqq_20: {alpha: 1.0, beta: 6.0, source: "No item-specific prior source was recorded in catalog.py."}
+    tmg_1g: {alpha: 1.0, beta: 5.5, source: "No item-specific prior source was recorded in catalog.py."}
+    ashwagandha_600: {alpha: 1.2, beta: 5.0, source: "No item-specific prior source was recorded in catalog.py."}
+    lions_mane_1g: {alpha: 1.0, beta: 6.0, source: "No item-specific prior source was recorded in catalog.py."}
+    black_seed_oil_1g: {alpha: 1.2, beta: 5.0, source: "No item-specific prior source was recorded in catalog.py."}
+    cistanche_200: {alpha: 1.0, beta: 6.0, source: "No item-specific prior source was recorded in catalog.py."}
+    nmn_500: {alpha: 1.2, beta: 5.0, source: "No item-specific prior source was recorded in catalog.py."}
+    ghk_cu: {alpha: 1.0, beta: 7.0, source: "No item-specific prior source was recorded in catalog.py."}
+    vitamin_c_500_extra: {alpha: 2.0, beta: 4.5, source: "No item-specific prior source was recorded in catalog.py."}
+    caakg_2000: {alpha: 1.2, beta: 6.0, source: "No item-specific prior source was recorded in catalog.py."}
+    glucosamine_sulfate_750: {alpha: 1.0, beta: 5.5, source: "No item-specific prior source was recorded in catalog.py."}
+    l_lysine_1000: {alpha: 1.1, beta: 6.0, source: "No item-specific prior source was recorded in catalog.py."}
+    glutathione_250: {alpha: 1.1, beta: 6.0, source: "No item-specific prior source was recorded in catalog.py."}
+    l_theanine_200: {alpha: 1.2, beta: 5.5, source: "No item-specific prior source was recorded in catalog.py."}
+    magnesium_citrate_150: {alpha: 1.1, beta: 6.0, source: "No item-specific prior source was recorded in catalog.py."}
+    zinc_carnosine_75: {alpha: 1.5, beta: 4.5, source: "No item-specific prior source was recorded in catalog.py."}
+    traditional_sauna_4x_week: {alpha: 1.8, beta: 4.8, source: "No item-specific prior source was recorded in catalog.py."}
+    infrared_sauna_4x_week: {alpha: 1.5, beta: 5.2, source: "No item-specific prior source was recorded in catalog.py."}
+    hbot_60sessions: {alpha: 1.2, beta: 6.4, source: "No item-specific prior source was recorded in catalog.py."}
+    bpc157_cycle: {alpha: 1.0, beta: 6.8, source: "No item-specific prior source was recorded in catalog.py."}
+    tb500_cycle: {alpha: 1.0, beta: 7.0, source: "No item-specific prior source was recorded in catalog.py."}
+
+  protocol_interventions:
+    semaglutide:not_weight_indicated: {alpha: 1.3, beta: 7.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    semaglutide:weight_indicated: {alpha: 2.2, beta: 4.8, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    tadalafil_2.5mg: {alpha: 1.2, beta: 6.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    finasteride_1.25mg: {alpha: 1.0, beta: 8.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    magnesium_200: {alpha: 2.8, beta: 4.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    trazodone_50mg: {alpha: 1.5, beta: 6.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    melatonin_300mcg: {alpha: 1.7, beta: 5.5, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    head_elevation_nightly: {alpha: 2.1, beta: 4.4, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    cocoa_flavanols_500: {alpha: 2.5, beta: 4.5, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    creatine_5g: {alpha: 2.0, beta: 5.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    omega3_clo: {alpha: 3.2, beta: 4.2, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    garlic_1200: {alpha: 2.8, beta: 4.2, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    prebiotics: {alpha: 1.7, beta: 5.5, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    vitamin_d_2000: {alpha: 3.0, beta: 4.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    astaxanthin_12: {alpha: 1.2, beta: 6.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    nac_1200: {alpha: 1.4, beta: 5.8, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    curcumin_250: {alpha: 1.5, beta: 5.5, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    collagen_22g: {alpha: 1.8, beta: 5.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    lutein_zeaxanthin: {alpha: 2.4, beta: 4.5, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    vitamin_k2: {alpha: 2.0, beta: 4.8, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    ubiquinol_50: {alpha: 1.8, beta: 5.2, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    ubiquinol_50_unbundled: {alpha: 1.8, beta: 5.2, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    nr_300: {alpha: 1.2, beta: 6.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    nr_300_unbundled: {alpha: 1.2, beta: 6.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    luteolin_100: {alpha: 1.0, beta: 6.5, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    luteolin_100_unbundled: {alpha: 1.0, beta: 6.5, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    lithium_1mg_orotate: {alpha: 1.1, beta: 6.2, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    hyaluronic_acid_120: {alpha: 1.4, beta: 5.5, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    broccoli_seed_200: {alpha: 1.2, beta: 6.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    spermidine_10: {alpha: 1.2, beta: 6.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    fisetin_100_unbundled: {alpha: 1.0, beta: 6.8, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    lycopene_15: {alpha: 1.4, beta: 5.2, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    ginger_400: {alpha: 1.5, beta: 5.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    boron_3: {alpha: 1.0, beta: 6.2, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    fisetin_100: {alpha: 1.0, beta: 6.5, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    statin_5mg: {alpha: 3.8, beta: 3.2, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    metformin_500mg: {alpha: 2.0, beta: 5.5, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    empagliflozin: {alpha: 1.8, beta: 6.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    aspirin_81mg: {alpha: 2.2, beta: 5.8, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    rapamycin_5mg_wk: {alpha: 1.1, beta: 6.5, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    lithium_5mg: {alpha: 1.3, beta: 6.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    17a_estradiol: {alpha: 1.0, beta: 6.8, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    acarbose_50mg: {alpha: 1.4, beta: 6.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    glycine_2g: {alpha: 1.5, beta: 6.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    apigenin_50: {alpha: 1.2, beta: 6.3, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    omega3_epa_2g: {alpha: 2.5, beta: 4.5, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    taurine_500_topup: {alpha: 1.2, beta: 6.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    urolithin_a_500: {alpha: 1.5, beta: 5.8, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    ergothioneine_5: {alpha: 1.1, beta: 6.2, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    quercetin_500: {alpha: 1.3, beta: 5.8, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    sulforaphane_20_extra: {alpha: 1.2, beta: 6.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    pterostilbene_50: {alpha: 1.0, beta: 6.5, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    egcg_400: {alpha: 1.2, beta: 6.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    berberine_500: {alpha: 1.6, beta: 5.8, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    alpha_lipoic_acid_300: {alpha: 1.2, beta: 6.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    pqq_20: {alpha: 1.1, beta: 6.2, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    tmg_1g: {alpha: 1.1, beta: 6.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    ashwagandha_600: {alpha: 1.8, beta: 5.5, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    lions_mane_1g: {alpha: 1.3, beta: 6.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    black_seed_oil_1g: {alpha: 1.2, beta: 6.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    cistanche_200: {alpha: 1.3, beta: 6.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    nmn_500: {alpha: 1.2, beta: 6.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    ghk_cu: {alpha: 1.1, beta: 6.2, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    vitamin_c_500_extra: {alpha: 1.3, beta: 5.8, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    zinc_carnosine_75: {alpha: 1.5, beta: 5.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    probiotic_daily: {alpha: 1.3, beta: 5.5, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    hiit_1x_week: {alpha: 2.0, beta: 4.8, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    hiit_2x_week: {alpha: 1.9, beta: 5.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    hiit_3x_week: {alpha: 1.7, beta: 5.4, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    zone2_cardio_2x_week: {alpha: 1.8, beta: 5.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    tempo_run_1x_week: {alpha: 1.9, beta: 4.9, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    strength_maintenance: {alpha: 1.4, beta: 5.6, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    traditional_sauna_4x_week: {alpha: 1.8, beta: 4.8, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    infrared_sauna_4x_week: {alpha: 1.5, beta: 5.2, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    hbot_60sessions: {alpha: 1.2, beta: 6.4, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    bpc157_cycle: {alpha: 1.0, beta: 6.8, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+    tb500_cycle: {alpha: 1.0, beta: 7.0, source: "No prior-specific source was recorded for this protocol override in protocol_ground_up.py."}
+
+evidence_adjustments:
+  meta-analysis: {alpha_multiplier: 1.1, source: "Evidence type adjustment: multiplier on alpha."}
+  rct: {alpha_multiplier: 1.5, source: "Evidence type adjustment: multiplier on alpha."}
+  cohort: {alpha_multiplier: 0.8, source: "Evidence type adjustment: multiplier on alpha."}
+  case-control: {alpha_multiplier: 0.7, source: "Evidence type adjustment: multiplier on alpha."}
+  review: {alpha_multiplier: 1.0, source: "Evidence type adjustment: multiplier on alpha."}
+  other: {alpha_multiplier: 0.9, source: "Evidence type adjustment: multiplier on alpha."}
+
+study_quality_shrinkage:
+  rct_preregistered_hard_endpoint:
+    retention: 0.90
+    source: >-
+      Tiered publication-bias shrinkage by study quality. Empirical anchor:
+      RCT + preregistered + hard endpoint has small residual inflation (winner's curse, ~10%).
+      Examples: PCPT finasteride, CTT statin meta, SELECT semaglutide, ASPREE aspirin, EMPA-REG.
+  rct_standard:
+    retention: 0.80
+    source: >-
+      RCT standard: some publication/selective-reporting bias (~20%).
+      Examples: BP RCTs, sleep-RCT onset latency, PREDIMED.
+  meta_analysis_rcts:
+    retention: 0.80
+    source: "Meta-analysis of RCTs: ~20% publication bias, partly corrected via trim-and-fill."
+  cohort_large:
+    retention: 0.70
+    source: "Cohort: ~30% publication bias (Ioannidis 2008 baseline)."
+  cohort_small:
+    retention: 0.65
+    source: "Cohort: ~30% publication bias (Ioannidis 2008 baseline)."
+  case_control:
+    retention: 0.60
+    source: "Case-control: ~40% publication bias (recall/selection bias)."
+  supplement_industry_rct:
+    retention: 0.50
+    source: >-
+      Supplement-industry RCT: ~50% publication bias (unregistered, short duration,
+      surrogate endpoints, sponsor bias). Examples: NR, NMN, ashwagandha commercial RCTs.
+  observational_speculative:
+    retention: 0.45
+    source: "Observational speculative / ecological: ~55% publication bias."
+  animal_or_mechanistic:
+    retention: 0.30
+    source: "Animal-only or mechanistic: ~70% translation penalty plus publication bias."
+
+qol_transport:
+  study_quality_shrinkage:
+    rct_objective_endpoint:
+      retention: 0.90
+      source: >-
+        Reporting/publication shrinkage for symptom endpoints. Same shape as the mortality
+        table; the weak tiers are harsher because subjective endpoints are easier to p-hack
+        and selectively report than hard endpoints.
+    meta_analysis_placebo_rcts:
+      retention: 0.85
+      source: >-
+        Reporting/publication retention for symptom endpoints. The weak tiers are harsher because
+        subjective endpoints are easier to p-hack and selectively report than hard endpoints.
+    rct_placebo_patient_reported:
+      retention: 0.80
+      source: >-
+        Reporting/publication retention for symptom endpoints. The weak tiers are harsher because
+        subjective endpoints are easier to p-hack and selectively report than hard endpoints.
+    rct_open_label:
+      retention: 0.60
+      source: >-
+        Reporting/publication retention for symptom endpoints. The weak tiers are harsher because
+        subjective endpoints are easier to p-hack and selectively report than hard endpoints.
+    supplement_industry_rct:
+      retention: 0.50
+      source: >-
+        Reporting/publication retention for symptom endpoints. The weak tiers are harsher because
+        subjective endpoints are easier to p-hack and selectively report than hard endpoints.
+    observational_symptom:
+      retention: 0.45
+      source: >-
+        Reporting/publication retention for symptom endpoints. The weak tiers are harsher because
+        subjective endpoints are easier to p-hack and selectively report than hard endpoints.
+    mechanistic_or_self_experiment:
+      retention: 0.30
+      source: >-
+        Reporting/publication retention for symptom endpoints. The weak tiers are harsher because
+        subjective endpoints are easier to p-hack and selectively report than hard endpoints.
+
+  categories:
+    sleep_symptom:
+      alpha: 2.4
+      beta: 5.6
+      source: >-
+        Transport priors are the fraction of a published or claimed effect expected to
+        survive placebo stripping plus population transport. They reuse ConfoundingPrior
+        purely for its Beta mechanics (mean, confidence interval, and sampling).
+      rationale: >-
+        Placebo response averages ~64% of drug response for subjective insomnia outcomes
+        (Winkler & Rief 2015); objective deltas are far smaller than felt ones.
+        Beta(2.4, 5.6) -> mean 30%.
+      calibration_sources:
+        - Winkler & Rief 2015 (placebo response in insomnia trials)
+        - Ferracioli-Oda 2013 (melatonin objective latency)
+    respiratory_airway:
+      alpha: 4.5
+      beta: 4.5
+      source: "Transport prior: fraction of a published/claimed effect expected to survive placebo stripping plus population transport."
+      rationale: >-
+        Airway interventions mix objective mechanics (AHI, resistance) with subjective
+        sleepiness; sham-controlled CPAP trials show real but roughly halved subjective
+        gains vs open-label. Beta(4.5, 4.5) -> mean 50%.
+      calibration_sources:
+        - Jenkinson 1999 (sham-controlled CPAP)
+        - Kiely 2004 (nasal steroid in snorers)
+    sexual_function:
+      alpha: 5.5
+      beta: 4.5
+      source: "Transport prior: fraction of a published/claimed effect expected to survive placebo stripping plus population transport."
+      rationale: >-
+        PDE5 pivotal RCTs show large placebo-adjusted IIEF deltas, and continued
+        revealed use signals response; transport still shrinks toward a milder-severity
+        user. Beta(5.5, 4.5) -> mean 55%.
+      calibration_sources:
+        - Goldstein 1998 (sildenafil RCT)
+    mood_stress:
+      alpha: 2.0
+      beta: 7.0
+      source: "Transport prior: fraction of a published/claimed effect expected to survive placebo stripping plus population transport."
+      rationale: >-
+        Commercial adaptogen/mood trials are small, unregistered, and shrink in better
+        designs; placebo share of subjective mood gains is large.
+        Beta(2.0, 7.0) -> mean 22%.
+      calibration_sources:
+        - Speers 2021 (ashwagandha review)
+        - Kirsch 2008 (placebo share, subjective mood endpoints)
+    pain_joint:
+      alpha: 2.5
+      beta: 6.0
+      source: "Transport prior: fraction of a published/claimed effect expected to survive placebo stripping plus population transport."
+      rationale: >-
+        OA/joint trials show very large placebo responses; GAIT found glucosamine no better
+        than placebo on its primary endpoint. Beta(2.5, 6.0) -> mean 29%.
+      calibration_sources:
+        - Clegg 2006 (GAIT)
+    gi_symptom:
+      alpha: 2.8
+      beta: 5.2
+      source: "Transport prior: fraction of a published/claimed effect expected to survive placebo stripping plus population transport."
+      rationale: >-
+        Fiber/probiotic RCTs exist but endpoints are subjective and
+        strain/formulation-specific effects transport poorly.
+        Beta(2.8, 5.2) -> mean 35%.
+      calibration_sources:
+        - Ford 2018 (probiotics in IBS, meta-analysis)
+    cognitive:
+      alpha: 1.8
+      beta: 7.2
+      source: "Transport prior: fraction of a published/claimed effect expected to survive placebo stripping plus population transport."
+      rationale: >-
+        Cognitive-supplement effects in healthy adults rarely replicate outside industry
+        trials; expectancy effects dominate. Beta(1.8, 7.2) -> mean 20%.
+      calibration_sources:
+        - Docherty 2023 (lion's mane pilot, n=41)
+    hair_skin:
+      alpha: 4.0
+      beta: 4.0
+      source: "Transport prior: fraction of a published/claimed effect expected to survive placebo stripping plus population transport."
+      rationale: >-
+        Finasteride hair outcomes are objective (photographic RCTs), but mapping appearance
+        change to utility leans on proxy TTO weights. Beta(4.0, 4.0) -> mean 50%.
+      calibration_sources:
+        - Kaufman 1998 (finasteride RCT)
+    fitness_function:
+      alpha: 5.0
+      beta: 3.0
+      source: "Transport prior: fraction of a published/claimed effect expected to survive placebo stripping plus population transport."
+      rationale: >-
+        CRF/strength gains from structured training are objective and RCT-backed; the
+        shrink covers the indirect CRF-to-utility mapping, not the training response.
+        Beta(5.0, 3.0) -> mean 63%.
+      calibration_sources:
+        - Milanovic 2015 (HIIT VO2max meta-analysis)
+    metabolic_symptom:
+      alpha: 3.0
+      beta: 5.0
+      source: "Transport prior: fraction of a published/claimed effect expected to survive placebo stripping plus population transport."
+      rationale: >-
+        Glycemic/metabolic symptom claims ride on objective markers but subjective wellbeing
+        mapping is indirect. Beta(3.0, 5.0) -> mean 38%.
+      calibration_sources:
+        - SELECT 2023 (semaglutide, hard endpoints)
+    general_vitality:
+      alpha: 1.5
+      beta: 8.5
+      source: "Transport prior: fraction of a published/claimed effect expected to survive placebo stripping plus population transport."
+      rationale: >-
+        Diffuse 'energy/vitality/longevity support' claims have the weakest
+        evidence-to-feeling mapping. Beta(1.5, 8.5) -> mean 15%.
+      calibration_sources: []
+
+  authored_residual_optimism:
+    alpha: 6.0
+    beta: 2.0
+    source: >-
+      Residual-optimism prior for authored_shaded anchors: the authored mean already embeds
+      a personal-severity judgment, so only residual author optimism is stripped, not the full placebo share.
+    rationale: >-
+      Authored qol_annual values were hand-shaded for personal severity;
+      this strips residual optimism only. Beta(6, 2) -> mean 75%.
+    calibration_sources: []
+
+evidence_effect_multipliers:
+  high: {multiplier: 1.0, source: "No source comment was recorded beside EVIDENCE_EFFECT_MULTIPLIERS in catalog.py."}
+  moderate: {multiplier: 0.95, source: "No source comment was recorded beside EVIDENCE_EFFECT_MULTIPLIERS in catalog.py."}
+  low: {multiplier: 0.75, source: "No source comment was recorded beside EVIDENCE_EFFECT_MULTIPLIERS in catalog.py."}
+  very-low: {multiplier: 0.5, source: "No source comment was recorded beside EVIDENCE_EFFECT_MULTIPLIERS in catalog.py."}
