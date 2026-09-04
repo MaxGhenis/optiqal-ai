@@ -126,16 +126,16 @@ $$
 **Exercise interventions** (walking, moderate exercise):
 - Prior: $\text{Beta}(1.2, 6.0)$
 - Mean causal fraction: 17%
-- 95% CI: [2%, 45%]
+- 95% CI: [0.8%, 49.0%]
 - **Rationale**: RCTs show minimal causal effect on mortality (Ballin et al., 2021, n=50,000). Finnish Twin Cohort study of identical twins discordant for physical activity found no mortality difference (2024). Mendelian randomization studies show null effects. Strong healthy user bias in observational studies.
-- **Calibration sources**: Ballin et al. 2021 (RCT critical review); Finnish Twin Cohort 2024; Hamer & Stamatakis 2012 (sibling comparison); Ekelund et al. 2019 (device-measured activity)
+- **Calibration sources**: Ballin et al. 2021 (RCT critical review, n=50,000); Finnish Twin Cohort 2024 (twin discordance); Mendelian randomization studies (null for mortality)
 
 **Diet interventions** (Mediterranean diet):
 - Prior: $\text{Beta}(3.0, 3.0)$
 - Mean causal fraction: 50%
 - 95% CI: [15%, 85%]
 - **Rationale**: PREDIMED RCT confirms substantial causal effects on CVD (30% reduction, Estruch et al., 2018). Mendelian randomization supports causality (Larsson et al., 2020). Much stronger causal evidence than exercise.
-- **Calibration sources**: PREDIMED Trial 2018 (RCT, n=7,447); Larsson 2020 (MR); Sofi et al. 2014 (observational meta-analysis)
+- **Calibration sources**: PREDIMED Trial 2018 (RCT, n=7,447, 30% CVD reduction); Aune et al. 2016 (nut meta-analysis)
 
 **Substance interventions** (smoking cessation, alcohol changes):
 - Prior: $\text{Beta}(2.0, 4.0)$
@@ -172,6 +172,12 @@ $$
 - **Rationale**: Social relationships heavily confounded with SES, mental health, physical health. No RCT evidence possible for mortality.
 - **Calibration sources**: Holt-Lunstad et al. 2010 (observational only)
 
+**Other interventions**:
+- Prior: $\text{Beta}(1.2, 4.8)$
+- Mean causal fraction: 20%
+- 95% CI: [2%, 50%]
+- **Rationale**: Unknown intervention types use a conservative prior reflecting general observational bias in the calibration data.
+
 ### Monte Carlo Sampling
 
 For each intervention, the framework samples from both the hazard ratio distribution and the causal fraction prior:
@@ -185,8 +191,8 @@ For each intervention, the framework samples from both the hazard ratio distribu
 This propagates both epistemic uncertainty (parameter uncertainty) and causal uncertainty (confounding) into final estimates.
 
 Note: the Beta parameters in this section are the live values in
-`optiqal/confounding.py`. That file is canonical; if the two ever disagree,
-the code wins and this document is stale.
+`python/optiqal/data/priors.yaml`. That file is canonical; if the two ever
+disagree, the registry wins and this document is stale.
 
 ## Quality-of-Life Evidence Guarding
 
@@ -464,10 +470,10 @@ mortality:
 confounding:
   prior:
     type: beta
-    alpha: 6.0
-    beta: 2.5
-  # Mean causal fraction: 71%
-  # Calibrated to PREDIMED RCT (Estruch 2018)
+    alpha: 3.0
+    beta: 3.0
+  # Mean causal fraction: 50%
+  # Serves the diet category prior (PREDIMED 2018, Aune 2016)
 ```
 
 ### Example: Walking 30 Minutes Daily
@@ -481,10 +487,10 @@ mortality:
 confounding:
   prior:
     type: beta
-    alpha: 2.5
-    beta: 5.0
-  # Mean causal fraction: 33%
-  # Calibrated to sibling comparisons and device-measured PA studies
+    alpha: 1.2
+    beta: 6.0
+  # Mean causal fraction: 17%
+  # Serves the exercise category prior (Ballin 2021, Finnish Twin Cohort 2024)
 ```
 
 ## Time Horizon and Temporal Effects

@@ -40,23 +40,28 @@ evidence:
       contribution: "Dose-response relationship"
 
 confounding:
-  # Exercise shows strong healthy user bias
-  # RCT effects typically 30-50% of observational estimates
+  # Carries the exercise category value verbatim: the same Beta(1.2, 6.0) as
+  # confounding.categories.exercise in python/optiqal/data/priors.yaml, which is
+  # the single source for this number.
   prior:
     type: beta
-    alpha: 2.5
-    beta: 5.0
+    alpha: 1.2
+    beta: 6.0
 
   rationale: |
-    Walking studies show substantial healthy user bias.
-    Sibling comparisons (Hamer & Stamatakis 2012) suggest ~33% causal.
-    Device-measured PA studies (Ekelund 2019) show attenuated effects.
-    Beta(2.5, 5.0) → mean 33%, 95% CI: 8-65%
+    Serves the exercise category prior, not an item-specific calibration.
+    RCTs show exercise does not reduce mortality (Ballin 2021, n=50k), identical
+    twins discordant for physical activity show no mortality difference (Finnish
+    Twin Cohort 2024), and Mendelian randomization is null for mortality.
+    Beta(1.2, 6.0) → mean 17%, 95% CI: 0.8-49.0%
+    The item-level sibling-comparison estimate (Hamer & Stamatakis 2012, ~33%
+    causal) is superseded and no longer calibrates this row; PR G removes the
+    per-item row in favour of one global prior plus paired-row overrides.
 
   calibration_sources:
-    - "Hamer & Stamatakis 2012 (sibling comparison)"
-    - "Arem et al 2015 (dose-response modeling)"
-    - "Ekelund et al 2019 (device-measured PA)"
+    - "Ballin et al. 2021 (RCT critical review, n=50k)"
+    - "Finnish Twin Cohort 2024 (twin discordance)"
+    - "Mendelian randomization studies (null for mortality)"
 
 # ============================================
 # MECHANISM EFFECTS

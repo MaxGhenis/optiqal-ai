@@ -6,10 +6,12 @@ Based on whatnut methodology.
 """
 
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
 import numpy as np
 from scipy import stats
+
+from .priors import load_priors
 
 
 @dataclass
@@ -55,137 +57,42 @@ class ConfoundingPrior:
         dist = stats.beta(self.alpha, self.beta)
         return (dist.ppf(tail), dist.ppf(1 - tail))
 
-    def sample(self, n: int = 1, random_state: Optional[int] = None) -> np.ndarray:
+    def sample(
+        self,
+        n: int = 1,
+        random_state: Optional[Union[int, np.random.Generator]] = None,
+    ) -> np.ndarray:
         """Sample from the prior."""
         rng = np.random.default_rng(random_state)
         return rng.beta(self.alpha, self.beta, size=n)
 
 
-# Category-specific confounding priors
-#
-# CALIBRATED against actual RCT vs observational discrepancies:
-# - Exercise: Ballin 2021 RCT review shows ~0 causal effect, Finnish Twin Cohort confirms
-# - Diet: PREDIMED RCT confirms substantial causal effect (~70% of observational)
-# - Medical: Statin studies show ~28% causal fraction (HR 0.54 obs vs 0.84 RCT)
-CATEGORY_PRIORS = {
-    # Exercise: VERY skeptical - RCTs and twin studies show ~0 causal effect
-    "exercise": ConfoundingPrior(
-        alpha=1.2,
-        beta=6.0,
-        rationale=(
-            "CALIBRATED: RCTs show exercise does not reduce mortality (Ballin 2021, n=50k). "
-            "Finnish Twin Cohort 2024: identical twins discordant for PA show no mortality difference. "
-            "Beta(1.2, 6.0) → mean 17%, 95% CI: 2-45%"
-        ),
-        calibration_sources=[
-            "Ballin et al. 2021 (RCT critical review, n=50k)",
-            "Finnish Twin Cohort 2024 (twin discordance)",
-            "Mendelian randomization studies (null for mortality)",
-        ],
-    ),
-    # Diet: Less skeptical - PREDIMED RCT confirms substantial causal effect
-    "diet": ConfoundingPrior(
-        alpha=3.0,
-        beta=3.0,
-        rationale=(
-            "CALIBRATED: PREDIMED RCT confirms 30% CVD reduction, consistent with observational. "
-            "Nuts, olive oil have RCT backing. Diet has higher causal fraction than exercise. "
-            "Beta(3.0, 3.0) → mean 50%, 95% CI: 15-85%"
-        ),
-        calibration_sources=[
-            "PREDIMED Trial 2018 (RCT, n=7447, 30% CVD reduction)",
-            "Aune et al. 2016 (nut meta-analysis)",
-        ],
-    ),
-    # Sleep: Skeptical - no RCT evidence for mortality
-    "sleep": ConfoundingPrior(
-        alpha=1.5,
-        beta=4.5,
-        rationale=(
-            "No RCTs for sleep duration and mortality. High reverse causation risk: "
-            "illness affects sleep patterns. CBT-I shows causal quality-of-life effects. "
-            "Beta(1.5, 4.5) → mean 25%, 95% CI: 3-58%"
-        ),
-        calibration_sources=[
-            "Cappuccio et al. 2010 (observational only)",
-            "No mortality RCTs available",
-        ],
-    ),
-    # Stress: Very skeptical
-    "stress": ConfoundingPrior(
-        alpha=1.2,
-        beta=5.0,
-        rationale=(
-            "Meditation/mindfulness RCTs show much smaller effects than observational. "
-            "Stress levels heavily confounded with SES, health behaviors. "
-            "Beta(1.2, 5.0) → mean 19%, 95% CI: 2-50%"
-        ),
-        calibration_sources=[
-            "Goyal et al. 2014 (meditation RCT meta-analysis)",
-            "Khoury et al. 2015",
-        ],
-    ),
-    # Substance: Mixed - smoking has RCT backing, alcohol J-curve is confounded
-    "substance": ConfoundingPrior(
-        alpha=2.0,
-        beta=4.0,
-        rationale=(
-            "CALIBRATED: Smoking cessation has strong RCT backing (causal fraction ~56%). "
-            "Alcohol J-curve is entirely confounded (MR shows no benefit). "
-            "Beta(2.0, 4.0) → mean 33%, 95% CI: 6-68%"
-        ),
-        calibration_sources=[
-            "Taylor et al. 2014 (smoking cessation RCTs, ~56% causal)",
-            "Stockwell et al. 2016 (alcohol J-curve is bias)",
-        ],
-    ),
-    # Medical: Moderate skepticism - even RCT-based drugs show observational inflation
-    "medical": ConfoundingPrior(
-        alpha=2.5,
-        beta=4.0,
-        rationale=(
-            "CALIBRATED: Even RCT-based drugs show observational inflation. "
-            "Statins: HR 0.54 observational vs 0.84 RCT (causal fraction ~28%). "
-            "Beta(2.5, 4.0) → mean 38%, 95% CI: 8-73%"
-        ),
-        calibration_sources=[
-            "Danaei et al. 2012 (statin RCT vs observational)",
-            "ARRIVE/ASPREE trials (aspirin less effective)",
-        ],
-    ),
-    # Social: Very skeptical - no RCT possible
-    "social": ConfoundingPrior(
-        alpha=1.0,
-        beta=5.5,
-        rationale=(
-            "Social relationships heavily confounded with SES, mental health, physical health. "
-            "No RCT evidence possible for mortality endpoints. "
-            "Beta(1.0, 5.5) → mean 15%, 95% CI: 1-42%"
-        ),
-        calibration_sources=[
-            "Holt-Lunstad et al. 2010 (observational only)",
-        ],
-    ),
-    # Other: Conservative prior
-    "other": ConfoundingPrior(
-        alpha=1.2,
-        beta=4.8,
-        rationale=(
-            "Unknown intervention type; using conservative prior "
-            "reflecting general observational bias from calibration data. "
-            "Beta(1.2, 4.8) → mean 20%, 95% CI: 2-50%"
-        ),
-    ),
-}
+def _prior_from_row(row: dict) -> ConfoundingPrior:
+    """Build the runtime object while keeping the YAML as the value source."""
+    return ConfoundingPrior(
+        alpha=row["alpha"],
+        beta=row["beta"],
+        rationale=row.get("rationale", ""),
+        calibration_sources=list(row.get("calibration_sources", [])),
+    )
 
-# Evidence type adjustments (multipliers on alpha)
+
+_PRIOR_DATA = load_priors()
+_CONFOUNDING_DATA = _PRIOR_DATA["confounding"]
+
+CATEGORY_PRIORS = {
+    key: _prior_from_row(row) for key, row in _CONFOUNDING_DATA["categories"].items()
+}
+INTERVENTION_PRIORS = {
+    key: _prior_from_row(row) for key, row in _CONFOUNDING_DATA["interventions"].items()
+}
+PROTOCOL_INTERVENTION_PRIORS = {
+    key: _prior_from_row(row)
+    for key, row in _CONFOUNDING_DATA["protocol_interventions"].items()
+}
 EVIDENCE_ADJUSTMENTS = {
-    "meta-analysis": 1.1,
-    "rct": 1.5,
-    "cohort": 0.8,
-    "case-control": 0.7,
-    "review": 1.0,
-    "other": 0.9,
+    key: row["alpha_multiplier"]
+    for key, row in _PRIOR_DATA["evidence_adjustments"].items()
 }
 
 
@@ -229,30 +136,9 @@ StudyQuality = Literal[
     "animal_or_mechanistic",
 ]
 
-# Tiered publication-bias shrinkage by study quality.
-#
-# Empirical anchors:
-# - RCT + preregistered + hard endpoint: residual inflation small (winner's curse, ~10%).
-#   Examples: PCPT finasteride, CTT statin meta, SELECT semaglutide, ASPREE aspirin, EMPA-REG.
-# - RCT standard: some publication/selective-reporting bias (~20%).
-#   Examples: BP RCTs, sleep-RCT onset latency, PREDIMED.
-# - Meta-analysis of RCTs: ~20% (publication bias partly corrected via trim-and-fill).
-# - Cohort: ~30% (Ioannidis 2008 baseline).
-# - Case-control: ~40% (recall/selection bias).
-# - Supplement-industry RCT: ~50% (unregistered, short duration, surrogate endpoints,
-#   sponsor bias). Examples: NR, NMN, ashwagandha commercial RCTs.
-# - Observational speculative / ecological: ~55%.
-# - Animal-only or mechanistic: ~70% (translation penalty + publication bias).
 STUDY_QUALITY_SHRINKAGE: dict[StudyQuality, float] = {
-    "rct_preregistered_hard_endpoint": 0.10,
-    "rct_standard": 0.20,
-    "meta_analysis_rcts": 0.20,
-    "cohort_large": 0.30,
-    "cohort_small": 0.35,
-    "case_control": 0.40,
-    "supplement_industry_rct": 0.50,
-    "observational_speculative": 0.55,
-    "animal_or_mechanistic": 0.70,
+    key: round(1.0 - row["retention"], 12)
+    for key, row in _PRIOR_DATA["study_quality_shrinkage"].items()
 }
 
 

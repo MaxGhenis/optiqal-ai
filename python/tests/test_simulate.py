@@ -596,10 +596,10 @@ class TestJensenBiasResidual:
     def test_null_bias_bounded_at_realistic_log_sd(self):
         """Residual Jensen bias magnitude capped at ~0.05 QALY (~18 days).
 
-        At log_sd=0.12 with diet confounding prior the observed bias from
-        exponential-survival Monte Carlo is around -0.035 QALY. This test
-        pins an upper bound so future regressions in simulate.py or
-        confounding.py don't silently widen the penalty.
+        At log_sd=0.12 with a diet confounding prior and independent random
+        streams, the observed residual is around +0.01 QALY. This test pins an
+        upper bound so future regressions in confounding.py or simulate.py do
+        not silently widen it.
         """
         profile = Profile(
             age=39,
@@ -663,16 +663,14 @@ class TestJensenBiasResidual:
         )
         assert r.mean == pytest.approx(0.0, abs=1e-9)
 
-    def test_null_median_and_mean_straddle_zero(self):
-        """For null HR, median is slightly positive and mean slightly negative.
+    def test_null_median_and_mean_are_small_and_positive(self):
+        """For a mean-null stochastic HR, both summaries are slightly positive.
 
         Mean-centering the lognormal (``log_mean = log(hr) - σ²/2``) puts
-        the median HR below 1.0. The median-HR simulation therefore
-        produces a slightly protective survival curve → positive median
-        QALY. The mean QALY is negative from Jensen-on-survival. This
-        test documents that mean and median straddle zero and are of
-        comparable magnitude — surfacing both lets readers see the
-        convexity corridor.
+        the median HR below 1.0. Applying a causal fraction between zero and
+        one also makes the conditional mean of ``HR**fraction`` protective.
+        With the former quality/HR coupling removed, both QALY summaries are
+        therefore slightly positive and of comparable magnitude.
         """
         profile = Profile(
             age=39,
@@ -692,9 +690,7 @@ class TestJensenBiasResidual:
         assert r.median > 0, (
             "median QALY should be slightly positive (median HR < 1 from mean-centering)"
         )
-        assert r.mean < 0, (
-            "mean QALY should be slightly negative (Jensen on lifetime survival)"
-        )
+        assert r.mean > 0, "mean QALY should reflect protective E[HR**fraction]"
         # Same order of magnitude (within ~3x of each other).
         assert 0.33 < abs(r.median / r.mean) < 3.0, (
             f"median {r.median:.4f} and mean {r.mean:.4f} diverge too much"

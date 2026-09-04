@@ -62,6 +62,11 @@ packages = ["optiqal"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+# Production-scale runs. They are part of the default suite, since the slowest one
+# adds about nine seconds; deselect them with `pytest -m "not slow"`.
+markers = [
+    "slow: runs at production draw counts rather than a reduced test count",
+]
 
 [tool.ruff]
 line-length = 88

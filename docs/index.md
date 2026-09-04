@@ -242,13 +242,15 @@ We use **category-specific priors** calibrated to the available RCT evidence for
 | Category | Prior | Mean | Calibration Source |
 |----------|-------|------|-------------------|
 | Exercise | Beta(1.2, 6.0) | 17% | Ballin 2021 RCT meta-analysis shows ~30% attenuation |
-| Diet | Beta(1.5, 4.5) | 25% | PREDIMED and dietary RCTs suggest moderate causal fraction |
-| Smoking | Beta(2.5, 4.0) | 38% | Strong MR evidence; Mendelian randomization confirms effects |
-| Sleep | Beta(1.0, 5.5) | 15% | Limited RCT evidence; primarily observational |
-| Social | Beta(2.0, 4.0) | 33% | Intervention studies show real but attenuated effects |
-| Supplements | Beta(1.2, 5.0) | 19% | Most supplement RCTs show null or attenuated effects |
+| Diet | Beta(3.0, 3.0) | 50% | PREDIMED confirms a substantial causal component |
+| Sleep | Beta(1.5, 4.5) | 25% | No mortality RCTs; high reverse-causation risk |
+| Stress | Beta(1.2, 5.0) | 19% | Meditation RCT effects are smaller than observational estimates |
+| Substance | Beta(2.0, 4.0) | 33% | Smoking cessation has stronger causal evidence than the alcohol J-curve |
+| Medical | Beta(2.5, 4.0) | 38% | Drug observational estimates can exceed their RCT estimates |
+| Social | Beta(1.0, 5.5) | 15% | Social relationships have no mortality-endpoint RCT evidence |
+| Other | Beta(1.2, 4.8) | 20% | Conservative default for an unknown intervention type |
 
-For exercise, the default prior Beta(1.2, 6.0) yields mean 17% and 95% CI [2%, 45%]. This was derived by matching: (a) E[f] = 0.17 from meta-regression of RCT vs observational effect ratios {cite:p}`angrist2010credibility`, (b) mode consistent with E-value threshold for typical lifestyle interventions (HR ≈ 1.5), and (c) upper bound P(f > 0.45) < 0.025 from sibling study attenuation {cite:p}`lundborg2018schooling`.
+For exercise, the default prior Beta(1.2, 6.0) yields mean {eval}`r.confounding_mean` and 95% CI {eval}`r.confounding_ci`. The served value is the exercise row of `python/optiqal/data/priors.yaml`, which records its calibration as Ballin et al. 2021 (RCT critical review, n=50,000), the Finnish Twin Cohort 2024 analysis of twins discordant for physical activity, and Mendelian randomization studies null for mortality. Earlier drafts attributed it instead to a meta-regression of RCT-versus-observational effect ratios {cite:p}`angrist2010credibility` and to sibling-design attenuation {cite:p}`lundborg2018schooling`; neither is recorded in the registry as a calibration source for this value, and the sibling estimate is superseded pending PR G. Its actual upper-tail probability is P(f > 0.45) = {eval}`r.confounding_tail_above_45`.
 
 ### Causal Identification Assumptions
 
@@ -262,7 +264,7 @@ Our approach relies on four core assumptions for causal identification under the
 
 **4. SUTVA (no interference)**: One individual's intervention does not affect another's outcomes. This holds for most lifestyle interventions (exercise, diet, sleep) but may be violated for social behaviors (e.g., group exercise programs creating network effects).
 
-**Sensitivity to unmeasured confounding**: E-values quantify the robustness of causal estimates. For exercise (HR = 0.70), the E-value is HR + √[HR × (HR − 1)] ≈ 1.9. An unmeasured confounder would need to increase both exercise probability and mortality risk by a factor of 1.9 to fully explain away the observed effect—stronger than most known health confounders. For smoking cessation (HR = 2.80), E-value ≈ 5.2, indicating extreme robustness. Lower-magnitude effects (e.g., specific dietary components) have smaller E-values and greater vulnerability to residual confounding.
+**Sensitivity to unmeasured confounding**: E-values quantify the robustness of causal estimates. Define RR = 1/HR for a protective association (HR < 1), and RR = HR otherwise; then E-value = RR + √[RR × (RR − 1)]. For exercise (HR = 0.70), the E-value is {eval}`r.exercise_e_value`. An unmeasured confounder would need to increase both exercise probability and mortality risk by that factor to fully explain away the observed effect—stronger than most known health confounders. For smoking cessation (HR = 2.80), the E-value is {eval}`r.smoking_e_value`, indicating extreme robustness. Lower-magnitude effects (e.g., specific dietary components) have smaller E-values and greater vulnerability to residual confounding.
 
 **Limitations of identification strategy**: (1) The imputation model may miss confounders not correlated with measured demographics. (2) The DAG encodes our causal assumptions but cannot be verified from observational data alone—misspecification would bias estimates. (3) Confounding adjustment relies on external calibration studies that may not generalize to all populations. (4) Time-varying confounding (e.g., health deterioration causing both inactivity and mortality) is not fully addressed in the single-timepoint model.
 
@@ -551,7 +553,7 @@ The naive approach compares a person who exercises to a "typical exerciser"—wh
 
 ### Prior Sensitivity Analysis
 
-Our base estimates use a confounding prior where 17% of observed effects are causal (95% CI: 7%–30%). To assess robustness, we vary this prior by ±1 standard deviation:
+Our base estimates use a confounding prior whose mean is {eval}`r.confounding_mean` (95% CI: {eval}`r.confounding_ci`). Its actual mean ±1 standard deviation spans {eval}`r.confounding_one_sd_range`. For the scenario analysis below, we use prespecified round skeptical, base, and optimistic causal fractions rather than label the 10% and 30% endpoints as ±1 standard deviation:
 
 | Intervention | Skeptical (10% causal) | Base (17% causal) | Optimistic (30% causal) |
 |--------------|------------------------|-------------------|-------------------------|

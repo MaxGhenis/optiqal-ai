@@ -195,3 +195,47 @@ A card with `verification_state: heuristic` never reaches the public site.
   was measured false — three stdlib opens occur under the SciPy chain — and is
   corrected in `docs/rebuild/E-progress.md`.
 - Ruff and all 509 tests pass at `4d123998`, the last commit touching `python/`.
+
+## PR A notes (2026-09-04)
+
+- `confounding.protocol_interventions` is a sibling of `confounding.interventions`.
+  The protocol pipeline has 77 hand-set Beta priors. Semaglutide's two phenotype
+  branches use the keys `semaglutide:weight_indicated` and
+  `semaglutide:not_weight_indicated`; setting those two aside, 61 of the remaining 75
+  intentionally differ from the catalog value for the same item (63 of 77 counting the
+  branches). Keeping the context explicit preserves both behaviors while making
+  `priors.yaml` the only numeric source.
+- Beta rows may also carry `rationale` and `calibration_sources` so moving a prior does
+  not discard the runtime metadata that accompanied it.
+- Study-quality rows store the retained fraction named by the schema. Runtime
+  `*_SHRINKAGE` dictionaries are reconstructed as one minus retention, rounded to avoid
+  representational drift from the former decimal literals.
+- `confounding.interventions` holds 102 rows: the 92 catalog ids, plus the ten ids that
+  exist only as shipped intervention YAMLs under `src/lib/qaly/interventions/`. Those
+  ten are the only rows whose category is drawn from the eight-name vocabulary that
+  `confounding.categories` uses, so they are the only rows where "differs from its
+  category" is a well-formed question. The 92 catalog rows carry catalog categories
+  (`rx_current`, `supplement_candidate` and so on), which the category table does not
+  index; `catalog._catalog_entry` requires a row for every catalog id, so those 92 are
+  mandatory values rather than overrides of a category default.
+- Eight of those ten differ from their category value and are per-item overrides under
+  the charter schema, legitimate today and collapsed by PR G:
+
+  | Item | Category | Item prior | Category prior |
+  |------|----------|-----------|----------------|
+  | `daily_exercise_moderate` | exercise | Beta(3.0, 5.0) | Beta(1.2, 6.0) |
+  | `strength_training` | exercise | Beta(2.5, 6.0) | Beta(1.2, 6.0) |
+  | `sleep_8_hours` | sleep | Beta(2.0, 5.5) | Beta(1.5, 4.5) |
+  | `meditation_daily` | stress | Beta(4.0, 4.0) | Beta(1.2, 5.0) |
+  | `moderate_alcohol` | substance | Beta(2.0, 6.0) | Beta(2.0, 4.0) |
+  | `quit_smoking` | substance | Beta(9.0, 1.0) | Beta(2.0, 4.0) |
+  | `daily_sunscreen` | medical | Beta(8.0, 2.0) | Beta(2.5, 4.0) |
+  | `fish_oil_supplement` | medical | Beta(7.0, 2.0) | Beta(2.5, 4.0) |
+
+  `walking_30min_daily` and `mediterranean_diet` are the two that now match their
+  category exactly, which is what PR A's prior-artifact alignment did. The drift test
+  compares each shipped YAML against `priors.yaml`'s `interventions` section, not
+  against the category, so these eight are consistent by construction and the test
+  cannot see the divergence. PR G is where they either acquire a paired study row or
+  collapse into the global prior; until then they are hand-set judgment atoms and
+  belong in `known_judgment_atoms.yaml` when PR D lands it.

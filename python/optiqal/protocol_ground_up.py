@@ -27,6 +27,7 @@ from .intervention import (
     MortalityEffect,
     allocate_interaction_rule,
 )
+from .priors import load_priors
 from .profile import Profile
 from .qol_annotations import (
     general_qol_evidence_for,
@@ -140,6 +141,9 @@ GLP1_SOURCES = (
     "https://pubmed.ncbi.nlm.nih.gov/35441470/",
     "https://www.ncbi.nlm.nih.gov/books/NBK601688/",
 )
+PROTOCOL_CONFOUNDING_PRIORS = load_priors()["confounding"]["protocol_interventions"]
+SEMAGLUTIDE_WEIGHT_INDICATED_PRIOR_KEY = "semaglutide:weight_indicated"
+SEMAGLUTIDE_NOT_WEIGHT_INDICATED_PRIOR_KEY = "semaglutide:not_weight_indicated"
 
 
 @dataclass(frozen=True)
@@ -275,6 +279,35 @@ class ResolvedStackSpec:
     airway_target_weights: dict[str, float] = field(default_factory=dict)
     apply_profile_effect_rules: bool = True
     model_details: dict[str, Any] | None = None
+
+
+def _protocol_confounding_prior_values(prior_key: str) -> tuple[float, float]:
+    prior = PROTOCOL_CONFOUNDING_PRIORS[prior_key]
+    return float(prior["alpha"]), float(prior["beta"])
+
+
+def _apply_protocol_confounding_priors(
+    specs: dict[str, StackSpec],
+) -> dict[str, StackSpec]:
+    """Fill shipped protocol priors without overriding explicit caller values."""
+    resolved: dict[str, StackSpec] = {}
+    for item_id, spec in specs.items():
+        prior = PROTOCOL_CONFOUNDING_PRIORS.get(item_id)
+        if prior is None:
+            resolved[item_id] = spec
+            continue
+        resolved[item_id] = replace(
+            spec,
+            conf_alpha=(
+                spec.conf_alpha
+                if spec.conf_alpha is not None
+                else float(prior["alpha"])
+            ),
+            conf_beta=(
+                spec.conf_beta if spec.conf_beta is not None else float(prior["beta"])
+            ),
+        )
+    return resolved
 
 
 def resolve_protocol_context(context: ProtocolContext | None = None) -> ProtocolContext:
@@ -669,6 +702,12 @@ def build_semaglutide_spec(
 ) -> StackSpec:
     model = build_glp1_phenotype_model(baseline, profile)
     is_weight_indicated = profile.bmi_category != "normal"
+    prior_key = (
+        SEMAGLUTIDE_WEIGHT_INDICATED_PRIOR_KEY
+        if is_weight_indicated
+        else SEMAGLUTIDE_NOT_WEIGHT_INDICATED_PRIOR_KEY
+    )
+    conf_alpha, conf_beta = _protocol_confounding_prior_values(prior_key)
     phenotype_note = (
         "No obesity, diabetes, hypertension, or strong cardiometabolic signal is present, "
         "so benefits are zeroed except for a small off-label lean-mass/appetite downside."
@@ -683,8 +722,8 @@ def build_semaglutide_spec(
         "semaglutide",
         observed_hr=float(model["observed_hr"]),
         log_sd=0.10,
-        conf_alpha=2.2 if is_weight_indicated else 1.3,
-        conf_beta=4.8 if is_weight_indicated else 7.0,
+        conf_alpha=conf_alpha,
+        conf_beta=conf_beta,
         qol_annual=float(model["net_qol_annual"]),
         qol_years=10,
         low_qaly=-0.12,
@@ -1207,9 +1246,10 @@ def sample_qol_component_draws(
     item_id: str,
     component: str,
     evidence_quality: str | None,
-    n_simulations: int = N_SIMULATIONS,
+    n_simulations: int | None = None,
 ) -> np.ndarray:
     """Sample QOL overlay uncertainty while preserving the authored mean."""
+    n_simulations = N_SIMULATIONS if n_simulations is None else n_simulations
     if abs(mean_qaly) <= 1e-12:
         return np.zeros(n_simulations)
     relative_sd = qol_uncertainty_relative_sd(evidence_quality)
@@ -1229,7 +1269,7 @@ def _evidence_scaled_draws(
     component: str,
     evidence_quality: str | None,
     evidence: QolEvidence | None,
-    n_simulations: int = N_SIMULATIONS,
+    n_simulations: int | None = None,
 ) -> np.ndarray:
     """QoL draws around an evidence-guarded mean, with transport-prior spread.
 
@@ -1238,6 +1278,7 @@ def _evidence_scaled_draws(
     transport) uncertainty on top of the effect-size noise; draws are then
     recentered so the reported mean stays the deterministic guarded value.
     """
+    n_simulations = N_SIMULATIONS if n_simulations is None else n_simulations
     base = sample_qol_component_draws(
         mean_qaly,
         item_id=item_id,
@@ -1265,8 +1306,12 @@ def _standardize_draws(draws: np.ndarray) -> np.ndarray:
     return (standardized - float(np.mean(standardized))) / sd
 
 
-def latent_protocol_factor(name: str, n_simulations: int = N_SIMULATIONS) -> np.ndarray:
+def latent_protocol_factor(
+    name: str,
+    n_simulations: int | None = None,
+) -> np.ndarray:
     """Stable latent-world factor used to pair protocol-state counterfactuals."""
+    n_simulations = N_SIMULATIONS if n_simulations is None else n_simulations
     rng = np.random.default_rng(stable_random_seed("protocol_latent", name))
     return _standardize_draws(rng.normal(size=n_simulations))
 
@@ -1274,8 +1319,9 @@ def latent_protocol_factor(name: str, n_simulations: int = N_SIMULATIONS) -> np.
 def _combined_latent_mechanism_factor(
     item_id: str,
     entry: CatalogEntry,
-    n_simulations: int = N_SIMULATIONS,
+    n_simulations: int | None = None,
 ) -> np.ndarray | None:
+    n_simulations = N_SIMULATIONS if n_simulations is None else n_simulations
     tags = [f"benefit:{tag}" for tag in sorted(set(entry.benefit_tags))]
     tags.extend(f"interaction:{tag}" for tag in sorted(set(entry.interaction_tags)))
     if not tags:
@@ -1287,7 +1333,7 @@ def _combined_latent_mechanism_factor(
 def latent_protocol_item_score(
     item_id: str,
     entry: CatalogEntry | None = None,
-    n_simulations: int = N_SIMULATIONS,
+    n_simulations: int | None = None,
 ) -> np.ndarray:
     """Return the latent-world ordering score for one protocol item.
 
@@ -1295,6 +1341,7 @@ def latent_protocol_item_score(
     The score is intentionally shared across related items through global,
     mechanism, and category factors, with item-specific residual variation.
     """
+    n_simulations = N_SIMULATIONS if n_simulations is None else n_simulations
     entry = entry or CATALOG[item_id]
     weighted_components: list[tuple[float, np.ndarray]] = [
         (
@@ -1959,878 +2006,816 @@ def build_specs(
     age = context.profile.age
     activity_level = context.profile.activity_level
 
-    return {
-        "tadalafil_2.5mg": StackSpec(
-            item_id="tadalafil_2.5mg",
-            observed_hr=math.exp(math.log(0.90) * cardio_multiplier),
-            log_sd=0.10,
-            conf_alpha=1.2,
-            conf_beta=6.0,
-            qol_annual=0.0032,
-            qol_years=15,
-            general_qol_utility_weight_ids=SEXUAL_FUNCTION_QOL,
-            general_qol_lineage_note=(
-                "Low-dose tadalafil's modeled utility is a small fraction of the published "
-                "time-tradeoff utility gain for treating erectile dysfunction."
-            ),
-            low_qaly=0.02,
-            high_qaly=0.09,
-            personalization=(
-                "Kept meaningful on QOL because current use reveals real private value, but "
-                "the mortality side is heavily shrunk because PDE5 survival data are mostly "
-                "observational in older, higher-risk men."
-            ),
-            rationale=(
-                "Tadalafil probably matters more through sexual-function / wellbeing utility than "
-                "through proven life-extension at your baseline risk."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/38777751/",
-                "https://pubmed.ncbi.nlm.nih.gov/34775577/",
-            ),
-        ),
-        "finasteride_1.25mg": StackSpec(
-            item_id="finasteride_1.25mg",
-            observed_hr=1.0,
-            log_sd=0.03,
-            conf_alpha=1.0,
-            conf_beta=8.0,
-            qol_annual=0.0024,
-            qol_years=15,
-            general_qol_utility_weight_ids=HAIR_QOL,
-            general_qol_lineage_note=(
-                "Hair-preservation utility is mapped from mild alopecia health-state utilities; "
-                "the source is alopecia areata rather than androgenetic alopecia."
-            ),
-            low_qaly=-0.01,
-            high_qaly=0.06,
-            personalization=(
-                "Modeled almost entirely as QOL: hair preservation seems clearly valued, but I netted "
-                "that against sexual-side-effect risk rather than assuming pure upside."
-            ),
-            rationale=(
-                "Hair-loss treatment has meaningful psychosocial value for some men, but very little "
-                "credible mortality effect."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/21806672/",
-                "https://pubmed.ncbi.nlm.nih.gov/37605428/",
-                "https://pubmed.ncbi.nlm.nih.gov/28396101/",
-            ),
-        ),
-        "magnesium_200": StackSpec(
-            item_id="magnesium_200",
-            observed_hr=math.exp(math.log(0.96) * cardio_multiplier),
-            log_sd=0.08,
-            conf_alpha=2.8,
-            conf_beta=4.0,
-            qol_annual=0.0018 * sleep_multiplier,
-            qol_years=12,
-            general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
-            general_qol_lineage_note=(
-                "Residual hand-estimated utility is anchored to insomnia/anxiety disability "
-                "weights; component sleep relief is modeled separately."
-            ),
-            sleep_component_relief={
-                "duration": 0.08,
-                "quality": 0.20,
-                "daytime": 0.15,
-            },
-            low_qaly=0.01,
-            high_qaly=0.05,
-            personalization=(
-                f"Upweighted because your 90-day combined sleep is only {baseline['derived']['combined_sleep_h_90d']} h/night; "
-                "small BP benefit remains because magnesium RCTs are stronger than most supplements."
-            ),
-            rationale=(
-                "At your baseline, magnesium looks more like a sleep-support and small BP intervention "
-                "than a major longevity lever."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/33865376/",
-                "https://pubmed.ncbi.nlm.nih.gov/41000008/",
-                "https://pubmed.ncbi.nlm.nih.gov/27402922/",
-            ),
-        ),
-        "trazodone_50mg": StackSpec(
-            item_id="trazodone_50mg",
-            log_sd=0.06,
-            conf_alpha=1.5,
-            conf_beta=6.0,
-            qol_annual=0.0030 * sleep_multiplier,
-            qol_years=10,
-            general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
-            general_qol_lineage_note=(
-                "Residual symptom utility is anchored to insomnia/anxiety disability weights; "
-                "sedation harms and component sleep relief are modeled separately."
-            ),
-            low_qaly=-0.01,
-            high_qaly=0.06,
-            personalization=(
-                "Upweighted because sleep is still clearly below target, but netted against hangover / "
-                "dependency / long-run medication burden rather than assuming all sleep-med utility is durable."
-            ),
-            rationale=(
-                "Trazodone looks like a symptomatic sleep/QOL tool here, not a credible mortality intervention."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/36216367/",
-                "https://pubmed.ncbi.nlm.nih.gov/22208861/",
-                "https://pubmed.ncbi.nlm.nih.gov/41209816/",
-            ),
-        ),
-        "melatonin_300mcg": StackSpec(
-            item_id="melatonin_300mcg",
-            observed_hr=1.0,
-            log_sd=0.05,
-            conf_alpha=1.7,
-            conf_beta=5.5,
-            qol_annual=0.0014 * sleep_multiplier,
-            qol_years=10,
-            general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
-            general_qol_lineage_note=(
-                "Residual symptom utility is anchored to insomnia/anxiety disability weights; "
-                "component sleep relief is modeled separately."
-            ),
-            low_qaly=-0.01,
-            high_qaly=0.03,
-            personalization=(
-                "Upweighted because short sleep is a live issue, but kept modest because human meta-analytic effects "
-                "are measured in minutes, not hours."
-            ),
-            rationale=(
-                "Small, probably real sleep-onset benefit; unlikely to be a big standalone QALY driver."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/15649737/",
-                "https://pubmed.ncbi.nlm.nih.gov/22208861/",
-            ),
-        ),
-        "nasacort_nightly": StackSpec(
-            item_id="nasacort_nightly",
-            qol_annual=0.0002,
-            qol_years=10,
-            general_qol_utility_weight_ids=AIRWAY_SLEEP_QOL,
-            general_qol_lineage_note=(
-                "Small residual nasal-comfort utility is anchored to sleep-apnoea/insomnia "
-                "fallback weights; component sleep-breathing relief is modeled separately."
-            ),
-            low_qaly=-0.01,
-            high_qaly=0.06,
-            personalization=(
-                "Upweighted because your recent airway-directed trial improved breathing, latency, snoring, and sleep quality, "
-                f"producing an airway-response signal of {baseline['derived']['airway_response_signal']}."
-            ),
-            rationale=(
-                "Nasacort looks like a phenotype-specific sleep intervention here: worthwhile if nasal inflammation or congestion "
-                "is meaningfully contributing, not a generic prevention supplement."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/9042068/",
-                "https://pubmed.ncbi.nlm.nih.gov/15124166/",
-            ),
-        ),
-        "nasal_strips_nightly": StackSpec(
-            item_id="nasal_strips_nightly",
-            qol_annual=0.0001,
-            qol_years=10,
-            general_qol_utility_weight_ids=AIRWAY_SLEEP_QOL,
-            general_qol_lineage_note=(
-                "Small residual nasal-comfort utility is anchored to sleep-apnoea/insomnia "
-                "fallback weights; component sleep-breathing relief is modeled separately."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.03,
-            personalization=(
-                "Upweighted because your own notes say the first night with strips plus Nasacort gave zero snoring, "
-                "but kept smaller than Nasacort because the evidence is mostly subjective-sleep benefit."
-            ),
-            rationale=(
-                "Nasal strips can help if upper-airway narrowing is part of the problem, but they are usually an adjunct rather than a decisive treatment."
-            ),
-            sources=("https://pubmed.ncbi.nlm.nih.gov/30154874/",),
-        ),
-        "humidifier_nightly": StackSpec(
-            item_id="humidifier_nightly",
-            qol_annual=0.00005,
-            qol_years=10,
-            general_qol_utility_weight_ids=AIRWAY_SLEEP_QOL,
-            general_qol_lineage_note=(
-                "Fallback proxy for nasal-airway comfort; this is not a formal nasal-dryness "
-                "utility source."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.01,
-            personalization=(
-                "Kept small because your current evidence points more to upper-airway obstruction and nasal inflammation "
-                f"than to dry-air irritation alone; nasal-inflammation probability is {baseline['derived']['sleep_airway']['nasal_inflammation_probability']}."
-            ),
-            rationale=(
-                "A bedroom humidifier is modeled as a modest nasal-comfort adjunct, not a real OSA treatment. "
-                "It is most attractive when the room is actually dry or you wake with dry irritated nasal passages."
-            ),
-            sources=(
-                "https://www.aaaai.org/tools-for-the-public/conditions-library/allergies/humidifiers-and-indoor-allergies",
-                "https://www.epa.gov/mold/mold-course-chapter-2",
-                "https://pubmed.ncbi.nlm.nih.gov/3348500/",
-            ),
-        ),
-        "mouth_tape_nightly": StackSpec(
-            item_id="mouth_tape_nightly",
-            qol_annual=0.00008,
-            qol_years=10,
-            general_qol_utility_weight_ids=AIRWAY_SLEEP_QOL,
-            general_qol_lineage_note=(
-                "Small residual mouth-breathing comfort utility is anchored to sleep-apnoea/"
-                "insomnia fallback weights."
-            ),
-            low_qaly=-0.002,
-            high_qaly=0.03,
-            personalization=(
-                "Upweighted because you now have confirmed mild OSA plus a strong recent airway-response pattern, "
-                "but kept below strips and head elevation because mouth tape only really makes sense if mouth breathing "
-                f"is part of the phenotype and your data still point heavily to nasal and upper-airway contributors; upper-airway probability is {baseline['derived']['sleep_airway']['upper_airway_probability']}."
-            ),
-            rationale=(
-                "Mouth tape is modeled as a plausible adjunct if habitual open-mouth breathing is part of the problem, "
-                "not as a broad OSA treatment. The direct evidence is small and mostly in mild OSA or snoring."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/25450408/",
-                "https://pubmed.ncbi.nlm.nih.gov/38780959/",
-                "https://pubmed.ncbi.nlm.nih.gov/39662104/",
-                "https://pubmed.ncbi.nlm.nih.gov/25766699/",
-            ),
-        ),
-        "head_elevation_nightly": StackSpec(
-            item_id="head_elevation_nightly",
-            conf_alpha=2.1,
-            conf_beta=4.4,
-            qol_annual=0.0001,
-            qol_years=10,
-            general_qol_utility_weight_ids=AIRWAY_SLEEP_QOL,
-            general_qol_lineage_note=(
-                "Small residual positional-comfort utility is anchored to sleep-apnoea/"
-                "insomnia fallback weights."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.04,
-            personalization=(
-                "Upweighted because your recent improvement pattern is compatible with an upper-airway contributor, but kept modest because your home data do not cleanly isolate elevation from the other airway changes."
-            ),
-            rationale=(
-                "Head elevation is a low-risk positional airway aid with the best case in upper-airway-predominant sleep-disordered breathing."
-            ),
-            sources=("https://pubmed.ncbi.nlm.nih.gov/39347559/",),
-        ),
-        "cocoa_flavanols_500": StackSpec(
-            item_id="cocoa_flavanols_500",
-            observed_hr=math.exp(math.log(0.95) * cardio_multiplier),
-            log_sd=0.09,
-            conf_alpha=2.5,
-            conf_beta=4.5,
-            qol_annual=0.0,
-            qol_years=15,
-            low_qaly=0.0,
-            high_qaly=0.03,
-            personalization=(
-                "Downweighted because LDL and glycemia are already good and COSMOS enrolled much older adults."
-            ),
-            rationale=(
-                "Some plausible cardiometabolic value, but your current risk profile leaves less headroom."
-            ),
-            sources=("https://pubmed.ncbi.nlm.nih.gov/35294962/",),
-        ),
-        "creatine_5g": StackSpec(
-            item_id="creatine_5g",
-            observed_hr=1.0,
-            log_sd=0.04,
-            conf_alpha=2.0,
-            conf_beta=5.0,
-            qol_annual=0.0014 * exercise_multiplier * kidney_safe_multiplier,
-            qol_years=15,
-            general_qol_utility_weight_ids=FUNCTION_QOL,
-            general_qol_lineage_note=(
-                "Functional/performance utility is anchored to a mild motor-impairment "
-                "fallback weight; the modeled annual utility is intentionally much smaller."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.03,
-            personalization=(
-                "Kept positive for muscle/performance resilience, but trimmed because you are 39 rather than sarcopenic "
-                "and because creatinine/eGFR make me avoid giving it a free pass."
-            ),
-            rationale=(
-                "Creatine has decent functional evidence, but most of the compelling data are performance / body-composition "
-                "and older-adult contexts rather than mortality."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/39074168/",
-                "https://pubmed.ncbi.nlm.nih.gov/24576864/",
-            ),
-        ),
-        "omega3_clo": StackSpec(
-            item_id="omega3_clo",
-            observed_hr=math.exp(math.log(0.97) * cardio_multiplier),
-            log_sd=0.08,
-            conf_alpha=3.2,
-            conf_beta=4.2,
-            qol_annual=0.0,
-            qol_years=15,
-            low_qaly=0.0,
-            high_qaly=0.015,
-            personalization=(
-                "Strongly downweighted because this is a low dose and your LDL/HbA1c are already favorable."
-            ),
-            rationale=(
-                "The marginal benefit of low-dose cod liver oil looks small at your baseline risk."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/32722395/",
-                "https://pubmed.ncbi.nlm.nih.gov/24638908/",
-            ),
-        ),
-        "garlic_1200": StackSpec(
-            item_id="garlic_1200",
-            observed_hr=math.exp(math.log(0.95) * cardio_multiplier),
-            log_sd=0.08,
-            conf_alpha=2.8,
-            conf_beta=4.2,
-            qol_annual=0.0,
-            qol_years=15,
-            low_qaly=0.0,
-            high_qaly=0.03,
-            personalization=(
-                "Downweighted because garlic's BP signal is clearest in hypertensive adults and you are not documented hypertensive."
-            ),
-            rationale=(
-                "Garlic is a plausible small cardiometabolic adjunct, not a major longevity mover for you."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/40735665/",
-                "https://pubmed.ncbi.nlm.nih.gov/26764326/",
-            ),
-        ),
-        "prebiotics": StackSpec(
-            item_id="prebiotics",
-            observed_hr=1.0,
-            log_sd=0.05,
-            conf_alpha=1.7,
-            conf_beta=5.5,
-            qol_annual=0.0008,
-            qol_years=10,
-            general_qol_utility_weight_ids=BOWEL_HABIT_QOL,
-            general_qol_lineage_note=(
-                "Gut-comfort utility is anchored to bowel-habit/IBS fallback disability weights."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.02,
-            personalization=(
-                "Modeled as a gut-symptom / bowel-habit item rather than a mortality lever."
-            ),
-            rationale=(
-                "Prebiotics may help GI comfort or satiety, but human hard-endpoint evidence is weak."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/24230488/",
-                "https://pubmed.ncbi.nlm.nih.gov/41233756/",
-            ),
-        ),
-        "vitamin_d_2000": StackSpec(
-            item_id="vitamin_d_2000",
-            observed_hr=math.exp(math.log(0.94) * vitamin_d_multiplier),
-            log_sd=0.08,
-            conf_alpha=3.0,
-            conf_beta=4.0,
-            qol_annual=0.0,
-            qol_years=15,
-            low_qaly=-0.02,
-            high_qaly=0.005,
-            personalization=(
-                f"Almost fully downweighted because your latest 25(OH)D is {baseline['labs']['Vitamin D']} ng/mL, already in a replete range."
-            ),
-            rationale=(
-                "Vitamin D looks more like a deficiency correction tool than an additional-optimization tool at your current level."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/37004841/",
-                "https://pubmed.ncbi.nlm.nih.gov/28096125/",
-            ),
-        ),
-        "astaxanthin_12": StackSpec(
-            item_id="astaxanthin_12",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.2,
-            conf_beta=6.0,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=0.0,
-            high_qaly=0.005,
-            personalization=(
-                "Kept near zero because the human literature is mostly biomarker and specialty-population work."
-            ),
-            rationale=(
-                "Interesting antioxidant biomarker story, but weak evidence for durable clinical payoff in someone like you."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/41596351/",
-                "https://pubmed.ncbi.nlm.nih.gov/41710469/",
-            ),
-        ),
-        "nac_1200": StackSpec(
-            item_id="nac_1200",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.4,
-            conf_beta=5.8,
-            qol_annual=0.0010 * fatigue_multiplier,
-            qol_years=10,
-            general_qol_utility_weight_ids=FUNCTION_QOL,
-            general_qol_lineage_note=(
-                "Fatigue/functional-reserve utility is anchored to a mild motor-impairment "
-                "fallback weight; airway sleep relief is modeled separately."
-            ),
-            sleep_component_relief={
-                "breathing": 0.08,
-                "quality": 0.02,
-            },
-            airway_target_weights={
-                "mucus": 0.75,
-                "upper_airway": 0.25,
-            },
-            low_qaly=0.0,
-            high_qaly=0.015,
-            personalization=(
-                "Trimmed because your sleep pattern and recent response point more to an upper-airway/nasal issue than a mucus-heavy phenotype. "
-                "NAC keeps some value for fatigue or secretions, but much less than airway-targeted measures."
-            ),
-            rationale=(
-                "NAC remains speculative for broad prevention. Its respiratory upside is much more credible in chronic bronchitis or mucus-heavy phenotypes than in nasal-obstruction sleep problems."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/38555190/",
-                "https://pubmed.ncbi.nlm.nih.gov/28122105/",
-            ),
-        ),
-        "curcumin_250": StackSpec(
-            item_id="curcumin_250",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.5,
-            conf_beta=5.5,
-            qol_annual=0.0008 * fatigue_multiplier,
-            qol_years=10,
-            general_qol_utility_weight_ids=JOINT_QOL,
-            general_qol_lineage_note=(
-                "Anti-inflammatory symptom utility is anchored to a mild musculoskeletal-pain "
-                "fallback weight."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.012,
-            personalization=(
-                "Kept small because dose is modest and the strongest human data are for biomarker shifts or disease-specific pain populations."
-            ),
-            rationale=(
-                "Curcumin is better supported as an anti-inflammatory biomarker intervention than a proven longevity intervention."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/38945354/",
-                "https://pubmed.ncbi.nlm.nih.gov/39478418/",
-            ),
-        ),
-        "collagen_22g": apply_joint_fall_pathway(
-            StackSpec(
-                item_id="collagen_22g",
-                observed_hr=1.0,
-                log_sd=0.05,
-                conf_alpha=1.8,
-                conf_beta=5.0,
-                qol_annual=0.0008 * joint_multiplier,
-                qol_years=10,
-                general_qol_utility_weight_ids=JOINT_QOL,
+    return _apply_protocol_confounding_priors(
+        {
+            "tadalafil_2.5mg": StackSpec(
+                item_id="tadalafil_2.5mg",
+                observed_hr=math.exp(math.log(0.90) * cardio_multiplier),
+                log_sd=0.10,
+                qol_annual=0.0032,
+                qol_years=15,
+                general_qol_utility_weight_ids=SEXUAL_FUNCTION_QOL,
                 general_qol_lineage_note=(
-                    "Joint-comfort utility is anchored to a mild musculoskeletal-pain "
-                    "fallback weight."
+                    "Low-dose tadalafil's modeled utility is a small fraction of the published "
+                    "time-tradeoff utility gain for treating erectile dysfunction."
                 ),
-                low_qaly=0.0,
-                high_qaly=0.01,
+                low_qaly=0.02,
+                high_qaly=0.09,
                 personalization=(
-                    "Strongly downweighted because the better human data are in osteoarthritis / meniscopathy, not healthy adults without documented joint disease."
+                    "Kept meaningful on QOL because current use reveals real private value, but "
+                    "the mortality side is heavily shrunk because PDE5 survival data are mostly "
+                    "observational in older, higher-risk men."
                 ),
                 rationale=(
-                    "Collagen may help joint or skin outcomes in the right phenotype, but your baseline does not scream high-yield collagen responder."
+                    "Tadalafil probably matters more through sexual-function / wellbeing utility than "
+                    "through proven life-extension at your baseline risk."
                 ),
                 sources=(
-                    "https://pubmed.ncbi.nlm.nih.gov/39212129/",
-                    "https://pubmed.ncbi.nlm.nih.gov/38218227/",
-                    "https://pubmed.ncbi.nlm.nih.gov/37432180/",
+                    "https://pubmed.ncbi.nlm.nih.gov/38777751/",
+                    "https://pubmed.ncbi.nlm.nih.gov/34775577/",
                 ),
             ),
-            age=age,
-            activity_level=activity_level,
-            joint_multiplier=joint_multiplier,
-        ),
-        "lutein_zeaxanthin": StackSpec(
-            item_id="lutein_zeaxanthin",
-            observed_hr=1.0,
-            log_sd=0.04,
-            conf_alpha=2.4,
-            conf_beta=4.5,
-            qol_annual=0.0004 * eye_multiplier,
-            qol_years=20,
-            general_qol_utility_weight_ids=VISION_QOL,
-            general_qol_lineage_note=(
-                "Vision-preservation utility is anchored to a mild vision-impairment "
-                "fallback weight."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.008,
-            personalization=(
-                "Downweighted because AREDS2 is secondary prevention in older adults with existing AMD risk, not primary prevention for a 39-year-old."
-            ),
-            rationale=(
-                "Reasonable eye-health hedge, but the extrapolation to you is thin."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/39025435/",
-                "https://pubmed.ncbi.nlm.nih.gov/24638908/",
-            ),
-        ),
-        "vitamin_k2": StackSpec(
-            item_id="vitamin_k2",
-            observed_hr=1.0,
-            log_sd=0.05,
-            conf_alpha=2.0,
-            conf_beta=4.8,
-            qol_annual=0.0,
-            qol_years=20,
-            low_qaly=0.0,
-            high_qaly=0.008,
-            personalization=(
-                "Kept near zero because the more favorable fracture/BMD data are mostly in older postmenopausal populations."
-            ),
-            rationale=(
-                "Vitamin K2 is a weak preventive bet at your age unless there is a clearer bone-risk story."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/35625785/",
-                "https://pubmed.ncbi.nlm.nih.gov/36033779/",
-            ),
-        ),
-        "ubiquinol_50": StackSpec(
-            item_id="ubiquinol_50",
-            observed_hr=1.0,
-            log_sd=0.05,
-            conf_alpha=1.8,
-            conf_beta=5.2,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=0.0,
-            high_qaly=0.01,
-            personalization=(
-                "Near zero because the strongest CoQ10 evidence is in heart failure, which is not your phenotype."
-            ),
-            rationale=(
-                "CoQ10 can be useful in cardiac disease or statin myalgia, but that is not the main story here."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/39462324/",
-                "https://pubmed.ncbi.nlm.nih.gov/35608922/",
-            ),
-        ),
-        "ubiquinol_50_unbundled": StackSpec(
-            item_id="ubiquinol_50_unbundled",
-            observed_hr=1.0,
-            log_sd=0.05,
-            conf_alpha=1.8,
-            conf_beta=5.2,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=0.0,
-            high_qaly=0.01,
-            personalization=(
-                "Same small CoQ10 estimate as the bundled version; the standalone question is mostly about whether it is worth buying separately."
-            ),
-            rationale=(
-                "Standalone ubiquinol should inherit the same weak phenotype-specific estimate as bundled ubiquinol."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/39462324/",
-                "https://pubmed.ncbi.nlm.nih.gov/35608922/",
-                "https://www.lifeextension.com/vitamins-supplements/item01425/super-ubiquinol-coq10-with-ppm-pyrroloquinoline-quinone",
-            ),
-        ),
-        "nr_300": StackSpec(
-            item_id="nr_300",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.2,
-            conf_beta=6.0,
-            qol_annual=0.0009 * fatigue_multiplier,
-            qol_years=10,
-            general_qol_utility_weight_ids=FUNCTION_QOL,
-            general_qol_lineage_note=(
-                "Fatigue/recovery utility is anchored to a mild motor-impairment fallback weight."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.015,
-            personalization=(
-                "I kept a small positive here only because there is at least one recent long-COVID RCT signal, but in healthier adults the literature is mostly NAD+ biomarker movement without obvious clinical payoff."
-            ),
-            rationale=(
-                "NR is still mostly a mechanistic bet, with a small possible symptom pathway for fatigue / recovery."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/41357333/",
-                "https://pubmed.ncbi.nlm.nih.gov/29184669/",
-                "https://pubmed.ncbi.nlm.nih.gov/32320006/",
-            ),
-        ),
-        "nr_300_unbundled": StackSpec(
-            item_id="nr_300_unbundled",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.2,
-            conf_beta=6.0,
-            qol_annual=0.0009 * fatigue_multiplier,
-            qol_years=10,
-            general_qol_utility_weight_ids=FUNCTION_QOL,
-            general_qol_lineage_note=(
-                "Fatigue/recovery utility is anchored to a mild motor-impairment fallback weight."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.015,
-            personalization=(
-                "Same biology as bundled NR; the question here is whether it is worth buying as a standalone product."
-            ),
-            rationale=(
-                "Standalone NR should inherit the same tiny clinical estimate as bundled NR, with cost deciding the verdict."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/41357333/",
-                "https://pubmed.ncbi.nlm.nih.gov/29184669/",
-                "https://pubmed.ncbi.nlm.nih.gov/32320006/",
-                "https://www.truniagen.com/products/tru-niagen-300mg",
-            ),
-        ),
-        "luteolin_100": StackSpec(
-            item_id="luteolin_100",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.0,
-            conf_beta=6.5,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=0.0,
-            high_qaly=0.005,
-            personalization=(
-                "Near zero because I could not justify a meaningful clinical effect from current human outcome data."
-            ),
-            rationale=(
-                "Luteolin remains mostly a mechanistic / preclinical longevity ingredient."
-            ),
-            sources=(),
-        ),
-        "luteolin_100_unbundled": StackSpec(
-            item_id="luteolin_100_unbundled",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.0,
-            conf_beta=6.5,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=0.0,
-            high_qaly=0.005,
-            personalization=(
-                "Same near-zero estimate as bundled luteolin; useful mainly to compare whether buying it separately makes any sense."
-            ),
-            rationale=(
-                "Standalone luteolin should inherit the same mechanistic-only estimate as bundled luteolin."
-            ),
-            sources=("https://doublewoodsupplements.com/products/luteolin",),
-        ),
-        "lithium_1mg_orotate": StackSpec(
-            item_id="lithium_1mg_orotate",
-            observed_hr=1.0,
-            log_sd=0.05,
-            conf_alpha=1.1,
-            conf_beta=6.2,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=0.0,
-            high_qaly=0.005,
-            personalization=(
-                "Kept near zero because microdose lithium/orotate evidence is too thin to support a stronger estimate."
-            ),
-            rationale=(
-                "Interesting hypothesis space, but not enough human intervention data for a large claim."
-            ),
-            sources=(),
-        ),
-        "hyaluronic_acid_120": apply_joint_fall_pathway(
-            StackSpec(
-                item_id="hyaluronic_acid_120",
+            "finasteride_1.25mg": StackSpec(
+                item_id="finasteride_1.25mg",
                 observed_hr=1.0,
-                log_sd=0.05,
-                conf_alpha=1.4,
-                conf_beta=5.5,
-                qol_annual=0.0006 * joint_multiplier,
-                qol_years=10,
-                general_qol_utility_weight_ids=JOINT_QOL,
+                log_sd=0.03,
+                qol_annual=0.0024,
+                qol_years=15,
+                general_qol_utility_weight_ids=HAIR_QOL,
                 general_qol_lineage_note=(
-                    "Joint-comfort utility is anchored to a mild musculoskeletal-pain "
-                    "fallback weight."
+                    "Hair-preservation utility is mapped from mild alopecia health-state utilities; "
+                    "the source is alopecia areata rather than androgenetic alopecia."
                 ),
-                low_qaly=0.0,
-                high_qaly=0.01,
+                low_qaly=-0.01,
+                high_qaly=0.06,
                 personalization=(
-                    "Downweighted because oral HA benefits are mostly in chronic pain / joint-discomfort populations."
+                    "Modeled almost entirely as QOL: hair preservation seems clearly valued, but I netted "
+                    "that against sexual-side-effect risk rather than assuming pure upside."
                 ),
                 rationale=(
-                    "Oral hyaluronic acid may have symptom value, but it looks phenotype-specific."
+                    "Hair-loss treatment has meaningful psychosocial value for some men, but very little "
+                    "credible mortality effect."
                 ),
                 sources=(
-                    "https://pubmed.ncbi.nlm.nih.gov/25415767/",
-                    "https://pubmed.ncbi.nlm.nih.gov/41479667/",
+                    "https://pubmed.ncbi.nlm.nih.gov/21806672/",
+                    "https://pubmed.ncbi.nlm.nih.gov/37605428/",
+                    "https://pubmed.ncbi.nlm.nih.gov/28396101/",
                 ),
             ),
-            age=age,
-            activity_level=activity_level,
-            joint_multiplier=joint_multiplier,
-        ),
-        "broccoli_seed_200": StackSpec(
-            item_id="broccoli_seed_200",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.2,
-            conf_beta=6.0,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=0.0,
-            high_qaly=0.008,
-            personalization=(
-                "Near zero because sulforaphane has mechanistic appeal but little direct hard-endpoint evidence in a healthy adult."
+            "magnesium_200": StackSpec(
+                item_id="magnesium_200",
+                observed_hr=math.exp(math.log(0.96) * cardio_multiplier),
+                log_sd=0.08,
+                qol_annual=0.0018 * sleep_multiplier,
+                qol_years=12,
+                general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
+                general_qol_lineage_note=(
+                    "Residual hand-estimated utility is anchored to insomnia/anxiety disability "
+                    "weights; component sleep relief is modeled separately."
+                ),
+                sleep_component_relief={
+                    "duration": 0.08,
+                    "quality": 0.20,
+                    "daytime": 0.15,
+                },
+                low_qaly=0.01,
+                high_qaly=0.05,
+                personalization=(
+                    f"Upweighted because your 90-day combined sleep is only {baseline['derived']['combined_sleep_h_90d']} h/night; "
+                    "small BP benefit remains because magnesium RCTs are stronger than most supplements."
+                ),
+                rationale=(
+                    "At your baseline, magnesium looks more like a sleep-support and small BP intervention "
+                    "than a major longevity lever."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/33865376/",
+                    "https://pubmed.ncbi.nlm.nih.gov/41000008/",
+                    "https://pubmed.ncbi.nlm.nih.gov/27402922/",
+                ),
             ),
-            rationale=("Promising biology; still thin as a personalized QALY lever."),
-            sources=(),
-        ),
-        "spermidine_10": StackSpec(
-            item_id="spermidine_10",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.2,
-            conf_beta=6.0,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=0.0,
-            high_qaly=0.005,
-            personalization=(
-                "Near zero because the better human RCT found no memory benefit despite strong preclinical enthusiasm."
+            "trazodone_50mg": StackSpec(
+                item_id="trazodone_50mg",
+                log_sd=0.06,
+                qol_annual=0.0030 * sleep_multiplier,
+                qol_years=10,
+                general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
+                general_qol_lineage_note=(
+                    "Residual symptom utility is anchored to insomnia/anxiety disability weights; "
+                    "sedation harms and component sleep relief are modeled separately."
+                ),
+                low_qaly=-0.01,
+                high_qaly=0.06,
+                personalization=(
+                    "Upweighted because sleep is still clearly below target, but netted against hangover / "
+                    "dependency / long-run medication burden rather than assuming all sleep-med utility is durable."
+                ),
+                rationale=(
+                    "Trazodone looks like a symptomatic sleep/QOL tool here, not a credible mortality intervention."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/36216367/",
+                    "https://pubmed.ncbi.nlm.nih.gov/22208861/",
+                    "https://pubmed.ncbi.nlm.nih.gov/41209816/",
+                ),
             ),
-            rationale=(
-                "Spermidine is still more of a longevity hypothesis than a demonstrated human benefit."
-            ),
-            sources=("https://pubmed.ncbi.nlm.nih.gov/35616942/",),
-        ),
-        "fisetin_100_unbundled": StackSpec(
-            item_id="fisetin_100_unbundled",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.0,
-            conf_beta=6.8,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=-0.01,
-            high_qaly=0.02,
-            personalization="Same skeptical estimate as bundled fisetin; standalone purchase is mostly a cost question.",
-            rationale="There is still no strong human basis for a meaningful fisetin QALY claim.",
-            sources=("https://doublewoodsupplements.com/products/fisetin",),
-        ),
-        "lycopene_15": StackSpec(
-            item_id="lycopene_15",
-            observed_hr=1.0,
-            log_sd=0.05,
-            conf_alpha=1.4,
-            conf_beta=5.2,
-            qol_annual=0.0,
-            qol_years=15,
-            low_qaly=0.0,
-            high_qaly=0.005,
-            personalization=(
-                "Near zero because the cardiovascular literature is mainly observational and food-pattern confounding is hard to strip away."
-            ),
-            rationale=(
-                "Lycopene may be fine, but I do not see a strong supplement-specific QALY signal."
-            ),
-            sources=("https://pubmed.ncbi.nlm.nih.gov/28318092/",),
-        ),
-        "ginger_400": apply_joint_fall_pathway(
-            StackSpec(
-                item_id="ginger_400",
+            "melatonin_300mcg": StackSpec(
+                item_id="melatonin_300mcg",
                 observed_hr=1.0,
                 log_sd=0.05,
-                conf_alpha=1.5,
-                conf_beta=5.0,
-                qol_annual=0.0005 * joint_multiplier,
+                qol_annual=0.0014 * sleep_multiplier,
                 qol_years=10,
-                general_qol_utility_weight_ids=JOINT_QOL,
+                general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
                 general_qol_lineage_note=(
-                    "Joint-comfort utility is anchored to a mild musculoskeletal-pain "
-                    "fallback weight."
+                    "Residual symptom utility is anchored to insomnia/anxiety disability weights; "
+                    "component sleep relief is modeled separately."
+                ),
+                low_qaly=-0.01,
+                high_qaly=0.03,
+                personalization=(
+                    "Upweighted because short sleep is a live issue, but kept modest because human meta-analytic effects "
+                    "are measured in minutes, not hours."
+                ),
+                rationale=(
+                    "Small, probably real sleep-onset benefit; unlikely to be a big standalone QALY driver."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/15649737/",
+                    "https://pubmed.ncbi.nlm.nih.gov/22208861/",
+                ),
+            ),
+            "nasacort_nightly": StackSpec(
+                item_id="nasacort_nightly",
+                qol_annual=0.0002,
+                qol_years=10,
+                general_qol_utility_weight_ids=AIRWAY_SLEEP_QOL,
+                general_qol_lineage_note=(
+                    "Small residual nasal-comfort utility is anchored to sleep-apnoea/insomnia "
+                    "fallback weights; component sleep-breathing relief is modeled separately."
+                ),
+                low_qaly=-0.01,
+                high_qaly=0.06,
+                personalization=(
+                    "Upweighted because your recent airway-directed trial improved breathing, latency, snoring, and sleep quality, "
+                    f"producing an airway-response signal of {baseline['derived']['airway_response_signal']}."
+                ),
+                rationale=(
+                    "Nasacort looks like a phenotype-specific sleep intervention here: worthwhile if nasal inflammation or congestion "
+                    "is meaningfully contributing, not a generic prevention supplement."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/9042068/",
+                    "https://pubmed.ncbi.nlm.nih.gov/15124166/",
+                ),
+            ),
+            "nasal_strips_nightly": StackSpec(
+                item_id="nasal_strips_nightly",
+                qol_annual=0.0001,
+                qol_years=10,
+                general_qol_utility_weight_ids=AIRWAY_SLEEP_QOL,
+                general_qol_lineage_note=(
+                    "Small residual nasal-comfort utility is anchored to sleep-apnoea/insomnia "
+                    "fallback weights; component sleep-breathing relief is modeled separately."
+                ),
+                low_qaly=0.0,
+                high_qaly=0.03,
+                personalization=(
+                    "Upweighted because your own notes say the first night with strips plus Nasacort gave zero snoring, "
+                    "but kept smaller than Nasacort because the evidence is mostly subjective-sleep benefit."
+                ),
+                rationale=(
+                    "Nasal strips can help if upper-airway narrowing is part of the problem, but they are usually an adjunct rather than a decisive treatment."
+                ),
+                sources=("https://pubmed.ncbi.nlm.nih.gov/30154874/",),
+            ),
+            "humidifier_nightly": StackSpec(
+                item_id="humidifier_nightly",
+                qol_annual=0.00005,
+                qol_years=10,
+                general_qol_utility_weight_ids=AIRWAY_SLEEP_QOL,
+                general_qol_lineage_note=(
+                    "Fallback proxy for nasal-airway comfort; this is not a formal nasal-dryness "
+                    "utility source."
                 ),
                 low_qaly=0.0,
                 high_qaly=0.01,
                 personalization=(
-                    "Small positive only because human data support biomarker improvements and some joint-pain benefit, but your baseline does not show an obvious inflammatory pain phenotype."
+                    "Kept small because your current evidence points more to upper-airway obstruction and nasal inflammation "
+                    f"than to dry-air irritation alone; nasal-inflammation probability is {baseline['derived']['sleep_airway']['nasal_inflammation_probability']}."
                 ),
-                rationale=("Ginger looks mildly helpful, but not transformative."),
+                rationale=(
+                    "A bedroom humidifier is modeled as a modest nasal-comfort adjunct, not a real OSA treatment. "
+                    "It is most attractive when the room is actually dry or you wake with dry irritated nasal passages."
+                ),
                 sources=(
-                    "https://pubmed.ncbi.nlm.nih.gov/41123858/",
-                    "https://pubmed.ncbi.nlm.nih.gov/40732990/",
+                    "https://www.aaaai.org/tools-for-the-public/conditions-library/allergies/humidifiers-and-indoor-allergies",
+                    "https://www.epa.gov/mold/mold-course-chapter-2",
+                    "https://pubmed.ncbi.nlm.nih.gov/3348500/",
                 ),
             ),
-            age=age,
-            activity_level=activity_level,
-            joint_multiplier=joint_multiplier,
-        ),
-        "boron_3": StackSpec(
-            item_id="boron_3",
-            observed_hr=1.0,
-            log_sd=0.05,
-            conf_alpha=1.0,
-            conf_beta=6.2,
-            qol_annual=0.0,
-            qol_years=15,
-            low_qaly=0.0,
-            high_qaly=0.005,
-            personalization=(
-                "Near zero because I could not justify a clinically meaningful human outcome effect here."
+            "mouth_tape_nightly": StackSpec(
+                item_id="mouth_tape_nightly",
+                qol_annual=0.00008,
+                qol_years=10,
+                general_qol_utility_weight_ids=AIRWAY_SLEEP_QOL,
+                general_qol_lineage_note=(
+                    "Small residual mouth-breathing comfort utility is anchored to sleep-apnoea/"
+                    "insomnia fallback weights."
+                ),
+                low_qaly=-0.002,
+                high_qaly=0.03,
+                personalization=(
+                    "Upweighted because you now have confirmed mild OSA plus a strong recent airway-response pattern, "
+                    "but kept below strips and head elevation because mouth tape only really makes sense if mouth breathing "
+                    f"is part of the phenotype and your data still point heavily to nasal and upper-airway contributors; upper-airway probability is {baseline['derived']['sleep_airway']['upper_airway_probability']}."
+                ),
+                rationale=(
+                    "Mouth tape is modeled as a plausible adjunct if habitual open-mouth breathing is part of the problem, "
+                    "not as a broad OSA treatment. The direct evidence is small and mostly in mild OSA or snoring."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/25450408/",
+                    "https://pubmed.ncbi.nlm.nih.gov/38780959/",
+                    "https://pubmed.ncbi.nlm.nih.gov/39662104/",
+                    "https://pubmed.ncbi.nlm.nih.gov/25766699/",
+                ),
             ),
-            rationale=(
-                "Boron may matter for micronutrient biology, but not enough to give it a real QALY number beyond noise."
+            "head_elevation_nightly": StackSpec(
+                item_id="head_elevation_nightly",
+                qol_annual=0.0001,
+                qol_years=10,
+                general_qol_utility_weight_ids=AIRWAY_SLEEP_QOL,
+                general_qol_lineage_note=(
+                    "Small residual positional-comfort utility is anchored to sleep-apnoea/"
+                    "insomnia fallback weights."
+                ),
+                low_qaly=0.0,
+                high_qaly=0.04,
+                personalization=(
+                    "Upweighted because your recent improvement pattern is compatible with an upper-airway contributor, but kept modest because your home data do not cleanly isolate elevation from the other airway changes."
+                ),
+                rationale=(
+                    "Head elevation is a low-risk positional airway aid with the best case in upper-airway-predominant sleep-disordered breathing."
+                ),
+                sources=("https://pubmed.ncbi.nlm.nih.gov/39347559/",),
             ),
-            sources=(),
-        ),
-        "fisetin_100": StackSpec(
-            item_id="fisetin_100",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.0,
-            conf_beta=6.5,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=-0.002,
-            high_qaly=0.005,
-            personalization=(
-                "Modeled as flat because fisetin is still largely a senolytic hypothesis in humans."
+            "cocoa_flavanols_500": StackSpec(
+                item_id="cocoa_flavanols_500",
+                observed_hr=math.exp(math.log(0.95) * cardio_multiplier),
+                log_sd=0.09,
+                qol_annual=0.0,
+                qol_years=15,
+                low_qaly=0.0,
+                high_qaly=0.03,
+                personalization=(
+                    "Downweighted because LDL and glycemia are already good and COSMOS enrolled much older adults."
+                ),
+                rationale=(
+                    "Some plausible cardiometabolic value, but your current risk profile leaves less headroom."
+                ),
+                sources=("https://pubmed.ncbi.nlm.nih.gov/35294962/",),
             ),
-            rationale=(
-                "Strong marketing and interesting biology, but not enough human evidence for a positive ground-up estimate."
+            "creatine_5g": StackSpec(
+                item_id="creatine_5g",
+                observed_hr=1.0,
+                log_sd=0.04,
+                qol_annual=0.0014 * exercise_multiplier * kidney_safe_multiplier,
+                qol_years=15,
+                general_qol_utility_weight_ids=FUNCTION_QOL,
+                general_qol_lineage_note=(
+                    "Functional/performance utility is anchored to a mild motor-impairment "
+                    "fallback weight; the modeled annual utility is intentionally much smaller."
+                ),
+                low_qaly=0.0,
+                high_qaly=0.03,
+                personalization=(
+                    "Kept positive for muscle/performance resilience, but trimmed because you are 39 rather than sarcopenic "
+                    "and because creatinine/eGFR make me avoid giving it a free pass."
+                ),
+                rationale=(
+                    "Creatine has decent functional evidence, but most of the compelling data are performance / body-composition "
+                    "and older-adult contexts rather than mortality."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/39074168/",
+                    "https://pubmed.ncbi.nlm.nih.gov/24576864/",
+                ),
             ),
-            sources=(),
-        ),
-    }
+            "omega3_clo": StackSpec(
+                item_id="omega3_clo",
+                observed_hr=math.exp(math.log(0.97) * cardio_multiplier),
+                log_sd=0.08,
+                qol_annual=0.0,
+                qol_years=15,
+                low_qaly=0.0,
+                high_qaly=0.015,
+                personalization=(
+                    "Strongly downweighted because this is a low dose and your LDL/HbA1c are already favorable."
+                ),
+                rationale=(
+                    "The marginal benefit of low-dose cod liver oil looks small at your baseline risk."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/32722395/",
+                    "https://pubmed.ncbi.nlm.nih.gov/24638908/",
+                ),
+            ),
+            "garlic_1200": StackSpec(
+                item_id="garlic_1200",
+                observed_hr=math.exp(math.log(0.95) * cardio_multiplier),
+                log_sd=0.08,
+                qol_annual=0.0,
+                qol_years=15,
+                low_qaly=0.0,
+                high_qaly=0.03,
+                personalization=(
+                    "Downweighted because garlic's BP signal is clearest in hypertensive adults and you are not documented hypertensive."
+                ),
+                rationale=(
+                    "Garlic is a plausible small cardiometabolic adjunct, not a major longevity mover for you."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/40735665/",
+                    "https://pubmed.ncbi.nlm.nih.gov/26764326/",
+                ),
+            ),
+            "prebiotics": StackSpec(
+                item_id="prebiotics",
+                observed_hr=1.0,
+                log_sd=0.05,
+                qol_annual=0.0008,
+                qol_years=10,
+                general_qol_utility_weight_ids=BOWEL_HABIT_QOL,
+                general_qol_lineage_note=(
+                    "Gut-comfort utility is anchored to bowel-habit/IBS fallback disability weights."
+                ),
+                low_qaly=0.0,
+                high_qaly=0.02,
+                personalization=(
+                    "Modeled as a gut-symptom / bowel-habit item rather than a mortality lever."
+                ),
+                rationale=(
+                    "Prebiotics may help GI comfort or satiety, but human hard-endpoint evidence is weak."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/24230488/",
+                    "https://pubmed.ncbi.nlm.nih.gov/41233756/",
+                ),
+            ),
+            "vitamin_d_2000": StackSpec(
+                item_id="vitamin_d_2000",
+                observed_hr=math.exp(math.log(0.94) * vitamin_d_multiplier),
+                log_sd=0.08,
+                qol_annual=0.0,
+                qol_years=15,
+                low_qaly=-0.02,
+                high_qaly=0.005,
+                personalization=(
+                    f"Almost fully downweighted because your latest 25(OH)D is {baseline['labs']['Vitamin D']} ng/mL, already in a replete range."
+                ),
+                rationale=(
+                    "Vitamin D looks more like a deficiency correction tool than an additional-optimization tool at your current level."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/37004841/",
+                    "https://pubmed.ncbi.nlm.nih.gov/28096125/",
+                ),
+            ),
+            "astaxanthin_12": StackSpec(
+                item_id="astaxanthin_12",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=0.0,
+                high_qaly=0.005,
+                personalization=(
+                    "Kept near zero because the human literature is mostly biomarker and specialty-population work."
+                ),
+                rationale=(
+                    "Interesting antioxidant biomarker story, but weak evidence for durable clinical payoff in someone like you."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/41596351/",
+                    "https://pubmed.ncbi.nlm.nih.gov/41710469/",
+                ),
+            ),
+            "nac_1200": StackSpec(
+                item_id="nac_1200",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0010 * fatigue_multiplier,
+                qol_years=10,
+                general_qol_utility_weight_ids=FUNCTION_QOL,
+                general_qol_lineage_note=(
+                    "Fatigue/functional-reserve utility is anchored to a mild motor-impairment "
+                    "fallback weight; airway sleep relief is modeled separately."
+                ),
+                sleep_component_relief={
+                    "breathing": 0.08,
+                    "quality": 0.02,
+                },
+                airway_target_weights={
+                    "mucus": 0.75,
+                    "upper_airway": 0.25,
+                },
+                low_qaly=0.0,
+                high_qaly=0.015,
+                personalization=(
+                    "Trimmed because your sleep pattern and recent response point more to an upper-airway/nasal issue than a mucus-heavy phenotype. "
+                    "NAC keeps some value for fatigue or secretions, but much less than airway-targeted measures."
+                ),
+                rationale=(
+                    "NAC remains speculative for broad prevention. Its respiratory upside is much more credible in chronic bronchitis or mucus-heavy phenotypes than in nasal-obstruction sleep problems."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/38555190/",
+                    "https://pubmed.ncbi.nlm.nih.gov/28122105/",
+                ),
+            ),
+            "curcumin_250": StackSpec(
+                item_id="curcumin_250",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0008 * fatigue_multiplier,
+                qol_years=10,
+                general_qol_utility_weight_ids=JOINT_QOL,
+                general_qol_lineage_note=(
+                    "Anti-inflammatory symptom utility is anchored to a mild musculoskeletal-pain "
+                    "fallback weight."
+                ),
+                low_qaly=0.0,
+                high_qaly=0.012,
+                personalization=(
+                    "Kept small because dose is modest and the strongest human data are for biomarker shifts or disease-specific pain populations."
+                ),
+                rationale=(
+                    "Curcumin is better supported as an anti-inflammatory biomarker intervention than a proven longevity intervention."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/38945354/",
+                    "https://pubmed.ncbi.nlm.nih.gov/39478418/",
+                ),
+            ),
+            "collagen_22g": apply_joint_fall_pathway(
+                StackSpec(
+                    item_id="collagen_22g",
+                    observed_hr=1.0,
+                    log_sd=0.05,
+                    qol_annual=0.0008 * joint_multiplier,
+                    qol_years=10,
+                    general_qol_utility_weight_ids=JOINT_QOL,
+                    general_qol_lineage_note=(
+                        "Joint-comfort utility is anchored to a mild musculoskeletal-pain "
+                        "fallback weight."
+                    ),
+                    low_qaly=0.0,
+                    high_qaly=0.01,
+                    personalization=(
+                        "Strongly downweighted because the better human data are in osteoarthritis / meniscopathy, not healthy adults without documented joint disease."
+                    ),
+                    rationale=(
+                        "Collagen may help joint or skin outcomes in the right phenotype, but your baseline does not scream high-yield collagen responder."
+                    ),
+                    sources=(
+                        "https://pubmed.ncbi.nlm.nih.gov/39212129/",
+                        "https://pubmed.ncbi.nlm.nih.gov/38218227/",
+                        "https://pubmed.ncbi.nlm.nih.gov/37432180/",
+                    ),
+                ),
+                age=age,
+                activity_level=activity_level,
+                joint_multiplier=joint_multiplier,
+            ),
+            "lutein_zeaxanthin": StackSpec(
+                item_id="lutein_zeaxanthin",
+                observed_hr=1.0,
+                log_sd=0.04,
+                qol_annual=0.0004 * eye_multiplier,
+                qol_years=20,
+                general_qol_utility_weight_ids=VISION_QOL,
+                general_qol_lineage_note=(
+                    "Vision-preservation utility is anchored to a mild vision-impairment "
+                    "fallback weight."
+                ),
+                low_qaly=0.0,
+                high_qaly=0.008,
+                personalization=(
+                    "Downweighted because AREDS2 is secondary prevention in older adults with existing AMD risk, not primary prevention for a 39-year-old."
+                ),
+                rationale=(
+                    "Reasonable eye-health hedge, but the extrapolation to you is thin."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/39025435/",
+                    "https://pubmed.ncbi.nlm.nih.gov/24638908/",
+                ),
+            ),
+            "vitamin_k2": StackSpec(
+                item_id="vitamin_k2",
+                observed_hr=1.0,
+                log_sd=0.05,
+                qol_annual=0.0,
+                qol_years=20,
+                low_qaly=0.0,
+                high_qaly=0.008,
+                personalization=(
+                    "Kept near zero because the more favorable fracture/BMD data are mostly in older postmenopausal populations."
+                ),
+                rationale=(
+                    "Vitamin K2 is a weak preventive bet at your age unless there is a clearer bone-risk story."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/35625785/",
+                    "https://pubmed.ncbi.nlm.nih.gov/36033779/",
+                ),
+            ),
+            "ubiquinol_50": StackSpec(
+                item_id="ubiquinol_50",
+                observed_hr=1.0,
+                log_sd=0.05,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=0.0,
+                high_qaly=0.01,
+                personalization=(
+                    "Near zero because the strongest CoQ10 evidence is in heart failure, which is not your phenotype."
+                ),
+                rationale=(
+                    "CoQ10 can be useful in cardiac disease or statin myalgia, but that is not the main story here."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/39462324/",
+                    "https://pubmed.ncbi.nlm.nih.gov/35608922/",
+                ),
+            ),
+            "ubiquinol_50_unbundled": StackSpec(
+                item_id="ubiquinol_50_unbundled",
+                observed_hr=1.0,
+                log_sd=0.05,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=0.0,
+                high_qaly=0.01,
+                personalization=(
+                    "Same small CoQ10 estimate as the bundled version; the standalone question is mostly about whether it is worth buying separately."
+                ),
+                rationale=(
+                    "Standalone ubiquinol should inherit the same weak phenotype-specific estimate as bundled ubiquinol."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/39462324/",
+                    "https://pubmed.ncbi.nlm.nih.gov/35608922/",
+                    "https://www.lifeextension.com/vitamins-supplements/item01425/super-ubiquinol-coq10-with-ppm-pyrroloquinoline-quinone",
+                ),
+            ),
+            "nr_300": StackSpec(
+                item_id="nr_300",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0009 * fatigue_multiplier,
+                qol_years=10,
+                general_qol_utility_weight_ids=FUNCTION_QOL,
+                general_qol_lineage_note=(
+                    "Fatigue/recovery utility is anchored to a mild motor-impairment fallback weight."
+                ),
+                low_qaly=0.0,
+                high_qaly=0.015,
+                personalization=(
+                    "I kept a small positive here only because there is at least one recent long-COVID RCT signal, but in healthier adults the literature is mostly NAD+ biomarker movement without obvious clinical payoff."
+                ),
+                rationale=(
+                    "NR is still mostly a mechanistic bet, with a small possible symptom pathway for fatigue / recovery."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/41357333/",
+                    "https://pubmed.ncbi.nlm.nih.gov/29184669/",
+                    "https://pubmed.ncbi.nlm.nih.gov/32320006/",
+                ),
+            ),
+            "nr_300_unbundled": StackSpec(
+                item_id="nr_300_unbundled",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0009 * fatigue_multiplier,
+                qol_years=10,
+                general_qol_utility_weight_ids=FUNCTION_QOL,
+                general_qol_lineage_note=(
+                    "Fatigue/recovery utility is anchored to a mild motor-impairment fallback weight."
+                ),
+                low_qaly=0.0,
+                high_qaly=0.015,
+                personalization=(
+                    "Same biology as bundled NR; the question here is whether it is worth buying as a standalone product."
+                ),
+                rationale=(
+                    "Standalone NR should inherit the same tiny clinical estimate as bundled NR, with cost deciding the verdict."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/41357333/",
+                    "https://pubmed.ncbi.nlm.nih.gov/29184669/",
+                    "https://pubmed.ncbi.nlm.nih.gov/32320006/",
+                    "https://www.truniagen.com/products/tru-niagen-300mg",
+                ),
+            ),
+            "luteolin_100": StackSpec(
+                item_id="luteolin_100",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=0.0,
+                high_qaly=0.005,
+                personalization=(
+                    "Near zero because I could not justify a meaningful clinical effect from current human outcome data."
+                ),
+                rationale=(
+                    "Luteolin remains mostly a mechanistic / preclinical longevity ingredient."
+                ),
+                sources=(),
+            ),
+            "luteolin_100_unbundled": StackSpec(
+                item_id="luteolin_100_unbundled",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=0.0,
+                high_qaly=0.005,
+                personalization=(
+                    "Same near-zero estimate as bundled luteolin; useful mainly to compare whether buying it separately makes any sense."
+                ),
+                rationale=(
+                    "Standalone luteolin should inherit the same mechanistic-only estimate as bundled luteolin."
+                ),
+                sources=("https://doublewoodsupplements.com/products/luteolin",),
+            ),
+            "lithium_1mg_orotate": StackSpec(
+                item_id="lithium_1mg_orotate",
+                observed_hr=1.0,
+                log_sd=0.05,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=0.0,
+                high_qaly=0.005,
+                personalization=(
+                    "Kept near zero because microdose lithium/orotate evidence is too thin to support a stronger estimate."
+                ),
+                rationale=(
+                    "Interesting hypothesis space, but not enough human intervention data for a large claim."
+                ),
+                sources=(),
+            ),
+            "hyaluronic_acid_120": apply_joint_fall_pathway(
+                StackSpec(
+                    item_id="hyaluronic_acid_120",
+                    observed_hr=1.0,
+                    log_sd=0.05,
+                    qol_annual=0.0006 * joint_multiplier,
+                    qol_years=10,
+                    general_qol_utility_weight_ids=JOINT_QOL,
+                    general_qol_lineage_note=(
+                        "Joint-comfort utility is anchored to a mild musculoskeletal-pain "
+                        "fallback weight."
+                    ),
+                    low_qaly=0.0,
+                    high_qaly=0.01,
+                    personalization=(
+                        "Downweighted because oral HA benefits are mostly in chronic pain / joint-discomfort populations."
+                    ),
+                    rationale=(
+                        "Oral hyaluronic acid may have symptom value, but it looks phenotype-specific."
+                    ),
+                    sources=(
+                        "https://pubmed.ncbi.nlm.nih.gov/25415767/",
+                        "https://pubmed.ncbi.nlm.nih.gov/41479667/",
+                    ),
+                ),
+                age=age,
+                activity_level=activity_level,
+                joint_multiplier=joint_multiplier,
+            ),
+            "broccoli_seed_200": StackSpec(
+                item_id="broccoli_seed_200",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=0.0,
+                high_qaly=0.008,
+                personalization=(
+                    "Near zero because sulforaphane has mechanistic appeal but little direct hard-endpoint evidence in a healthy adult."
+                ),
+                rationale=(
+                    "Promising biology; still thin as a personalized QALY lever."
+                ),
+                sources=(),
+            ),
+            "spermidine_10": StackSpec(
+                item_id="spermidine_10",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=0.0,
+                high_qaly=0.005,
+                personalization=(
+                    "Near zero because the better human RCT found no memory benefit despite strong preclinical enthusiasm."
+                ),
+                rationale=(
+                    "Spermidine is still more of a longevity hypothesis than a demonstrated human benefit."
+                ),
+                sources=("https://pubmed.ncbi.nlm.nih.gov/35616942/",),
+            ),
+            "fisetin_100_unbundled": StackSpec(
+                item_id="fisetin_100_unbundled",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=-0.01,
+                high_qaly=0.02,
+                personalization="Same skeptical estimate as bundled fisetin; standalone purchase is mostly a cost question.",
+                rationale="There is still no strong human basis for a meaningful fisetin QALY claim.",
+                sources=("https://doublewoodsupplements.com/products/fisetin",),
+            ),
+            "lycopene_15": StackSpec(
+                item_id="lycopene_15",
+                observed_hr=1.0,
+                log_sd=0.05,
+                qol_annual=0.0,
+                qol_years=15,
+                low_qaly=0.0,
+                high_qaly=0.005,
+                personalization=(
+                    "Near zero because the cardiovascular literature is mainly observational and food-pattern confounding is hard to strip away."
+                ),
+                rationale=(
+                    "Lycopene may be fine, but I do not see a strong supplement-specific QALY signal."
+                ),
+                sources=("https://pubmed.ncbi.nlm.nih.gov/28318092/",),
+            ),
+            "ginger_400": apply_joint_fall_pathway(
+                StackSpec(
+                    item_id="ginger_400",
+                    observed_hr=1.0,
+                    log_sd=0.05,
+                    qol_annual=0.0005 * joint_multiplier,
+                    qol_years=10,
+                    general_qol_utility_weight_ids=JOINT_QOL,
+                    general_qol_lineage_note=(
+                        "Joint-comfort utility is anchored to a mild musculoskeletal-pain "
+                        "fallback weight."
+                    ),
+                    low_qaly=0.0,
+                    high_qaly=0.01,
+                    personalization=(
+                        "Small positive only because human data support biomarker improvements and some joint-pain benefit, but your baseline does not show an obvious inflammatory pain phenotype."
+                    ),
+                    rationale=("Ginger looks mildly helpful, but not transformative."),
+                    sources=(
+                        "https://pubmed.ncbi.nlm.nih.gov/41123858/",
+                        "https://pubmed.ncbi.nlm.nih.gov/40732990/",
+                    ),
+                ),
+                age=age,
+                activity_level=activity_level,
+                joint_multiplier=joint_multiplier,
+            ),
+            "boron_3": StackSpec(
+                item_id="boron_3",
+                observed_hr=1.0,
+                log_sd=0.05,
+                qol_annual=0.0,
+                qol_years=15,
+                low_qaly=0.0,
+                high_qaly=0.005,
+                personalization=(
+                    "Near zero because I could not justify a clinically meaningful human outcome effect here."
+                ),
+                rationale=(
+                    "Boron may matter for micronutrient biology, but not enough to give it a real QALY number beyond noise."
+                ),
+                sources=(),
+            ),
+            "fisetin_100": StackSpec(
+                item_id="fisetin_100",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=-0.002,
+                high_qaly=0.005,
+                personalization=(
+                    "Modeled as flat because fisetin is still largely a senolytic hypothesis in humans."
+                ),
+                rationale=(
+                    "Strong marketing and interesting biology, but not enough human evidence for a positive ground-up estimate."
+                ),
+                sources=(),
+            ),
+        }
+    )
 
 
 def build_additional_specs(
@@ -2847,921 +2832,843 @@ def build_additional_specs(
     stress_multiplier = 0.45 + 0.55 * sleep_need
     metabolic_multiplier = 0.10 + 0.35 * cardio_need
     semaglutide_spec = build_semaglutide_spec(baseline, context.profile)
-    return {
-        "statin_5mg": make_spec(
-            "statin_5mg",
-            observed_hr=math.exp(math.log(0.95) * (0.15 + 0.55 * cardio_need)),
-            log_sd=0.08,
-            conf_alpha=3.8,
-            conf_beta=3.2,
-            qol_annual=0.0,
-            qol_years=20,
-            low_qaly=-0.01,
-            high_qaly=0.05,
-            personalization="Strong causal class, but you already have LDL 64 and no documented ASCVD, so most trial effects shrink hard on transport.",
-            rationale="Statins are one of the more credible preventive drug classes, but the marginal benefit for a lean 39-year-old with already-good lipids is much smaller than headline meta-analytic averages.",
-            sources=("https://pubmed.ncbi.nlm.nih.gov/22607822/",),
-        ),
-        "metformin_500mg": make_spec(
-            "metformin_500mg",
-            observed_hr=math.exp(math.log(0.97) * metabolic_multiplier),
-            log_sd=0.10,
-            conf_alpha=2.0,
-            conf_beta=5.5,
-            qol_annual=0.0,
-            qol_years=12,
-            low_qaly=-0.01,
-            high_qaly=0.02,
-            personalization="Downweighted heavily because your glycemia is already good and most compelling outcome data are in diabetic or prediabetic populations.",
-            rationale="Metformin is plausible as a modest metabolic-risk intervention, but not a big generic longevity lever for your phenotype.",
-            sources=("https://pubmed.ncbi.nlm.nih.gov/28802803/",),
-        ),
-        "empagliflozin": make_spec(
-            "empagliflozin",
-            observed_hr=math.exp(math.log(0.98) * metabolic_multiplier),
-            log_sd=0.10,
-            conf_alpha=1.8,
-            conf_beta=6.0,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=-0.01,
-            high_qaly=0.02,
-            personalization="Transport is extremely weak here because the flagship benefits are in diabetes, heart failure, and CKD populations rather than a healthy lean 39-year-old.",
-            rationale="SGLT2 inhibitors are clinically important in the right phenotype, but they should not look like a major longevity drug for you.",
-            sources=("https://pubmed.ncbi.nlm.nih.gov/26378978/",),
-        ),
-        "aspirin_81mg": make_spec(
-            "aspirin_81mg",
-            observed_hr=math.exp(math.log(0.985) * (0.20 + 0.40 * cardio_need)),
-            log_sd=0.08,
-            conf_alpha=2.2,
-            conf_beta=5.8,
-            qol_annual=0.0,
-            qol_years=12,
-            low_qaly=-0.03,
-            high_qaly=0.01,
-            personalization="The bleeding downside transports better to you than the net-prevention upside, because you are young and low-risk rather than high-ASCVD.",
-            rationale="Low-dose aspirin is now mostly a narrow-risk tool, not a generic prevention default.",
-            sources=("https://pubmed.ncbi.nlm.nih.gov/30221597/",),
-        ),
-        "semaglutide": semaglutide_spec,
-        "rapamycin_5mg_wk": make_spec(
-            "rapamycin_5mg_wk",
-            observed_hr=1.0,
-            log_sd=0.12,
-            conf_alpha=1.1,
-            conf_beta=6.5,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=-0.01,
-            high_qaly=0.03,
-            personalization="I am treating this mainly as an uncertain translational hypothesis, not a currently supported personal-health intervention.",
-            rationale="Rapamycin remains interesting, but human longevity evidence is too incomplete for a large positive estimate.",
-            sources=("https://pubmed.ncbi.nlm.nih.gov/35322235/",),
-        ),
-        "lithium_5mg": make_spec(
-            "lithium_5mg",
-            observed_hr=1.0,
-            log_sd=0.07,
-            conf_alpha=1.3,
-            conf_beta=6.0,
-            qol_annual=0.0002,
-            qol_years=15,
-            general_qol_utility_weight_ids=STRESS_QOL,
-            general_qol_lineage_note=(
-                "Mood-stability hedge utility is anchored to a mild-anxiety fallback disability weight."
-            ),
-            low_qaly=-0.015,
-            high_qaly=0.015,
-            personalization="Kept small because the low-dose human outcome case is still mostly ecological and indirect.",
-            rationale="Interesting neuropsychiatric hedge, but still thin as a quantified longevity intervention.",
-        ),
-        "17a_estradiol": make_spec(
-            "17a_estradiol",
-            observed_hr=1.0,
-            log_sd=0.10,
-            conf_alpha=1.0,
-            conf_beta=6.8,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=-0.01,
-            high_qaly=0.02,
-            personalization="Near zero because this is still mostly mouse lifespan extrapolation.",
-            rationale="No strong basis for a meaningful human QALY claim here yet.",
-        ),
-        "acarbose_50mg": make_spec(
-            "acarbose_50mg",
-            observed_hr=1.0,
-            log_sd=0.08,
-            conf_alpha=1.4,
-            conf_beta=6.0,
-            qol_annual=-0.0005,
-            qol_years=10,
-            general_qol_utility_weight_ids=GUT_QOL,
-            general_qol_lineage_note=(
-                "Negative utility is anchored to an IBS fallback disability weight for GI burden."
-            ),
-            low_qaly=-0.02,
-            high_qaly=0.01,
-            personalization="Modeled as mildly negative because GI burden transports better than lifespan-mouse optimism.",
-            rationale="Acarbose is more likely to create hassle than durable value for your current phenotype.",
-        ),
-        "glycine_2g": make_spec(
-            "glycine_2g",
-            observed_hr=1.0,
-            log_sd=0.05,
-            conf_alpha=1.5,
-            conf_beta=6.0,
-            qol_annual=0.0010 * stress_multiplier,
-            qol_years=10,
-            general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
-            general_qol_lineage_note=(
-                "Residual calming utility is anchored to insomnia/anxiety disability weights; "
-                "component sleep relief is modeled separately."
-            ),
-            sleep_component_relief={
-                "duration": 0.06,
-                "quality": 0.14,
-                "daytime": 0.10,
-            },
-            low_qaly=-0.01,
-            high_qaly=0.03,
-            personalization="Upweighted because sleep remains an active problem, but the evidence is still mainly symptom-level and measured in modest changes.",
-            rationale="Glycine looks like a plausible sleep/QOL helper rather than a major mortality intervention.",
-            sources=("https://pubmed.ncbi.nlm.nih.gov/22529837/",),
-        ),
-        "apigenin_50": make_spec(
-            "apigenin_50",
-            observed_hr=1.0,
-            log_sd=0.05,
-            conf_alpha=1.2,
-            conf_beta=6.3,
-            qol_annual=0.0008 * stress_multiplier,
-            qol_years=10,
-            general_qol_utility_weight_ids=STRESS_QOL,
-            general_qol_lineage_note=(
-                "Calming utility is anchored to a mild-anxiety fallback disability weight."
-            ),
-            sleep_component_relief={
-                "quality": 0.12,
-                "daytime": 0.08,
-            },
-            low_qaly=-0.01,
-            high_qaly=0.02,
-            personalization="Kept positive only through plausible calming/sleep utility, not through a strong causal longevity claim.",
-            rationale="Apigenin is a reasonable sleep-stack experiment, but not a proven life-extension tool.",
-        ),
-        "omega3_epa_2g": make_spec(
-            "omega3_epa_2g",
-            observed_hr=math.exp(math.log(0.97) * (0.25 + 0.60 * cardio_need)),
-            log_sd=0.09,
-            conf_alpha=2.5,
-            conf_beta=4.5,
-            qol_annual=0.0,
-            qol_years=15,
-            low_qaly=-0.002,
-            high_qaly=0.02,
-            personalization="Marginally more plausible than low-dose omega-3 because triglycerides are not perfect, but still sharply trimmed at your baseline risk.",
-            rationale="Some cardiometabolic plausibility remains, but the incremental value over your existing health profile is modest.",
-        ),
-        "taurine_500_topup": make_spec(
-            "taurine_500_topup",
-            observed_hr=1.0,
-            log_sd=0.05,
-            conf_alpha=1.2,
-            conf_beta=6.0,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=0.0,
-            high_qaly=0.01,
-            personalization="Very small because this is only a top-up on top of Longevity Mix, not a full taurine intervention.",
-            rationale="The marginal increment from 1.5g to 2g should not look large.",
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/34039357/",
-                "https://pubmed.ncbi.nlm.nih.gov/39796489/",
-            ),
-        ),
-        "urolithin_a_500": make_spec(
-            "urolithin_a_500",
-            observed_hr=1.0,
-            log_sd=0.07,
-            conf_alpha=1.5,
-            conf_beta=5.8,
-            qol_annual=0.0003,
-            qol_years=12,
-            general_qol_utility_weight_ids=FUNCTION_QOL,
-            general_qol_lineage_note=(
-                "Exercise-recovery utility is anchored to a mild motor-impairment fallback weight."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.015,
-            personalization="I kept a small functional upside for exercise recovery / mitochondria, but not enough to justify a major QALY number.",
-            rationale="Urolithin A is plausible but still early and expensive.",
-        ),
-        "ergothioneine_5": make_spec(
-            "ergothioneine_5",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.1,
-            conf_beta=6.2,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=0.0,
-            high_qaly=0.008,
-            personalization="Near zero because most of the case is still observational and nutrient-status based.",
-            rationale="Interesting biomarker story, weak supplement-level clinical story.",
-        ),
-        "quercetin_500": make_spec(
-            "quercetin_500",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.3,
-            conf_beta=5.8,
-            qol_annual=0.0003,
-            qol_years=10,
-            general_qol_utility_weight_ids=FUNCTION_QOL,
-            general_qol_lineage_note=(
-                "Symptom/function utility is anchored to a mild motor-impairment fallback weight."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.012,
-            personalization="Kept small because the best case is symptom relief in inflammatory/viral-persistence settings, not generic prevention.",
-            rationale="Quercetin might matter in the right symptom cluster, but not as a broad longevity capsule.",
-        ),
-        "sulforaphane_20_extra": make_spec(
-            "sulforaphane_20_extra",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.2,
-            conf_beta=6.0,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=0.0,
-            high_qaly=0.01,
-            personalization="Incremental-only because you already get some sulforaphane exposure from food and the bundled broccoli seed extract.",
-            rationale="The extra dose is mostly mechanistic optimism.",
-        ),
-        "pterostilbene_50": make_spec(
-            "pterostilbene_50",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.0,
-            conf_beta=6.5,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=-0.002,
-            high_qaly=0.008,
-            personalization="Near zero because this is still a resveratrol-family hypothesis, not a robust human outcome intervention.",
-            rationale="Little reason to assign a meaningful QALY effect.",
-        ),
-        "egcg_400": make_spec(
-            "egcg_400",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.2,
-            conf_beta=6.0,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=-0.01,
-            high_qaly=0.01,
-            personalization="Near zero or slightly negative because liver-risk transport is clearer than mortality benefit transport in a supplement user like you.",
-            rationale="Green-tea epidemiology should not become a large EGCG-capsule claim.",
-        ),
-        "berberine_500": make_spec(
-            "berberine_500",
-            observed_hr=math.exp(math.log(0.98) * metabolic_multiplier),
-            log_sd=0.08,
-            conf_alpha=1.6,
-            conf_beta=5.8,
-            qol_annual=-0.0005,
-            qol_years=10,
-            general_qol_utility_weight_ids=GUT_QOL,
-            general_qol_lineage_note=(
-                "Negative utility is anchored to an IBS fallback disability weight for GI burden."
-            ),
-            low_qaly=-0.02,
-            high_qaly=0.01,
-            personalization="Your glycemia is already good, so the GI downside matters more than the diabetes-trial upside.",
-            rationale="Berberine is not an attractive personal intervention at your baseline.",
-        ),
-        "alpha_lipoic_acid_300": make_spec(
-            "alpha_lipoic_acid_300",
-            observed_hr=1.0,
-            log_sd=0.05,
-            conf_alpha=1.2,
-            conf_beta=6.0,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=0.0,
-            high_qaly=0.008,
-            personalization="Near zero because the best-supported use case is diabetic neuropathy, not your phenotype.",
-            rationale="Weak general-prevention case.",
-        ),
-        "pqq_20": make_spec(
-            "pqq_20",
-            observed_hr=1.0,
-            log_sd=0.05,
-            conf_alpha=1.1,
-            conf_beta=6.2,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=0.0,
-            high_qaly=0.008,
-            personalization="Mostly a mitochondrial-biomarker bet with little direct human utility evidence.",
-            rationale="Should be near zero unless future evidence improves materially.",
-        ),
-        "tmg_1g": make_spec(
-            "tmg_1g",
-            observed_hr=1.0,
-            log_sd=0.05,
-            conf_alpha=1.1,
-            conf_beta=6.0,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=0.0,
-            high_qaly=0.005,
-            personalization="Tiny because this is mostly a methylation-support adjunct, not a clinically demonstrated intervention.",
-            rationale="Hard to justify more than noise-level utility.",
-        ),
-        "ashwagandha_600": make_spec(
-            "ashwagandha_600",
-            observed_hr=1.0,
-            log_sd=0.07,
-            conf_alpha=1.8,
-            conf_beta=5.5,
-            qol_annual=0.0012 * stress_multiplier,
-            qol_years=10,
-            general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
-            general_qol_lineage_note=(
-                "Stress/sleep utility is anchored to insomnia/anxiety disability weights; "
-                "component sleep relief is modeled separately."
-            ),
-            sleep_component_relief={
-                "duration": 0.05,
-                "quality": 0.12,
-                "daytime": 0.12,
-            },
-            low_qaly=-0.015,
-            high_qaly=0.04,
-            personalization="This is one of the few candidates I’d keep meaningfully positive because your sleep/stress profile leaves room for symptomatic benefit.",
-            rationale="Ashwagandha is best modeled as a stress/sleep/QOL intervention with non-zero rare downside.",
-        ),
-        "lions_mane_1g": make_spec(
-            "lions_mane_1g",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.3,
-            conf_beta=6.0,
-            qol_annual=0.0006,
-            qol_years=15,
-            general_qol_utility_weight_ids=FUNCTION_QOL,
-            general_qol_lineage_note=(
-                "Cognition/function utility is anchored to a mild motor-impairment fallback weight."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.015,
-            personalization="Small only: human evidence is mainly cognition/mood signal, not durable prevention.",
-            rationale="Lion’s Mane is plausible as a small cognitive/QOL bet, not a large life-extension lever.",
-        ),
-        "black_seed_oil_1g": make_spec(
-            "black_seed_oil_1g",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.2,
-            conf_beta=6.0,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=0.0,
-            high_qaly=0.01,
-            personalization="Kept near zero because evidence remains mostly biomarker and specialty-population work.",
-            rationale="Interesting anti-inflammatory profile, weak quantified personal-health case.",
-        ),
-        "cistanche_200": make_spec(
-            "cistanche_200",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.3,
-            conf_beta=6.0,
-            qol_annual=0.00075,
-            qol_years=15,
-            general_qol_utility_weight_ids=FUNCTION_QOL,
-            general_qol_lineage_note=(
-                "Performance/recovery utility is anchored to a mild motor-impairment fallback weight."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.02,
-            personalization="Small positive through possible exercise/recovery utility, not because I trust a direct longevity story.",
-            rationale="Cistanche is a plausible functional-performance bet with weak hard-outcome evidence.",
-        ),
-        "nmn_500": make_spec(
-            "nmn_500",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.2,
-            conf_beta=6.0,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=0.0,
-            high_qaly=0.008,
-            personalization="Near zero because NR/NMN remain mostly NAD-biomarker interventions in humans.",
-            rationale="Mechanistic appeal is stronger than demonstrated clinical value.",
-        ),
-        "ghk_cu": make_spec(
-            "ghk_cu",
-            observed_hr=1.0,
-            log_sd=0.05,
-            conf_alpha=1.1,
-            conf_beta=6.2,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=0.0,
-            high_qaly=0.01,
-            personalization="Modeled as flat because aesthetic/skin appearance utility is not currently represented in the public-health QALY reference case.",
-            rationale="Topical GHK-Cu may help skin appearance, but I am not assigning generic healthspan QALYs without a mapped utility domain.",
-        ),
-        "vitamin_c_500_extra": make_spec(
-            "vitamin_c_500_extra",
-            observed_hr=1.0,
-            log_sd=0.05,
-            conf_alpha=1.3,
-            conf_beta=5.8,
-            qol_annual=0.0,
-            qol_years=10,
-            low_qaly=-0.002,
-            high_qaly=0.005,
-            personalization="Incremental vitamin C on top of adequate intake should be near flat.",
-            rationale="No reason to expect much marginal benefit here.",
-        ),
-        "zinc_carnosine_75": make_spec(
-            "zinc_carnosine_75",
-            observed_hr=1.0,
-            log_sd=0.05,
-            conf_alpha=1.5,
-            conf_beta=5.0,
-            qol_annual=0.0002,
-            qol_years=10,
-            general_qol_utility_weight_ids=UPPER_GI_QOL,
-            general_qol_lineage_note=(
-                "Upper-GI symptom utility is anchored to a reflux fallback disability weight."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.006,
-            personalization="Useful mainly if you have a real GI barrier/irritation problem; otherwise near zero.",
-            rationale="Zinc carnosine is a phenotype-specific gut-symptom intervention, not a broad longevity tool.",
-        ),
-        "probiotic_daily": make_spec(
-            "probiotic_daily",
-            observed_hr=1.0,
-            log_sd=0.05,
-            conf_alpha=1.3,
-            conf_beta=5.5,
-            qol_annual=0.0004,
-            qol_years=10,
-            general_qol_utility_weight_ids=GUT_QOL,
-            general_qol_lineage_note=(
-                "Gut-comfort utility is anchored to an IBS fallback disability weight."
-            ),
-            low_qaly=-0.002,
-            high_qaly=0.01,
-            personalization=(
-                "Downweighted because you do not have a strong documented GI indication, "
-                "and you already run other gut-support items, so most of the plausible value here is small symptomatic upside."
-            ),
-            rationale=(
-                "Daily probiotics are reasonable to test for GI comfort, but the broad long-run health case is weak "
-                "and the marginal value on top of your existing gut stack should be small."
-            ),
-            sources=(
-                "https://www.sportsresearch.store/products/probiotic-60-billion",
-                "https://pubmed.ncbi.nlm.nih.gov/24230488/",
-                "https://pubmed.ncbi.nlm.nih.gov/41233756/",
-            ),
-        ),
-        "apap_nightly": make_spec(
-            "apap_nightly",
-            qol_annual=0.0002,
-            qol_years=10,
-            general_qol_utility_weight_ids=AIRWAY_SLEEP_QOL,
-            general_qol_lineage_note=(
-                "Residual mask/convenience-adjusted utility is anchored to sleep-apnoea/"
-                "insomnia fallback weights; main sleep benefit is modeled separately."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.15,
-            personalization=(
-                f"Your March 25, 2026 home study showed mild OSA (REI {sleep_study.get('rei', 'n/a')}/hr), "
-                f"and the updated airway probability is {sleep_airway['upper_airway_probability']}, so PAP now gets "
-                "credit from an actual diagnosis rather than only wearable inference."
-            ),
-            rationale=(
-                "With confirmed OSA, PAP is the most evidence-backed next sleep intervention by a wide margin."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/31806413/",
-                "https://aasm.org/wp-content/uploads/2019/11/Treatment-OSA-with-PAP-Patient-Guide.pdf",
-                "https://pubmed.ncbi.nlm.nih.gov/30736887/",
-            ),
-        ),
-        "oral_appliance_custom": make_spec(
-            "oral_appliance_custom",
-            qol_annual=0.0002,
-            qol_years=10,
-            general_qol_utility_weight_ids=AIRWAY_SLEEP_QOL,
-            general_qol_lineage_note=(
-                "Residual appliance-convenience utility is anchored to sleep-apnoea/"
-                "insomnia fallback weights; main sleep benefit is modeled separately."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.10,
-            personalization=(
-                f"Your home study is already in the nonsevere range (REI {sleep_study.get('rei', 'n/a')}/hr), so a custom oral appliance is now a concrete non-PAP option rather than a speculative backup."
-            ),
-            rationale=(
-                "Custom oral appliance should usually underperform PAP on efficacy but can still be a credible option in mild OSA, especially if you prefer non-PAP treatment."
-            ),
-            sources=(
-                "https://aasm.org/aasm-and-aadsm-issue-new-joint-clinical-practice-guideline-for-oral-appliance-therapy/",
-                "https://pubmed.ncbi.nlm.nih.gov/26094920/",
-                "https://pubmed.ncbi.nlm.nih.gov/32665778/",
-            ),
-        ),
-        "doxepin_3mg": make_spec(
-            "doxepin_3mg",
-            qol_annual=0.0011 * stress_multiplier,
-            qol_years=8,
-            general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
-            general_qol_lineage_note=(
-                "Residual insomnia/stress utility is anchored to insomnia/anxiety disability "
-                "weights; component sleep relief is modeled separately."
-            ),
-            low_qaly=-0.01,
-            high_qaly=0.04,
-            personalization=(
-                "Modeled as a better-targeted sleep-maintenance bridge than trazodone, but still with some hangover and respiratory caution rather than assuming it is free upside."
-            ),
-            rationale=(
-                "Low-dose doxepin has better insomnia-guideline support than trazodone for sleep maintenance, but it remains a symptom treatment rather than an airway fix."
-            ),
-            sources=(
-                "https://aasm.org/resources/pdf/pharmacologictreatmentofinsomnia.pdf",
-                "https://www.accessdata.fda.gov/drugsatfda_docs/label/2010/022036lbl.pdf",
-            ),
-        ),
-        "daridorexant_25mg": make_spec(
-            "daridorexant_25mg",
-            qol_annual=0.0013 * stress_multiplier,
-            qol_years=8,
-            general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
-            general_qol_lineage_note=(
-                "Residual insomnia/stress utility is anchored to insomnia/anxiety disability "
-                "weights; component sleep relief is modeled separately."
-            ),
-            low_qaly=-0.005,
-            high_qaly=0.05,
-            personalization=(
-                "Modeled as the cleanest trazodone replacement candidate because it targets maintenance insomnia and has direct mild-to-moderate OSA respiratory-safety evidence, but its cost is brutal."
-            ),
-            rationale=(
-                "Daridorexant looks like a more evidence-aligned insomnia alternative than trazodone in mild OSA, especially if you want less generic sedation."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/35065036/",
-                "https://pubmed.ncbi.nlm.nih.gov/33305817/",
-                "https://pubmed.ncbi.nlm.nih.gov/39543812/",
-            ),
-        ),
-        "lemborexant_5mg": make_spec(
-            "lemborexant_5mg",
-            qol_annual=0.00145 * stress_multiplier,
-            qol_years=8,
-            general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
-            general_qol_lineage_note=(
-                "Residual insomnia/stress utility is anchored to insomnia/anxiety disability "
-                "weights; component sleep relief is modeled separately."
-            ),
-            low_qaly=-0.005,
-            high_qaly=0.055,
-            personalization=(
-                "Modeled as a strong maintenance-insomnia candidate with actual OSA respiratory-safety data, "
-                "but probably a bit more next-day drag than daridorexant and likely not covered on your plan."
-            ),
-            rationale=(
-                "Lemborexant looks like a credible evidence-based trazodone alternative in mild OSA, with stronger sleep-maintenance efficacy than doxepin "
-                "and less respiratory discomfort than suvorexant."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/32585700/",
-                "https://pubmed.ncbi.nlm.nih.gov/32187781/",
-                "https://pubmed.ncbi.nlm.nih.gov/37677076/",
-                "https://pubmed.ncbi.nlm.nih.gov/40848323/",
-            ),
-        ),
-        "suvorexant_10mg": make_spec(
-            "suvorexant_10mg",
-            qol_annual=0.0012 * stress_multiplier,
-            qol_years=8,
-            general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
-            general_qol_lineage_note=(
-                "Residual insomnia/stress utility is anchored to insomnia/anxiety disability "
-                "weights; component sleep relief is modeled separately."
-            ),
-            low_qaly=-0.008,
-            high_qaly=0.045,
-            personalization=(
-                "Modeled as meaningfully better than trazodone on mechanism, but with more OSA-specific respiratory caution and next-day somnolence risk "
-                "than daridorexant or lemborexant."
-            ),
-            rationale=(
-                "Suvorexant is still a plausible maintenance-insomnia option, but the respiratory-safety story in OSA is less clean, "
-                "so it ranks below the other DORAs for you."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/27397664/",
-                "https://pubmed.ncbi.nlm.nih.gov/26194728/",
-                "https://pubmed.ncbi.nlm.nih.gov/39543812/",
-                "https://www.drugs.com/pro/belsomra.html",
-            ),
-        ),
-        "hiit_1x_week": make_spec(
-            "hiit_1x_week",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=2.0,
-            conf_beta=4.8,
-            qol_annual=0.0028 * hiit_headroom,
-            qol_years=12,
-            general_qol_utility_weight_ids=FUNCTION_QOL,
-            general_qol_lineage_note=(
-                "Exercise-function utility is anchored to a mild motor-impairment fallback weight."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.04,
-            personalization=(
-                f"Your 180-day Whoop pattern shows avg strain {training_180.get('avg_strain', 0)} with "
-                f"{round(100 * float(training_180.get('high_strain_share', 0.0)), 1)}% of days at >=14 strain, "
-                f"so I model one structured interval session as a modest CRF upgrade rather than a big new training load."
-            ),
-            rationale=(
-                "One weekly HIIT session looks like a plausible way to improve VO2max/cardiorespiratory fitness a bit without assuming sedentary-person returns."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/26243014/",
-                "https://pubmed.ncbi.nlm.nih.gov/38599681/",
-            ),
-        ),
-        "hiit_2x_week": make_spec(
-            "hiit_2x_week",
-            observed_hr=1.0,
-            log_sd=0.07,
-            conf_alpha=1.9,
-            conf_beta=5.0,
-            qol_annual=0.0045 * hiit_headroom,
-            qol_years=12,
-            general_qol_utility_weight_ids=FUNCTION_QOL,
-            general_qol_lineage_note=(
-                "Exercise-function utility is anchored to a mild motor-impairment fallback weight."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.06,
-            personalization=(
-                "Two weekly interval sessions can add a bit more CRF upside, but the marginal return is still capped because you already train daily and your Whoop fitness proxies are strong."
-            ),
-            rationale=(
-                "Two HIIT sessions per week is still plausible as a small positive, but only if it replaces easier cardio rather than stacking on top of everything."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/26243014/",
-                "https://pubmed.ncbi.nlm.nih.gov/38599681/",
-                "https://pubmed.ncbi.nlm.nih.gov/40976973/",
-            ),
-        ),
-        "hiit_3x_week": make_spec(
-            "hiit_3x_week",
-            observed_hr=1.0,
-            log_sd=0.08,
-            conf_alpha=1.7,
-            conf_beta=5.4,
-            qol_annual=0.0038 * hiit_headroom - 0.0008 * (1.0 - sleep_need),
-            qol_years=12,
-            general_qol_utility_weight_ids=FUNCTION_QOL,
-            general_qol_lineage_note=(
-                "Exercise-function utility is anchored to a mild motor-impairment fallback weight."
-            ),
-            low_qaly=-0.005,
-            high_qaly=0.05,
-            personalization=(
-                "I allow a third interval session only as a near-flat extension of 2x/week, because your training load is already high and a 2025 frequency study found no clear extra benefit from 3x over 2x in recreational runners."
-            ),
-            rationale=(
-                "Three HIIT sessions per week could be fine for some people, but for you I model it as roughly flat to slightly worse than 2x/week unless the extra stimulus clearly outperforms the recovery cost."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/26243014/",
-                "https://pubmed.ncbi.nlm.nih.gov/38599681/",
-                "https://pubmed.ncbi.nlm.nih.gov/40976973/",
-            ),
-        ),
-        "zone2_cardio_2x_week": make_spec(
-            "zone2_cardio_2x_week",
-            observed_hr=1.0,
-            log_sd=0.05,
-            conf_alpha=1.8,
-            conf_beta=5.0,
-            qol_annual=0.0018 * hiit_headroom,
-            qol_years=12,
-            general_qol_utility_weight_ids=FUNCTION_QOL,
-            general_qol_lineage_note=(
-                "Exercise-function utility is anchored to a mild motor-impairment fallback weight."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.025,
-            personalization=(
-                "Because you already run and train daily, I only give a small positive for making some cardio more intentionally aerobic and structured."
-            ),
-            rationale=(
-                "Structured zone-2 work is still plausible as a small positive, but less likely than HIIT to create a meaningful new stimulus in your current routine."
-            ),
-            sources=("https://pubmed.ncbi.nlm.nih.gov/38599681/",),
-        ),
-        "tempo_run_1x_week": make_spec(
-            "tempo_run_1x_week",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.9,
-            conf_beta=4.9,
-            qol_annual=0.0034 * hiit_headroom,
-            qol_years=12,
-            general_qol_utility_weight_ids=FUNCTION_QOL,
-            general_qol_lineage_note=(
-                "Exercise-function utility is anchored to a mild motor-impairment fallback weight."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.045,
-            personalization=(
-                "I place tempo work between zone 2 and HIIT: probably more additive than easy running, but not as distinct a VO2max stimulus as true intervals."
-            ),
-            rationale=(
-                "A weekly tempo run is a credible middle-ground training intervention with modest expected upside."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/26243014/",
-                "https://pubmed.ncbi.nlm.nih.gov/38599681/",
-            ),
-        ),
-        "strength_maintenance": make_spec(
-            "strength_maintenance",
-            observed_hr=1.0,
-            log_sd=0.04,
-            conf_alpha=1.4,
-            conf_beta=5.6,
-            qol_annual=0.0003,
-            qol_years=12,
-            general_qol_utility_weight_ids=FUNCTION_QOL,
-            general_qol_lineage_note=(
-                "Strength/function utility is anchored to a mild motor-impairment fallback weight."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.01,
-            personalization=(
-                "Near flat because your described routine already contains daily strength work, so a separate strength-maintenance intervention adds little."
-            ),
-            rationale=(
-                "Strength is important in general, but your marginal gain from formalizing it further appears small."
-            ),
-            sources=("https://pubmed.ncbi.nlm.nih.gov/38599681/",),
-        ),
-        "traditional_sauna_4x_week": make_spec(
-            "traditional_sauna_4x_week",
-            observed_hr=1.0,
-            log_sd=0.08,
-            conf_alpha=1.8,
-            conf_beta=4.8,
-            qol_annual=0.0008,
-            qol_years=15,
-            general_qol_utility_weight_ids=STRESS_QOL + FUNCTION_QOL,
-            general_qol_lineage_note=(
-                "Relaxation/recovery utility is anchored to mild anxiety and functional "
-                "impairment fallback weights."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.03,
-            personalization=(
-                "You already exercise daily and your cardiometabolic baseline is good, so I treat sauna as a modest relaxation/recovery and BP-surrogate intervention rather than as a real direct-longevity claim."
-            ),
-            rationale=(
-                "Traditional dry sauna is the most plausible of the classic biohacker add-ons, but the credible benefit for you still looks modest."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/25705824/",
-                "https://pmc.ncbi.nlm.nih.gov/articles/PMC9394774/",
-            ),
-        ),
-        "infrared_sauna_4x_week": make_spec(
-            "infrared_sauna_4x_week",
-            observed_hr=1.0,
-            log_sd=0.07,
-            conf_alpha=1.5,
-            conf_beta=5.2,
-            qol_annual=0.00035,
-            qol_years=10,
-            general_qol_utility_weight_ids=STRESS_QOL + FUNCTION_QOL,
-            general_qol_lineage_note=(
-                "Relaxation/recovery utility is anchored to mild anxiety and functional "
-                "impairment fallback weights."
-            ),
-            low_qaly=0.0,
-            high_qaly=0.015,
-            personalization=(
-                "I treat infrared sauna as a weaker recovery/relaxation analog to traditional dry sauna rather than as an equivalent longevity intervention."
-            ),
-            rationale=(
-                "Infrared sauna may help relaxation or recovery a bit, but the evidence is materially weaker than for Finnish-style dry sauna."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/41049507/",
-                "https://pmc.ncbi.nlm.nih.gov/articles/PMC9394774/",
-            ),
-        ),
-        "hbot_60sessions": make_spec(
-            "hbot_60sessions",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.2,
-            conf_beta=6.4,
-            qol_annual=0.0,
-            qol_years=5,
-            low_qaly=-0.01,
-            high_qaly=0.01,
-            personalization=(
-                "I am treating HBOT as a high-cost surrogate-biomarker play with uncertain persistence, not as a demonstrated healthy-aging intervention."
-            ),
-            rationale=(
-                "Interesting but weakly grounded for a healthy 39-year-old; the evidence does not justify a large QALY estimate."
-            ),
-            sources=(
-                "https://pubmed.ncbi.nlm.nih.gov/35649312/",
-                "https://www.fda.gov/medical-devices/letters-health-care-providers/follow-instructions-safe-use-hyperbaric-oxygen-therapy-devices-letter-health-care-providers",
-            ),
-        ),
-        "bpc157_cycle": make_spec(
-            "bpc157_cycle",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.0,
-            conf_beta=6.8,
-            qol_annual=0.0,
-            qol_years=2,
-            low_qaly=-0.01,
-            high_qaly=0.005,
-            personalization=(
-                "Without a concrete injury or ulcer-healing phenotype, BPC-157 is mostly gray-market uncertainty and injection burden."
-            ),
-            rationale=(
-                "For a healthy user, BPC-157 should be modeled as near-zero or slightly negative until real human efficacy and product-quality evidence improve."
-            ),
-            sources=(
-                "https://index.mirasmart.com/AAOS2025/PDFfiles/AAOS2025-009087.PDF",
-                "https://www.fda.gov/drugs/human-drug-compounding/understanding-risks-compounded-drugs",
-            ),
-        ),
-        "tb500_cycle": make_spec(
-            "tb500_cycle",
-            observed_hr=1.0,
-            log_sd=0.06,
-            conf_alpha=1.0,
-            conf_beta=7.0,
-            qol_annual=0.0,
-            qol_years=2,
-            low_qaly=-0.012,
-            high_qaly=0.004,
-            personalization=(
-                "This is even more speculative than BPC-157 in the absence of a specific recovery use case."
-            ),
-            rationale=(
-                "TB-500 looks like a gray-market hypothesis stack component, not a credible general-health intervention."
-            ),
-            sources=(
-                "https://www.fda.gov/drugs/human-drug-compounding/understanding-risks-compounded-drugs",
-            ),
-        ),
-        # Blueprint Longevity Mix actives added to the catalog in 4bf5a610.
-        # These are sparse specs: they declare only the QALY sanity range and
-        # inherit every evidence field (HR, log_sd, confounding prior, QoL,
-        # sources, rationale) from the cited CatalogEntry via resolve_stack_spec,
-        # so nothing is fabricated here. Five are modeled-null (catalog HR=1.0);
-        # glucosamine alone carries a cohort mortality signal (catalog HR=0.92),
-        # and l-theanine carries a small cited QoL term but no mortality signal.
-        "caakg_2000": make_spec("caakg_2000", low_qaly=-0.01, high_qaly=0.01),
-        "glucosamine_sulfate_750": make_spec(
-            "glucosamine_sulfate_750", low_qaly=-0.01, high_qaly=0.15
-        ),
-        "glutathione_250": make_spec("glutathione_250", low_qaly=-0.01, high_qaly=0.01),
-        "l_lysine_1000": make_spec("l_lysine_1000", low_qaly=-0.01, high_qaly=0.01),
-        "l_theanine_200": make_spec("l_theanine_200", low_qaly=-0.01, high_qaly=0.05),
-        "magnesium_citrate_150": make_spec(
-            "magnesium_citrate_150", low_qaly=-0.01, high_qaly=0.01
-        ),
-    }
+    return _apply_protocol_confounding_priors(
+        {
+            "statin_5mg": make_spec(
+                "statin_5mg",
+                observed_hr=math.exp(math.log(0.95) * (0.15 + 0.55 * cardio_need)),
+                log_sd=0.08,
+                qol_annual=0.0,
+                qol_years=20,
+                low_qaly=-0.01,
+                high_qaly=0.05,
+                personalization="Strong causal class, but you already have LDL 64 and no documented ASCVD, so most trial effects shrink hard on transport.",
+                rationale="Statins are one of the more credible preventive drug classes, but the marginal benefit for a lean 39-year-old with already-good lipids is much smaller than headline meta-analytic averages.",
+                sources=("https://pubmed.ncbi.nlm.nih.gov/22607822/",),
+            ),
+            "metformin_500mg": make_spec(
+                "metformin_500mg",
+                observed_hr=math.exp(math.log(0.97) * metabolic_multiplier),
+                log_sd=0.10,
+                qol_annual=0.0,
+                qol_years=12,
+                low_qaly=-0.01,
+                high_qaly=0.02,
+                personalization="Downweighted heavily because your glycemia is already good and most compelling outcome data are in diabetic or prediabetic populations.",
+                rationale="Metformin is plausible as a modest metabolic-risk intervention, but not a big generic longevity lever for your phenotype.",
+                sources=("https://pubmed.ncbi.nlm.nih.gov/28802803/",),
+            ),
+            "empagliflozin": make_spec(
+                "empagliflozin",
+                observed_hr=math.exp(math.log(0.98) * metabolic_multiplier),
+                log_sd=0.10,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=-0.01,
+                high_qaly=0.02,
+                personalization="Transport is extremely weak here because the flagship benefits are in diabetes, heart failure, and CKD populations rather than a healthy lean 39-year-old.",
+                rationale="SGLT2 inhibitors are clinically important in the right phenotype, but they should not look like a major longevity drug for you.",
+                sources=("https://pubmed.ncbi.nlm.nih.gov/26378978/",),
+            ),
+            "aspirin_81mg": make_spec(
+                "aspirin_81mg",
+                observed_hr=math.exp(math.log(0.985) * (0.20 + 0.40 * cardio_need)),
+                log_sd=0.08,
+                qol_annual=0.0,
+                qol_years=12,
+                low_qaly=-0.03,
+                high_qaly=0.01,
+                personalization="The bleeding downside transports better to you than the net-prevention upside, because you are young and low-risk rather than high-ASCVD.",
+                rationale="Low-dose aspirin is now mostly a narrow-risk tool, not a generic prevention default.",
+                sources=("https://pubmed.ncbi.nlm.nih.gov/30221597/",),
+            ),
+            "semaglutide": semaglutide_spec,
+            "rapamycin_5mg_wk": make_spec(
+                "rapamycin_5mg_wk",
+                observed_hr=1.0,
+                log_sd=0.12,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=-0.01,
+                high_qaly=0.03,
+                personalization="I am treating this mainly as an uncertain translational hypothesis, not a currently supported personal-health intervention.",
+                rationale="Rapamycin remains interesting, but human longevity evidence is too incomplete for a large positive estimate.",
+                sources=("https://pubmed.ncbi.nlm.nih.gov/35322235/",),
+            ),
+            "lithium_5mg": make_spec(
+                "lithium_5mg",
+                observed_hr=1.0,
+                log_sd=0.07,
+                qol_annual=0.0002,
+                qol_years=15,
+                general_qol_utility_weight_ids=STRESS_QOL,
+                general_qol_lineage_note=(
+                    "Mood-stability hedge utility is anchored to a mild-anxiety fallback disability weight."
+                ),
+                low_qaly=-0.015,
+                high_qaly=0.015,
+                personalization="Kept small because the low-dose human outcome case is still mostly ecological and indirect.",
+                rationale="Interesting neuropsychiatric hedge, but still thin as a quantified longevity intervention.",
+            ),
+            "17a_estradiol": make_spec(
+                "17a_estradiol",
+                observed_hr=1.0,
+                log_sd=0.10,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=-0.01,
+                high_qaly=0.02,
+                personalization="Near zero because this is still mostly mouse lifespan extrapolation.",
+                rationale="No strong basis for a meaningful human QALY claim here yet.",
+            ),
+            "acarbose_50mg": make_spec(
+                "acarbose_50mg",
+                observed_hr=1.0,
+                log_sd=0.08,
+                qol_annual=-0.0005,
+                qol_years=10,
+                general_qol_utility_weight_ids=GUT_QOL,
+                general_qol_lineage_note=(
+                    "Negative utility is anchored to an IBS fallback disability weight for GI burden."
+                ),
+                low_qaly=-0.02,
+                high_qaly=0.01,
+                personalization="Modeled as mildly negative because GI burden transports better than lifespan-mouse optimism.",
+                rationale="Acarbose is more likely to create hassle than durable value for your current phenotype.",
+            ),
+            "glycine_2g": make_spec(
+                "glycine_2g",
+                observed_hr=1.0,
+                log_sd=0.05,
+                qol_annual=0.0010 * stress_multiplier,
+                qol_years=10,
+                general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
+                general_qol_lineage_note=(
+                    "Residual calming utility is anchored to insomnia/anxiety disability weights; "
+                    "component sleep relief is modeled separately."
+                ),
+                sleep_component_relief={
+                    "duration": 0.06,
+                    "quality": 0.14,
+                    "daytime": 0.10,
+                },
+                low_qaly=-0.01,
+                high_qaly=0.03,
+                personalization="Upweighted because sleep remains an active problem, but the evidence is still mainly symptom-level and measured in modest changes.",
+                rationale="Glycine looks like a plausible sleep/QOL helper rather than a major mortality intervention.",
+                sources=("https://pubmed.ncbi.nlm.nih.gov/22529837/",),
+            ),
+            "apigenin_50": make_spec(
+                "apigenin_50",
+                observed_hr=1.0,
+                log_sd=0.05,
+                qol_annual=0.0008 * stress_multiplier,
+                qol_years=10,
+                general_qol_utility_weight_ids=STRESS_QOL,
+                general_qol_lineage_note=(
+                    "Calming utility is anchored to a mild-anxiety fallback disability weight."
+                ),
+                sleep_component_relief={
+                    "quality": 0.12,
+                    "daytime": 0.08,
+                },
+                low_qaly=-0.01,
+                high_qaly=0.02,
+                personalization="Kept positive only through plausible calming/sleep utility, not through a strong causal longevity claim.",
+                rationale="Apigenin is a reasonable sleep-stack experiment, but not a proven life-extension tool.",
+            ),
+            "omega3_epa_2g": make_spec(
+                "omega3_epa_2g",
+                observed_hr=math.exp(math.log(0.97) * (0.25 + 0.60 * cardio_need)),
+                log_sd=0.09,
+                qol_annual=0.0,
+                qol_years=15,
+                low_qaly=-0.002,
+                high_qaly=0.02,
+                personalization="Marginally more plausible than low-dose omega-3 because triglycerides are not perfect, but still sharply trimmed at your baseline risk.",
+                rationale="Some cardiometabolic plausibility remains, but the incremental value over your existing health profile is modest.",
+            ),
+            "taurine_500_topup": make_spec(
+                "taurine_500_topup",
+                observed_hr=1.0,
+                log_sd=0.05,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=0.0,
+                high_qaly=0.01,
+                personalization="Very small because this is only a top-up on top of Longevity Mix, not a full taurine intervention.",
+                rationale="The marginal increment from 1.5g to 2g should not look large.",
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/34039357/",
+                    "https://pubmed.ncbi.nlm.nih.gov/39796489/",
+                ),
+            ),
+            "urolithin_a_500": make_spec(
+                "urolithin_a_500",
+                observed_hr=1.0,
+                log_sd=0.07,
+                qol_annual=0.0003,
+                qol_years=12,
+                general_qol_utility_weight_ids=FUNCTION_QOL,
+                general_qol_lineage_note=(
+                    "Exercise-recovery utility is anchored to a mild motor-impairment fallback weight."
+                ),
+                low_qaly=0.0,
+                high_qaly=0.015,
+                personalization="I kept a small functional upside for exercise recovery / mitochondria, but not enough to justify a major QALY number.",
+                rationale="Urolithin A is plausible but still early and expensive.",
+            ),
+            "ergothioneine_5": make_spec(
+                "ergothioneine_5",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=0.0,
+                high_qaly=0.008,
+                personalization="Near zero because most of the case is still observational and nutrient-status based.",
+                rationale="Interesting biomarker story, weak supplement-level clinical story.",
+            ),
+            "quercetin_500": make_spec(
+                "quercetin_500",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0003,
+                qol_years=10,
+                general_qol_utility_weight_ids=FUNCTION_QOL,
+                general_qol_lineage_note=(
+                    "Symptom/function utility is anchored to a mild motor-impairment fallback weight."
+                ),
+                low_qaly=0.0,
+                high_qaly=0.012,
+                personalization="Kept small because the best case is symptom relief in inflammatory/viral-persistence settings, not generic prevention.",
+                rationale="Quercetin might matter in the right symptom cluster, but not as a broad longevity capsule.",
+            ),
+            "sulforaphane_20_extra": make_spec(
+                "sulforaphane_20_extra",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=0.0,
+                high_qaly=0.01,
+                personalization="Incremental-only because you already get some sulforaphane exposure from food and the bundled broccoli seed extract.",
+                rationale="The extra dose is mostly mechanistic optimism.",
+            ),
+            "pterostilbene_50": make_spec(
+                "pterostilbene_50",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=-0.002,
+                high_qaly=0.008,
+                personalization="Near zero because this is still a resveratrol-family hypothesis, not a robust human outcome intervention.",
+                rationale="Little reason to assign a meaningful QALY effect.",
+            ),
+            "egcg_400": make_spec(
+                "egcg_400",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=-0.01,
+                high_qaly=0.01,
+                personalization="Near zero or slightly negative because liver-risk transport is clearer than mortality benefit transport in a supplement user like you.",
+                rationale="Green-tea epidemiology should not become a large EGCG-capsule claim.",
+            ),
+            "berberine_500": make_spec(
+                "berberine_500",
+                observed_hr=math.exp(math.log(0.98) * metabolic_multiplier),
+                log_sd=0.08,
+                qol_annual=-0.0005,
+                qol_years=10,
+                general_qol_utility_weight_ids=GUT_QOL,
+                general_qol_lineage_note=(
+                    "Negative utility is anchored to an IBS fallback disability weight for GI burden."
+                ),
+                low_qaly=-0.02,
+                high_qaly=0.01,
+                personalization="Your glycemia is already good, so the GI downside matters more than the diabetes-trial upside.",
+                rationale="Berberine is not an attractive personal intervention at your baseline.",
+            ),
+            "alpha_lipoic_acid_300": make_spec(
+                "alpha_lipoic_acid_300",
+                observed_hr=1.0,
+                log_sd=0.05,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=0.0,
+                high_qaly=0.008,
+                personalization="Near zero because the best-supported use case is diabetic neuropathy, not your phenotype.",
+                rationale="Weak general-prevention case.",
+            ),
+            "pqq_20": make_spec(
+                "pqq_20",
+                observed_hr=1.0,
+                log_sd=0.05,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=0.0,
+                high_qaly=0.008,
+                personalization="Mostly a mitochondrial-biomarker bet with little direct human utility evidence.",
+                rationale="Should be near zero unless future evidence improves materially.",
+            ),
+            "tmg_1g": make_spec(
+                "tmg_1g",
+                observed_hr=1.0,
+                log_sd=0.05,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=0.0,
+                high_qaly=0.005,
+                personalization="Tiny because this is mostly a methylation-support adjunct, not a clinically demonstrated intervention.",
+                rationale="Hard to justify more than noise-level utility.",
+            ),
+            "ashwagandha_600": make_spec(
+                "ashwagandha_600",
+                observed_hr=1.0,
+                log_sd=0.07,
+                qol_annual=0.0012 * stress_multiplier,
+                qol_years=10,
+                general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
+                general_qol_lineage_note=(
+                    "Stress/sleep utility is anchored to insomnia/anxiety disability weights; "
+                    "component sleep relief is modeled separately."
+                ),
+                sleep_component_relief={
+                    "duration": 0.05,
+                    "quality": 0.12,
+                    "daytime": 0.12,
+                },
+                low_qaly=-0.015,
+                high_qaly=0.04,
+                personalization="This is one of the few candidates I’d keep meaningfully positive because your sleep/stress profile leaves room for symptomatic benefit.",
+                rationale="Ashwagandha is best modeled as a stress/sleep/QOL intervention with non-zero rare downside.",
+            ),
+            "lions_mane_1g": make_spec(
+                "lions_mane_1g",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0006,
+                qol_years=15,
+                general_qol_utility_weight_ids=FUNCTION_QOL,
+                general_qol_lineage_note=(
+                    "Cognition/function utility is anchored to a mild motor-impairment fallback weight."
+                ),
+                low_qaly=0.0,
+                high_qaly=0.015,
+                personalization="Small only: human evidence is mainly cognition/mood signal, not durable prevention.",
+                rationale="Lion’s Mane is plausible as a small cognitive/QOL bet, not a large life-extension lever.",
+            ),
+            "black_seed_oil_1g": make_spec(
+                "black_seed_oil_1g",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=0.0,
+                high_qaly=0.01,
+                personalization="Kept near zero because evidence remains mostly biomarker and specialty-population work.",
+                rationale="Interesting anti-inflammatory profile, weak quantified personal-health case.",
+            ),
+            "cistanche_200": make_spec(
+                "cistanche_200",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.00075,
+                qol_years=15,
+                general_qol_utility_weight_ids=FUNCTION_QOL,
+                general_qol_lineage_note=(
+                    "Performance/recovery utility is anchored to a mild motor-impairment fallback weight."
+                ),
+                low_qaly=0.0,
+                high_qaly=0.02,
+                personalization="Small positive through possible exercise/recovery utility, not because I trust a direct longevity story.",
+                rationale="Cistanche is a plausible functional-performance bet with weak hard-outcome evidence.",
+            ),
+            "nmn_500": make_spec(
+                "nmn_500",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=0.0,
+                high_qaly=0.008,
+                personalization="Near zero because NR/NMN remain mostly NAD-biomarker interventions in humans.",
+                rationale="Mechanistic appeal is stronger than demonstrated clinical value.",
+            ),
+            "ghk_cu": make_spec(
+                "ghk_cu",
+                observed_hr=1.0,
+                log_sd=0.05,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=0.0,
+                high_qaly=0.01,
+                personalization="Modeled as flat because aesthetic/skin appearance utility is not currently represented in the public-health QALY reference case.",
+                rationale="Topical GHK-Cu may help skin appearance, but I am not assigning generic healthspan QALYs without a mapped utility domain.",
+            ),
+            "vitamin_c_500_extra": make_spec(
+                "vitamin_c_500_extra",
+                observed_hr=1.0,
+                log_sd=0.05,
+                qol_annual=0.0,
+                qol_years=10,
+                low_qaly=-0.002,
+                high_qaly=0.005,
+                personalization="Incremental vitamin C on top of adequate intake should be near flat.",
+                rationale="No reason to expect much marginal benefit here.",
+            ),
+            "zinc_carnosine_75": make_spec(
+                "zinc_carnosine_75",
+                observed_hr=1.0,
+                log_sd=0.05,
+                qol_annual=0.0002,
+                qol_years=10,
+                general_qol_utility_weight_ids=UPPER_GI_QOL,
+                general_qol_lineage_note=(
+                    "Upper-GI symptom utility is anchored to a reflux fallback disability weight."
+                ),
+                low_qaly=0.0,
+                high_qaly=0.006,
+                personalization="Useful mainly if you have a real GI barrier/irritation problem; otherwise near zero.",
+                rationale="Zinc carnosine is a phenotype-specific gut-symptom intervention, not a broad longevity tool.",
+            ),
+            "probiotic_daily": make_spec(
+                "probiotic_daily",
+                observed_hr=1.0,
+                log_sd=0.05,
+                qol_annual=0.0004,
+                qol_years=10,
+                general_qol_utility_weight_ids=GUT_QOL,
+                general_qol_lineage_note=(
+                    "Gut-comfort utility is anchored to an IBS fallback disability weight."
+                ),
+                low_qaly=-0.002,
+                high_qaly=0.01,
+                personalization=(
+                    "Downweighted because you do not have a strong documented GI indication, "
+                    "and you already run other gut-support items, so most of the plausible value here is small symptomatic upside."
+                ),
+                rationale=(
+                    "Daily probiotics are reasonable to test for GI comfort, but the broad long-run health case is weak "
+                    "and the marginal value on top of your existing gut stack should be small."
+                ),
+                sources=(
+                    "https://www.sportsresearch.store/products/probiotic-60-billion",
+                    "https://pubmed.ncbi.nlm.nih.gov/24230488/",
+                    "https://pubmed.ncbi.nlm.nih.gov/41233756/",
+                ),
+            ),
+            "apap_nightly": make_spec(
+                "apap_nightly",
+                qol_annual=0.0002,
+                qol_years=10,
+                general_qol_utility_weight_ids=AIRWAY_SLEEP_QOL,
+                general_qol_lineage_note=(
+                    "Residual mask/convenience-adjusted utility is anchored to sleep-apnoea/"
+                    "insomnia fallback weights; main sleep benefit is modeled separately."
+                ),
+                low_qaly=0.0,
+                high_qaly=0.15,
+                personalization=(
+                    f"Your March 25, 2026 home study showed mild OSA (REI {sleep_study.get('rei', 'n/a')}/hr), "
+                    f"and the updated airway probability is {sleep_airway['upper_airway_probability']}, so PAP now gets "
+                    "credit from an actual diagnosis rather than only wearable inference."
+                ),
+                rationale=(
+                    "With confirmed OSA, PAP is the most evidence-backed next sleep intervention by a wide margin."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/31806413/",
+                    "https://aasm.org/wp-content/uploads/2019/11/Treatment-OSA-with-PAP-Patient-Guide.pdf",
+                    "https://pubmed.ncbi.nlm.nih.gov/30736887/",
+                ),
+            ),
+            "oral_appliance_custom": make_spec(
+                "oral_appliance_custom",
+                qol_annual=0.0002,
+                qol_years=10,
+                general_qol_utility_weight_ids=AIRWAY_SLEEP_QOL,
+                general_qol_lineage_note=(
+                    "Residual appliance-convenience utility is anchored to sleep-apnoea/"
+                    "insomnia fallback weights; main sleep benefit is modeled separately."
+                ),
+                low_qaly=0.0,
+                high_qaly=0.10,
+                personalization=(
+                    f"Your home study is already in the nonsevere range (REI {sleep_study.get('rei', 'n/a')}/hr), so a custom oral appliance is now a concrete non-PAP option rather than a speculative backup."
+                ),
+                rationale=(
+                    "Custom oral appliance should usually underperform PAP on efficacy but can still be a credible option in mild OSA, especially if you prefer non-PAP treatment."
+                ),
+                sources=(
+                    "https://aasm.org/aasm-and-aadsm-issue-new-joint-clinical-practice-guideline-for-oral-appliance-therapy/",
+                    "https://pubmed.ncbi.nlm.nih.gov/26094920/",
+                    "https://pubmed.ncbi.nlm.nih.gov/32665778/",
+                ),
+            ),
+            "doxepin_3mg": make_spec(
+                "doxepin_3mg",
+                qol_annual=0.0011 * stress_multiplier,
+                qol_years=8,
+                general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
+                general_qol_lineage_note=(
+                    "Residual insomnia/stress utility is anchored to insomnia/anxiety disability "
+                    "weights; component sleep relief is modeled separately."
+                ),
+                low_qaly=-0.01,
+                high_qaly=0.04,
+                personalization=(
+                    "Modeled as a better-targeted sleep-maintenance bridge than trazodone, but still with some hangover and respiratory caution rather than assuming it is free upside."
+                ),
+                rationale=(
+                    "Low-dose doxepin has better insomnia-guideline support than trazodone for sleep maintenance, but it remains a symptom treatment rather than an airway fix."
+                ),
+                sources=(
+                    "https://aasm.org/resources/pdf/pharmacologictreatmentofinsomnia.pdf",
+                    "https://www.accessdata.fda.gov/drugsatfda_docs/label/2010/022036lbl.pdf",
+                ),
+            ),
+            "daridorexant_25mg": make_spec(
+                "daridorexant_25mg",
+                qol_annual=0.0013 * stress_multiplier,
+                qol_years=8,
+                general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
+                general_qol_lineage_note=(
+                    "Residual insomnia/stress utility is anchored to insomnia/anxiety disability "
+                    "weights; component sleep relief is modeled separately."
+                ),
+                low_qaly=-0.005,
+                high_qaly=0.05,
+                personalization=(
+                    "Modeled as the cleanest trazodone replacement candidate because it targets maintenance insomnia and has direct mild-to-moderate OSA respiratory-safety evidence, but its cost is brutal."
+                ),
+                rationale=(
+                    "Daridorexant looks like a more evidence-aligned insomnia alternative than trazodone in mild OSA, especially if you want less generic sedation."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/35065036/",
+                    "https://pubmed.ncbi.nlm.nih.gov/33305817/",
+                    "https://pubmed.ncbi.nlm.nih.gov/39543812/",
+                ),
+            ),
+            "lemborexant_5mg": make_spec(
+                "lemborexant_5mg",
+                qol_annual=0.00145 * stress_multiplier,
+                qol_years=8,
+                general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
+                general_qol_lineage_note=(
+                    "Residual insomnia/stress utility is anchored to insomnia/anxiety disability "
+                    "weights; component sleep relief is modeled separately."
+                ),
+                low_qaly=-0.005,
+                high_qaly=0.055,
+                personalization=(
+                    "Modeled as a strong maintenance-insomnia candidate with actual OSA respiratory-safety data, "
+                    "but probably a bit more next-day drag than daridorexant and likely not covered on your plan."
+                ),
+                rationale=(
+                    "Lemborexant looks like a credible evidence-based trazodone alternative in mild OSA, with stronger sleep-maintenance efficacy than doxepin "
+                    "and less respiratory discomfort than suvorexant."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/32585700/",
+                    "https://pubmed.ncbi.nlm.nih.gov/32187781/",
+                    "https://pubmed.ncbi.nlm.nih.gov/37677076/",
+                    "https://pubmed.ncbi.nlm.nih.gov/40848323/",
+                ),
+            ),
+            "suvorexant_10mg": make_spec(
+                "suvorexant_10mg",
+                qol_annual=0.0012 * stress_multiplier,
+                qol_years=8,
+                general_qol_utility_weight_ids=SLEEP_RESIDUAL_QOL,
+                general_qol_lineage_note=(
+                    "Residual insomnia/stress utility is anchored to insomnia/anxiety disability "
+                    "weights; component sleep relief is modeled separately."
+                ),
+                low_qaly=-0.008,
+                high_qaly=0.045,
+                personalization=(
+                    "Modeled as meaningfully better than trazodone on mechanism, but with more OSA-specific respiratory caution and next-day somnolence risk "
+                    "than daridorexant or lemborexant."
+                ),
+                rationale=(
+                    "Suvorexant is still a plausible maintenance-insomnia option, but the respiratory-safety story in OSA is less clean, "
+                    "so it ranks below the other DORAs for you."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/27397664/",
+                    "https://pubmed.ncbi.nlm.nih.gov/26194728/",
+                    "https://pubmed.ncbi.nlm.nih.gov/39543812/",
+                    "https://www.drugs.com/pro/belsomra.html",
+                ),
+            ),
+            "hiit_1x_week": make_spec(
+                "hiit_1x_week",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0028 * hiit_headroom,
+                qol_years=12,
+                general_qol_utility_weight_ids=FUNCTION_QOL,
+                general_qol_lineage_note=(
+                    "Exercise-function utility is anchored to a mild motor-impairment fallback weight."
+                ),
+                low_qaly=0.0,
+                high_qaly=0.04,
+                personalization=(
+                    f"Your 180-day Whoop pattern shows avg strain {training_180.get('avg_strain', 0)} with "
+                    f"{round(100 * float(training_180.get('high_strain_share', 0.0)), 1)}% of days at >=14 strain, "
+                    f"so I model one structured interval session as a modest CRF upgrade rather than a big new training load."
+                ),
+                rationale=(
+                    "One weekly HIIT session looks like a plausible way to improve VO2max/cardiorespiratory fitness a bit without assuming sedentary-person returns."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/26243014/",
+                    "https://pubmed.ncbi.nlm.nih.gov/38599681/",
+                ),
+            ),
+            "hiit_2x_week": make_spec(
+                "hiit_2x_week",
+                observed_hr=1.0,
+                log_sd=0.07,
+                qol_annual=0.0045 * hiit_headroom,
+                qol_years=12,
+                general_qol_utility_weight_ids=FUNCTION_QOL,
+                general_qol_lineage_note=(
+                    "Exercise-function utility is anchored to a mild motor-impairment fallback weight."
+                ),
+                low_qaly=0.0,
+                high_qaly=0.06,
+                personalization=(
+                    "Two weekly interval sessions can add a bit more CRF upside, but the marginal return is still capped because you already train daily and your Whoop fitness proxies are strong."
+                ),
+                rationale=(
+                    "Two HIIT sessions per week is still plausible as a small positive, but only if it replaces easier cardio rather than stacking on top of everything."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/26243014/",
+                    "https://pubmed.ncbi.nlm.nih.gov/38599681/",
+                    "https://pubmed.ncbi.nlm.nih.gov/40976973/",
+                ),
+            ),
+            "hiit_3x_week": make_spec(
+                "hiit_3x_week",
+                observed_hr=1.0,
+                log_sd=0.08,
+                qol_annual=0.0038 * hiit_headroom - 0.0008 * (1.0 - sleep_need),
+                qol_years=12,
+                general_qol_utility_weight_ids=FUNCTION_QOL,
+                general_qol_lineage_note=(
+                    "Exercise-function utility is anchored to a mild motor-impairment fallback weight."
+                ),
+                low_qaly=-0.005,
+                high_qaly=0.05,
+                personalization=(
+                    "I allow a third interval session only as a near-flat extension of 2x/week, because your training load is already high and a 2025 frequency study found no clear extra benefit from 3x over 2x in recreational runners."
+                ),
+                rationale=(
+                    "Three HIIT sessions per week could be fine for some people, but for you I model it as roughly flat to slightly worse than 2x/week unless the extra stimulus clearly outperforms the recovery cost."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/26243014/",
+                    "https://pubmed.ncbi.nlm.nih.gov/38599681/",
+                    "https://pubmed.ncbi.nlm.nih.gov/40976973/",
+                ),
+            ),
+            "zone2_cardio_2x_week": make_spec(
+                "zone2_cardio_2x_week",
+                observed_hr=1.0,
+                log_sd=0.05,
+                qol_annual=0.0018 * hiit_headroom,
+                qol_years=12,
+                general_qol_utility_weight_ids=FUNCTION_QOL,
+                general_qol_lineage_note=(
+                    "Exercise-function utility is anchored to a mild motor-impairment fallback weight."
+                ),
+                low_qaly=0.0,
+                high_qaly=0.025,
+                personalization=(
+                    "Because you already run and train daily, I only give a small positive for making some cardio more intentionally aerobic and structured."
+                ),
+                rationale=(
+                    "Structured zone-2 work is still plausible as a small positive, but less likely than HIIT to create a meaningful new stimulus in your current routine."
+                ),
+                sources=("https://pubmed.ncbi.nlm.nih.gov/38599681/",),
+            ),
+            "tempo_run_1x_week": make_spec(
+                "tempo_run_1x_week",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0034 * hiit_headroom,
+                qol_years=12,
+                general_qol_utility_weight_ids=FUNCTION_QOL,
+                general_qol_lineage_note=(
+                    "Exercise-function utility is anchored to a mild motor-impairment fallback weight."
+                ),
+                low_qaly=0.0,
+                high_qaly=0.045,
+                personalization=(
+                    "I place tempo work between zone 2 and HIIT: probably more additive than easy running, but not as distinct a VO2max stimulus as true intervals."
+                ),
+                rationale=(
+                    "A weekly tempo run is a credible middle-ground training intervention with modest expected upside."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/26243014/",
+                    "https://pubmed.ncbi.nlm.nih.gov/38599681/",
+                ),
+            ),
+            "strength_maintenance": make_spec(
+                "strength_maintenance",
+                observed_hr=1.0,
+                log_sd=0.04,
+                qol_annual=0.0003,
+                qol_years=12,
+                general_qol_utility_weight_ids=FUNCTION_QOL,
+                general_qol_lineage_note=(
+                    "Strength/function utility is anchored to a mild motor-impairment fallback weight."
+                ),
+                low_qaly=0.0,
+                high_qaly=0.01,
+                personalization=(
+                    "Near flat because your described routine already contains daily strength work, so a separate strength-maintenance intervention adds little."
+                ),
+                rationale=(
+                    "Strength is important in general, but your marginal gain from formalizing it further appears small."
+                ),
+                sources=("https://pubmed.ncbi.nlm.nih.gov/38599681/",),
+            ),
+            "traditional_sauna_4x_week": make_spec(
+                "traditional_sauna_4x_week",
+                observed_hr=1.0,
+                log_sd=0.08,
+                qol_annual=0.0008,
+                qol_years=15,
+                general_qol_utility_weight_ids=STRESS_QOL + FUNCTION_QOL,
+                general_qol_lineage_note=(
+                    "Relaxation/recovery utility is anchored to mild anxiety and functional "
+                    "impairment fallback weights."
+                ),
+                low_qaly=0.0,
+                high_qaly=0.03,
+                personalization=(
+                    "You already exercise daily and your cardiometabolic baseline is good, so I treat sauna as a modest relaxation/recovery and BP-surrogate intervention rather than as a real direct-longevity claim."
+                ),
+                rationale=(
+                    "Traditional dry sauna is the most plausible of the classic biohacker add-ons, but the credible benefit for you still looks modest."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/25705824/",
+                    "https://pmc.ncbi.nlm.nih.gov/articles/PMC9394774/",
+                ),
+            ),
+            "infrared_sauna_4x_week": make_spec(
+                "infrared_sauna_4x_week",
+                observed_hr=1.0,
+                log_sd=0.07,
+                qol_annual=0.00035,
+                qol_years=10,
+                general_qol_utility_weight_ids=STRESS_QOL + FUNCTION_QOL,
+                general_qol_lineage_note=(
+                    "Relaxation/recovery utility is anchored to mild anxiety and functional "
+                    "impairment fallback weights."
+                ),
+                low_qaly=0.0,
+                high_qaly=0.015,
+                personalization=(
+                    "I treat infrared sauna as a weaker recovery/relaxation analog to traditional dry sauna rather than as an equivalent longevity intervention."
+                ),
+                rationale=(
+                    "Infrared sauna may help relaxation or recovery a bit, but the evidence is materially weaker than for Finnish-style dry sauna."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/41049507/",
+                    "https://pmc.ncbi.nlm.nih.gov/articles/PMC9394774/",
+                ),
+            ),
+            "hbot_60sessions": make_spec(
+                "hbot_60sessions",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0,
+                qol_years=5,
+                low_qaly=-0.01,
+                high_qaly=0.01,
+                personalization=(
+                    "I am treating HBOT as a high-cost surrogate-biomarker play with uncertain persistence, not as a demonstrated healthy-aging intervention."
+                ),
+                rationale=(
+                    "Interesting but weakly grounded for a healthy 39-year-old; the evidence does not justify a large QALY estimate."
+                ),
+                sources=(
+                    "https://pubmed.ncbi.nlm.nih.gov/35649312/",
+                    "https://www.fda.gov/medical-devices/letters-health-care-providers/follow-instructions-safe-use-hyperbaric-oxygen-therapy-devices-letter-health-care-providers",
+                ),
+            ),
+            "bpc157_cycle": make_spec(
+                "bpc157_cycle",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0,
+                qol_years=2,
+                low_qaly=-0.01,
+                high_qaly=0.005,
+                personalization=(
+                    "Without a concrete injury or ulcer-healing phenotype, BPC-157 is mostly gray-market uncertainty and injection burden."
+                ),
+                rationale=(
+                    "For a healthy user, BPC-157 should be modeled as near-zero or slightly negative until real human efficacy and product-quality evidence improve."
+                ),
+                sources=(
+                    "https://index.mirasmart.com/AAOS2025/PDFfiles/AAOS2025-009087.PDF",
+                    "https://www.fda.gov/drugs/human-drug-compounding/understanding-risks-compounded-drugs",
+                ),
+            ),
+            "tb500_cycle": make_spec(
+                "tb500_cycle",
+                observed_hr=1.0,
+                log_sd=0.06,
+                qol_annual=0.0,
+                qol_years=2,
+                low_qaly=-0.012,
+                high_qaly=0.004,
+                personalization=(
+                    "This is even more speculative than BPC-157 in the absence of a specific recovery use case."
+                ),
+                rationale=(
+                    "TB-500 looks like a gray-market hypothesis stack component, not a credible general-health intervention."
+                ),
+                sources=(
+                    "https://www.fda.gov/drugs/human-drug-compounding/understanding-risks-compounded-drugs",
+                ),
+            ),
+            # Blueprint Longevity Mix actives added to the catalog in 4bf5a610.
+            # These are sparse specs: they declare only the QALY sanity range and
+            # inherit every evidence field (HR, log_sd, confounding prior, QoL,
+            # sources, rationale) from the cited CatalogEntry via resolve_stack_spec,
+            # so nothing is fabricated here. Five are modeled-null (catalog HR=1.0);
+            # glucosamine alone carries a cohort mortality signal (catalog HR=0.92),
+            # and l-theanine carries a small cited QoL term but no mortality signal.
+            "caakg_2000": make_spec("caakg_2000", low_qaly=-0.01, high_qaly=0.01),
+            "glucosamine_sulfate_750": make_spec(
+                "glucosamine_sulfate_750", low_qaly=-0.01, high_qaly=0.15
+            ),
+            "glutathione_250": make_spec(
+                "glutathione_250", low_qaly=-0.01, high_qaly=0.01
+            ),
+            "l_lysine_1000": make_spec("l_lysine_1000", low_qaly=-0.01, high_qaly=0.01),
+            "l_theanine_200": make_spec(
+                "l_theanine_200", low_qaly=-0.01, high_qaly=0.05
+            ),
+            "magnesium_citrate_150": make_spec(
+                "magnesium_citrate_150", low_qaly=-0.01, high_qaly=0.01
+            ),
+        }
+    )
 
 
 def format_cost_per_qaly(item: dict[str, Any]) -> str:

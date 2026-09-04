@@ -41,23 +41,27 @@ evidence:
       contribution: "Mechanism effects"
 
 confounding:
-  # RCT evidence (PREDIMED) but strong healthy user effect in observational studies
-  # RCT shows ~70% of observational effects are causal
+  # Carries the diet category value verbatim: the same Beta(3.0, 3.0) as
+  # confounding.categories.diet in python/optiqal/data/priors.yaml, which is
+  # the single source for this number.
   prior:
     type: beta
-    alpha: 6.0
-    beta: 2.5
+    alpha: 3.0
+    beta: 3.0
 
   rationale: |
-    PREDIMED RCT shows robust causal effects on CVD endpoints.
-    Observational estimates attenuated but RCT confirms large causal component.
-    Mendelian randomization studies (Larsson 2020) support causality.
-    Beta(6.0, 2.5) → mean 71%, 95% CI: 42-90%
+    Serves the diet category prior, not an item-specific calibration.
+    PREDIMED confirms a substantial causal effect (RCT, n=7447, 30% CVD
+    reduction), and nuts and olive oil have RCT backing, so diet carries a
+    higher causal fraction than exercise.
+    Beta(3.0, 3.0) → mean 50%, 95% CI: 15-85%
+    The item-level estimate this row replaced, Beta(6.0, 2.5) at mean 71%
+    argued from Larsson 2020 and Sofi 2014, is superseded; PR G removes the
+    per-item row in favour of one global prior plus paired-row overrides.
 
   calibration_sources:
-    - "PREDIMED RCT (Estruch 2018)"
-    - "Larsson 2020 (Mendelian randomization)"
-    - "Sofi 2014 (observational meta-analysis)"
+    - "PREDIMED Trial 2018 (RCT, n=7447, 30% CVD reduction)"
+    - "Aune et al. 2016 (nut meta-analysis)"
 
 # ============================================
 # MECHANISM EFFECTS

@@ -435,9 +435,27 @@ def _sample_distribution(
     rng: np.random.Generator,
 ) -> np.ndarray:
     """Sample a Distribution using the local generator for independence."""
-    return dist.sample(
-        n_simulations,
-        random_state=int(rng.integers(0, np.iinfo(np.uint32).max)),
+    return dist.sample(n_simulations, random_state=rng)
+
+
+def _spawn_generators(
+    random_state: Optional[int],
+    count: int,
+) -> tuple[np.random.Generator, ...]:
+    """Derive reproducible, independent semantic streams from one seed."""
+    return tuple(
+        np.random.default_rng(child)
+        for child in np.random.SeedSequence(random_state).spawn(count)
+    )
+
+
+def _has_direct_mortality_effect(intervention: Intervention) -> bool:
+    """Return whether an intervention has a non-null direct mortality arm."""
+    if intervention.mortality is None:
+        return False
+    hazard_ratio = intervention.mortality.hazard_ratio
+    return not (
+        hazard_ratio.type == "point" and float(hazard_ratio.params["value"]) == 1.0
     )
 
 
@@ -557,7 +575,7 @@ def simulate_qaly_profile_vectorized(
         return_qaly_gains: When true, also return the simulated net QALY draws.
     """
     discount_rate = validate_qaly_discount_rate(discount_rate)
-    rng = np.random.default_rng(random_state)
+    quality_rng, hr_rng, causal_rng, harm_rng = _spawn_generators(random_state, 4)
 
     # Profile adjustments
     baseline_mortality_multiplier = get_baseline_mortality_multiplier(profile)
@@ -603,24 +621,23 @@ def simulate_qaly_profile_vectorized(
 
     # Sample quality weight offsets (MEPS calibration: within-age σ=0.117)
     # Each simulation gets a person-specific offset that persists across years
-    quality_offsets = rng.normal(
+    quality_offsets = quality_rng.normal(
         0, QUALITY_WEIGHT_STD, n_simulations
     )  # (n_simulations,)
     # Quality weights vary by simulation: (n_simulations, n_years)
     quality = np.clip(base_quality[None, :] + quality_offsets[:, None], 0.1, 1.0)
 
     # Sample HRs and causal fractions (n_simulations,)
-    if intervention.mortality is not None:
-        hr_samples = intervention.mortality.hazard_ratio.sample(
-            n_simulations, random_state
-        )
+    has_direct_mortality_effect = _has_direct_mortality_effect(intervention)
+    if has_direct_mortality_effect:
+        hr_samples = intervention.mortality.hazard_ratio.sample(n_simulations, hr_rng)
 
         if intervention_effect_modifier != 1.0:
             hr_samples = np.exp(np.log(hr_samples) * intervention_effect_modifier)
 
         if apply_confounding and intervention.confounding_prior is not None:
             causal_samples = intervention.confounding_prior.sample(
-                n_simulations, random_state
+                n_simulations, causal_rng
             )
             causal_fraction_mean = intervention.confounding_prior.mean
             causal_fraction_ci = intervention.confounding_prior.ci(0.95)
@@ -722,7 +739,7 @@ def simulate_qaly_profile_vectorized(
         full_survival,
         full_curve,
         discount,
-        rng,
+        harm_rng,
         n_simulations,
     )
     interaction_harm_draws = _simulate_harm_draws(
@@ -730,7 +747,7 @@ def simulate_qaly_profile_vectorized(
         full_survival,
         full_curve,
         discount,
-        rng,
+        harm_rng,
         n_simulations,
     )
     qaly_gains = qaly_gains + direct_harm_draws + interaction_harm_draws
@@ -742,7 +759,7 @@ def simulate_qaly_profile_vectorized(
             continuation_survival,
             continuation_curve,
             discount,
-            rng,
+            harm_rng,
             n_simulations,
         )
         + _simulate_harm_draws(
@@ -750,7 +767,7 @@ def simulate_qaly_profile_vectorized(
             continuation_survival,
             continuation_curve,
             discount,
-            rng,
+            harm_rng,
             n_simulations,
         )
     )
@@ -762,7 +779,7 @@ def simulate_qaly_profile_vectorized(
             one_year_survival,
             one_year_curve,
             discount,
-            rng,
+            harm_rng,
             n_simulations,
         )
         + _simulate_harm_draws(
@@ -770,7 +787,7 @@ def simulate_qaly_profile_vectorized(
             one_year_survival,
             one_year_curve,
             discount,
-            rng,
+            harm_rng,
             n_simulations,
         )
     )
@@ -788,7 +805,7 @@ def simulate_qaly_profile_vectorized(
         other_contrib /= total_contrib
 
     # Posterior HR summaries (None when the intervention has no mortality arm).
-    if intervention.mortality is not None:
+    if has_direct_mortality_effect:
         posterior_hr_mean = float(np.mean(adjusted_hrs))
         posterior_hr_median = float(median_hr)
         posterior_hr_ci95 = (
@@ -861,16 +878,17 @@ def simulate_qaly(
         SimulationResult with QALY estimates and uncertainty
     """
     discount_rate = validate_qaly_discount_rate(discount_rate)
-    if intervention.mortality is None:
+    if not _has_direct_mortality_effect(intervention):
         return _zero_result(n_simulations, discount_rate=discount_rate)
 
     # Sample from distributions
-    hr_samples = intervention.mortality.hazard_ratio.sample(n_simulations, random_state)
+    hr_rng, causal_rng = _spawn_generators(random_state, 2)
+    hr_samples = intervention.mortality.hazard_ratio.sample(n_simulations, hr_rng)
 
     # Sample causal fractions if applying confounding
     if apply_confounding and intervention.confounding_prior is not None:
         causal_samples = intervention.confounding_prior.sample(
-            n_simulations, random_state
+            n_simulations, causal_rng
         )
         causal_fraction_mean = intervention.confounding_prior.mean
         causal_fraction_ci = intervention.confounding_prior.ci(0.95)
@@ -958,7 +976,7 @@ def simulate_qaly_profile(
         SimulationResult with QALY estimates and uncertainty
     """
     discount_rate = validate_qaly_discount_rate(discount_rate)
-    if intervention.mortality is None:
+    if not _has_direct_mortality_effect(intervention):
         return _zero_result(n_simulations, discount_rate=discount_rate)
 
     # Get profile-specific adjustments
@@ -973,7 +991,8 @@ def simulate_qaly_profile(
     )
 
     # Sample from distributions
-    hr_samples = intervention.mortality.hazard_ratio.sample(n_simulations, random_state)
+    hr_rng, causal_rng = _spawn_generators(random_state, 2)
+    hr_samples = intervention.mortality.hazard_ratio.sample(n_simulations, hr_rng)
 
     # Apply intervention effect modifier
     # If modifier > 1, intervention is more effective (HR moves further from 1)
@@ -985,7 +1004,7 @@ def simulate_qaly_profile(
     # Sample causal fractions if applying confounding
     if apply_confounding and intervention.confounding_prior is not None:
         causal_samples = intervention.confounding_prior.sample(
-            n_simulations, random_state
+            n_simulations, causal_rng
         )
         causal_fraction_mean = intervention.confounding_prior.mean
         causal_fraction_ci = intervention.confounding_prior.ci(0.95)

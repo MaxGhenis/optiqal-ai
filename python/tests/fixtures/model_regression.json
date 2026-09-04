@@ -14,8 +14,8 @@
      0.0026
     ],
     "p_harm": [
-     0.3056,
-     0.4134
+     0.2992,
+     0.4048
     ]
    },
    "apap_nightly": {
@@ -59,7 +59,7 @@
    },
    "oral_appliance_custom": {
     "total_qaly": [
-     0.0275,
+     0.0276,
      0.0373
     ]
    },
@@ -105,16 +105,16 @@
    "conservative_airway_support": {
     "combined_airway_support": {
      "marginal_qaly": [
-      0.0221,
-      0.0299
+      0.0222,
+      0.03
      ]
     }
    },
    "primary_osa_therapy_choice": {
     "apap_nightly": {
      "marginal_qaly": [
-      0.041,
-      0.0554
+      0.0411,
+      0.0555
      ]
     },
     "oral_appliance_custom": {
@@ -139,8 +139,8 @@
     },
     "doxepin_3mg": {
      "marginal_qaly": [
-      -0.0046,
-      -0.0016
+      -0.0047,
+      -0.0017
      ]
     }
    }
