@@ -31,6 +31,7 @@ import json
 import math
 import re
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Any, NoReturn, Optional
 
@@ -47,7 +48,6 @@ REQUIRED_PROVENANCE_KEYS = (
     "version",
 )
 
-_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -66,7 +66,7 @@ def snapshot_dir() -> Path:
 
 def canonical_json(data: Any) -> str:
     """Serialize ``data`` the one way the checksum is defined over."""
-    return json.dumps(data, sort_keys=True, separators=(",", ":"))
+    return json.dumps(data, allow_nan=False, sort_keys=True, separators=(",", ":"))
 
 
 def data_checksum(data: Any) -> str:
@@ -125,9 +125,13 @@ class Snapshot:
         node = self._node(path)
         if not isinstance(node, dict) or not node:
             self.fail(f"{where} is not a non-empty object")
-        if keys and tuple(node) != keys:
+        if keys and set(node) != set(keys):
             self.fail(f"{where} keys are {tuple(node)}, expected {keys}")
-        return {k: self._number(v, f"{where}.{k}", maximum) for k, v in node.items()}
+        output_keys = keys or tuple(node)
+        return {
+            key: self._number(node[key], f"{where}.{key}", maximum)
+            for key in output_keys
+        }
 
     def _age_keys(self, node: Any, where: str) -> list[int]:
         if not isinstance(node, dict) or not node:
@@ -136,7 +140,10 @@ class Snapshot:
         for key in node:
             if not isinstance(key, str) or not re.fullmatch(r"-?\d+", key):
                 self.fail(f"{where} has a non-integer age key: {key!r}")
-            ages.append(int(key))
+            age = int(key)
+            if key != str(age):
+                self.fail(f"{where} has a non-canonical age key: {key!r}")
+            ages.append(age)
         if any(b <= a for a, b in zip(ages, ages[1:])):
             self.fail(f"{where} ages are not strictly increasing: {ages}")
         if ages[0] < 0:
@@ -169,7 +176,7 @@ class Snapshot:
             row_where = f"{where}.{age}"
             if not isinstance(row, dict):
                 self.fail(f"{row_where} is not an object")
-            if tuple(row) != columns:
+            if set(row) != set(columns):
                 self.fail(f"{row_where} keys are {tuple(row)}, expected {columns}")
             values = {
                 c: self._number(row[c], f"{row_where}.{c}", maximum=None)
@@ -182,6 +189,11 @@ class Snapshot:
 
 
 _CACHE: dict[Path, Snapshot] = {}
+
+
+def _reject_nonfinite_json(value: str) -> NoReturn:
+    """Reject the non-standard NaN and Infinity tokens accepted by ``json``."""
+    raise ValueError(f"non-finite JSON constant {value!r}")
 
 
 def clear_cache() -> None:
@@ -202,8 +214,10 @@ def load_snapshot(name: str) -> Snapshot:
     if not path.exists():
         raise SnapshotError(f"{path}: snapshot file is missing")
     try:
-        raw = json.loads(path.read_text())
-    except (OSError, json.JSONDecodeError) as exc:
+        raw = json.loads(
+            path.read_text(encoding="utf-8"), parse_constant=_reject_nonfinite_json
+        )
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
         raise SnapshotError(f"{path}: cannot be read as JSON: {exc}") from exc
 
     if not isinstance(raw, dict):
@@ -219,14 +233,24 @@ def load_snapshot(name: str) -> Snapshot:
         if key not in provenance:
             raise SnapshotError(f"{path}: provenance is missing {key!r}")
         value = provenance[key]
-        if value is None or (isinstance(value, str) and not value.strip()):
+        if key == "version":
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise SnapshotError(f"{path}: provenance 'version' is not an integer")
+        elif not isinstance(value, str) or not value.strip():
             raise SnapshotError(f"{path}: provenance {key!r} is blank")
     if provenance["version"] != SNAPSHOT_FORMAT_VERSION:
         raise SnapshotError(
             f"{path}: provenance version is {provenance['version']!r}, "
             f"expected {SNAPSHOT_FORMAT_VERSION}"
         )
-    if not _DATE_RE.match(str(provenance["retrieved"])):
+    try:
+        retrieved = date.fromisoformat(provenance["retrieved"])
+    except ValueError as exc:
+        raise SnapshotError(
+            f"{path}: provenance retrieved is not YYYY-MM-DD: "
+            f"{provenance['retrieved']!r}"
+        ) from exc
+    if retrieved.isoformat() != provenance["retrieved"]:
         raise SnapshotError(
             f"{path}: provenance retrieved is not YYYY-MM-DD: "
             f"{provenance['retrieved']!r}"

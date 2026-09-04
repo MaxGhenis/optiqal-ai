@@ -53,13 +53,15 @@ def test_missing_provenance_fails_closed_and_names_file(snapshot_directory):
 
 
 def test_nan_fails_closed_and_names_file(snapshot_directory):
-    _write(snapshot_directory, "nan", _snapshot({"rates": {"1": float("nan")}}))
+    payload = _snapshot({"rates": {"1": 0.1}})
+    payload["data"]["rates"]["1"] = float("nan")
+    _write(snapshot_directory, "nan", payload)
 
     with pytest.raises(snapshots.SnapshotError) as error:
-        snapshots.load_snapshot("nan").age_table("rates")
+        snapshots.load_snapshot("nan")
 
     assert "nan.json" in str(error.value)
-    assert "not finite" in str(error.value)
+    assert "non-finite" in str(error.value)
 
 
 def test_negative_rate_fails_closed_and_names_file(snapshot_directory):
@@ -84,6 +86,16 @@ def test_non_monotone_ages_fail_closed_and_name_file(snapshot_directory):
 
     assert "ages.json" in str(error.value)
     assert "not strictly increasing" in str(error.value)
+
+
+def test_noncanonical_age_fails_closed_and_names_file(snapshot_directory):
+    _write(snapshot_directory, "age_spelling", _snapshot({"rates": {"01": 0.1}}))
+
+    with pytest.raises(snapshots.SnapshotError) as error:
+        snapshots.load_snapshot("age_spelling").age_table("rates")
+
+    assert "age_spelling.json" in str(error.value)
+    assert "non-canonical" in str(error.value)
 
 
 def test_checksum_mismatch_fails_closed_and_names_file(snapshot_directory):

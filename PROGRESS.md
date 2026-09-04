@@ -41,6 +41,8 @@ because this PR changes no number.
   checksum, finite non-negative values, bounded rates, and strictly increasing age keys.
 - Added loader tests using a monkeypatched temporary snapshot directory for missing files,
   missing provenance, NaN, negative rates, non-monotone ages, and checksum drift.
+- Hardened parsing so bare JSON NaN/Infinity fail before caching, age spellings cannot leak a
+  raw `KeyError`, provenance types and dates are validated, and named row order is irrelevant.
 
 ## Next
 
