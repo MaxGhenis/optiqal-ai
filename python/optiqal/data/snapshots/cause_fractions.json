@@ -8,7 +8,7 @@
     "version": 1,
     "status": "transcribed approximation; not source-validated",
     "retrieval_note": "The legacy repository history and current CDC WONDER landing page were inspected on this date; the original query and retrieval date were not recorded.",
-    "whatnut_history": "Likely adapted from CAUSE_FRACTIONS_BY_AGE in src/whatnut/lifecycle_pathways.py at What Nut commit c67a72322d277a42415b5553896baf757f771631 (2025-12-20, the day before this repo's 5e472e22): ages 40-80 are identical there, age 90 is 0.45/0.10/0.45. Similarity is evidence, not proof of inheritance.",
+    "whatnut_history": "Likely adapted from CAUSE_FRACTIONS_BY_AGE in src/whatnut/lifecycle_pathways.py at What Nut commit c67a72322d277a42415b5553896baf757f771631 (2025-12-20, the day before this repo's 5e472e22), which is the origin of those numbers in What Nut and carries the comment 'CDC WONDER, 2021 US mortality data (approximate)'. What Nut later mirrored the same values into src/whatnut/data/cause_fractions.yaml at commit 0ff87e2816f1303a8fb0afdc5b265f7e8ef541b8 (2026-02-20) under the same header; the two What Nut spellings are numerically identical, so the YAML is a mirror of the constant and not a second source. Against either, Optiqal ages 40-80 are identical and age 90 is 0.45/0.12/0.43 here versus 0.45/0.10/0.45 there. Similarity is evidence, not proof of inheritance.",
     "sha256_of_data": "e653f6864d8fc5c537e6ca5783932982dea7e11487a2c54e90da5b1111dfcb0c"
   },
   "data": {

@@ -7,6 +7,7 @@
     "generator": "python -m optiqal.data_build.cdc_life_table",
     "version": 1,
     "status": "transcribed; does not match cited source",
+    "retrieval_note": "The legacy artifact and source URLs were inspected on this date; the original transcription date was not recorded.",
     "comparison_artifact": "optiqal/data/snapshots/cdc_life_table_2021_source_comparison.json",
     "sha256_of_data": "c760c03f4cffc93b606f1b75ce0a13e32d5709ee1da52913ee9dd20e42d04cd2"
   },
