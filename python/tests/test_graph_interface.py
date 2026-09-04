@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from dataclasses import FrozenInstanceError
 
+import numpy as np
 import pytest
 
 from optiqal.graph.decl import (
@@ -18,6 +19,7 @@ from optiqal.graph.kernel import (
     Capabilities,
     Determinism,
     KernelBase,
+    KernelContext,
     KernelRegistry,
     KernelResult,
     Numeric,
@@ -172,6 +174,62 @@ def test_tolerance_and_numeric_scope_validation():
         NumericScope(Numeric.PLATFORM_BITWISE)
     with pytest.raises(ValueError, match="cannot be platform"):
         NumericScope(platform="platform")
+    with pytest.raises(TypeError, match="Numeric value"):
+        NumericScope(numeric="bitwise")
+    with pytest.raises(TypeError, match="non-empty"):
+        NumericScope(Numeric.PLATFORM_BITWISE, platform="")
+    with pytest.raises(ValueError, match="requires a Tolerance"):
+        NumericScope(Numeric.TOLERANCE_BOUND)
+    with pytest.raises(ValueError, match="Only a tolerance_bound"):
+        NumericScope(
+            Numeric.PLATFORM_BITWISE,
+            tolerance=Tolerance(),
+            platform="platform",
+        )
+
+
+def test_kernel_context_is_frozen_and_detaches_its_mappings():
+    inputs = {"input": {"value": 1}}
+    params = {"scale": 2}
+    numerics = {"input": NumericScope()}
+    context = KernelContext(
+        node=Node("node", "test@1", ("input",), params),
+        inputs=inputs,
+        params=params,
+        rng=np.random.Generator(np.random.PCG64(1)),
+        numerics=numerics,
+    )
+    inputs["later"] = None
+    params["scale"] = 3
+    numerics["later"] = NumericScope()
+    assert tuple(context.inputs) == ("input",)
+    assert context.params["scale"] == 2
+    assert tuple(context.numerics) == ("input",)
+    with pytest.raises(TypeError):
+        context.inputs["other"] = None
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("node", object()),
+        ("inputs", []),
+        ("params", []),
+        ("rng", object()),
+        ("numerics", {"input": object()}),
+    ],
+)
+def test_kernel_context_rejects_invalid_fields(field, value):
+    arguments = {
+        "node": Node("node", "test@1"),
+        "inputs": {},
+        "params": {},
+        "rng": np.random.Generator(np.random.PCG64(1)),
+        "numerics": {},
+    }
+    arguments[field] = value
+    with pytest.raises(TypeError):
+        KernelContext(**arguments)
 
 
 def test_capabilities_validate_roles_and_dependencies():
@@ -229,3 +287,5 @@ def test_source_hash_is_stable_and_dependency_sensitive():
     assert source_hash(_Kernel, dependencies=("numpy",)) != source_hash(_Kernel)
     with pytest.raises(ValueError, match="not installed"):
         source_hash(_Kernel, dependencies=("surely-not-an-installed-package",))
+    with pytest.raises(TypeError, match="non-empty"):
+        source_hash(_Kernel, dependencies=("",))

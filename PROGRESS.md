@@ -64,6 +64,8 @@ independent audit is addressing one fallback-source semantic defect before final
   PR A's normative retention value, preserving its meaning across the optional-module boundary.
 - Closed nested provenance-field bypasses so only the root of a gate receipt may carry
   `verification_state` and no kernel-authored value or receipt may carry `tier`.
+- Added direct coverage for every `KernelContext` validation branch and for the public
+  interface-lock hash, verifier, CLI, mismatch, and malformed-lock paths.
 
 ## Next
 
