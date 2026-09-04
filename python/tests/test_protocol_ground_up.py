@@ -1021,6 +1021,35 @@ def test_protocol_optimizer_drops_negative_current_item():
     context = protocol_ground_up.resolve_protocol_context(None)
     loaded_items = {item["id"]: item for item in load_protocol_items()}
     estimates_by_id = {
+        "aspirin_81mg": estimate_item(
+            loaded_items["aspirin_81mg"],
+            specs["aspirin_81mg"],
+            baseline,
+            context,
+            include_draws=True,
+        )
+    }
+
+    result = optimize_protocol_state(
+        [{"id": "aspirin_81mg", "status": "testing"}],
+        estimates_by_id,
+        specs,
+        context,
+        objective="qaly",
+    )
+
+    assert result["recommended_state"]["item_ids"] == []
+    assert result["actions_from_current"]["drop"] == ["aspirin_81mg"]
+    assert result["delta_qaly"] > 0
+
+
+def test_protocol_optimizer_keeps_positive_current_item():
+    baseline = load_baseline()
+    specs = build_specs(baseline)
+    specs.update(build_additional_specs(baseline))
+    context = protocol_ground_up.resolve_protocol_context(None)
+    loaded_items = {item["id"]: item for item in load_protocol_items()}
+    estimates_by_id = {
         "vitamin_d_2000": estimate_item(
             loaded_items["vitamin_d_2000"],
             specs["vitamin_d_2000"],
@@ -1038,9 +1067,10 @@ def test_protocol_optimizer_drops_negative_current_item():
         objective="qaly",
     )
 
-    assert result["recommended_state"]["item_ids"] == []
-    assert result["actions_from_current"]["drop"] == ["vitamin_d_2000"]
-    assert result["delta_qaly"] > 0
+    assert estimates_by_id["vitamin_d_2000"]["total_qaly"] > 0
+    assert result["recommended_state"]["item_ids"] == ["vitamin_d_2000"]
+    assert result["actions_from_current"]["drop"] == []
+    assert result["delta_qaly"] == 0
 
 
 def test_protocol_optimizer_payload_has_net_and_qaly_views():
