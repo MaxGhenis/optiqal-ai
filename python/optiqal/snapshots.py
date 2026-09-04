@@ -15,8 +15,9 @@ A snapshot file is::
 
 Loading fails closed. A missing file, unparseable JSON, a missing or blank
 provenance key, a checksum that does not match the ``data`` block, a value that
-is not a finite non-negative number, or an age table whose ages are not strictly
-increasing all raise :class:`SnapshotError` naming the file. Because
+is not a finite non-negative number, an age table whose ages are not strictly
+increasing, and an age table that has lost or gained an anchor its caller pinned
+all raise :class:`SnapshotError` naming the file. Because
 ``optiqal.lifecycle`` loads its snapshots at import, every one of those failures
 surfaces at import rather than as a wrong number in a card.
 
@@ -183,14 +184,25 @@ class Snapshot:
         return ages
 
     def age_table(
-        self, *path: str, maximum: Optional[float] = None
+        self,
+        *path: str,
+        ages: tuple[int, ...] = (),
+        maximum: Optional[float] = None,
     ) -> dict[int, float]:
-        """An age -> number table, keyed by int, ages strictly increasing."""
+        """An age -> number table, keyed by int, ages strictly increasing.
+
+        ``ages`` pins the exact age set the caller expects, the way ``keys``
+        pins a named table's columns. Without it a snapshot that lost or gained
+        an anchor still loads and the interpolators silently span the hole.
+        """
         where = f"data.{'.'.join(path)}"
         node = self._node(path)
-        ages = self._age_keys(node, where)
+        actual = self._age_keys(node, where)
+        if ages and tuple(actual) != ages:
+            self.fail(f"{where} ages are {tuple(actual)}, expected {ages}")
         return {
-            age: self._number(node[str(age)], f"{where}.{age}", maximum) for age in ages
+            age: self._number(node[str(age)], f"{where}.{age}", maximum)
+            for age in actual
         }
 
     def age_rows(

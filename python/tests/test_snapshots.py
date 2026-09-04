@@ -132,6 +132,53 @@ def test_overflowing_float_literal_fails_closed_and_names_file(snapshot_director
     assert "canonically serialized" in str(error.value)
 
 
+def test_age_table_rejects_a_missing_age_and_names_file(snapshot_directory):
+    """A one-row table used to satisfy every age check the loader had."""
+    _write(snapshot_directory, "short_ages", _snapshot({"rates": {"5": 0.05}}))
+
+    with pytest.raises(snapshots.SnapshotError) as error:
+        snapshots.load_snapshot("short_ages").age_table("rates", ages=(5, 10, 15))
+
+    assert "short_ages.json" in str(error.value)
+    assert "ages are (5,), expected (5, 10, 15)" in str(error.value)
+
+
+def test_age_table_rejects_an_extra_age_and_names_file(snapshot_directory):
+    _write(
+        snapshot_directory,
+        "long_ages",
+        _snapshot({"rates": {"5": 0.05, "10": 0.1, "12": 0.12, "15": 0.15}}),
+    )
+
+    with pytest.raises(snapshots.SnapshotError) as error:
+        snapshots.load_snapshot("long_ages").age_table("rates", ages=(5, 10, 15))
+
+    assert "long_ages.json" in str(error.value)
+    assert "ages are (5, 10, 12, 15), expected (5, 10, 15)" in str(error.value)
+
+
+def test_age_table_without_a_pin_still_accepts_any_increasing_ages(
+    snapshot_directory,
+):
+    """The pin is opt-in; unpinned callers keep the previous behaviour."""
+    _write(snapshot_directory, "free_ages", _snapshot({"rates": {"5": 0.05}}))
+
+    assert snapshots.load_snapshot("free_ages").age_table("rates") == {5: 0.05}
+
+
+def test_life_table_age_pin_matches_the_generator_pin():
+    """lifecycle.py and the standalone validator must name one age set."""
+    assert lifecycle.LIFE_TABLE_AGES == cdc_life_table.EXPECTED_AGES
+
+
+def test_runtime_age_pins_match_the_committed_snapshots():
+    assert tuple(lifecycle.CDC_LIFE_TABLE["male"]) == lifecycle.LIFE_TABLE_AGES
+    assert tuple(lifecycle.CDC_LIFE_TABLE["female"]) == lifecycle.LIFE_TABLE_AGES
+    assert tuple(lifecycle.QUALITY_WEIGHTS) == lifecycle.QUALITY_WEIGHT_AGES
+    assert len(lifecycle.LIFE_TABLE_AGES) == 22
+    assert len(lifecycle.QUALITY_WEIGHT_AGES) == 8
+
+
 def test_checksum_mismatch_fails_closed_and_names_file(snapshot_directory):
     payload = _snapshot({"rates": {"1": 0.1}})
     payload["data"]["rates"]["1"] = 0.2
@@ -232,6 +279,64 @@ def test_loaded_lifecycle_values_match_pre_refactor_literals():
 
     _assert_nested_close(actual, expected)
     assert isinstance(lifecycle.QUALITY_WEIGHT_STD, float)
+
+
+def _reload_lifecycle_against(tmp_path, monkeypatch, name: str, mutate) -> str:
+    """Copy the real snapshots, mutate one, and reload lifecycle against them."""
+    real_snapshot_dir = snapshots.snapshot_dir()
+    for runtime_name in ("cdc_life_table", "cause_fractions", "meps_quality_weights"):
+        shutil.copy2(
+            real_snapshot_dir / f"{runtime_name}.json", tmp_path / f"{runtime_name}.json"
+        )
+
+    target = tmp_path / f"{name}.json"
+    payload = json.loads(target.read_text(encoding="utf-8"))
+    mutate(payload["data"])
+    payload["provenance"]["sha256_of_data"] = snapshots.data_checksum(payload["data"])
+    target.write_text(json.dumps(payload), encoding="utf-8")
+
+    try:
+        with monkeypatch.context() as context:
+            context.setattr(snapshots, "snapshot_dir", lambda: tmp_path)
+            snapshots.clear_cache()
+            with pytest.raises(snapshots.SnapshotError) as error:
+                importlib.reload(lifecycle)
+            return str(error.value)
+    finally:
+        snapshots.clear_cache()
+        importlib.reload(lifecycle)
+
+
+def test_dropped_life_table_age_fails_during_lifecycle_import(tmp_path, monkeypatch):
+    """A checksum-consistent snapshot missing age 100 must not import."""
+
+    def drop_age_100(data):
+        del data["life_table"]["male"]["100"]
+
+    message = _reload_lifecycle_against(
+        tmp_path, monkeypatch, "cdc_life_table", drop_age_100
+    )
+
+    assert "cdc_life_table.json" in message
+    assert "data.life_table.male ages are" in message
+    assert "expected" in message
+
+
+def test_extra_quality_weight_age_fails_during_lifecycle_import(tmp_path, monkeypatch):
+    def insert_age_90(data):
+        weights = data["quality_weights"]
+        data["quality_weights"] = {
+            age: weights[age] for age in ("25", "35", "45", "55", "65", "75", "85")
+        }
+        data["quality_weights"]["90"] = 0.77
+        data["quality_weights"]["95"] = weights["95"]
+
+    message = _reload_lifecycle_against(
+        tmp_path, monkeypatch, "meps_quality_weights", insert_age_90
+    )
+
+    assert "meps_quality_weights.json" in message
+    assert "data.quality_weights ages are" in message
 
 
 def test_bad_snapshot_fails_during_lifecycle_import(tmp_path, monkeypatch):

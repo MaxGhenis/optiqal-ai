@@ -14,12 +14,46 @@ import numpy as np
 
 from .snapshots import load_snapshot
 
+# The exact anchor ages the interpolators expect. Pinned so a snapshot that has
+# lost or gained an age fails at import instead of being silently interpolated
+# across the hole. `data_build.cdc_life_table.EXPECTED_AGES` repeats the life
+# table set for standalone validation; test_snapshots.py holds the two equal.
+LIFE_TABLE_AGES = (
+    0,
+    1,
+    5,
+    10,
+    15,
+    20,
+    25,
+    30,
+    35,
+    40,
+    45,
+    50,
+    55,
+    60,
+    65,
+    70,
+    75,
+    80,
+    85,
+    90,
+    95,
+    100,
+)
+QUALITY_WEIGHT_AGES = (25, 35, 45, 55, 65, 75, 85, 95)
+
 # Runtime data is loaded and validated at import. The snapshot provenance records
 # which values are derived, authored, or only transcribed from the legacy engine.
 _LIFE_TABLE_SNAPSHOT = load_snapshot("cdc_life_table")
 CDC_LIFE_TABLE = {
-    "male": _LIFE_TABLE_SNAPSHOT.age_table("life_table", "male", maximum=1.0),
-    "female": _LIFE_TABLE_SNAPSHOT.age_table("life_table", "female", maximum=1.0),
+    "male": _LIFE_TABLE_SNAPSHOT.age_table(
+        "life_table", "male", ages=LIFE_TABLE_AGES, maximum=1.0
+    ),
+    "female": _LIFE_TABLE_SNAPSHOT.age_table(
+        "life_table", "female", ages=LIFE_TABLE_AGES, maximum=1.0
+    ),
 }
 
 _CAUSE_FRACTION_SNAPSHOT = load_snapshot("cause_fractions")
@@ -31,7 +65,9 @@ CAUSE_FRACTIONS = _CAUSE_FRACTION_SNAPSHOT.age_rows(
 )
 
 _QUALITY_WEIGHT_SNAPSHOT = load_snapshot("meps_quality_weights")
-QUALITY_WEIGHTS = _QUALITY_WEIGHT_SNAPSHOT.age_table("quality_weights", maximum=1.0)
+QUALITY_WEIGHTS = _QUALITY_WEIGHT_SNAPSHOT.age_table(
+    "quality_weights", ages=QUALITY_WEIGHT_AGES, maximum=1.0
+)
 QUALITY_WEIGHT_STD = _QUALITY_WEIGHT_SNAPSHOT.value("quality_weight_std", maximum=1.0)
 CONDITION_DECREMENTS = _QUALITY_WEIGHT_SNAPSHOT.named_table(
     "condition_decrements",
