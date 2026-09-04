@@ -90,6 +90,11 @@ State: fixing the read-only review findings in place on `rebuild/a-rng-priors`.
   decision-path `hiit_2x_week` table with the catalog-path caveat, and the measured
   null-item residual (-0.013928 to +0.009530, not the docstring's -0.035).
 
+- Item 9 (nice to have): the end-to-end protocol smoke test is split into a shared
+  helper plus a fast 1,000-draw case and a `@pytest.mark.slow` case at the production
+  40,000. The slow case takes about nine seconds, so it stays in the default suite;
+  `pytest -m "not slow"` deselects it.
+
 ### Next
 
-- Nice-to-have items 6, 7 and 9, then full verification.
+- Nice-to-have items 6 and 7, then full verification.
