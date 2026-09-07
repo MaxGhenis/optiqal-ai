@@ -18,6 +18,7 @@ from .defaults import (
     validate_qaly_discount_rate,
 )
 from .intervention import Distribution, Intervention, MortalityEffect
+from .product_composition import ProductChange, UnsupportedProductChangeError
 from .profile import Profile
 from .simulate import (
     effective_hr_for_mortality_qaly,
@@ -86,6 +87,15 @@ class Decision:
     override_hr: Optional[float] = None
     override_cost: Optional[float] = None
     override_qol: Optional[float] = None
+    # Product quantities do not establish the catalog's modeled exposure contrast.
+    # Supplying this field returns a typed unsupported error before simulation.
+    product_change: Optional[ProductChange] = None
+
+    def __post_init__(self) -> None:
+        if self.product_change is not None and not isinstance(
+            self.product_change, ProductChange
+        ):
+            raise ValueError("product_change must be a ProductChange or None")
 
 
 @dataclass
@@ -212,6 +222,12 @@ def _simulate_one(
     }
 
 
+def _require_catalog_decisions(decisions: List[Decision]) -> None:
+    for decision in decisions:
+        if decision.product_change is not None:
+            raise UnsupportedProductChangeError(decision.product_change)
+
+
 def evaluate_decisions(
     decisions: List[Decision],
     config: AnalysisConfig,
@@ -223,8 +239,11 @@ def evaluate_decisions(
     DROP: Negate the item's effect; cost becomes savings.
     ADJUST: Simulate with overridden parameters.
 
-    Returns list of dicts sorted by net_value descending.
+    Returns list of dicts sorted by net_value descending. Product changes raise
+    UnsupportedProductChangeError with quantity accounting before any simulation;
+    even full ingredient removal needs a separately validated effect mapping.
     """
+    _require_catalog_decisions(decisions)
     results = []
 
     for d in decisions:
@@ -361,6 +380,11 @@ def analyze(
     Returns:
         AnalysisResult with all outputs.
     """
+    # Preflight before catalog simulation or portfolio search: product accounting
+    # must not be interpreted as a new dose response or a catalog withdrawal.
+    if decisions:
+        _require_catalog_decisions(decisions)
+
     if catalog_entries is not None:
         entries = catalog_entries
         if config.categories is not None:

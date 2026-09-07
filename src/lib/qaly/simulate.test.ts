@@ -382,5 +382,5 @@ describe("simulateQALYImpactRigorous", () => {
     const highCIWidth = highQuality.ci95.high - highQuality.ci95.low;
     const lowCIWidth = lowQuality.ci95.high - lowQuality.ci95.low;
     expect(lowCIWidth).toBeGreaterThan(highCIWidth * 1.2); // At least 20% wider
-  });
+  }, 15_000); // Two 5,000-draw lifecycle simulations can exceed 5s on CI runners.
 });
