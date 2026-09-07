@@ -69,6 +69,13 @@ precompute_all_interventions(
 )
 ```
 
+## Product quantity accounting
+
+Product removal/replacement quantity accounting has a separate
+[integration contract](../docs/product-composition-accounting.md), including
+synthetic examples, explicit unknown amounts, and the boundary that prevents
+product changes from entering catalog QALY rankings without an effect mapping.
+
 ## Validation CLI
 
 Pan-UKB validation is available as an optional packaged workflow:
