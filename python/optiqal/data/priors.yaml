@@ -458,9 +458,15 @@ study_quality_shrinkage:
     source: >-
       RCT standard: some publication/selective-reporting bias (~20%).
       Examples: BP RCTs, sleep-RCT onset latency, PREDIMED.
+  mendelian_randomization:
+    retention: 0.80
+    source: "Copied from rct_standard, the closest existing design tier (PR D, 2026-09-04)."
   meta_analysis_rcts:
     retention: 0.80
     source: "Meta-analysis of RCTs: ~20% publication bias, partly corrected via trim-and-fill."
+  cohort_meta_analysis:
+    retention: 0.70
+    source: "Copied from cohort_large, the closest existing design tier (PR D, 2026-09-04)."
   cohort_large:
     retention: 0.70
     source: "Cohort: ~30% publication bias (Ioannidis 2008 baseline)."

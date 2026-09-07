@@ -264,6 +264,7 @@ class InterventionLineage:
 
     estimand: str
     model_version: Optional[str] = None
+    study_ids: List[str] = field(default_factory=list)
     studies: List[Dict[str, Any]] = field(default_factory=list)
     parameter_lineage: List[Dict[str, Any]] = field(default_factory=list)
     prior_lineage: List[Dict[str, Any]] = field(default_factory=list)
@@ -452,6 +453,7 @@ class Intervention:
             lineage = InterventionLineage(
                 estimand=lineage_data["estimand"],
                 model_version=lineage_data.get("model_version"),
+                study_ids=lineage_data.get("study_ids", []),
                 studies=lineage_data.get("studies", []),
                 parameter_lineage=lineage_data.get("parameter_lineage", []),
                 prior_lineage=lineage_data.get("prior_lineage", []),

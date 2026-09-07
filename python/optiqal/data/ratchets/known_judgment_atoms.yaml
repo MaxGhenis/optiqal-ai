@@ -1,0 +1,422 @@
+- id: catalog:17a_estradiol:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.5, 4.5) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:acarbose_50mg:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (2, 4) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:alpha_lipoic_acid_300:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.2, 5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:apap_nightly:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (3, 3.8) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:apigenin_50:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1, 6) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:ashwagandha_600:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.2, 5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:aspirin_81mg:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (2.5, 5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:aspirin_81mg:typed_value_differs
+  reason: typed value differs from study row
+  since: '2026-09-04'
+- id: catalog:astaxanthin_12:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1, 5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:berberine_500:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.5, 4.5) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:black_seed_oil_1g:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.2, 5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:boron_3:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1, 5.5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:bpc157_cycle:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1, 6.8) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:broccoli_seed_200:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.5, 4.5) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:caakg_2000:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.2, 6) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:cistanche_200:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1, 6) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:cocoa_flavanols_500:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (2.5, 3) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:collagen_22g:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1, 7) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:creatine_5g:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1, 6) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:curcumin_250:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.5, 4.5) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:daridorexant_25mg:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (2.4, 4.2) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:doxepin_3mg:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (2, 4.5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:egcg_400:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.5, 4.5) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:empagliflozin:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (3.5, 2.5) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:ergothioneine_5:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.2, 5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:finasteride_1.25mg:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (4, 2.5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:finasteride_1.25mg:typed_value_differs
+  reason: typed value differs from study row
+  since: '2026-09-04'
+- id: catalog:fisetin_100:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1, 5.5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:fisetin_100_unbundled:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1, 5.5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:garlic_1200:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (2, 4) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:ghk_cu:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1, 7) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:ginger_400:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1, 5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:glucosamine_sulfate_750:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1, 5.5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:glucosamine_sulfate_750:typed_value_differs
+  reason: typed value differs from study row
+  since: '2026-09-04'
+- id: catalog:glutathione_250:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.1, 6) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:glycine_2g:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.5, 6) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:hbot_60sessions:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.2, 6.4) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:head_elevation_nightly:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (2.2, 4.2) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:hiit_1x_week:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (2, 4.8) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:hiit_2x_week:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.9, 5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:hiit_3x_week:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.7, 5.4) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:humidifier_nightly:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.2, 6.2) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:hyaluronic_acid_120:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1, 7) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:infrared_sauna_4x_week:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.5, 5.2) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:l_lysine_1000:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.1, 6) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:l_theanine_200:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.2, 5.5) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:lemborexant_5mg:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (2.5, 4.1) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:lions_mane_1g:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1, 6) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:lithium_1mg_orotate:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.2, 5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:lithium_5mg:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.5, 4.5) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:lutein_zeaxanthin:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1, 5.5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:luteolin_100:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1, 5.5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:luteolin_100_unbundled:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1, 5.5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:magnesium_200:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (2, 3.5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:magnesium_citrate_150:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.1, 6) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:magnesium_citrate_150:typed_value_differs
+  reason: typed value differs from study row
+  since: '2026-09-04'
+- id: catalog:melatonin_300mcg:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.2, 4.5) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:metformin_500mg:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (2.5, 3.5) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:mouth_tape_nightly:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.3, 6) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:nac_1200:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.5, 4) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:nasacort_nightly:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (2, 4.5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:nasal_strips_nightly:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.8, 4.8) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:nmn_500:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.2, 5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:nr_300:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.2, 5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:nr_300_unbundled:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.2, 5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:omega3_clo:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (2.5, 3.5) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:omega3_clo:typed_value_differs
+  reason: typed value differs from study row
+  since: '2026-09-04'
+- id: catalog:omega3_epa_2g:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (2.5, 3) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:omega3_epa_2g:typed_value_differs
+  reason: typed value differs from study row
+  since: '2026-09-04'
+- id: catalog:oral_appliance_custom:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (2.6, 4.2) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:pqq_20:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1, 6) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:prebiotics:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1, 5.5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:probiotic_daily:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.2, 5.6) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:pterostilbene_50:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1, 5.5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:quercetin_500:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.5, 4.5) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:rapamycin_5mg_wk:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (2, 3) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:semaglutide:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (3.5, 2) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:spermidine_10:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.2, 5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:statin_5mg:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (4.5, 1.5) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:statin_5mg:typed_value_differs
+  reason: typed value differs from study row
+  since: '2026-09-04'
+- id: catalog:strength_maintenance:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.4, 5.6) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:sulforaphane_20_extra:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.5, 4.5) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:suvorexant_10mg:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (2.2, 4.8) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:tadalafil_2.5mg:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (2, 4) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:tadalafil_2.5mg:typed_value_differs
+  reason: typed value differs from study row
+  since: '2026-09-04'
+- id: catalog:taurine_500_topup:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.2, 6) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:tb500_cycle:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1, 7) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:tempo_run_1x_week:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.9, 4.9) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:tmg_1g:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1, 5.5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:traditional_sauna_4x_week:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.8, 4.8) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:traditional_sauna_4x_week:typed_value_differs
+  reason: typed value differs from study row
+  since: '2026-09-04'
+- id: catalog:trazodone_50mg:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (3, 3) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:ubiquinol_50:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.5, 4.5) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:ubiquinol_50_unbundled:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.5, 4.5) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:urolithin_a_500:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.5, 4.5) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:vitamin_c_500_extra:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (2, 4.5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:vitamin_d_2000:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (3, 4) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:vitamin_k2:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.5, 4) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: catalog:vitamin_k2:typed_value_differs
+  reason: typed value differs from study row
+  since: '2026-09-04'
+- id: catalog:zinc_carnosine_75:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.5, 4.5) differs from the CATEGORY_PRIORS fallback (1.2,
+    4.8)
+  since: '2026-09-04'
+- id: catalog:zone2_cardio_2x_week:confounding_prior
+  reason: per-item (conf_alpha, conf_beta) (1.8, 5) differs from the CATEGORY_PRIORS fallback (1.2, 4.8)
+  since: '2026-09-04'
+- id: evidence_effect_multiplier:high
+  reason: EVIDENCE_EFFECT_MULTIPLIERS value is hand-set to 1
+  since: '2026-09-04'
+- id: evidence_effect_multiplier:low
+  reason: EVIDENCE_EFFECT_MULTIPLIERS value is hand-set to 0.75
+  since: '2026-09-04'
+- id: evidence_effect_multiplier:moderate
+  reason: EVIDENCE_EFFECT_MULTIPLIERS value is hand-set to 0.95
+  since: '2026-09-04'
+- id: evidence_effect_multiplier:very-low
+  reason: EVIDENCE_EFFECT_MULTIPLIERS value is hand-set to 0.5
+  since: '2026-09-04'
+- id: overlap:daily_exercise_moderate->sleep_8_hours
+  reason: OVERLAP_MATRIX directed retention is hand-set to 0.85
+  since: '2026-09-04'
+- id: overlap:daily_exercise_moderate->strength_training
+  reason: OVERLAP_MATRIX directed retention is hand-set to 0.7
+  since: '2026-09-04'
+- id: overlap:daily_exercise_moderate->walking_30min_daily
+  reason: OVERLAP_MATRIX directed retention is hand-set to 0.4
+  since: '2026-09-04'
+- id: overlap:fish_oil_supplement->mediterranean_diet
+  reason: OVERLAP_MATRIX directed retention is hand-set to 0.5
+  since: '2026-09-04'
+- id: overlap:meditation_daily->sleep_8_hours
+  reason: OVERLAP_MATRIX directed retention is hand-set to 0.8
+  since: '2026-09-04'
+- id: overlap:mediterranean_diet->fish_oil_supplement
+  reason: OVERLAP_MATRIX directed retention is hand-set to 0.5
+  since: '2026-09-04'
+- id: overlap:sleep_8_hours->daily_exercise_moderate
+  reason: OVERLAP_MATRIX directed retention is hand-set to 0.85
+  since: '2026-09-04'
+- id: overlap:sleep_8_hours->meditation_daily
+  reason: OVERLAP_MATRIX directed retention is hand-set to 0.8
+  since: '2026-09-04'
+- id: overlap:sleep_8_hours->walking_30min_daily
+  reason: OVERLAP_MATRIX directed retention is hand-set to 0.9
+  since: '2026-09-04'
+- id: overlap:strength_training->daily_exercise_moderate
+  reason: OVERLAP_MATRIX directed retention is hand-set to 0.7
+  since: '2026-09-04'
+- id: overlap:strength_training->walking_30min_daily
+  reason: OVERLAP_MATRIX directed retention is hand-set to 0.8
+  since: '2026-09-04'
+- id: overlap:walking_30min_daily->daily_exercise_moderate
+  reason: OVERLAP_MATRIX directed retention is hand-set to 0.4
+  since: '2026-09-04'
+- id: overlap:walking_30min_daily->sleep_8_hours
+  reason: OVERLAP_MATRIX directed retention is hand-set to 0.9
+  since: '2026-09-04'
+- id: overlap:walking_30min_daily->strength_training
+  reason: OVERLAP_MATRIX directed retention is hand-set to 0.8
+  since: '2026-09-04'
+- id: study_quality_shrinkage:animal_or_mechanistic
+  reason: STUDY_QUALITY_SHRINKAGE retention is hand-set to 0.7
+  since: '2026-09-04'
+- id: study_quality_shrinkage:case_control
+  reason: STUDY_QUALITY_SHRINKAGE retention is hand-set to 0.4
+  since: '2026-09-04'
+- id: study_quality_shrinkage:cohort_large
+  reason: STUDY_QUALITY_SHRINKAGE retention is hand-set to 0.3
+  since: '2026-09-04'
+- id: study_quality_shrinkage:cohort_meta_analysis
+  reason: STUDY_QUALITY_SHRINKAGE retention is hand-set to 0.3
+  since: '2026-09-04'
+- id: study_quality_shrinkage:cohort_small
+  reason: STUDY_QUALITY_SHRINKAGE retention is hand-set to 0.35
+  since: '2026-09-04'
+- id: study_quality_shrinkage:mendelian_randomization
+  reason: STUDY_QUALITY_SHRINKAGE retention is hand-set to 0.2
+  since: '2026-09-04'
+- id: study_quality_shrinkage:meta_analysis_rcts
+  reason: STUDY_QUALITY_SHRINKAGE retention is hand-set to 0.2
+  since: '2026-09-04'
+- id: study_quality_shrinkage:observational_speculative
+  reason: STUDY_QUALITY_SHRINKAGE retention is hand-set to 0.55
+  since: '2026-09-04'
+- id: study_quality_shrinkage:rct_preregistered_hard_endpoint
+  reason: STUDY_QUALITY_SHRINKAGE retention is hand-set to 0.1
+  since: '2026-09-04'
+- id: study_quality_shrinkage:rct_standard
+  reason: STUDY_QUALITY_SHRINKAGE retention is hand-set to 0.2
+  since: '2026-09-04'
+- id: study_quality_shrinkage:supplement_industry_rct
+  reason: STUDY_QUALITY_SHRINKAGE retention is hand-set to 0.5
+  since: '2026-09-04'

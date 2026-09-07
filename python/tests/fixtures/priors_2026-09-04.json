@@ -8,7 +8,7 @@
           "PREDIMED Trial 2018 (RCT, n=7447, 30% CVD reduction)",
           "Aune et al. 2016 (nut meta-analysis)"
         ],
-        "rationale": "CALIBRATED: PREDIMED RCT confirms 30% CVD reduction, consistent with observational. Nuts, olive oil have RCT backing. Diet has higher causal fraction than exercise. Beta(3.0, 3.0) → mean 50%, 95% CI: 15-85%",
+        "rationale": "CALIBRATED: PREDIMED RCT confirms 30% CVD reduction, consistent with observational. Nuts, olive oil have RCT backing. Diet has higher causal fraction than exercise. Beta(3.0, 3.0) \u2192 mean 50%, 95% CI: 15-85%",
         "source": "Diet: Less skeptical - PREDIMED RCT confirms substantial causal effect."
       },
       "exercise": {
@@ -19,7 +19,7 @@
           "Finnish Twin Cohort 2024 (twin discordance)",
           "Mendelian randomization studies (null for mortality)"
         ],
-        "rationale": "CALIBRATED: RCTs show exercise does not reduce mortality (Ballin 2021, n=50k). Finnish Twin Cohort 2024: identical twins discordant for PA show no mortality difference. Beta(1.2, 6.0) → mean 17%, 95% CI: 0.8-49.0%",
+        "rationale": "CALIBRATED: RCTs show exercise does not reduce mortality (Ballin 2021, n=50k). Finnish Twin Cohort 2024: identical twins discordant for PA show no mortality difference. Beta(1.2, 6.0) \u2192 mean 17%, 95% CI: 0.8-49.0%",
         "source": "Category-specific confounding priors calibrated against actual RCT versus observational discrepancies: exercise uses Ballin 2021 and the Finnish Twin Cohort; diet uses PREDIMED; medical uses the statin observational-versus-RCT discrepancy. Exercise: VERY skeptical - RCTs and twin studies show ~0 causal effect."
       },
       "medical": {
@@ -29,14 +29,14 @@
           "Danaei et al. 2012 (statin RCT vs observational)",
           "ARRIVE/ASPREE trials (aspirin less effective)"
         ],
-        "rationale": "CALIBRATED: Even RCT-based drugs show observational inflation. Statins: HR 0.54 observational vs 0.84 RCT (causal fraction ~28%). Beta(2.5, 4.0) → mean 38%, 95% CI: 8-73%",
+        "rationale": "CALIBRATED: Even RCT-based drugs show observational inflation. Statins: HR 0.54 observational vs 0.84 RCT (causal fraction ~28%). Beta(2.5, 4.0) \u2192 mean 38%, 95% CI: 8-73%",
         "source": "Medical: Moderate skepticism - even RCT-based drugs show observational inflation."
       },
       "other": {
         "alpha": 1.2,
         "beta": 4.8,
         "calibration_sources": [],
-        "rationale": "Unknown intervention type; using conservative prior reflecting general observational bias from calibration data. Beta(1.2, 4.8) → mean 20%, 95% CI: 2-50%",
+        "rationale": "Unknown intervention type; using conservative prior reflecting general observational bias from calibration data. Beta(1.2, 4.8) \u2192 mean 20%, 95% CI: 2-50%",
         "source": "Other: Conservative prior."
       },
       "sleep": {
@@ -46,7 +46,7 @@
           "Cappuccio et al. 2010 (observational only)",
           "No mortality RCTs available"
         ],
-        "rationale": "No RCTs for sleep duration and mortality. High reverse causation risk: illness affects sleep patterns. CBT-I shows causal quality-of-life effects. Beta(1.5, 4.5) → mean 25%, 95% CI: 3-58%",
+        "rationale": "No RCTs for sleep duration and mortality. High reverse causation risk: illness affects sleep patterns. CBT-I shows causal quality-of-life effects. Beta(1.5, 4.5) \u2192 mean 25%, 95% CI: 3-58%",
         "source": "Sleep: Skeptical - no RCT evidence for mortality."
       },
       "social": {
@@ -55,7 +55,7 @@
         "calibration_sources": [
           "Holt-Lunstad et al. 2010 (observational only)"
         ],
-        "rationale": "Social relationships heavily confounded with SES, mental health, physical health. No RCT evidence possible for mortality endpoints. Beta(1.0, 5.5) → mean 15%, 95% CI: 1-42%",
+        "rationale": "Social relationships heavily confounded with SES, mental health, physical health. No RCT evidence possible for mortality endpoints. Beta(1.0, 5.5) \u2192 mean 15%, 95% CI: 1-42%",
         "source": "Social: Very skeptical - no RCT possible."
       },
       "stress": {
@@ -65,7 +65,7 @@
           "Goyal et al. 2014 (meditation RCT meta-analysis)",
           "Khoury et al. 2015"
         ],
-        "rationale": "Meditation/mindfulness RCTs show much smaller effects than observational. Stress levels heavily confounded with SES, health behaviors. Beta(1.2, 5.0) → mean 19%, 95% CI: 2-50%",
+        "rationale": "Meditation/mindfulness RCTs show much smaller effects than observational. Stress levels heavily confounded with SES, health behaviors. Beta(1.2, 5.0) \u2192 mean 19%, 95% CI: 2-50%",
         "source": "Stress: Very skeptical."
       },
       "substance": {
@@ -75,7 +75,7 @@
           "Taylor et al. 2014 (smoking cessation RCTs, ~56% causal)",
           "Stockwell et al. 2016 (alcohol J-curve is bias)"
         ],
-        "rationale": "CALIBRATED: Smoking cessation has strong RCT backing (causal fraction ~56%). Alcohol J-curve is entirely confounded (MR shows no benefit). Beta(2.0, 4.0) → mean 33%, 95% CI: 6-68%",
+        "rationale": "CALIBRATED: Smoking cessation has strong RCT backing (causal fraction ~56%). Alcohol J-curve is entirely confounded (MR shows no benefit). Beta(2.0, 4.0) \u2192 mean 33%, 95% CI: 6-68%",
         "source": "Substance: Mixed - smoking has RCT backing, alcohol J-curve is confounded."
       }
     },
@@ -183,7 +183,7 @@
           "Arem et al 2015 (dose-response with covariate adjustment)",
           "Hupin et al 2015 (older adults, sensitivity analyses)"
         ],
-        "rationale": "Exercise studies show substantial healthy user effect. Those who exercise differ in many unmeasured ways (diet, stress, genetics). Device-measured PA studies show attenuated effects vs self-report. RCTs limited by short duration but support causality. Beta(3.0, 5.0) → mean 38%, 95% CI: 11-70%",
+        "rationale": "Exercise studies show substantial healthy user effect. Those who exercise differ in many unmeasured ways (diet, stress, genetics). Device-measured PA studies show attenuated effects vs self-report. RCTs limited by short duration but support causality. Beta(3.0, 5.0) \u2192 mean 38%, 95% CI: 11-70%",
         "source": "Exercise shows strong healthy user bias, similar to walking. Device-measured PA (Ekelund 2019) shows ~40% of observational effect. RCT effects typically 30-50% of observational."
       },
       "daily_sunscreen": {
@@ -241,7 +241,7 @@
           "Cochrane review 2020 (RCT meta-analysis)",
           "REDUCE-IT 2019 (high-dose EPA RCT)"
         ],
-        "rationale": "Multiple large RCTs now available (VITAL, REDUCE-IT, Cochrane review). Early observational studies showed larger benefits (healthy user bias). RCTs show null to small effects in general population. REDUCE-IT showed benefit but used high-dose purified EPA (4g/day). Standard dose fish oil (1g EPA+DHA) shows minimal CV benefit. Beta(7.0, 2.0) → mean 78%, 95% CI: 50-94%",
+        "rationale": "Multiple large RCTs now available (VITAL, REDUCE-IT, Cochrane review). Early observational studies showed larger benefits (healthy user bias). RCTs show null to small effects in general population. REDUCE-IT showed benefit but used high-dose purified EPA (4g/day). Standard dose fish oil (1g EPA+DHA) shows minimal CV benefit. Beta(7.0, 2.0) \u2192 mean 78%, 95% CI: 50-94%",
         "source": "RCT evidence available, so confounding should be minimal. However, large RCTs (VITAL, Cochrane) show null/small effects. Observational studies showed larger benefits (likely confounded)."
       },
       "garlic_1200": {
@@ -382,7 +382,7 @@
           "Creswell et al 2016 (biomarker RCT)",
           "Pascoe et al 2017 (cortisol meta-analysis)"
         ],
-        "rationale": "Meditation RCTs show consistent effects on stress/anxiety (moderate size). Selection bias: regular meditators likely differ in baseline characteristics. RCT evidence moderate quality (short follow-up, high dropout rates). Mechanisms plausible (HPA axis, inflammatory pathways). Beta(4.0, 4.0) → mean 50%, 95% CI: 21-79%",
+        "rationale": "Meditation RCTs show consistent effects on stress/anxiety (moderate size). Selection bias: regular meditators likely differ in baseline characteristics. RCT evidence moderate quality (short follow-up, high dropout rates). Mechanisms plausible (HPA axis, inflammatory pathways). Beta(4.0, 4.0) \u2192 mean 50%, 95% CI: 21-79%",
         "source": "Meditation practitioners show strong selection effects. Those who meditate regularly differ in many ways (educated, health-conscious, low stress baseline?). RCT evidence exists but limited follow-up, high dropout."
       },
       "mediterranean_diet": {
@@ -392,7 +392,7 @@
           "PREDIMED Trial 2018 (RCT, n=7447, 30% CVD reduction)",
           "Aune et al. 2016 (nut meta-analysis)"
         ],
-        "rationale": "Serves the diet category prior, not an item-specific calibration. PREDIMED confirms a substantial causal effect (RCT, n=7447, 30% CVD reduction), and nuts and olive oil have RCT backing, so diet carries a higher causal fraction than exercise. Beta(3.0, 3.0) → mean 50%, 95% CI: 15-85% The item-level estimate this row replaced, Beta(6.0, 2.5) at mean 71% argued from Larsson 2020 and Sofi 2014, is superseded; PR G removes the per-item row in favour of one global prior plus paired-row overrides.",
+        "rationale": "Serves the diet category prior, not an item-specific calibration. PREDIMED confirms a substantial causal effect (RCT, n=7447, 30% CVD reduction), and nuts and olive oil have RCT backing, so diet carries a higher causal fraction than exercise. Beta(3.0, 3.0) \u2192 mean 50%, 95% CI: 15-85% The item-level estimate this row replaced, Beta(6.0, 2.5) at mean 71% argued from Larsson 2020 and Sofi 2014, is superseded; PR G removes the per-item row in favour of one global prior plus paired-row overrides.",
         "source": "Carries the diet category value verbatim: the same Beta(3.0, 3.0) as confounding.categories.diet, so the served number is the category calibration and not a separate item-level one."
       },
       "melatonin_300mcg": {
@@ -413,7 +413,7 @@
           "Millwood et al 2019 (China Kadoorie Biobank MR)",
           "Stockwell et al 2016 (abstainer bias review)"
         ],
-        "rationale": "Observational studies show J-curve (benefit at 1-2 drinks/day). Mendelian randomization studies (Holmes 2014, Millwood 2019) show: - No cardioprotective effect - Linear increase in BP, stroke risk with any alcohol Confounding by abstainer characteristics (sick quitters, religious). Benefits largely artifact. Harm reduction is real benefit. Beta(2.0, 6.0) → mean 25%, 95% CI: 5-56%",
+        "rationale": "Observational studies show J-curve (benefit at 1-2 drinks/day). Mendelian randomization studies (Holmes 2014, Millwood 2019) show: - No cardioprotective effect - Linear increase in BP, stroke risk with any alcohol Confounding by abstainer characteristics (sick quitters, religious). Benefits largely artifact. Harm reduction is real benefit. Beta(2.0, 6.0) \u2192 mean 25%, 95% CI: 5-56%",
         "source": "Alcohol shows strong confounding - the \"J-curve\" is largely artifact. Mendelian randomization (Holmes 2014, Millwood 2019) shows linear harm. Abstainers include sick quitters (reverse causation). Light drinkers tend to be healthier, wealthier."
       },
       "mouth_tape_nightly": {
@@ -499,7 +499,7 @@
           "Doll & Hill 1950s physician studies",
           "Multiple RCTs of cessation interventions"
         ],
-        "rationale": "Smoking causation extremely well-established through: - Dose-response (pack-years) - Temporality (reversal of risk after cessation) - Biological plausibility (multiple mechanisms) - Animal models and biochemical evidence Confounding minimal due to strong causal evidence. Beta(9.0, 1.0) → mean 90%, 95% CI: 71-99%",
+        "rationale": "Smoking causation extremely well-established through: - Dose-response (pack-years) - Temporality (reversal of risk after cessation) - Biological plausibility (multiple mechanisms) - Animal models and biochemical evidence Confounding minimal due to strong causal evidence. Beta(9.0, 1.0) \u2192 mean 90%, 95% CI: 71-99%",
         "source": "Smoking cessation has high causal evidence. Minimal healthy user bias (smokers who quit similar to continuing smokers). Dose-response very strong, reversibility supports causation."
       },
       "rapamycin_5mg_wk": {
@@ -520,7 +520,7 @@
           "Cappuccio 2010 (meta-analysis with subgroup analysis)",
           "Grandner 2016 (review of causality)"
         ],
-        "rationale": "Sleep duration shows U-shaped mortality curve with strong confounding. Short sleep often due to stress, illness, shift work (reverse causation). Long sleep may be marker of poor health. Mendelian randomization studies suggest ~25-35% causal for short sleep. Beta(2.0, 5.5) → mean 27%, 95% CI: 6-58%",
+        "rationale": "Sleep duration shows U-shaped mortality curve with strong confounding. Short sleep often due to stress, illness, shift work (reverse causation). Long sleep may be marker of poor health. Mendelian randomization studies suggest ~25-35% causal for short sleep. Beta(2.0, 5.5) \u2192 mean 27%, 95% CI: 6-58%",
         "source": "Sleep studies show strong reverse causation and healthy user bias. Mendelian randomization (Daghlas 2019) suggests ~25-40% causal. Short sleep often marker of stress, illness, shift work."
       },
       "spermidine_10": {
@@ -546,7 +546,7 @@
           "Momma et al 2022 (dose-response)",
           "Westcott 2012 (mechanism review)"
         ],
-        "rationale": "Resistance training observational studies show strong healthy user effect. Population that lifts weights highly selected for health consciousness. Limited long-term RCT data (too expensive, compliance issues). Mechanisms well-established but mortality effects uncertain. Beta(2.5, 6.0) → mean 29%, 95% CI: 7-61%",
+        "rationale": "Resistance training observational studies show strong healthy user effect. Population that lifts weights highly selected for health consciousness. Limited long-term RCT data (too expensive, compliance issues). Mechanisms well-established but mortality effects uncertain. Beta(2.5, 6.0) \u2192 mean 29%, 95% CI: 7-61%",
         "source": "Strength training shows even stronger healthy user bias than aerobic exercise. Those who lift weights tend to be more health-conscious, younger, male. Limited RCT data on mortality outcomes."
       },
       "sulforaphane_20_extra": {
@@ -632,7 +632,7 @@
           "Finnish Twin Cohort 2024 (twin discordance)",
           "Mendelian randomization studies (null for mortality)"
         ],
-        "rationale": "Serves the exercise category prior, not an item-specific calibration. RCTs show exercise does not reduce mortality (Ballin 2021, n=50k), identical twins discordant for physical activity show no mortality difference (Finnish Twin Cohort 2024), and Mendelian randomization is null for mortality. Beta(1.2, 6.0) → mean 17%, 95% CI: 0.8-49.0% The item-level sibling-comparison estimate (Hamer & Stamatakis 2012, ~33% causal) is superseded and no longer calibrates this row; PR G removes the per-item row in favour of one global prior plus paired-row overrides.",
+        "rationale": "Serves the exercise category prior, not an item-specific calibration. RCTs show exercise does not reduce mortality (Ballin 2021, n=50k), identical twins discordant for physical activity show no mortality difference (Finnish Twin Cohort 2024), and Mendelian randomization is null for mortality. Beta(1.2, 6.0) \u2192 mean 17%, 95% CI: 0.8-49.0% The item-level sibling-comparison estimate (Hamer & Stamatakis 2012, ~33% causal) is superseded and no longer calibrates this row; PR G removes the per-item row in favour of one global prior plus paired-row overrides.",
         "source": "Carries the exercise category value verbatim: the same Beta(1.2, 6.0) as confounding.categories.exercise, so the served number is the category calibration and not a separate item-level one."
       },
       "zinc_carnosine_75": {
@@ -1232,9 +1232,17 @@
       "retention": 0.7,
       "source": "Cohort: ~30% publication bias (Ioannidis 2008 baseline)."
     },
+    "cohort_meta_analysis": {
+      "retention": 0.7,
+      "source": "Copied from cohort_large, the closest existing design tier (PR D, 2026-09-04)."
+    },
     "cohort_small": {
       "retention": 0.65,
       "source": "Cohort: ~30% publication bias (Ioannidis 2008 baseline)."
+    },
+    "mendelian_randomization": {
+      "retention": 0.8,
+      "source": "Copied from rct_standard, the closest existing design tier (PR D, 2026-09-04)."
     },
     "meta_analysis_rcts": {
       "retention": 0.8,

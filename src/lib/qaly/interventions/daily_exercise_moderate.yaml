@@ -8,6 +8,20 @@ name: 150 Minutes/Week Moderate Exercise
 description: Achieve WHO guidelines of 150 minutes/week moderate-intensity aerobic activity (e.g., brisk walking, cycling, swimming)
 category: exercise
 
+lineage:
+  estimand: Lifetime net QALY delta versus not doing the intervention
+  model_version: canonical-v1
+  study_ids:
+    - wen2011_low_volume_activity_mortality
+    - arem2015_physical_activity_mortality
+    - arem2015_below_minimum_activity_mortality
+    - hupin2015_low_dose_activity_mortality
+    - ekelund2019_activity_mortality
+    - cornelissen2013_endurance_sbp
+  studies: []
+  parameter_lineage: []
+  prior_lineage: []
+
 keywords:
   - exercise
   - 150 minutes

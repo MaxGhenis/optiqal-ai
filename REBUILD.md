@@ -239,3 +239,41 @@ A card with `verification_state: heuristic` never reaches the public site.
   cannot see the divergence. PR G is where they either acquire a paired study row or
   collapse into the global prior; until then they are hand-set judgment atoms and
   belong in `known_judgment_atoms.yaml` when PR D lands it.
+
+## PR D notes (2026-09-04, review round one)
+
+The `studies.yaml` schema above changed while closing the review of PR D. The row is now:
+
+    - id: aune2016_nuts_allcause
+      doi: 10.1186/s12916-016-0730-3      # or pmid:
+      design: cohort_meta_analysis         # one of the STUDY_QUALITY_SHRINKAGE labels
+      population: "20 cohorts, 819,448 adults"
+      exposure: "nut consumption, 28 g/day"
+      comparator: "none"
+      endpoint: all_cause_mortality        # must appear in evidence.ENDPOINT_CLASSES
+      estimate: {type: RR, value: 0.78, ci_low: 0.72, ci_high: 0.84, ci_level: 0.95}
+      role: direct                         # direct | mechanism | transport | harm | baseline_risk | calibration
+      extracted_by: "gpt-5.6-sol lane 2026-09-04"
+      verified: 2026-09-04                 # date the identifier was resolved against the fixture
+      verified_by: "claude-opus-5 review lane 2026-09-04; europepmc refresh 2026-09-04"
+      notes: "The summary RRs per 28 grams/day increase in nut intake was ... all-cause mortality, 0.78 (95% CI: 0.72-0.84, ...)."
+
+Four rules were added, all enforced by the loader:
+
+- `notes` is the verbatim abstract sentence (or two adjacent sentences) that states the
+  estimate, with HTML tags stripped and whitespace collapsed. It is not a paraphrase and
+  carries no quotation marks of its own. The point estimate and both interval bounds must
+  appear in it as numbers.
+- `estimate.ci_level` defaults to 0.95 and is rejected outside the open interval (0.5, 1).
+- `endpoint` must appear in `evidence.ENDPOINT_CLASSES`, which classifies it as `mortality`,
+  `quality_of_life` or `intermediate`. `known_unsourced_claims` discharges a catalog claim
+  only with a linked `direct` or `transport` row whose class matches the leg.
+- `extracted_by` names the lane that read the abstract and wrote the row; `verified_by`
+  names the lane that re-checked the quote against a refreshed Europe PMC abstract.
+
+The fixture gained two fields per identifier: `abstract_sha256`, and `quotes`, a map from
+row id to the sha256 of that row's quoted sentence, written when a refresh confirmed the
+quote was a substring of the abstract. No abstract text is committed. `--check` recomputes
+each row's digest and fails on a mismatch, so an edited quote or a changed abstract is
+caught offline. `scripts/verify_evidence.py --refresh --abstracts-cache <path>` performs the
+same refresh from a local JSON abstract cache when a lane has no network.

@@ -8,6 +8,17 @@ name: Smoking Cessation
 description: Complete cessation of cigarette smoking with sustained abstinence
 category: substance
 
+lineage:
+  estimand: Lifetime net QALY delta versus not doing the intervention
+  model_version: canonical-v1
+  study_ids:
+    - jha2013_male_smoking_mortality
+    - pirie2013_smoking_mortality
+    - kenfield2008_smoking_mortality
+  studies: []
+  parameter_lineage: []
+  prior_lineage: []
+
 keywords:
   - quit smoking
   - stop smoking
