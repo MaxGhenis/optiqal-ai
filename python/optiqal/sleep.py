@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Dict, Mapping, Optional
+from typing import Dict, Mapping, Optional, Sequence, Tuple
 
 from .reference_case import PUBLIC_HEALTH_UTILITY_WEIGHTS
 
@@ -63,6 +63,166 @@ class SleepStudyResult:
     supine_rei: Optional[float] = None
     used_nasal_steroid: bool = False
     used_nasal_strips: bool = False
+    # Descriptive only; no model computation reads these two fields.
+    study_date: Optional[str] = None
+    # Set by pool_sleep_studies: the individual nights behind a pooled record.
+    nights: Tuple["SleepStudyResult", ...] = ()
+
+
+SLEEP_STUDY_EVENT_COUNT_FIELDS = (
+    "obstructive_apneas",
+    "hypopneas",
+    "central_apneas",
+    "mixed_apneas",
+)
+# Reported REIs are rounded to 0.1 events/h and sleep time to 0.1 h, so the
+# scored event counts over sleep time reproduce the reported REI only to about
+# that precision. A larger gap means a transcription error, not rounding.
+SLEEP_STUDY_REI_CONSISTENCY_TOLERANCE = 0.15
+
+
+def _study_event_total(study: SleepStudyResult) -> Optional[int]:
+    counts = [getattr(study, name) for name in SLEEP_STUDY_EVENT_COUNT_FIELDS]
+    if any(count is None for count in counts):
+        return None
+    return sum(int(count) for count in counts)
+
+
+def _pooled_flag(
+    name: str,
+    studies: Sequence[SleepStudyResult],
+    explicit: Optional[bool],
+) -> bool:
+    if explicit is not None:
+        return bool(explicit)
+    values = {bool(getattr(study, name)) for study in studies}
+    if len(values) != 1:
+        raise ValueError(
+            f"nights disagree on {name}; pass {name}= explicitly to "
+            "pool_sleep_studies rather than letting one night decide"
+        )
+    return values.pop()
+
+
+def pool_sleep_studies(
+    studies: Sequence[SleepStudyResult],
+    *,
+    used_nasal_steroid: Optional[bool] = None,
+    used_nasal_strips: Optional[bool] = None,
+) -> SleepStudyResult:
+    """Pool diagnostic nights into one study-level record.
+
+    - ``rei``: total scored events over total sleep hours (a ratio of sums,
+      not a mean of the nights' REIs). A night without all four event counts
+      contributes ``rei * total_sleep_hours`` events.
+    - ``supine_rei``: mean of the nights' supine REIs weighted by supine
+      hours (``supine_fraction * total_sleep_hours``).
+    - ``supine_fraction``: total supine hours over total sleep hours.
+    - ``mean_spo2``: sleep-hour-weighted mean. ``nadir_spo2``: minimum.
+    - Event counts and ``total_sleep_hours`` are totals over the pooled nights:
+      they are the numerator and denominator of the pooled REI.
+    - Per-night facts stay per night: every input night is kept, unchanged,
+      in ``nights``. The nasal-treatment flags describe a condition on one
+      night, so the pooled flag is taken only when every night agrees; when
+      they disagree the caller must pass the pooled value explicitly.
+
+    A single study is returned unchanged. Pooling needs every night's
+    ``total_sleep_hours`` and one shared ``study_type`` (a home test and an
+    in-lab PSG are not exchangeable: the model treats home tests as
+    underestimating severity).
+    """
+    studies = list(studies)
+    if not studies:
+        raise ValueError("pool_sleep_studies needs at least one study")
+    if len(studies) == 1 and used_nasal_steroid is None and used_nasal_strips is None:
+        return studies[0]
+    study_types = {study.study_type.lower() for study in studies}
+    if len(study_types) != 1:
+        raise ValueError(f"cannot pool different study types: {sorted(study_types)}")
+    hours: list[float] = []
+    events: list[float] = []
+    for study in studies:
+        if study.total_sleep_hours is None or study.total_sleep_hours <= 0:
+            raise ValueError("every pooled night needs a positive total_sleep_hours")
+        night_hours = float(study.total_sleep_hours)
+        counted = _study_event_total(study)
+        if counted is None:
+            night_events = float(study.rei) * night_hours
+        else:
+            implied_rei = counted / night_hours
+            tolerance = max(
+                SLEEP_STUDY_REI_CONSISTENCY_TOLERANCE, 0.03 * float(study.rei)
+            )
+            if abs(implied_rei - float(study.rei)) > tolerance:
+                raise ValueError(
+                    f"{study.study_date or 'a night'}: {counted} events over "
+                    f"{night_hours:.3f} h imply REI {implied_rei:.2f}, not the "
+                    f"reported {study.rei}"
+                )
+            night_events = float(counted)
+        hours.append(night_hours)
+        events.append(night_events)
+    total_hours = sum(hours)
+
+    supine_known = all(
+        study.supine_fraction is not None and study.supine_rei is not None
+        for study in studies
+    )
+    supine_fraction = supine_rei = None
+    if supine_known:
+        supine_hours = [
+            float(study.supine_fraction) * night_hours
+            for study, night_hours in zip(studies, hours)
+        ]
+        total_supine_hours = sum(supine_hours)
+        supine_fraction = total_supine_hours / total_hours
+        if total_supine_hours > 0:
+            supine_rei = (
+                sum(
+                    float(study.supine_rei) * night_supine
+                    for study, night_supine in zip(studies, supine_hours)
+                )
+                / total_supine_hours
+            )
+
+    mean_spo2 = None
+    if all(study.mean_spo2 is not None for study in studies):
+        mean_spo2 = (
+            sum(
+                float(study.mean_spo2) * night_hours
+                for study, night_hours in zip(studies, hours)
+            )
+            / total_hours
+        )
+    nadirs = [
+        float(study.nadir_spo2) for study in studies if study.nadir_spo2 is not None
+    ]
+
+    def total_count(name: str) -> Optional[int]:
+        values = [getattr(study, name) for study in studies]
+        if any(value is None for value in values):
+            return None
+        return sum(int(value) for value in values)
+
+    return SleepStudyResult(
+        study_type=studies[0].study_type,
+        rei=sum(events) / total_hours,
+        mean_spo2=mean_spo2,
+        nadir_spo2=min(nadirs) if nadirs else None,
+        total_sleep_hours=total_hours,
+        obstructive_apneas=total_count("obstructive_apneas"),
+        hypopneas=total_count("hypopneas"),
+        central_apneas=total_count("central_apneas"),
+        mixed_apneas=total_count("mixed_apneas"),
+        supine_fraction=supine_fraction,
+        supine_rei=supine_rei,
+        used_nasal_steroid=_pooled_flag(
+            "used_nasal_steroid", studies, used_nasal_steroid
+        ),
+        used_nasal_strips=_pooled_flag("used_nasal_strips", studies, used_nasal_strips),
+        study_date=None,
+        nights=tuple(studies),
+    )
 
 
 @dataclass(frozen=True)

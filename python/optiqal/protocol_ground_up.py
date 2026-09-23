@@ -51,6 +51,7 @@ from .sleep import (
     estimate_airway_response_signal,
     estimate_sleep_burden,
     estimate_sleep_relief_annual_qaly,
+    pool_sleep_studies,
     sleep_baseline_mortality_multiplier,
     sleep_intervention_mortality_hr_multiplier,
     sleep_utility_lineage,
@@ -192,6 +193,85 @@ def resolve_profile_age(
     )
 
 
+# GW Center for Sleep Disorders portable home sleep studies (diagnostic, read
+# by the same physician). Values are as the reports state them; total sleep
+# time is entered from the reported minutes, not the rounded hours.
+HOME_SLEEP_STUDY_2026_03_25 = SleepStudyResult(
+    study_type="home",
+    rei=7.7,
+    mean_spo2=97.0,
+    nadir_spo2=94.0,
+    total_sleep_hours=423 / 60,
+    obstructive_apneas=35,
+    hypopneas=19,
+    central_apneas=0,
+    mixed_apneas=0,
+    supine_fraction=0.52,
+    supine_rei=5.2,
+    used_nasal_steroid=True,
+    used_nasal_strips=True,
+    study_date="2026-03-25",
+)
+# Every field the 2026-06-01 report states (it also notes intermittent snoring,
+# which SleepStudyResult has no field for). The report does not say whether a
+# nasal steroid or nasal strips were used that night, and those two fields are
+# plain booleans with no "unknown" value, so they are deliberately absent here:
+# home_sleep_study_2026_06_01() makes the caller state them.
+HOME_SLEEP_STUDY_2026_06_01_REPORTED: dict[str, Any] = {
+    "study_type": "home",
+    "rei": 8.3,
+    "mean_spo2": 98.0,
+    "nadir_spo2": 95.0,
+    "total_sleep_hours": 453.5 / 60,
+    "obstructive_apneas": 55,
+    "hypopneas": 8,
+    "central_apneas": 0,
+    "mixed_apneas": 0,
+    "supine_fraction": 0.47,
+    "supine_rei": 13.4,
+    "study_date": "2026-06-01",
+}
+
+
+def home_sleep_study_2026_06_01(
+    *,
+    used_nasal_steroid: bool,
+    used_nasal_strips: bool,
+) -> SleepStudyResult:
+    """The 2026-06-01 home study, with the nasal-treatment flags the report omits."""
+    return SleepStudyResult(
+        **HOME_SLEEP_STUDY_2026_06_01_REPORTED,
+        used_nasal_steroid=used_nasal_steroid,
+        used_nasal_strips=used_nasal_strips,
+    )
+
+
+def pooled_home_sleep_study(
+    *,
+    june_used_nasal_steroid: bool,
+    june_used_nasal_strips: bool,
+    used_nasal_steroid: bool | None = None,
+    used_nasal_strips: bool | None = None,
+) -> SleepStudyResult:
+    """Both home studies pooled by ``pool_sleep_studies``.
+
+    The June nasal flags must be stated because the report does not record
+    them. When the two nights then disagree on a flag, the pooled flag must
+    also be stated (``used_nasal_steroid`` / ``used_nasal_strips``).
+    """
+    return pool_sleep_studies(
+        [
+            HOME_SLEEP_STUDY_2026_03_25,
+            home_sleep_study_2026_06_01(
+                used_nasal_steroid=june_used_nasal_steroid,
+                used_nasal_strips=june_used_nasal_strips,
+            ),
+        ],
+        used_nasal_steroid=used_nasal_steroid,
+        used_nasal_strips=used_nasal_strips,
+    )
+
+
 DEFAULT_PROTOCOL_CONTEXT = ProtocolContext(
     root=Path.home() / "maxghenis.com",
     protocol_json=Path.home() / "maxghenis.com" / "src" / "data" / "protocol-data.json",
@@ -211,21 +291,7 @@ DEFAULT_PROTOCOL_CONTEXT = ProtocolContext(
         has_hypertension=False,
         activity_level="active",
     ),
-    home_sleep_study=SleepStudyResult(
-        study_type="home",
-        rei=7.7,
-        mean_spo2=97.0,
-        nadir_spo2=94.0,
-        total_sleep_hours=7.1,
-        obstructive_apneas=35,
-        hypopneas=19,
-        central_apneas=0,
-        mixed_apneas=0,
-        supine_fraction=0.52,
-        supine_rei=5.2,
-        used_nasal_steroid=True,
-        used_nasal_strips=True,
-    ),
+    home_sleep_study=HOME_SLEEP_STUDY_2026_03_25,
 )
 
 # Backward-compatible aliases while callers migrate to ProtocolContext.
@@ -1524,6 +1590,77 @@ def build_decision_rankings(
     }
 
 
+def _payload_number(value: Any) -> Any:
+    if isinstance(value, float):
+        return round(value, 4)
+    return value
+
+
+def sleep_study_payload(study: SleepStudyResult) -> dict[str, Any]:
+    """JSON view of the home sleep study the baseline was updated with.
+
+    A pooled record also lists its dates, its per-night records and its total
+    sleep hours, so the per-night values stay visible next to the pooled ones.
+    """
+    payload: dict[str, Any] = {
+        "date": study.study_date,
+        "type": study.study_type,
+        "rei": _payload_number(study.rei),
+        "mean_spo2": _payload_number(study.mean_spo2),
+        "nadir_spo2": _payload_number(study.nadir_spo2),
+        "obstructive_apneas": study.obstructive_apneas,
+        "hypopneas": study.hypopneas,
+        "supine_fraction": _payload_number(study.supine_fraction),
+        "supine_rei": _payload_number(study.supine_rei),
+        "used_nasal_steroid": study.used_nasal_steroid,
+        "used_nasal_strips": study.used_nasal_strips,
+    }
+    if study.nights:
+        payload.update(
+            {
+                "pooled": True,
+                "n_nights": len(study.nights),
+                "dates": [night.study_date for night in study.nights],
+                "total_sleep_hours": _payload_number(study.total_sleep_hours),
+                "central_apneas": study.central_apneas,
+                "mixed_apneas": study.mixed_apneas,
+                "nights": [
+                    sleep_study_payload(night)
+                    | {"total_sleep_hours": _payload_number(night.total_sleep_hours)}
+                    for night in study.nights
+                ],
+            }
+        )
+    return payload
+
+
+def _format_study_date(value: str) -> str:
+    parsed = date.fromisoformat(value)
+    return f"{parsed:%B} {parsed.day}, {parsed.year}"
+
+
+def sleep_study_subject(sleep_study: dict[str, Any], *, dated: bool) -> str:
+    """Subject phrase such as "Your March 25, 2026 home study" (or pooled)."""
+    dates = [value for value in sleep_study.get("dates") or [] if value]
+    if len(dates) > 1:
+        if not dated:
+            return "Your pooled home studies"
+        return (
+            "Your pooled home studies ("
+            + ", ".join(_format_study_date(value) for value in dates[:-1])
+            + f" and {_format_study_date(dates[-1])})"
+        )
+    single = sleep_study.get("date")
+    if dated and single:
+        return f"Your {_format_study_date(single)} home study"
+    return "Your home study"
+
+
+def _format_rei(sleep_study: dict[str, Any]) -> str:
+    value = sleep_study.get("rei")
+    return "n/a" if value is None else f"{float(value):.1f}"
+
+
 def query_one(conn: sqlite3.Connection, sql: str) -> sqlite3.Row:
     row = conn.execute(sql).fetchone()
     if row is None:
@@ -1943,19 +2080,7 @@ def load_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
             "sleep_component_utility_lineage": sleep_utility_lineage(sleep_estimate),
             "sleep_mortality_signal": round(sleep_estimate.mortality_signal, 3),
             "airway_response_signal": round(airway_response_signal, 3),
-            "sleep_study": {
-                "date": "2026-03-25",
-                "type": context.home_sleep_study.study_type,
-                "rei": context.home_sleep_study.rei,
-                "mean_spo2": context.home_sleep_study.mean_spo2,
-                "nadir_spo2": context.home_sleep_study.nadir_spo2,
-                "obstructive_apneas": context.home_sleep_study.obstructive_apneas,
-                "hypopneas": context.home_sleep_study.hypopneas,
-                "supine_fraction": context.home_sleep_study.supine_fraction,
-                "supine_rei": context.home_sleep_study.supine_rei,
-                "used_nasal_steroid": context.home_sleep_study.used_nasal_steroid,
-                "used_nasal_strips": context.home_sleep_study.used_nasal_strips,
-            },
+            "sleep_study": sleep_study_payload(context.home_sleep_study),
             "sleep_airway": {
                 "upper_airway_probability": round(
                     float(sleep_estimate.airway.upper_airway_probability)
@@ -3274,7 +3399,7 @@ def build_additional_specs(
                 low_qaly=0.0,
                 high_qaly=0.15,
                 personalization=(
-                    f"Your March 25, 2026 home study showed mild OSA (REI {sleep_study.get('rei', 'n/a')}/hr), "
+                    f"{sleep_study_subject(sleep_study, dated=True)} showed mild OSA (REI {_format_rei(sleep_study)}/hr), "
                     f"and the updated airway probability is {sleep_airway['upper_airway_probability']}, so PAP now gets "
                     "credit from an actual diagnosis rather than only wearable inference."
                 ),
@@ -3299,7 +3424,7 @@ def build_additional_specs(
                 low_qaly=0.0,
                 high_qaly=0.10,
                 personalization=(
-                    f"Your home study is already in the nonsevere range (REI {sleep_study.get('rei', 'n/a')}/hr), so a custom oral appliance is now a concrete non-PAP option rather than a speculative backup."
+                    f"{sleep_study_subject(sleep_study, dated=False)} {'are' if sleep_study.get('pooled') else 'is'} already in the nonsevere range (REI {_format_rei(sleep_study)}/hr), so a custom oral appliance is now a concrete non-PAP option rather than a speculative backup."
                 ),
                 rationale=(
                     "Custom oral appliance should usually underperform PAP on efficacy but can still be a credible option in mild OSA, especially if you prefer non-PAP treatment."
