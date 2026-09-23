@@ -11,6 +11,7 @@ import json
 import math
 import os
 import sqlite3
+import time
 from collections import Counter
 from dataclasses import asdict, dataclass, field, replace
 from datetime import date
@@ -4919,6 +4920,12 @@ def render_markdown(payload: dict[str, Any]) -> str:
     lines.append("")
     lines.extend(render_protocol_optimizer_table(payload["protocol_optimizers"]))
     lines.append("")
+    if payload.get("sleep_stack"):
+        # Local import: sleep_stack imports this module.
+        from .sleep_stack import render_sleep_stack_markdown
+
+        lines.extend(render_sleep_stack_markdown(payload["sleep_stack"]))
+        lines.append("")
     lines.append("## Current Stack Drop Table")
     lines.append("")
     lines.append(
@@ -5042,6 +5049,18 @@ def main(context: ProtocolContext | None = None) -> None:
         specs,
         context,
     )
+    # Local import: sleep_stack imports this module.
+    from .sleep_stack import optimize_sleep_stack
+
+    sleep_stack_started = time.perf_counter()
+    sleep_stack = optimize_sleep_stack(
+        protocol_items,
+        estimates_by_id,
+        specs,
+        context,
+        baseline=baseline,
+    )
+    sleep_stack["runtime_seconds"] = round(time.perf_counter() - sleep_stack_started, 1)
     estimates = [public_estimate_payload(item) for item in internal_estimates]
     estimates.sort(key=lambda x: x["total_qaly"], reverse=True)
     current_stack_drop_table = [
@@ -5115,6 +5134,7 @@ def main(context: ProtocolContext | None = None) -> None:
         "current_state": public_state_payload(current_state),
         "state_marginal_decisions": state_marginal_decisions,
         "protocol_optimizers": protocol_optimizers,
+        "sleep_stack": sleep_stack,
         "current_stack_drop_table": current_stack_drop_table,
         "rankings": build_decision_rankings(estimates),
         "items": estimates,
@@ -5145,6 +5165,24 @@ def main(context: ProtocolContext | None = None) -> None:
         f"{guard['sleep_qol_claimed_qaly']:+.4f} -> {guard['sleep_qol_effective_qaly']:+.4f} QALY "
         f"({guard['n_sleep_claims_guarded']} claims)"
     )
+    headline_wtp = str(PROTOCOL_OPTIMIZER_WTP)
+    for label, block in (
+        (
+            f"${PROTOCOL_OPTIMIZER_WTP:,}/QALY",
+            sleep_stack["net_benefit"].get(headline_wtp),
+        ),
+        ("QALY only", sleep_stack["qaly"]),
+    ):
+        if not block:
+            continue
+        delta = block["delta_vs_current"]
+        print(
+            f"Sleep stack optimum ({label}, {sleep_stack['state_count']:,} states, "
+            f"{sleep_stack['runtime_seconds']:.1f}s): "
+            f"{', '.join(block['optimum']['names']) or '(none)'}; "
+            f"{delta['delta_qaly']:+.4f} QALY ({delta['delta_days']:+.1f} days) vs current, "
+            f"P>0 {delta['p_delta_positive']:.1%}, cost {delta['delta_cost']:+,.0f}"
+        )
     drift = payload["summary"]["predeclared_range_drift"]
     print(
         f"Sanity check: {payload['summary']['items_within_range']}/{payload['summary']['n_items']} "

@@ -1542,6 +1542,11 @@ def _assert_main_writes_valid_outputs(tmp_path) -> dict:
         assert iid in item_ids
     assert out_md.read_text().strip()
     assert "Glucosamine" in out_md.read_text()
+    sleep_stack = payload["sleep_stack"]
+    assert sleep_stack["state_count"] == sleep_stack["expected_state_count"] > 1
+    assert sleep_stack["perspective"] == "cash"
+    assert set(sleep_stack["net_benefit"]) == {"50000", "100000", "150000", "200000"}
+    assert "## Sleep stack (exhaustive search)" in out_md.read_text()
     return payload
 
 
