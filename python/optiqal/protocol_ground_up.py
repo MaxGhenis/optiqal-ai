@@ -30,6 +30,10 @@ from .intervention import (
 )
 from .priors import load_priors
 from .profile import Profile
+from .provisional_params import (
+    L_THEANINE_BEDTIME_ID,
+    L_THEANINE_BEDTIME_SANITY_RANGE,
+)
 from .qol_annotations import (
     general_qol_evidence_for,
     sleep_relief_evidence_for,
@@ -3793,6 +3797,14 @@ def build_additional_specs(
             "magnesium_citrate_150": make_spec(
                 "magnesium_citrate_150", low_qaly=-0.01, high_qaly=0.01
             ),
+            # Standalone bedtime L-theanine (added 2026-09-23). A sparse spec:
+            # every model field, including the provisional sleep relief, comes
+            # from the catalog entry, which reads optiqal/provisional_params.py.
+            L_THEANINE_BEDTIME_ID: make_spec(
+                L_THEANINE_BEDTIME_ID,
+                low_qaly=L_THEANINE_BEDTIME_SANITY_RANGE[0],
+                high_qaly=L_THEANINE_BEDTIME_SANITY_RANGE[1],
+            ),
         }
     )
 
@@ -3973,6 +3985,15 @@ def simulate_structured_qaly(
 
 
 PREDECLARED_RANGES_PATH = Path(__file__).parent / "data" / "predeclared_ranges_v1.json"
+# Catalog items added after predeclared_ranges_v1.json was frozen. The frozen
+# file is never edited to admit them; drift reporting lists them apart from
+# items that are missing from the freeze without a declared reason.
+ITEMS_ADDED_AFTER_RANGE_FREEZE: dict[str, str] = {
+    L_THEANINE_BEDTIME_ID: (
+        "2026-09-23: standalone bedtime L-theanine with provisional parameters; "
+        "its spec range was declared after the freeze."
+    ),
+}
 
 
 def load_predeclared_ranges() -> dict[str, Any]:
@@ -3988,11 +4009,15 @@ def predeclared_range_drift(estimates: list[dict[str, Any]]) -> dict[str, Any]:
     edited: list[str] = []
     outside_frozen: list[str] = []
     unfrozen: list[str] = []
+    added_after_freeze: list[str] = []
     for item in estimates:
         item_id = str(item["id"])
         pair = frozen_ranges.get(item_id)
         if pair is None:
-            unfrozen.append(item_id)
+            if item_id in ITEMS_ADDED_AFTER_RANGE_FREEZE:
+                added_after_freeze.append(item_id)
+            else:
+                unfrozen.append(item_id)
             continue
         low, high = float(pair[0]), float(pair[1])
         if not (
@@ -4008,6 +4033,7 @@ def predeclared_range_drift(estimates: list[dict[str, Any]]) -> dict[str, Any]:
         "ranges_edited_since_freeze": edited,
         "items_outside_frozen_range": outside_frozen,
         "items_missing_from_freeze": unfrozen,
+        "items_added_after_freeze": added_after_freeze,
     }
 
 
@@ -5312,7 +5338,9 @@ def main(context: ProtocolContext | None = None) -> None:
     print(
         f"Sanity check: {payload['summary']['items_within_range']}/{payload['summary']['n_items']} "
         f"item estimates inside predeclared ranges (frozen {drift['frozen_at']}; "
-        f"{len(drift['ranges_edited_since_freeze'])} ranges edited since freeze)"
+        f"{len(drift['ranges_edited_since_freeze'])} ranges edited since freeze; "
+        f"{len(drift['items_added_after_freeze'])} items added after it, "
+        f"{len(drift['items_missing_from_freeze'])} missing from it undeclared)"
     )
     outside = [item for item in estimates if not item["within_range"]]
     if outside:

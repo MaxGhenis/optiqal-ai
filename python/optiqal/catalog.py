@@ -37,7 +37,16 @@ from .intervention import (
 )
 from .priors import load_priors
 from .profile import Profile
+from .provisional_params import (
+    L_THEANINE_BEDTIME_HR,
+    L_THEANINE_BEDTIME_ID,
+    L_THEANINE_BEDTIME_INTERACTION_TAGS,
+    L_THEANINE_BEDTIME_QOL_ANNUAL,
+    L_THEANINE_BEDTIME_QOL_YEARS,
+    L_THEANINE_BEDTIME_SLEEP_COMPONENT_RELIEF,
+)
 from .sleep import (
+    SLEEP_COMPONENT_BENEFIT_TAGS,
     SleepBurdenEstimate,
     effective_sleep_component_relief,
     estimate_airway_target_multiplier,
@@ -2871,6 +2880,34 @@ _add(
             "https://pmc.ncbi.nlm.nih.gov/articles/PMC6836118/",
         ),
         study_quality="rct_standard",
+        evidence_quality="low",
+    )
+)
+_add(
+    _catalog_entry(
+        L_THEANINE_BEDTIME_ID,
+        "L-Theanine 200mg bedtime",
+        "supplement_current",
+        hr_observed=L_THEANINE_BEDTIME_HR,
+        log_sd=0.05,
+        annual_cost=60.0,
+        qol_annual=L_THEANINE_BEDTIME_QOL_ANNUAL,
+        qol_years=L_THEANINE_BEDTIME_QOL_YEARS,
+        has_direct_mortality_effect=False,
+        interaction_tags=list(L_THEANINE_BEDTIME_INTERACTION_TAGS),
+        sleep_component_relief=dict(L_THEANINE_BEDTIME_SLEEP_COMPONENT_RELIEF),
+        benefit_tags=[
+            SLEEP_COMPONENT_BENEFIT_TAGS[component]
+            for component in L_THEANINE_BEDTIME_SLEEP_COMPONENT_RELIEF
+        ],
+        notes=(
+            "Standalone L-theanine 200 mg taken before bed, a separate product "
+            "from the 200 mg in the morning Blueprint Longevity Mix "
+            "(l_theanine_200). PROVISIONAL: the sleep-relief fractions and the "
+            "QoL-guard tier are placeholders in optiqal/provisional_params.py "
+            "until the evidence is adjudicated; no study is linked yet and no "
+            "mortality or general-QoL effect is modeled."
+        ),
         evidence_quality="low",
     )
 )

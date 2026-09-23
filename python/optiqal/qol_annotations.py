@@ -25,6 +25,11 @@ from __future__ import annotations
 
 from typing import Dict, Optional
 
+from .provisional_params import (
+    L_THEANINE_BEDTIME_ID,
+    L_THEANINE_BEDTIME_QOL_CATEGORY,
+    L_THEANINE_BEDTIME_QOL_STUDY_QUALITY,
+)
 from .qol_evidence import QolEvidence
 
 # --------------------------------------------------------------------------
@@ -147,6 +152,11 @@ GENERAL_QOL_EVIDENCE: Dict[str, QolEvidence] = {
         "supplement_industry_rct",
         "mood_stress",
         note="Small acute-stress trials, subjective endpoints.",
+    ),
+    L_THEANINE_BEDTIME_ID: QolEvidence(
+        L_THEANINE_BEDTIME_QOL_STUDY_QUALITY,
+        L_THEANINE_BEDTIME_QOL_CATEGORY,
+        note="PROVISIONAL tier (glycine_2g's) pending evidence adjudication; see provisional_params.py.",
     ),
     "lithium_5mg": QolEvidence(
         "observational_symptom",
@@ -463,6 +473,12 @@ SLEEP_RELIEF_EVIDENCE: Dict[str, QolEvidence] = {
         "sleep_symptom",
         _SLEEP,
         note="Manufacturer-affiliated trials.",
+    ),
+    L_THEANINE_BEDTIME_ID: QolEvidence(
+        L_THEANINE_BEDTIME_QOL_STUDY_QUALITY,
+        L_THEANINE_BEDTIME_QOL_CATEGORY,
+        _SLEEP,
+        note="PROVISIONAL tier (glycine_2g's) pending evidence adjudication; see provisional_params.py.",
     ),
     "apigenin_50": QolEvidence(
         "mechanistic_or_self_experiment",

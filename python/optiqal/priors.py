@@ -80,6 +80,7 @@ _INTERVENTION_KEYS = {
     "infrared_sauna_4x_week",
     "l_lysine_1000",
     "l_theanine_200",
+    "l_theanine_200_bedtime",
     "lemborexant_5mg",
     "lions_mane_1g",
     "lithium_1mg_orotate",

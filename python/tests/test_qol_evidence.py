@@ -222,15 +222,22 @@ def test_predeclared_ranges_match_the_frozen_file():
     precommitment: you cannot move a goalpost and the model in the same edit
     without the freeze file changing too.
     """
-    from optiqal.protocol_ground_up import load_predeclared_ranges
+    from optiqal.protocol_ground_up import (
+        ITEMS_ADDED_AFTER_RANGE_FREEZE,
+        load_predeclared_ranges,
+    )
 
     frozen = load_predeclared_ranges()["ranges"]
     baseline = load_baseline()
     specs = dict(build_specs(baseline))
     specs.update(build_additional_specs(baseline))
 
-    assert set(frozen) == set(specs)
+    # Items added after the freeze are declared, never written into the file.
+    assert not set(frozen) & set(ITEMS_ADDED_AFTER_RANGE_FREEZE)
+    assert set(frozen) | set(ITEMS_ADDED_AFTER_RANGE_FREEZE) == set(specs)
     for item_id, spec in specs.items():
+        if item_id in ITEMS_ADDED_AFTER_RANGE_FREEZE:
+            continue
         resolved = resolve_stack_spec(spec, CATALOG.get(item_id))
         assert frozen[item_id][0] == pytest.approx(resolved.low_qaly), item_id
         assert frozen[item_id][1] == pytest.approx(resolved.high_qaly), item_id
