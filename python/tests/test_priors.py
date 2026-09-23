@@ -374,3 +374,17 @@ def test_prior_literal_guard_recognizes_its_call_shapes(
     assert isinstance(call, ast.Call)
     name = call.func.id
     assert _guarded_literal_arguments(call, name) is expected
+
+
+def test_mortality_tier_keys_match_the_study_quality_vocabulary():
+    """The loader's pinned tier set and confounding.StudyQuality must not drift apart."""
+    from typing import get_args
+
+    from optiqal import confounding, priors
+
+    assert priors._MORTALITY_STUDY_QUALITY_KEYS == set(
+        get_args(confounding.StudyQuality)
+    )
+    assert set(confounding.STUDY_QUALITY_SHRINKAGE) == set(
+        get_args(confounding.StudyQuality)
+    )

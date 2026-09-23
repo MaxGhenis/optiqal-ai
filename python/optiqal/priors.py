@@ -227,7 +227,9 @@ _EVIDENCE_ADJUSTMENT_KEYS = {
 _MORTALITY_STUDY_QUALITY_KEYS = {
     "rct_preregistered_hard_endpoint",
     "rct_standard",
+    "mendelian_randomization",
     "meta_analysis_rcts",
+    "cohort_meta_analysis",
     "cohort_large",
     "cohort_small",
     "case_control",

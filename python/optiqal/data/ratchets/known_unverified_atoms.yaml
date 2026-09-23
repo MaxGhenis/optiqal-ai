@@ -344,15 +344,12 @@
 - id: yaml:meditation_daily:citation:pascoe-2017
   reason: 'YAML citation has no abstract-supported study row: Pascoe et al 2017 (cortisol meta-analysis)'
   since: '2026-09-04'
+- id: yaml:mediterranean_diet:citation:aune-2016
+  reason: 'YAML citation has no abstract-supported study row: Aune et al. 2016 (nut meta-analysis)'
+  since: '2026-09-22'
 - id: yaml:mediterranean_diet:citation:grosso-2017
   reason: 'YAML citation has no abstract-supported study row: Grosso G et al. A comprehensive meta-analysis
     on dietary flavonoid intake. Nutr Metab 2017;14:57'
-  since: '2026-09-04'
-- id: yaml:mediterranean_diet:citation:larsson-2020
-  reason: 'YAML citation has no abstract-supported study row: Larsson 2020 (Mendelian randomization)'
-  since: '2026-09-04'
-- id: yaml:mediterranean_diet:citation:sofi-2014
-  reason: 'YAML citation has no abstract-supported study row: Sofi 2014 (observational meta-analysis)'
   since: '2026-09-04'
 - id: yaml:quit_smoking:citation:doll-hill-1950s
   reason: 'YAML citation has no abstract-supported study row: Doll & Hill 1950s physician studies'
@@ -378,10 +375,18 @@
   reason: 'YAML citation has no abstract-supported study row: Westcott WL. Resistance training is medicine.
     Curr Sports Med Rep 2012;11:209-16'
   since: '2026-09-04'
-- id: yaml:walking_30min_daily:citation:hamer-stamatakis-2012
-  reason: 'YAML citation has no abstract-supported study row: Hamer & Stamatakis 2012 (sibling comparison)'
-  since: '2026-09-04'
+- id: yaml:walking_30min_daily:citation:ballin-2021
+  reason: 'YAML citation has no abstract-supported study row: Ballin et al. 2021 (RCT critical review,
+    n=50k)'
+  since: '2026-09-22'
+- id: yaml:walking_30min_daily:citation:finnish-2024
+  reason: 'YAML citation has no abstract-supported study row: Finnish Twin Cohort 2024 (twin discordance)'
+  since: '2026-09-22'
 - id: yaml:walking_30min_daily:citation:kelly-2014
   reason: 'YAML citation has no abstract-supported study row: Kelly et al 2014. Walking on mortality in
     cohorts'
   since: '2026-09-04'
+- id: yaml:walking_30min_daily:citation:mendelian-randomization-studies-null
+  reason: 'YAML citation has no abstract-supported study row: Mendelian randomization studies (null for
+    mortality)'
+  since: '2026-09-22'
