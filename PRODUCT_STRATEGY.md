@@ -149,25 +149,25 @@ This avoids false precision without introducing a brittle strong-versus-speculat
 - Penalize burden and cost explicitly
 - Make it easy to remove low-value habits or supplements, not just add more
 
-## Monetization
+## What ships
 
-Free:
-- Basic profile
-- Limited intervention comparisons
-- Public methodology and citations
+The product is the open engine and what it emits. There are no tiers.
 
-Paid individual:
-- Saved profile and stack
-- Lab and wearable imports
-- More interventions and swap analysis
-- Personalized rankings over time
-- Scenario planning and portfolio optimization
+Four things ship together, and every one of them is public:
 
-Paid pro:
-- Coaching or clinician view
-- Shared plans
-- Client reports
-- White-label decision support
+- The engine: one Python package that computes a decision card for a
+  (profile, intervention) pair, reached through `/api/baseline` and
+  `/api/frontier`.
+- The evidence table: the study rows every number traces back to, each with a
+  DOI or PMID that resolves.
+- The results file: one content-hashed file per commit that the site, the
+  methods note and any downstream surface all read.
+- The scoreboard: the counts of what is still unsourced, unverified, or
+  hand-set, published alongside the results rather than behind them.
+
+Anyone can read the code, rerun the engine, and get the same numbers. A card
+whose chain does not terminate in ground truth is nulled and listed, not
+softened and sold.
 
 ## Go-to-market
 
@@ -182,7 +182,7 @@ Phase 2:
 - Expand into practitioner or coach workflows
 
 Phase 3:
-- Add team plans, clinician tooling, and enterprise distribution if the consumer layer proves sticky
+- Add clinician and coach tooling on the same open engine if the consumer layer proves sticky
 
 ## Success criteria
 

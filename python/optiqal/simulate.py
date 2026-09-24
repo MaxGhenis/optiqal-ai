@@ -1,7 +1,7 @@
 """
 Monte Carlo Simulation Module
 
-Fast QALY estimation without full MCMC.
+QALY estimation by forward simulation over the priors registry.
 """
 
 from collections import Counter

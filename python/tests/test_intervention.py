@@ -120,8 +120,8 @@ class TestDistribution:
     def test_lognormal_params_helper_resolves_both_parameterizations(self):
         """_lognormal_params() must return usable (log_mean, log_sd) for both forms.
 
-        This is the path used by bayesian.py and any other caller that needs
-        the raw (log_mean, log_sd) tuple. Hr-keyed lognormals must not
+        This is the path used by any caller that needs the raw
+        (log_mean, log_sd) tuple. Hr-keyed lognormals must not
         KeyError here — the helper must mean-center internally.
         """
         hr_keyed = Distribution(type="lognormal", params={"hr": 0.80, "log_sd": 0.15})

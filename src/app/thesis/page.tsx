@@ -615,9 +615,9 @@ export default function ThesisPage() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
             {[
-              { value: "10", label: "modeled interventions" },
-              { value: "450", label: "TypeScript tests passing" },
-              { value: "121", label: "Python tests passing" },
+              { value: "10", label: "shipped intervention definitions" },
+              { value: "546", label: "Python engine tests passing" },
+              { value: "43", label: "web tests passing" },
               { value: "1", label: "paper draft in repo" },
             ].map((stat) => (
               <div
@@ -641,8 +641,8 @@ export default function ThesisPage() {
                 desc: "Working app with profile input, intervention comparison, combination calculator, and optimizer flow.",
               },
               {
-                title: "Bayesian simulation core",
-                desc: "Python and TypeScript simulation paths, precomputed profiles, and uncertainty-aware outputs.",
+                title: "Simulation core",
+                desc: "One Python engine behind /api/baseline and /api/frontier, with confounding priors and uncertainty-aware outputs.",
               },
               {
                 title: "Manuscript and docs",

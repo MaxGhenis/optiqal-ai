@@ -13,7 +13,7 @@ from optiqal.priors import load_priors
 REPO_ROOT = Path(__file__).resolve().parents[2]
 METHODOLOGY_PATH = REPO_ROOT / "docs" / "methodology.md"
 PAPER_PATH = REPO_ROOT / "docs" / "index.md"
-INTERVENTIONS_DIR = REPO_ROOT / "src" / "lib" / "qaly" / "interventions"
+INTERVENTIONS_DIR = REPO_ROOT / "python" / "optiqal" / "data" / "interventions"
 
 EXPECTED_CATEGORIES = frozenset(
     {

@@ -7,8 +7,7 @@ runtime interpolations with O(1) lookups. This improves performance
 by replacing ~70 interpolations per simulation with simple array access.
 
 Output:
-- public/precomputed/baselines.json (for TypeScript)
-- python/optiqal/data/baselines.json (for Python)
+- python/optiqal/data/baselines.json
 """
 
 import json
@@ -138,12 +137,9 @@ def main():
     # Generate precomputed data
     data = precompute_baselines()
 
-    # Save to both locations
-    public_path = repo_root / "public" / "precomputed" / "baselines.json"
     python_path = repo_root / "python" / "optiqal" / "data" / "baselines.json"
 
-    print("\nSaving output files...")
-    save_json(data, public_path)
+    print("\nSaving output file...")
     save_json(data, python_path)
 
     # Print summary statistics
