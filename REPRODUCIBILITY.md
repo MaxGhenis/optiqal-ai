@@ -4,9 +4,7 @@ Optiqal's QALY estimates come from Monte Carlo simulation, so reproducibility
 depends on how the random number generator is seeded. This document describes
 the seeding behavior that is **actually enforced in code**.
 
-There is one engine: the Python package in `python/optiqal/`. The TypeScript
-QALY engine and the precomputed JSON it served were deleted in rebuild PR B; if
-you are reading an older copy of this file that describes them, it is stale.
+There is one engine: the Python package in `python/optiqal/`.
 
 ## What runs when the app answers
 
