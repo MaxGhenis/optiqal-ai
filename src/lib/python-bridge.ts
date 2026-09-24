@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import path from "node:path";
 
 interface PythonJsonRunnerOptions<T> {
@@ -11,6 +12,10 @@ interface PythonJsonRunnerOptions<T> {
   remoteHeaders?: Record<string, string | undefined>;
   timeoutMs?: number;
   cacheTtlMs?: number;
+  /**
+   * Explicit opt-in cache identity. Payload-derived caching is intentionally
+   * disabled so personalized request bodies are never retained as Map keys.
+   */
   cacheKey?: string;
 }
 
@@ -26,23 +31,36 @@ const MAX_CACHE_ENTRIES = 500;
 const responseCache = new Map<string, CacheEntry>();
 const inflightRequests = new Map<string, Promise<unknown>>();
 
-function buildDefaultCacheKey(scriptPath: string, payload: unknown): string {
-  return JSON.stringify({ scriptPath, payload });
+export class PythonBridgeClientError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PythonBridgeClientError";
+  }
+}
+
+function buildOpaqueCacheKey(scriptPath: string, cacheKey: string): string {
+  return createHash("sha256").update(`${scriptPath}\0${cacheKey}`).digest("hex");
+}
+
+function pruneExpiredCacheEntries(now: number): void {
+  for (const [key, entry] of responseCache) {
+    if (entry.expiresAt <= now) {
+      responseCache.delete(key);
+    }
+  }
 }
 
 function getCachedValue<T>(cacheKey: string, now: number): T | null {
+  pruneExpiredCacheEntries(now);
   const cached = responseCache.get(cacheKey);
   if (!cached) {
-    return null;
-  }
-  if (cached.expiresAt <= now) {
-    responseCache.delete(cacheKey);
     return null;
   }
   return cached.value as T;
 }
 
 function setCachedValue(cacheKey: string, entry: CacheEntry): void {
+  pruneExpiredCacheEntries(Date.now());
   // Refresh recency by re-inserting at the end.
   responseCache.delete(cacheKey);
   responseCache.set(cacheKey, entry);
@@ -55,10 +73,49 @@ function setCachedValue(cacheKey: string, entry: CacheEntry): void {
   }
 }
 
+function extractCurrentStackValidationMessage(text: string): string | null {
+  for (const rawLine of text.split(/\r?\n/).reverse()) {
+    const line = rawLine.trim();
+    const valueErrorMatch = /^ValueError:\s*(.+)$/.exec(line);
+    const message = valueErrorMatch?.[1] ?? line;
+    const marker = message.indexOf("current_stack_ids");
+    if (marker < 0) {
+      continue;
+    }
+    const candidate = message.slice(marker).trim();
+    if (/^current_stack_ids (?:must be|contains)\b/.test(candidate)) {
+      return candidate.slice(0, 300);
+    }
+  }
+  return null;
+}
+
+function extractRemoteErrorMessage(value: unknown): string | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+  if ("error" in value && typeof value.error === "string") {
+    return value.error;
+  }
+  if ("detail" in value && typeof value.detail === "string") {
+    return value.detail;
+  }
+  return null;
+}
+
+function isRemoteClientValidationStatus(status: number): boolean {
+  return status === 400 || status === 422;
+}
+
 function formatProcessFailure(label: string, stderr: string, code: number | null): Error {
   const trimmedStderr = stderr.trim();
   if (!trimmedStderr) {
     return new Error(`Python ${label} process exited with code ${code}`);
+  }
+
+  const clientValidationMessage = extractCurrentStackValidationMessage(trimmedStderr);
+  if (clientValidationMessage) {
+    return new PythonBridgeClientError(clientValidationMessage);
   }
 
   const summary =
@@ -171,6 +228,13 @@ async function runRemotePythonJson<T>({
       parsedJson = JSON.parse(rawText);
     } catch {
       if (!response.ok) {
+        const clientValidationMessage = extractCurrentStackValidationMessage(rawText);
+        if (clientValidationMessage) {
+          throw new PythonBridgeClientError(clientValidationMessage);
+        }
+        if (isRemoteClientValidationStatus(response.status)) {
+          throw new PythonBridgeClientError(`Invalid ${label} request`);
+        }
         throw new Error(
           rawText.trim() || `Python ${label} remote request failed with status ${response.status}`
         );
@@ -179,21 +243,18 @@ async function runRemotePythonJson<T>({
     }
 
     if (!response.ok) {
-      if (
-        typeof parsedJson === "object" &&
-        parsedJson !== null &&
-        "error" in parsedJson &&
-        typeof parsedJson.error === "string"
-      ) {
-        throw new Error(parsedJson.error);
+      const remoteErrorMessage = extractRemoteErrorMessage(parsedJson);
+      const clientValidationMessage = extractCurrentStackValidationMessage(
+        remoteErrorMessage ?? rawText
+      );
+      if (clientValidationMessage) {
+        throw new PythonBridgeClientError(clientValidationMessage);
       }
-      if (
-        typeof parsedJson === "object" &&
-        parsedJson !== null &&
-        "detail" in parsedJson &&
-        typeof parsedJson.detail === "string"
-      ) {
-        throw new Error(parsedJson.detail);
+      if (isRemoteClientValidationStatus(response.status)) {
+        throw new PythonBridgeClientError(remoteErrorMessage ?? `Invalid ${label} request`);
+      }
+      if (remoteErrorMessage) {
+        throw new Error(remoteErrorMessage);
       }
       throw new Error(`Python ${label} remote request failed with status ${response.status}`);
     }
@@ -232,7 +293,7 @@ export async function runPythonJson<T>({
   cacheKey,
 }: PythonJsonRunnerOptions<T>): Promise<T> {
   const resolvedCacheKey =
-    cacheTtlMs > 0 ? (cacheKey ?? buildDefaultCacheKey(scriptPath, payload)) : null;
+    cacheTtlMs > 0 && cacheKey ? buildOpaqueCacheKey(scriptPath, cacheKey) : null;
   const now = Date.now();
 
   if (resolvedCacheKey) {

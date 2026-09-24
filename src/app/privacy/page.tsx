@@ -20,7 +20,7 @@ export default function PrivacyPage() {
 
         <h1 className="text-3xl font-bold mb-8">Privacy Policy</h1>
         <p className="text-sm text-muted-foreground mb-8">
-          Last updated: December 25, 2024
+          Last updated: July 9, 2026
         </p>
 
         <div className="prose prose-invert prose-sm max-w-none space-y-6">
@@ -46,7 +46,10 @@ export default function PrivacyPage() {
                 The computation may be performed by an external model service we operate or
                 contract for that purpose.
               </li>
-              <li>Optionally saved to your browser&apos;s local storage for convenience</li>
+              <li>
+                Saved automatically in your browser&apos;s local storage, including sleep inputs and
+                your stated routine, until you clear it
+              </li>
               <li>
                 Processed only to generate your results and not stored in a profile database or
                 retained beyond what is needed to return your estimates
@@ -69,7 +72,7 @@ export default function PrivacyPage() {
             </p>
             <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-4">
               <li>Calculate and display your personalized estimates</li>
-              <li>Save your preferences for future visits (if you choose)</li>
+              <li>Remember your profile, sleep inputs, and stated routine on this device</li>
               <li>Improve the Service based on aggregate usage patterns</li>
             </ul>
           </section>
@@ -77,9 +80,9 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-xl font-semibold mb-3">Data Storage</h2>
             <p className="text-muted-foreground leading-relaxed">
-              <strong className="text-foreground">Local Storage:</strong> Your profile data may be
-              stored in your browser&apos;s local storage. This data remains on your device and can
-              be cleared through your browser settings.
+              <strong className="text-foreground">Local Storage:</strong> Your profile, sleep
+              inputs, and stated routine are stored automatically in your browser&apos;s local storage.
+              This data remains on your device and can be cleared through your browser settings.
             </p>
             <p className="text-muted-foreground leading-relaxed mt-3">
               <strong className="text-foreground">Server-Side Processing:</strong> To produce your

@@ -14,7 +14,7 @@ test.describe("Analyze page (frontier ranking)", () => {
 
   test("loads with the ranking heading", async ({ page }) => {
     await expect(page).toHaveTitle(/Optiqal/);
-    await expect(page.locator("h1")).toContainText(/Rank interventions/i);
+    await expect(page.locator("h1")).toContainText(/next health addition/i);
   });
 
   test("does not show a bring-your-own API key input", async ({ page }) => {
@@ -30,6 +30,12 @@ test.describe("Analyze page (frontier ranking)", () => {
     const age = page.locator("#age");
     await age.fill("45");
     await expect(age).toHaveValue("45");
+  });
+
+  test("starts with a decision-focused submit action", async ({ page }) => {
+    await expect(
+      page.getByRole("button", { name: /rank my options/i })
+    ).toBeVisible();
   });
 });
 
@@ -73,9 +79,7 @@ test.describe("Landing page", () => {
   test("links to the analyze page", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
-    const analyzeLink = page
-      .getByRole("link", { name: /Analyze|Start analysis|Try/i })
-      .first();
+    const analyzeLink = page.getByRole("link", { name: "Rank my next move" }).first();
     await analyzeLink.click();
     await expect(page).toHaveURL(/analyze/);
   });

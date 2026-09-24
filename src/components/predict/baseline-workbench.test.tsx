@@ -1,15 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
+import { StrictMode } from "react";
 import { BaselineWorkbench } from "@/components/predict/baseline-workbench";
 import type { BaselineResponse } from "@/lib/baseline-types";
+import { DEFAULT_PROFILE } from "@/types";
 
 function makeResponse(
-  pointEstimate: Partial<BaselineResponse["point_estimate"]> = {}
+  pointEstimate: Partial<BaselineResponse["point_estimate"]> = {},
+  qalyDiscountRate = 0.03
 ): BaselineResponse {
   return {
     meta: {
       model: "baseline_v1",
-      qaly_discount_rate: 0,
+      qaly_discount_rate: qalyDiscountRate,
       explicit_inputs_only: true,
       profile: {
         age: 39,
@@ -91,12 +94,49 @@ describe("BaselineWorkbench", () => {
     // Range bounds rounded to whole years to reduce false precision.
     expect(screen.getByText(/range 36\s*[–-]\s*46/i)).toBeInTheDocument();
     expect(screen.getByText(/range 30\s*[–-]\s*40/i)).toBeInTheDocument();
+    expect(screen.getByText(/3% QALY discount/i)).toBeInTheDocument();
+  });
+
+  it("renders the QALY discount rate returned by the engine", async () => {
+    mockFetchOnce(makeResponse({}, 0.015));
+    render(<BaselineWorkbench />);
+    await screen.findByText(/remaining life expectancy/i);
+
+    expect(screen.getByText("1.5% QALY discount")).toBeInTheDocument();
+    expect(screen.queryByText("0% discount")).toBeNull();
   });
 
   it("omits ranges when the response has no confidence intervals", async () => {
     mockFetchOnce(makeResponse());
     render(<BaselineWorkbench />);
     await screen.findByText(/remaining life expectancy/i);
-    expect(screen.queryByText(/range/i)).toBeNull();
+    expect(screen.queryByText(/^range \d/i)).toBeNull();
+  });
+
+  it("preserves a saved profile during StrictMode hydration", async () => {
+    localStorage.setItem(
+      "optiqal-baseline-profile-v1",
+      JSON.stringify({ ...DEFAULT_PROFILE, age: 64 })
+    );
+    localStorage.setItem(
+      "optiqal-baseline-sleep-v1",
+      JSON.stringify({ recovery_score: 82 })
+    );
+    mockFetchOnce(makeResponse());
+
+    render(
+      <StrictMode>
+        <BaselineWorkbench />
+      </StrictMode>
+    );
+    await screen.findByText(/remaining life expectancy/i);
+
+    expect(screen.getByLabelText("Age")).toHaveValue(64);
+    expect(JSON.parse(localStorage.getItem("optiqal-baseline-profile-v1")!)).toMatchObject({
+      age: 64,
+    });
+    expect(localStorage.getItem("optiqal-baseline-sleep-v1")).toBe(
+      JSON.stringify({ recovery_score: 82 })
+    );
   });
 });

@@ -2,7 +2,7 @@
 
 **Rank the health interventions most worth doing next.**
 
-Optiqal is a personalized health decision tool. It compares interventions on a common QALY-informed scale, then shows posterior expected benefit, uncertainty, and likely marginal value given your current profile.
+Optiqal is a personalized health decision tool. It compares interventions on a common QALY-informed scale, then shows modeled expected benefit, uncertainty, and likely marginal value given your current profile and routine.
 
 ## What it does
 
@@ -10,7 +10,7 @@ Enter a health intervention you're considering, and Optiqal will:
 
 1. **Build your baseline**: Start from age, sex, risk factors, and current behaviors
 2. **Estimate intervention impact**: Model the expected effect on longevity and quality of life
-3. **Show what is incremental**: Compare additions, removals, or swaps against your current state
+3. **Show what is incremental**: Re-rank additions around the actions already in your routine
 4. **Expose uncertainty**: Present intervals and evidence limitations instead of false precision
 
 Results are expressed in human-readable units: hours, days, or weeks of quality-adjusted life rather than abstract QALY fractions.
