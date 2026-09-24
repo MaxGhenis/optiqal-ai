@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 
 const projectRoot = process.cwd();
+const frontendProjectName = "optiqal-ai";
 const modelProjectName = "optiqal-model";
 const scope = "max-ghenis-projects";
 const mode = process.argv[2] === "production" ? "production" : "preview";
@@ -41,15 +42,33 @@ function ensureModelProjectLinked(modelCwd) {
   run("vercel", ["link", "--yes", "--project", modelProjectName, "--scope", scope], modelCwd);
 }
 
+function ensureFrontendProjectLinked() {
+  run("vercel", ["link", "--yes", "--project", frontendProjectName, "--scope", scope]);
+}
+
+function deploymentUrlFromOutput(output) {
+  try {
+    const parsed = JSON.parse(output);
+    const candidate = parsed.url ?? parsed.deployment?.url ?? parsed.deploymentUrl;
+    if (typeof candidate === "string" && candidate.length > 0) {
+      return candidate.startsWith("http") ? candidate : `https://${candidate}`;
+    }
+  } catch {
+    // Fall through to support CLI versions that emit JSON progress lines.
+  }
+
+  const absoluteUrl = output.match(/https:\/\/[^\s"']+\.vercel\.app/);
+  if (absoluteUrl) return absoluteUrl[0];
+  const hostname = output.match(/[a-z0-9-]+\.vercel\.app/i);
+  return hostname ? `https://${hostname[0]}` : undefined;
+}
+
 function deployModel(modelCwd) {
-  const deployArgs = ["deploy", "--yes", "--scope", scope];
+  const deployArgs = ["deploy", "--yes", "--scope", scope, "--format", "json"];
   if (isProduction) {
     deployArgs.push("--prod");
   }
-  return run("vercel", deployArgs, modelCwd)
-    .split("\n")
-    .map((line) => line.trim())
-    .find((line) => line.startsWith("https://"));
+  return deploymentUrlFromOutput(run("vercel", deployArgs, modelCwd));
 }
 
 function inspectDeploymentJson(url, cwd = projectRoot) {
@@ -71,6 +90,8 @@ function deployFrontend(modelUrl, runtimeModelUrl = modelUrl) {
     "--yes",
     "--scope",
     scope,
+    "--format",
+    "json",
     "-b",
     `MODEL_URL=${runtimeModelUrl}`,
     "-e",
@@ -88,10 +109,7 @@ function deployFrontend(modelUrl, runtimeModelUrl = modelUrl) {
   if (isProduction) {
     deployArgs.push("--prod");
   }
-  return run("vercel", deployArgs, projectRoot)
-    .split("\n")
-    .map((line) => line.trim())
-    .find((line) => line.startsWith("https://"));
+  return deploymentUrlFromOutput(run("vercel", deployArgs, projectRoot));
 }
 
 function main() {
@@ -103,6 +121,7 @@ function main() {
 
   ensureModelProjectExists();
   ensureModelProjectLinked(modelCwd);
+  ensureFrontendProjectLinked();
 
   const modelUrl = deployModel(modelCwd);
   if (!modelUrl) {

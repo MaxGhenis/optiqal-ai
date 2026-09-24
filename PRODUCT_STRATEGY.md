@@ -82,6 +82,10 @@ This is stronger than:
 
 ## MVP scope
 
+Implementation status: the current product slice ranks additions by marginal cost-effectiveness
+against the user's stated routine. Removal and swap recommendations, burden-adjusted utility, and
+fully marginal uncertainty remain roadmap work.
+
 Include in v1:
 - Baseline profile estimation
 - Intervention ranking on a common QALY scale

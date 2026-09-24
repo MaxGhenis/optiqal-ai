@@ -107,6 +107,14 @@ def _bounded_number(value: Any, *, name: str, low: float, high: float) -> float:
     return number
 
 
+def _optional_bounded_number(
+    value: Any, *, name: str, low: float, high: float
+) -> Optional[float]:
+    if value in (None, ""):
+        return None
+    return _bounded_number(value, name=name, low=low, high=high)
+
+
 def _bounded_simulations(value: Any, *, default: int = 5000, cap: int = 20000) -> int:
     try:
         number = int(value)
@@ -136,19 +144,53 @@ def _build_sleep_metrics(
     payload: Dict[str, Any], fallback_duration: Optional[float] = None
 ) -> Optional[SleepMetrics]:
     fields = {
-        "duration_hours": _clean_float(payload.get("duration_hours"))
-        or fallback_duration,
-        "recovery_score": _clean_float(payload.get("recovery_score")),
-        "sleep_quality_score": _clean_float(payload.get("sleep_quality_score")),
-        "waso_min": _clean_float(payload.get("waso_min")),
-        "routine_score": _clean_float(payload.get("routine_score")),
-        "social_jetlag_min": _clean_float(payload.get("social_jetlag_min")),
-        "latency_min": _clean_float(payload.get("latency_min")),
-        "breathing_score": _clean_float(payload.get("breathing_score")),
-        "spo2": _clean_float(payload.get("spo2")),
-        "snore_pct": _clean_float(payload.get("snore_pct")),
-        "sleep_debt_min": _clean_float(payload.get("sleep_debt_min")),
-        "airway_response_signal": _clean_float(payload.get("airway_response_signal")),
+        "duration_hours": _optional_bounded_number(
+            payload.get("duration_hours"), name="duration_hours", low=0, high=24
+        )
+        if payload.get("duration_hours") not in (None, "")
+        else fallback_duration,
+        "recovery_score": _optional_bounded_number(
+            payload.get("recovery_score"), name="recovery_score", low=0, high=100
+        ),
+        "sleep_quality_score": _optional_bounded_number(
+            payload.get("sleep_quality_score"),
+            name="sleep_quality_score",
+            low=0,
+            high=100,
+        ),
+        "waso_min": _optional_bounded_number(
+            payload.get("waso_min"), name="waso_min", low=0, high=1440
+        ),
+        "routine_score": _optional_bounded_number(
+            payload.get("routine_score"), name="routine_score", low=0, high=100
+        ),
+        "social_jetlag_min": _optional_bounded_number(
+            payload.get("social_jetlag_min"),
+            name="social_jetlag_min",
+            low=0,
+            high=1440,
+        ),
+        "latency_min": _optional_bounded_number(
+            payload.get("latency_min"), name="latency_min", low=0, high=1440
+        ),
+        "breathing_score": _optional_bounded_number(
+            payload.get("breathing_score"), name="breathing_score", low=0, high=1
+        ),
+        "spo2": _optional_bounded_number(
+            payload.get("spo2"), name="spo2", low=0, high=100
+        ),
+        "snore_pct": _optional_bounded_number(
+            payload.get("snore_pct"), name="snore_pct", low=0, high=100
+        ),
+        "sleep_debt_min": _optional_bounded_number(
+            payload.get("sleep_debt_min"), name="sleep_debt_min", low=0, high=1440
+        ),
+        "airway_response_signal": _optional_bounded_number(
+            payload.get("airway_response_signal"),
+            name="airway_response_signal",
+            low=0,
+            high=1,
+        ),
     }
     if not any(value is not None for value in fields.values()):
         return None
@@ -294,7 +336,12 @@ def build_baseline_response(payload: Dict[str, Any]) -> dict[str, Any]:
     has_diabetes = bool(profile_payload.get("has_diabetes"))
     has_hypertension = bool(profile_payload.get("has_hypertension"))
     activity_level = str(profile_payload.get("activity_level", "light"))
-    sleep_hours = _clean_float(profile_payload.get("sleep_hours_per_night"))
+    sleep_hours = _optional_bounded_number(
+        profile_payload.get("sleep_hours_per_night"),
+        name="sleep_hours_per_night",
+        low=0,
+        high=24,
+    )
 
     bmi_category = _bmi_category(weight_kg, height_cm)
     sleep_metrics = _build_sleep_metrics(sleep_payload, sleep_hours)
@@ -632,12 +679,29 @@ def build_frontier_response_with_policy(
 
     sleep_metrics = _build_sleep_metrics(sleep_payload)
     if sleep_metrics is None:
-        duration_hours = _clean_float(profile_payload.get("sleep_hours_per_night"))
+        duration_hours = _optional_bounded_number(
+            profile_payload.get("sleep_hours_per_night"),
+            name="sleep_hours_per_night",
+            low=0,
+            high=24,
+        )
         if duration_hours is not None:
             sleep_metrics = SleepMetrics(duration_hours=duration_hours)
 
     n_simulations = _bounded_simulations(payload.get("n_simulations", 5000))
     categories = payload.get("categories")
+
+    current_stack_ids = payload.get("current_stack_ids", [])
+    if (
+        not isinstance(current_stack_ids, list)
+        or len(current_stack_ids) > 50
+        or any(
+            not isinstance(item_id, str) or not item_id or item_id != item_id.strip()
+            for item_id in current_stack_ids
+        )
+        or len(set(current_stack_ids)) != len(current_stack_ids)
+    ):
+        raise ValueError("current_stack_ids must be a unique list of catalog IDs")
 
     config = AnalysisConfig(
         profile=profile,
@@ -648,6 +712,30 @@ def build_frontier_response_with_policy(
     )
 
     entries = get_catalog(categories)
+    unknown_stack_ids = set(current_stack_ids) - set(entries)
+    if unknown_stack_ids:
+        raise ValueError("current_stack_ids contains an unknown catalog ID")
+    private_stack_ids = {
+        item_id
+        for item_id in current_stack_ids
+        if public_recommendation_lane(entries[item_id], policy=public_policy)
+        == "personal_only"
+    }
+    if private_stack_ids:
+        raise ValueError("current_stack_ids contains a non-public catalog ID")
+
+    current_stack_groups: dict[str, str] = {}
+    for item_id in current_stack_ids:
+        exclusive_group = entries[item_id].exclusive_group
+        if exclusive_group is None:
+            continue
+        conflicting_id = current_stack_groups.get(exclusive_group)
+        if conflicting_id is not None:
+            raise ValueError(
+                "current_stack_ids contains mutually exclusive interventions: "
+                f"{conflicting_id} and {item_id}"
+            )
+        current_stack_groups[exclusive_group] = item_id
     analysis = analyze(config, catalog_entries=entries)
 
     rankable_ids = [
@@ -661,25 +749,31 @@ def build_frontier_response_with_policy(
         )
     ]
 
+    # The ranking candidates stay limited to the curated public set, while the
+    # user's current stack becomes the baseline state used to calculate each
+    # candidate's truly marginal effect. Current items are therefore excluded
+    # as additions but still participate in interactions, overlap, and cost.
+    frontier_context_ids = set(rankable_ids) | set(current_stack_ids)
+
     single_qalys = {
         item_id: result["total_qaly"]
         for item_id, result in analysis.item_results_by_id.items()
-        if item_id in rankable_ids
+        if item_id in frontier_context_ids
     }
     annual_costs = {
-        item_id: result["annual_cost"]
+        item_id: result["effective_annual_cost"]
         for item_id, result in analysis.item_results_by_id.items()
-        if item_id in rankable_ids
+        if item_id in frontier_context_ids
     }
     cost_values = {
         item_id: result["total_cost"]
         for item_id, result in analysis.item_results_by_id.items()
-        if item_id in rankable_ids
+        if item_id in frontier_context_ids
     }
     exclusive_groups = {
         item_id: entry.exclusive_group
         for item_id, entry in entries.items()
-        if entry.exclusive_group and item_id in rankable_ids
+        if entry.exclusive_group and item_id in frontier_context_ids
     }
     # Hazard-aware stacking: mortality combines multiplicatively (one joint
     # survival integration); non-mortality (QoL/harm) QALYs add across items.
@@ -699,12 +793,12 @@ def build_frontier_response_with_policy(
             baseline_hazard_multiplier=config.sleep_baseline_hazard_multiplier,
         )
         for item_id, result in analysis.item_results_by_id.items()
-        if item_id in rankable_ids
+        if item_id in frontier_context_ids
     }
     item_qol_qalys = {
         item_id: result["total_qaly"] - result["mort_qaly"]
         for item_id, result in analysis.item_results_by_id.items()
-        if item_id in rankable_ids
+        if item_id in frontier_context_ids
     }
 
     def _stack_mortality_qaly(combined_hr: float) -> float:
@@ -729,22 +823,32 @@ def build_frontier_response_with_policy(
         horizon_years=config.horizon_years,
         stack_interaction_penalty_fn=stack_penalty_fn,
         exclusive_groups=exclusive_groups,
+        preselected=current_stack_ids,
         item_mortality_hrs=item_mortality_hrs,
         item_qol_qalys=item_qol_qalys,
         mortality_qaly_fn=_stack_mortality_qaly,
     )
 
-    selected_ids = set(frontier[-1]["selected_interventions"]) if frontier else set()
+    selected_ids = (
+        set(frontier[-1]["selected_interventions"])
+        if frontier
+        else set(current_stack_ids)
+    )
 
     items = []
     for raw in analysis.item_results:
         entry = entries[raw["id"]]
-        unpriced = not is_publicly_rankable(
+        public_lane = public_recommendation_lane(entry, policy=public_policy)
+        rankable = is_publicly_rankable(
             entry,
             profile=config.profile,
             sleep_estimate=config.sleep_estimate,
             policy=public_policy,
         )
+        preserve_current_pricing = (
+            raw["id"] in current_stack_ids and public_lane == "conditional_public"
+        )
+        unpriced = not rankable and not preserve_current_pricing
         _raw_ci = raw.get("net_qaly_ci", [0.0, 0.0])
         _net_qaly_ci = [round(float(_raw_ci[0]), 4), round(float(_raw_ci[1]), 4)]
         items.append(
@@ -753,10 +857,11 @@ def build_frontier_response_with_policy(
                 "name": public_display_name(entry, public_policy),
                 "category": entry.category,
                 "display_category": public_display_category(entry, public_policy),
-                "public_lane": public_recommendation_lane(entry, policy=public_policy),
+                "public_lane": public_lane,
+                "exclusive_group": entry.exclusive_group,
                 "annual_cost": None
                 if unpriced
-                else round(float(raw["annual_cost"]), 2),
+                else round(float(raw["effective_annual_cost"]), 2),
                 "total_cost": round(float(raw["total_cost"]), 2),
                 "cost_per_qaly": None
                 if unpriced
@@ -793,7 +898,7 @@ def build_frontier_response_with_policy(
                 "selected_in_frontier": raw["id"] in selected_ids,
                 "pricing_status": "unpriced"
                 if unpriced
-                else ("free" if raw["annual_cost"] <= 0 else "priced"),
+                else ("free" if raw["effective_annual_cost"] <= 0 else "priced"),
                 "rankability_reason": public_rankability_reason(
                     entry,
                     profile=config.profile,
@@ -806,7 +911,11 @@ def build_frontier_response_with_policy(
 
     items.sort(key=_sort_items)
     items_by_id = {item["id"]: item for item in items}
-    public_items = [item for item in items if item["pricing_status"] != "unpriced"]
+    public_items = [
+        item
+        for item in items
+        if item["pricing_status"] != "unpriced" or item["id"] in current_stack_ids
+    ]
 
     frontier_rows = []
     for step in frontier:
@@ -869,16 +978,26 @@ def build_frontier_response_with_policy(
     if therapy_signal:
         support_signal = True
 
-    if support_signal:
-        decision_specs = build_public_sleep_decision_specs(
+    decision_specs = (
+        build_public_sleep_decision_specs(
             include_therapy=therapy_signal,
             include_humidifier=humidifier_signal,
         )
+        if support_signal
+        else []
+    )
+
+    # The public sleep pathways encode their own sequential baseline. Preserve
+    # unaffected branches, and suppress only a state whose own baseline/options
+    # already overlap the supplied routine to avoid duplicate additions.
+    if support_signal:
         rankable_id_set = set(rankable_ids)
+        current_stack_id_set = set(current_stack_ids)
         decision_specs = [
             spec
             for spec in decision_specs
-            if all(
+            if current_stack_id_set.isdisjoint(_decision_spec_item_ids(spec))
+            and all(
                 item_id in rankable_id_set for item_id in _decision_spec_item_ids(spec)
             )
         ]
@@ -904,7 +1023,7 @@ def build_frontier_response_with_policy(
             if item_id in analysis.item_results_by_id
         }
         decision_annual_costs = {
-            item_id: analysis.item_results_by_id[item_id]["annual_cost"]
+            item_id: analysis.item_results_by_id[item_id]["effective_annual_cost"]
             for item_id in decision_item_ids
             if item_id in analysis.item_results_by_id
         }
@@ -993,6 +1112,17 @@ def build_frontier_response_with_policy(
         )
 
     positive_items = sum(1 for item in public_items if item["total_qaly"] > 0)
+    blocked_exclusive_groups = {
+        entries[item_id].exclusive_group
+        for item_id in current_stack_ids
+        if entries[item_id].exclusive_group is not None
+    }
+    candidate_ids = {
+        item_id
+        for item_id in rankable_ids
+        if item_id not in current_stack_ids
+        and entries[item_id].exclusive_group not in blocked_exclusive_groups
+    }
     payload_out = {
         "meta": {
             "selection_mode": "ordered_by_marginal_cost_per_qaly",
@@ -1001,7 +1131,7 @@ def build_frontier_response_with_policy(
             "qaly_discount_rate": config.qaly_discount_rate,
             "cost_discount_rate": config.cost_discount_rate,
             "n_simulations": config.n_simulations,
-            "rankable_count": len(rankable_ids),
+            "rankable_count": len(candidate_ids),
             "profile": {
                 "age": profile.age,
                 "sex": profile.sex,

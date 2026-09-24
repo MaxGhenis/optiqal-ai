@@ -5,12 +5,12 @@ Ties together catalog simulation, portfolio optimization, bundle analysis,
 and decision evaluation into a single `analyze()` call.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Literal, Optional
 
 from .bundles import recommend_bundles
 from .catalog import CATALOG, CatalogEntry, get_catalog, simulate_catalog
-from .combination import find_optimal_portfolio_with_costs
+from .combination import _saturate_total_qaly, find_optimal_portfolio_with_costs
 from .confounding import ConfoundingPrior, publication_bias_correct
 from .defaults import (
     DEFAULT_COST_DISCOUNT_RATE,
@@ -98,24 +98,27 @@ class AnalysisResult:
     portfolio: List[dict]  # Greedy portfolio steps
     bundle_recommendations: List[dict]  # Bundle analysis
     decisions: Optional[List[dict]] = None  # Decision evaluations
+    current_stack_ids: List[str] = field(default_factory=list)
+    current_stack_annual_cost: float = 0.0
+    current_stack_total_qaly: float = 0.0
 
     @property
     def selected_ids(self) -> List[str]:
         """IDs selected by portfolio optimizer."""
         if not self.portfolio:
-            return []
+            return self.current_stack_ids.copy()
         return self.portfolio[-1]["selected_interventions"]
 
     @property
     def total_annual_cost(self) -> float:
         if not self.portfolio:
-            return 0
+            return self.current_stack_annual_cost
         return self.portfolio[-1]["total_annual_cost"]
 
     @property
     def total_qaly(self) -> float:
         if not self.portfolio:
-            return 0
+            return self.current_stack_total_qaly
         return self.portfolio[-1]["total_qaly"]
 
     @property
@@ -354,7 +357,7 @@ def analyze(
     Args:
         config: Analysis parameters (profile, WTP, horizon, etc.)
         current_stack: Optional list of catalog IDs currently being taken.
-            Used for context in decision analysis.
+            Used as the baseline for portfolio selection.
         decisions: Optional specific add/drop/adjust decisions to evaluate.
         catalog_entries: Optional custom catalog (default: full CATALOG).
 
@@ -369,6 +372,48 @@ def analyze(
             }
     else:
         entries = get_catalog(config.categories)
+
+    if current_stack is None:
+        baseline_stack: List[str] = []
+    elif not isinstance(current_stack, list) or any(
+        not isinstance(item_id, str) or not item_id for item_id in current_stack
+    ):
+        raise ValueError("current_stack must be a list of catalog IDs")
+    else:
+        baseline_stack = current_stack.copy()
+
+    if len(set(baseline_stack)) != len(baseline_stack):
+        raise ValueError("current_stack contains duplicate catalog IDs")
+
+    unknown_stack_ids = [
+        item_id for item_id in baseline_stack if item_id not in entries
+    ]
+    if unknown_stack_ids:
+        raise ValueError(
+            "current_stack contains unknown catalog IDs: "
+            + ", ".join(unknown_stack_ids)
+        )
+
+    current_stack_groups: Dict[str, str] = {}
+    for item_id in baseline_stack:
+        exclusive_group = entries[item_id].exclusive_group
+        if exclusive_group is None:
+            continue
+        conflicting_id = current_stack_groups.get(exclusive_group)
+        if conflicting_id is not None:
+            raise ValueError(
+                "current_stack contains mutually exclusive interventions: "
+                f"{conflicting_id} and {item_id}"
+            )
+        current_stack_groups[exclusive_group] = item_id
+
+    baseline_stack_set = set(baseline_stack)
+    excluded_exclusive_alternatives = [
+        item_id
+        for item_id, entry in entries.items()
+        if item_id not in baseline_stack_set
+        and entry.exclusive_group in current_stack_groups
+    ]
 
     # 1. Simulate all catalog items
     item_results = simulate_catalog(
@@ -391,7 +436,7 @@ def analyze(
 
     # 2. Build greedy portfolio
     single_qalys = {r["id"]: r["total_qaly"] for r in item_results}
-    annual_costs = {r["id"]: r["annual_cost"] for r in item_results}
+    annual_costs = {r["id"]: r["effective_annual_cost"] for r in item_results}
     cost_values = {r["id"]: r["total_cost"] for r in item_results}
     # Hazard-aware stacking: mortality combines multiplicatively (one joint
     # integration), non-mortality (QoL/harm) QALYs add across items. Each item's
@@ -425,12 +470,27 @@ def analyze(
         benefit_tag_multipliers=config.sleep_overlap_multipliers,
     )
 
+    baseline_combined_hr = 1.0
+    for item_id in baseline_stack:
+        baseline_combined_hr *= item_mortality_hrs[item_id]
+    baseline_raw_qaly = (
+        _stack_mortality_qaly(baseline_combined_hr)
+        + sum(item_qol_qalys[item_id] for item_id in baseline_stack)
+        + float(penalty_fn(baseline_stack))
+    )
+    baseline_total_qaly = _saturate_total_qaly(
+        baseline_raw_qaly,
+        config.portfolio_qaly_ceiling,
+    )
+
     portfolio = find_optimal_portfolio_with_costs(
         single_qalys=single_qalys,
         annual_costs=annual_costs,
         cost_values=cost_values,
         wtp=config.wtp,
         horizon_years=config.horizon_years,
+        exclude=excluded_exclusive_alternatives,
+        preselected=baseline_stack,
         stack_interaction_penalty_fn=penalty_fn,
         marginal_cost_value_fn=marginal_cost_value_fn,
         total_annual_cost_fn=total_annual_cost_fn,
@@ -441,7 +501,9 @@ def analyze(
     )
 
     # 3. Bundle recommendations
-    selected_ids = portfolio[-1]["selected_interventions"] if portfolio else []
+    selected_ids = (
+        portfolio[-1]["selected_interventions"] if portfolio else baseline_stack
+    )
     bundle_recs = recommend_bundles(
         selected_ids=selected_ids,
         item_results=item_results_by_id,
@@ -460,4 +522,11 @@ def analyze(
         portfolio=portfolio,
         bundle_recommendations=bundle_recs,
         decisions=decision_results,
+        current_stack_ids=baseline_stack,
+        current_stack_annual_cost=(
+            float(total_annual_cost_fn(baseline_stack))
+            if total_annual_cost_fn is not None
+            else sum(annual_costs[item_id] for item_id in baseline_stack)
+        ),
+        current_stack_total_qaly=baseline_total_qaly,
     )
