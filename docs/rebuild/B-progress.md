@@ -56,8 +56,14 @@ Reference measurements at the base commit:
    `precompute.py` lost its `bayesian` try-except and its `use_mcmc` branch;
    `__init__.py` lost the lazy `run_mcmc` export. `pyproject.toml` lost the
    `bayesian` extra and `uv.lock` was refreshed (pymc, pytensor, arviz, xarray,
-   numba and their transitive dependencies dropped). Python tests fall from 559 to
-   546; the 13 removed all covered deleted modules.
+   numba and their transitive dependencies dropped). Python tests fell from 559 to
+   546. Not all 13 removed tests covered deleted modules: the four in
+   `test_bayesian_updating.py` and five of the nine in `test_mortality_multipliers.py`
+   did, but the other four (`test_profile_multiplier_excludes_conditions`,
+   `test_bmi_effect`, `test_smoking_effect`, `test_activity_effect`, seven
+   assertions) test the surviving `profile.get_baseline_mortality_multiplier`.
+   The review caught this; those four are restored, without the Markov import, in
+   `tests/test_mortality_multipliers.py`, so the net drop is 9 (559 to 550).
 
    `profile.get_baseline_mortality_multiplier` carried a NOTE saying diabetes and
    hypertension were excluded because `markov.HealthState` applied them. That is no

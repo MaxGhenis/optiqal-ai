@@ -298,7 +298,9 @@ same refresh from a local JSON abstract cache when a lane has no network.
   deleted with their tests and `scripts/precompute_baseline_profiles.py`.
   `precompute.py` lost its `use_mcmc` arm, `__init__.py` lost the lazy `run_mcmc`
   export, and `pyproject.toml` lost the `bayesian` extra (pymc, pytensor, arviz
-  and xarray drop out of `uv.lock`). Python tests fall from 559 to 546.
+  and xarray drop out of `uv.lock`). Python tests fall from 559 to 550: the
+  review restored four tests of the surviving profile multiplier that the lane
+  had deleted with the Markov file (see `docs/rebuild/B-progress.md`).
 - The 50 MB of raw MEPS parquet and `condition_joint_distribution.json` are gone
   at `9bbbabaa`. History is not rewritten. `fetch_meps.py` and
   `quality_weight_calibration.json` stay, and `.gitignore` now excludes
