@@ -143,8 +143,9 @@ snapshots without regenerating them.
 - **Provenance status.** The manual transcription/drift gap is closed. Derived
   values regenerate from the committed calibration, and the one authored value
   is separated from the MEPS claim. A full network/parquet refresh through
-  `fetch_meps.py` remains a separate data-acquisition workflow and needs its
-  existing download/parquet tooling beyond the committed-summary command.
+  `fetch_meps.py` remains a separate data-acquisition workflow; it needs
+  `requests` and `pyarrow`, which are not project dependencies (see the
+  regeneration command under "Raw MEPS parquet" below).
 
 ## Disability weights
 
@@ -238,11 +239,16 @@ reads only that snapshot, so no loaded value changed.
 `.gitignore` now carries `python/optiqal/data/meps/*.parquet`, so re-running the
 fetch restores the local download cache without recommitting the binaries.
 
-**Regeneration.** From `python/`, after `uv sync`:
+**Regeneration.** From `python/`:
 
 ```bash
-uv run python optiqal/data/meps/fetch_meps.py
+uv run --with requests --with pyarrow python optiqal/data/meps/fetch_meps.py
 ```
+
+The two `--with` packages are not project dependencies, so plain `uv sync` plus
+`uv run python optiqal/data/meps/fetch_meps.py` fails at `import requests`, and
+pandas has no parquet engine for the cache files without `pyarrow`. They are kept
+out of `pyproject.toml` because nothing at runtime or in CI needs them.
 
 `download_meps_file` looks for `meps_<year>.parquet` next to the script and
 downloads the year's zip from the AHRQ URL in `MEPS_FILES` when it is absent, so
