@@ -153,21 +153,37 @@ This avoids false precision without introducing a brittle strong-versus-speculat
 
 The product is the open engine and what it emits. There are no tiers.
 
-Four things ship together, and every one of them is public:
+Shipping today:
 
 - The engine: one Python package that computes a decision card for a
   (profile, intervention) pair, reached through `/api/baseline` and
-  `/api/frontier`.
-- The evidence table: the study rows every number traces back to, each with a
-  DOI or PMID that resolves.
-- The results file: one content-hashed file per commit that the site, the
-  methods note and any downstream surface all read.
-- The scoreboard: the counts of what is still unsourced, unverified, or
-  hand-set, published alongside the results rather than behind them.
+  `/api/frontier`. Both routes compute each response on request; nothing is
+  precomputed into a results file.
+- The evidence table and its debt ledgers, in the repository rather than in the
+  served numbers. `python/optiqal/data/evidence/studies.yaml` (PR D) holds 48 study
+  rows, each with a DOI or PMID checked against a committed fixture, and the three
+  ratchet files under `python/optiqal/data/ratchets/` list what is still
+  unsourced (85 catalog claims), unverified (115 atoms) or hand-set (130 judgment
+  atoms). A test fails whenever those files drift from the live debt, so a
+  count cannot move silently. No served number reads a study row yet: the
+  routes still use the hazard ratios and priors typed into the catalog, and
+  frontier responses still include catalog items the unsourced-claims ratchet
+  lists.
 
-Anyone can read the code, rerun the engine, and get the same numbers. A card
-whose chain does not terminate in ground truth is nulled and listed, not
-softened and sold.
+Charter deliverables, not yet built (see `REBUILD.md`):
+
+- Hazard ratios derived from the evidence table's rows instead of typed into the
+  catalog (the follow-on to PR D).
+- The results file: one content-hashed `results/cards.json` per commit that the
+  site, the methods note and any downstream surface all read (PR C).
+- The scoreboard: a public page with the ratchet counts, drift status and
+  reproduce-versus-published rows, published alongside the results rather than
+  behind them (PR F).
+- Rejection of unsourced cards: a card whose chain does not terminate in ground
+  truth is nulled and listed, not softened and served. This is the charter's
+  admissibility rule; no PR in the table implements it yet.
+
+Anyone can read the code and rerun the engine to get the same numbers.
 
 ## Go-to-market
 
