@@ -35,6 +35,7 @@ from .evidence import (
     normalize_doi,
     normalize_pmid,
 )
+from .intervention import INTERVENTIONS_DIR
 
 RATCHET_FILENAMES = (
     "known_unsourced_claims.yaml",
@@ -87,9 +88,7 @@ def _find_repository_root(start: Path | None = None) -> Path:
 
 REPOSITORY_ROOT = _find_repository_root()
 DEFAULT_RATCHET_DIRECTORY = REPOSITORY_ROOT / "python" / "optiqal" / "data" / "ratchets"
-DEFAULT_INTERVENTION_DIRECTORY = (
-    REPOSITORY_ROOT / "src" / "lib" / "qaly" / "interventions"
-)
+DEFAULT_INTERVENTION_DIRECTORY = INTERVENTIONS_DIR
 DEFAULT_APPENDIX_PATH = REPOSITORY_ROOT / "docs" / "appendix.md"
 DEFAULT_REFERENCES_PATH = REPOSITORY_ROOT / "docs" / "references.bib"
 

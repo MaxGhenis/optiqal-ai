@@ -289,6 +289,12 @@ same refresh from a local JSON abstract cache when a lane has no network.
   docstring. PR A's drift glob in `tests/test_priors_drift.py` follows the new
   directory. The table in the PR A notes above still cites the old path; it is
   describing where those YAMLs were when PR A read them.
+- Three more readers of the old directory surfaced when B merged onto the D line:
+  D's `ratchets.DEFAULT_INTERVENTION_DIRECTORY`, D's `INTERVENTION_DIR` in
+  `tests/test_intervention.py`, and PR A's `SHIPPED_INTERVENTIONS` in
+  `tests/test_priors.py`, which B had missed. Against the deleted path the ratchet
+  saw no YAMLs and the priors test passed vacuously. All three now read
+  `intervention.INTERVENTIONS_DIR`, and the priors test asserts it found YAMLs.
 - `src/lib/qaly` (41 files after the YAML move), `src/lib/evidence` (11 files) and
   `public/precomputed` (14 JSON files, 11 MB) are deleted. The only readers of
   `/precomputed/*` anywhere were three modules inside those two directories.

@@ -1,17 +1,18 @@
 """Tests for intervention module."""
 
-from pathlib import Path
-
 import numpy as np
 import pytest
 
 from optiqal.catalog import CATALOG
 from optiqal.evidence import load_studies
-from optiqal.intervention import Distribution, Intervention, MortalityEffect
-
-INTERVENTION_DIR = (
-    Path(__file__).resolve().parents[2] / "src" / "lib" / "qaly" / "interventions"
+from optiqal.intervention import (
+    INTERVENTIONS_DIR,
+    Distribution,
+    Intervention,
+    MortalityEffect,
 )
+
+INTERVENTION_DIR = INTERVENTIONS_DIR
 EXPECTED_YAML_STUDY_IDS = {
     "daily_exercise_moderate": [
         "wen2011_low_volume_activity_mortality",
