@@ -1,14 +1,18 @@
 """Tests for the sleep phenotype and burden model."""
 
+from dataclasses import replace
+
 import pytest
 
 from optiqal.reference_case import PUBLIC_HEALTH_UTILITY_WEIGHTS
 from optiqal.sleep import (
     COMPONENT_MAX_ANNUAL_QALY_LOSS,
+    MORTALITY_COMPONENT_WEIGHTS,
     NON_BREATHING_SLEEP_COMPONENT_SHARES,
     SleepMetrics,
     SleepStudyResult,
     apply_sleep_study,
+    breathing_mortality_gate_for_rei,
     effective_sleep_component_relief,
     estimate_airway_response_signal,
     estimate_airway_target_multiplier,
@@ -91,7 +95,7 @@ def test_short_fragmented_sleep_has_meaningful_burden():
     assert sleep_support_overlap_multiplier(estimate) < 0.9
 
 
-def test_breathing_signals_create_distinct_burden():
+def test_breathing_signals_create_qol_burden_without_diagnostic_mortality():
     base = SleepMetrics(
         duration_hours=7.1,
         recovery_score=63.0,
@@ -122,7 +126,7 @@ def test_breathing_signals_create_distinct_burden():
 
     assert apnea_estimate.component_losses["breathing"] > 0.01
     assert apnea_estimate.annual_qaly_loss > base_estimate.annual_qaly_loss + 0.008
-    assert apnea_estimate.mortality_signal > base_estimate.mortality_signal + 0.3
+    assert apnea_estimate.mortality_signal == base_estimate.mortality_signal
 
 
 def test_mortality_signal_focuses_on_duration_regularity_and_breathing():
@@ -202,10 +206,10 @@ def test_positive_home_sleep_study_raises_breathing_burden_and_airway_probabilit
         updated.component_losses["breathing"]
         > wearable_estimate.component_losses["breathing"]
     )
-    assert updated.mortality_signal > wearable_estimate.mortality_signal
+    assert updated.mortality_signal == wearable_estimate.mortality_signal
     assert updated.airway is not None
     assert updated.airway.upper_airway_probability > 0.55
-    assert updated.airway.nasal_inflammation_probability > 0.35
+    assert 0.20 < updated.airway.nasal_inflammation_probability < 0.35
     assert updated.airway.mucus_probability < updated.airway.upper_airway_probability
 
 
@@ -324,7 +328,7 @@ def test_airway_response_signal_detects_meaningful_improvement():
 
     signal = estimate_airway_response_signal(pre, post)
 
-    assert 0.7 < signal <= 1.0
+    assert 0.6 < signal <= 0.75
 
 
 def test_airway_contributor_probabilities_rise_with_response_signal():
@@ -453,3 +457,141 @@ def test_sleep_utility_lineage_reports_component_sources():
         == "sleep_apnoea_disability_weight_europe_2015"
     )
     assert lineage["breathing"]["reference_case_status"] == "fallback"
+
+
+@pytest.mark.parametrize("breathing_score", [None, 0.0, 0.2, 1.0, 14.0])
+def test_eight_breathing_index_is_inert_for_burden_and_response(breathing_score):
+    before = SleepMetrics(spo2=95.0, snore_pct=7.0, sleep_quality_score=75.0)
+    after = SleepMetrics(spo2=96.0, snore_pct=2.0, sleep_quality_score=85.0)
+    assert estimate_sleep_burden(
+        replace(before, breathing_score=breathing_score)
+    ) == estimate_sleep_burden(before)
+    assert estimate_airway_response_signal(
+        replace(before, breathing_score=breathing_score),
+        replace(after, breathing_score=14.0),
+    ) == estimate_airway_response_signal(before, after)
+
+
+@pytest.mark.parametrize("missing_before", [False, True])
+def test_missing_airway_measurements_cannot_create_response(missing_before):
+    observed = SleepMetrics(
+        spo2=97.0,
+        snore_pct=8.0,
+        sleep_quality_score=80.0,
+        latency_min=30.0,
+        waso_min=40.0,
+    )
+    pre, post = (None, observed) if missing_before else (observed, None)
+    assert estimate_airway_response_signal(pre, post) == 0.0
+    pre, post = (
+        (SleepMetrics(), observed) if missing_before else (observed, SleepMetrics())
+    )
+    assert estimate_airway_response_signal(pre, post) == 0.0
+
+
+@pytest.mark.parametrize("steroid", [None, False, True])
+@pytest.mark.parametrize("strips", [None, False, True])
+def test_nasal_use_flags_are_descriptive_only(steroid, strips):
+    wearable = estimate_sleep_burden(SleepMetrics(spo2=95.0))
+    unknown = SleepStudyResult(study_type="home", rei=8.0)
+    assert apply_sleep_study(
+        wearable,
+        replace(unknown, used_nasal_steroid=steroid, used_nasal_strips=strips),
+    ) == apply_sleep_study(wearable, unknown)
+
+
+def test_home_study_still_keeps_its_type_based_underestimation_term():
+    wearable = estimate_sleep_burden(SleepMetrics())
+    home = apply_sleep_study(wearable, SleepStudyResult(study_type="home", rei=8.0))
+    lab = apply_sleep_study(wearable, SleepStudyResult(study_type="psg", rei=8.0))
+    assert home.component_burdens["breathing"] == pytest.approx(
+        1.08 * lab.component_burdens["breathing"]
+    )
+
+
+@pytest.mark.parametrize(
+    ("rei", "expected"),
+    [(None, 0.0), (0.0, 0.0), (14.999, 0.0), (15.0, 0.5), (29.999, 0.5), (30.0, 1.0)],
+)
+def test_breathing_mortality_gate_uses_diagnostic_severity(rei, expected):
+    assert breathing_mortality_gate_for_rei(rei) == expected
+    wearable = estimate_sleep_burden(
+        SleepMetrics(duration_hours=6.0, routine_score=70.0, spo2=94.0)
+    )
+    estimate = apply_sleep_study(
+        wearable,
+        SleepStudyResult(study_type="home", rei=rei) if rei is not None else None,
+    )
+    assert estimate.breathing_mortality_gate == expected
+    weights = dict(MORTALITY_COMPONENT_WEIGHTS)
+    weights["breathing"] *= expected
+    weighted_burdens = {
+        component: weight * estimate.component_burdens[component]
+        for component, weight in weights.items()
+    }
+    assert estimate.mortality_signal == pytest.approx(sum(weighted_burdens.values()))
+    assert estimate_sleep_mortality_relief_fraction(
+        estimate, {"breathing": 1.0}
+    ) == pytest.approx(weighted_burdens["breathing"] / sum(weighted_burdens.values()))
+    if expected == 0.0:
+        assert (
+            sleep_intervention_mortality_hr_multiplier(estimate, {"breathing": 1.0})
+            == 1.0
+        )
+
+
+@pytest.mark.parametrize("override", [0.0, 0.5, 1.0])
+def test_breathing_mortality_gate_override_reaches_every_mortality_path(override):
+    metrics = SleepMetrics(spo2=92.0)
+    wearable = estimate_sleep_burden(
+        metrics, breathing_mortality_gate_override=override
+    )
+    expected_signal = 0.35 * override * wearable.component_burdens["breathing"]
+    assert wearable.breathing_mortality_gate == override
+    assert wearable.mortality_signal == pytest.approx(expected_signal)
+    for study in (None, SleepStudyResult(study_type="home", rei=8.0)):
+        estimate = apply_sleep_study(
+            estimate_sleep_burden(metrics),
+            study,
+            breathing_mortality_gate_override=override,
+        )
+        unchanged_qol = apply_sleep_study(estimate_sleep_burden(metrics), study)
+        assert estimate.component_losses == unchanged_qol.component_losses
+        assert estimate.breathing_mortality_gate == override
+        assert estimate.mortality_signal == pytest.approx(
+            0.35 * override * estimate.component_burdens["breathing"]
+        )
+        assert estimate_sleep_mortality_relief_fraction(
+            estimate, {"breathing": 0.5}
+        ) == (0.5 if override > 0.0 else 0.0)
+
+
+@pytest.mark.parametrize("override", [-0.1, 1.1, float("nan"), float("inf")])
+def test_breathing_mortality_gate_rejects_invalid_overrides(override):
+    with pytest.raises(ValueError, match="must be in"):
+        estimate_sleep_burden(
+            SleepMetrics(), breathing_mortality_gate_override=override
+        )
+
+
+def test_rehydrated_sleep_estimate_keeps_breathing_mortality_gate():
+    from optiqal.protocol_personalization import protocol_sleep_estimate_from_baseline
+
+    estimate = estimate_sleep_burden(
+        SleepMetrics(spo2=94.0), breathing_mortality_gate_override=0.5
+    )
+    rehydrated = protocol_sleep_estimate_from_baseline(
+        {
+            "derived": {
+                "sleep_component_burdens": estimate.component_burdens,
+                "sleep_component_losses": estimate.component_losses,
+                "sleep_burden_annual_qaly": estimate.annual_qaly_loss,
+                "sleep_mortality_signal": estimate.mortality_signal,
+                "sleep_breathing_mortality_gate": estimate.breathing_mortality_gate,
+            }
+        }
+    )
+    assert rehydrated.breathing_mortality_gate == 0.5
+    assert sleep_intervention_mortality_hr_multiplier(
+        rehydrated, {"breathing": 0.5}
+    ) == sleep_intervention_mortality_hr_multiplier(estimate, {"breathing": 0.5})

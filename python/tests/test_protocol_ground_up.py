@@ -669,26 +669,28 @@ def test_current_stack_interaction_tags_excludes_target_item():
     protocol_items = [
         {"id": "glycine_2g", "status": "testing"},
         {"id": "melatonin_300mcg", "status": "taking"},
+        {"id": "trazodone_50mg", "status": "taking"},
+        {"id": "doxepin_3mg", "status": "testing"},
         {"id": "daridorexant_25mg", "status": "considering"},
     ]
 
     assert current_stack_interaction_tags(protocol_items) == ("sedating", "sedating")
     assert current_stack_interaction_tags(
         protocol_items,
-        exclude_item_id="glycine_2g",
+        exclude_item_id="trazodone_50mg",
     ) == ("sedating",)
 
 
 def test_estimate_item_applies_active_stack_interaction_harms():
     baseline = load_baseline()
-    spec = build_additional_specs(baseline)["ashwagandha_600"]
+    spec = build_additional_specs(baseline)["doxepin_3mg"]
     item = {
-        "id": "ashwagandha_600",
-        "name": "Ashwagandha test",
+        "id": "doxepin_3mg",
+        "name": "Doxepin test",
         "status": "testing",
-        "category": "supplement_bought",
-        "display_category": "supplement",
-        "annual_cost": 60,
+        "category": "rx_candidate",
+        "display_category": "rx",
+        "annual_cost": CATALOG["doxepin_3mg"].annual_cost,
     }
 
     alone = estimate_item(item, spec, baseline)
@@ -708,14 +710,14 @@ def test_estimate_item_applies_active_stack_interaction_harms():
 
 def test_stack_interaction_harm_is_allocated_across_matching_tags():
     baseline = load_baseline()
-    spec = build_additional_specs(baseline)["glycine_2g"]
+    spec = build_additional_specs(baseline)["doxepin_3mg"]
     item = {
-        "id": "glycine_2g",
-        "name": "Glycine test",
+        "id": "doxepin_3mg",
+        "name": "Doxepin test",
         "status": "testing",
-        "category": "supplement_bought",
-        "display_category": "supplement",
-        "annual_cost": 28,
+        "category": "rx_candidate",
+        "display_category": "rx",
+        "annual_cost": CATALOG["doxepin_3mg"].annual_cost,
     }
 
     one_other_sedative = estimate_item(
@@ -770,10 +772,28 @@ def test_protocol_state_counts_shared_stack_effects_once():
         estimates_by_id["glycine_2g"]["total_qaly"]
         + estimates_by_id["apigenin_50"]["total_qaly"]
     )
+    first = estimates_by_id["glycine_2g"]["sleep_overlap"]
+    second = estimates_by_id["apigenin_50"]["sleep_overlap"]
+    overlap_years = min(first["qol_years"], second["qol_years"])
+    expected_overlap = -discount_factor(overlap_years) * sum(
+        loss
+        * first["relief"].get(component, 0.0)
+        * second["relief"].get(component, 0.0)
+        for component, loss in first["annual_losses"].items()
+    )
+    additive_draws = sum(
+        latent_protocol_item_draws(item_id, estimate)
+        for item_id, estimate in estimates_by_id.items()
+    )
 
     assert state["additive_qaly"] == pytest.approx(additive, abs=0.0001)
-    assert state["stack_interaction_qaly"] < 0
-    assert state["total_qaly"] < additive
+    # The overlap is smaller than the display precision in this neutral
+    # baseline. Check the actual component effect and paired state draws.
+    assert expected_overlap < 0
+    np.testing.assert_allclose(
+        state["_draws"] - additive_draws, expected_overlap, atol=1e-12, rtol=0
+    )
+    assert state["_total_qaly_raw"] < float(np.mean(additive_draws))
 
 
 def test_protocol_state_value_is_order_and_duplicate_invariant():
@@ -939,9 +959,31 @@ def test_state_marginal_decisions_use_full_state_delta():
         context,
     )
     glycine_drop = next(row for row in rows if row["id"] == "glycine_2g")
+    current_state = evaluate_protocol_state(
+        ["glycine_2g", "apigenin_50"], estimates_by_id, specs, context
+    )
+    dropped_state = evaluate_protocol_state(
+        ["apigenin_50"], estimates_by_id, specs, context
+    )
+    delta_draws = dropped_state["_draws"] - current_state["_draws"]
+    standalone_draws = latent_protocol_item_draws(
+        "glycine_2g", estimates_by_id["glycine_2g"]
+    )
+    raw_interaction_delta = -sum(
+        detail["penalty_qaly"] for detail in current_state["interaction_details"]
+    )
 
     assert glycine_drop["action"] == "drop"
-    assert glycine_drop["state_interaction_delta_qaly"] > 0
+    # Removing glycine also releases its component overlap, even when this
+    # small gain rounds to zero in the display-oriented marginal table.
+    assert raw_interaction_delta > 0
+    np.testing.assert_allclose(
+        delta_draws + standalone_draws, raw_interaction_delta, atol=1e-12, rtol=0
+    )
+    assert glycine_drop["state_interaction_delta_qaly"] == round(
+        raw_interaction_delta, 4
+    )
+    assert glycine_drop["delta_qaly"] == round(float(np.mean(delta_draws)), 4)
     assert glycine_drop["drop_qaly"] == glycine_drop["delta_qaly"]
 
 

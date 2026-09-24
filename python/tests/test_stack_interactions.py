@@ -320,8 +320,8 @@ class TestMechanismClusters:
         assert cluster_details[0]["matched_tag_count"] == 3
 
     def test_catalog_polyphenols_carry_anti_inflammatory_tag(self):
-        """After annotation, curcumin/quercetin/apigenin should share the cluster."""
-        for item_id in ("curcumin_250", "quercetin_500", "apigenin_50"):
+        """Curcumin, quercetin and EGCG retain the non-sleep benefit cluster."""
+        for item_id in ("curcumin_250", "quercetin_500", "egcg_400"):
             entry = CATALOG.get(item_id)
             assert entry is not None, item_id
             assert "anti_inflammatory" in entry.benefit_tags, item_id

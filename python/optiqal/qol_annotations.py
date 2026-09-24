@@ -31,6 +31,7 @@ from .provisional_params import (
     L_THEANINE_BEDTIME_QOL_STUDY_QUALITY,
 )
 from .qol_evidence import QolEvidence
+from .sleep_residual import ResidualMode, apply_sleep_residual_rule
 
 # --------------------------------------------------------------------------
 # General QoL (qol_annual) claims — anchor: authored_shaded unless noted.
@@ -514,7 +515,24 @@ SLEEP_RELIEF_EVIDENCE: Dict[str, QolEvidence] = {
 }
 
 
-def general_qol_evidence_for(item_id: str) -> Optional[QolEvidence]:
+def general_qol_evidence_for(
+    item_id: str,
+    *,
+    residual_mode: ResidualMode = "evidence_rule",
+    sleep_component_relief: dict[str, float] | None = None,
+) -> Optional[QolEvidence]:
+    """Return evidence for general QoL retained by the selected residual rule.
+
+    The default omits duplicate sleep-only claims. Historical annotations
+    remain available explicitly through ``residual_mode="authored"``.
+    """
+    if (
+        apply_sleep_residual_rule(
+            item_id, 1.0, residual_mode, sleep_component_relief=sleep_component_relief
+        )
+        == 0
+    ):
+        return None
     return GENERAL_QOL_EVIDENCE.get(item_id)
 
 

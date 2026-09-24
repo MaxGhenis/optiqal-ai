@@ -55,6 +55,7 @@ from .sleep import (
     sleep_baseline_mortality_multiplier,
     sleep_intervention_mortality_hr_multiplier,
 )
+from .sleep_residual import ResidualMode, apply_sleep_residual_rule
 
 
 @dataclass(frozen=True)
@@ -633,19 +634,29 @@ class CatalogEntry:
     def evidence_confidence(self) -> Literal["high", "medium", "low"]:
         return EVIDENCE_CONFIDENCE_LABELS[self.evidence_quality]
 
-    def raw_qol_annual(self) -> float:
-        """Expected annual non-mortality QALY before evidence shrinkage."""
-        return self.qol_annual + sum(
-            effect.annual_qaly.mean for effect in self.qol_effects
+    def raw_qol_annual(self, residual_mode: ResidualMode = "evidence_rule") -> float:
+        """Annual non-mortality QALY after the residual rule, before shrinkage."""
+        residual = apply_sleep_residual_rule(
+            self.id,
+            self.qol_annual,
+            residual_mode,
+            sleep_component_relief=self.sleep_component_relief,
         )
+        return residual + sum(effect.annual_qaly.mean for effect in self.qol_effects)
 
-    def effective_qol_annual(self) -> float:
+    def effective_qol_annual(
+        self, residual_mode: ResidualMode = "evidence_rule"
+    ) -> float:
         # Same replacement rule as the draw path: calibrated guard for
         # annotated positive claims, legacy flat multiplier otherwise.
         from .qol_annotations import general_qol_evidence_for
 
-        raw = self.raw_qol_annual()
-        evidence = general_qol_evidence_for(self.id)
+        raw = self.raw_qol_annual(residual_mode)
+        evidence = general_qol_evidence_for(
+            self.id,
+            residual_mode=residual_mode,
+            sleep_component_relief=self.sleep_component_relief,
+        )
         if evidence is not None and raw > 0:
             return raw * evidence.multiplier_mean
         return raw * self.evidence_effect_multiplier()
@@ -859,7 +870,10 @@ SEDATION_STACK_RULE = InteractionRule(
     requires_tags=["sedating"],
     minimum_matches=2,
     allocation="split_across_matches",
-    description="Extra grogginess and coordination cost from stacking sedating agents.",
+    description=(
+        "Unsourced judgment: extra grogginess and coordination cost from stacking "
+        "pharmacologic hypnotics."
+    ),
     annual_qaly_loss=Distribution(type="point", params={"value": 0.0015}),
 )
 
@@ -1946,7 +1960,7 @@ _add(
             "mucus": 0.75,
             "upper_airway": 0.25,
         },
-        benefit_tags=["sleep_breathing_support"],
+        benefit_tags=["sleep_breathing_support", "sleep_quality_support"],
         notes=(
             "Best-supported as a mucolytic in chronic bronchitis/COPD. Much weaker for "
             "upper-airway sleep problems, so any sleep benefit is scaled to mucus-heavy phenotypes."
@@ -2027,8 +2041,6 @@ _add(
                 ),
             ),
         ],
-        interaction_tags=["sedating"],
-        interaction_rules=[SEDATION_STACK_RULE],
         sleep_component_relief={
             "duration": 0.08,
             "continuity": 0.12,
@@ -2349,8 +2361,6 @@ _add(
         annual_cost=28,  # $17.40 / 227 doses (1lb/151×3g servings, 2g dose) * 365
         qol_annual=0.0002,
         has_direct_mortality_effect=False,
-        interaction_tags=["sedating"],
-        interaction_rules=[SEDATION_STACK_RULE],
         sleep_component_relief={
             "duration": 0.06,
             "quality": 0.14,
@@ -2380,7 +2390,6 @@ _add(
         log_sd=0.12,
         annual_cost=76,  # $24.95 / 120 caps * 365
         qol_annual=0.0003,
-        interaction_tags=["sedating"],
         interaction_rules=[SEDATION_STACK_RULE],
         sleep_component_relief={
             "quality": 0.12,
@@ -2607,7 +2616,7 @@ _add(
                 source="https://www.ncbi.nlm.nih.gov/books/NBK548536/",
             ),
         ],
-        interaction_tags=["sedating", "thyroid_active"],
+        interaction_tags=["thyroid_active"],
         interaction_rules=[SEDATION_STACK_RULE],
         sleep_component_relief={
             "duration": 0.05,
@@ -3282,8 +3291,6 @@ EXTRA_BENEFIT_TAGS: Dict[str, List[str]] = {
     "ginger_400": ["anti_inflammatory"],
     "quercetin_500": ["anti_inflammatory", "senolytic_support"],
     "egcg_400": ["anti_inflammatory"],
-    "apigenin_50": ["anti_inflammatory", "senolytic_support"],
-    "ashwagandha_600": ["anti_inflammatory"],
     "black_seed_oil_1g": ["anti_inflammatory"],
     "fisetin_100": ["senolytic_support", "anti_inflammatory", "antioxidant_support"],
     "fisetin_100_unbundled": [
@@ -4224,6 +4231,7 @@ def _simulate_qol_effect_draws(
     evidence_multiplier: float,
     n_simulations: int,
     rng: np.random.Generator,
+    residual_mode: ResidualMode = "evidence_rule",
 ) -> tuple[np.ndarray, np.ndarray, List[Dict[str, Any]]]:
     """Sample named QoL components and preserve the legacy scalar component."""
     from .qol_annotations import general_qol_evidence_for
@@ -4237,7 +4245,17 @@ def _simulate_qol_effect_draws(
     # annotated positive claims (replacement, never stacked). Negative
     # (harm-side) components keep the legacy multiplier: shrinking a claimed
     # harm would flatter the intervention.
-    general_evidence = general_qol_evidence_for(entry.id)
+    residual = apply_sleep_residual_rule(
+        entry.id,
+        entry.qol_annual,
+        residual_mode,
+        sleep_component_relief=entry.sleep_component_relief,
+    )
+    general_evidence = general_qol_evidence_for(
+        entry.id,
+        residual_mode=residual_mode,
+        sleep_component_relief=entry.sleep_component_relief,
+    )
 
     def _guard(raw_component: np.ndarray, component_name: str) -> np.ndarray:
         if general_evidence is None or float(np.mean(raw_component)) <= 0:
@@ -4248,8 +4266,8 @@ def _simulate_qol_effect_draws(
         )
         return raw_component * (1.0 - general_evidence.shrinkage) * theta
 
-    if entry.qol_annual != 0:
-        raw_component = np.full(n_simulations, entry.qol_annual * qol_factor)
+    if residual != 0:
+        raw_component = np.full(n_simulations, residual * qol_factor)
         component = _guard(raw_component, "qol_annual")
         raw_qol_draws += raw_component
         qol_draws += component
@@ -4302,6 +4320,7 @@ def simulate_catalog(
     active_interaction_tags: Optional[List[str]] = None,
     sleep_estimate: Optional[SleepBurdenEstimate] = None,
     insurance: Optional[InsuranceContext] = None,
+    residual_mode: ResidualMode = "evidence_rule",
 ) -> List[Dict]:
     """
     Simulate all catalog entries and return sorted results.
@@ -4311,6 +4330,9 @@ def simulate_catalog(
 
     Costs and QALYs use the shared reference-case discount defaults unless
     explicitly overridden for sensitivity analysis.
+
+    ``residual_mode="authored"`` restores duplicate sleep residuals for
+    sensitivity analysis; the default uses the shared bedtime evidence rule.
 
     ``insurance`` prices coverable items (prescriptions, DME, specialist
     devices) at expected out-of-pocket rather than cash retail. Omitting it
@@ -4388,6 +4410,7 @@ def simulate_catalog(
             evidence_multiplier=evidence_multiplier,
             n_simulations=n_simulations,
             rng=qol_rng,
+            residual_mode=residual_mode,
         )
         raw_qol_qaly = float(np.mean(raw_qol_draws))
         qol_qaly = float(np.mean(qol_draws))
@@ -4477,6 +4500,7 @@ def simulate_catalog(
                 "interaction_harm_qaly": r.expected_interaction_harm_qalys,
                 "raw_qol_qaly": raw_qol_qaly,
                 "qol_qaly": qol_qaly,
+                "residual_mode": residual_mode,
                 "qol_effects": qol_effect_summaries,
                 "qol_years": qol_years,
                 "raw_sleep_qol_annual": raw_sleep_qol_annual,

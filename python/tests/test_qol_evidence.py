@@ -1,5 +1,7 @@
 """Tests for the QoL evidence guard stack."""
 
+from dataclasses import replace
+
 import numpy as np
 import pytest
 
@@ -11,6 +13,7 @@ from optiqal.protocol_ground_up import (
     estimate_item,
     load_baseline,
     load_protocol_items,
+    resolve_protocol_context,
     resolve_stack_spec,
 )
 from optiqal.qol_annotations import (
@@ -114,11 +117,18 @@ def test_guarded_relief_scales_fractions_and_passes_through_unannotated():
 
 def test_sleep_guard_reaches_the_mortality_multiplier():
     """The relief-derived hazard multiplier must inherit the evidence guard."""
-    baseline = load_baseline()
+    # Explicitly activate the breathing mortality pathway: mild OSA has no
+    # breathing mortality benefit under the default severity gate.
+    context = replace(
+        resolve_protocol_context(None), breathing_mortality_gate_override=1.0
+    )
+    baseline = load_baseline(context)
     items = {item["id"]: item for item in load_protocol_items()}
     specs = dict(build_specs(baseline))
     specs.update(build_additional_specs(baseline))
-    estimate = estimate_item(items["apap_nightly"], specs["apap_nightly"], baseline)
+    estimate = estimate_item(
+        items["apap_nightly"], specs["apap_nightly"], baseline, context
+    )
     guarded_mult = estimate["assumptions"]["sleep_mortality_hr_multiplier"]
 
     # Reconstruct the unguarded multiplier from the same baseline.
@@ -169,8 +179,10 @@ def test_estimate_item_guards_positive_claims_only():
     specs = dict(build_specs(baseline))
     specs.update(build_additional_specs(baseline))
 
-    guarded = estimate_item(items["magnesium_200"], specs["magnesium_200"], baseline)
-    ev = general_qol_evidence_for("magnesium_200")
+    guarded = estimate_item(
+        items["ashwagandha_600"], specs["ashwagandha_600"], baseline
+    )
+    ev = general_qol_evidence_for("ashwagandha_600")
     claimed = guarded["qol_evidence"]["general_qol_claimed_qaly"]
     assert claimed > 0
     assert guarded["general_qol_qaly"] == pytest.approx(

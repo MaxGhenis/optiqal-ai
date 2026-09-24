@@ -30,7 +30,7 @@ import numpy as np
 
 from . import protocol_ground_up as pgu
 from .catalog import CATALOG
-from .stack_interactions import expected_stack_interaction_qaly
+from .protocol_overlap import ProtocolInteractionEvaluator
 
 SLEEP_DOMAIN_EXCLUSIVE_GROUPS = frozenset({"insomnia_rx", "osa_primary_therapy"})
 SLEEP_DOMAIN_TIMES_OF_DAY = frozenset({"before_bed", "bedtime"})
@@ -208,9 +208,23 @@ class SleepStackEvaluator:
         if unknown:
             raise ValueError(f"cost_overrides for unknown items: {unknown}")
         self.active_years = pgu._state_item_active_years(all_ids, dict(specs))
-        self.item_qalys = pgu._state_item_qalys(all_ids, dict(estimates_by_id))
+        self.interactions = ProtocolInteractionEvaluator(
+            {item_id: estimates_by_id[item_id] for item_id in all_ids},
+            self.active_years,
+            context.profile,
+            pgu.QALY_DISCOUNT_RATE,
+            context.overlap_mode,
+        )
         self.draws = {
-            item_id: pgu.latent_protocol_item_draws(item_id, estimates_by_id[item_id])
+            item_id: pgu.latent_protocol_item_draws(
+                item_id,
+                estimates_by_id[item_id],
+                legacy_entry=(
+                    self.interactions.catalog[item_id]
+                    if context.overlap_mode == "legacy_rank_retention"
+                    else None
+                ),
+            )
             for item_id in all_ids
         }
         self.cost = {
@@ -236,22 +250,7 @@ class SleepStackEvaluator:
 
     def interaction_qaly(self, subset: Sequence[int]) -> float:
         ids = self.state_ids(subset)
-        value, _ = expected_stack_interaction_qaly(
-            item_ids=ids,
-            catalog_entries=CATALOG,
-            profile=self.profile,
-            qaly_discount_rate=pgu.QALY_DISCOUNT_RATE,
-            item_active_years={
-                item_id: self.active_years[item_id]
-                for item_id in ids
-                if item_id in self.active_years
-            },
-            item_qalys={
-                item_id: self.item_qalys[item_id]
-                for item_id in ids
-                if item_id in self.item_qalys
-            },
-        )
+        value, _ = self.interactions.evaluate(ids, details=False)
         return float(value)
 
     def mean_qaly(self, subset: Sequence[int]) -> float:

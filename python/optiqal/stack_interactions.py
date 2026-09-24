@@ -28,7 +28,7 @@ BENEFIT_OVERLAP_RETENTION: Dict[str, tuple[float, ...]] = {
     # NAD+ precursor competition is even tighter (NR and NMN share the same
     # salvage pathway; stacking provides almost no additional NAD+ lift).
     "nad_precursor": (1.0, 0.25, 0.12, 0.08, 0.05),
-    # Anti-inflammatory polyphenol cluster (curcumin, quercetin, apigenin, EGCG,
+    # Anti-inflammatory polyphenol cluster (curcumin, quercetin, EGCG,
     # luteolin, cocoa flavanols, astaxanthin, black seed oil). Shared NF-kB /
     # COX / iNOS targets; CRP reductions are not additive beyond the first item.
     "anti_inflammatory": (1.0, 0.40, 0.22, 0.12, 0.08),

@@ -27,7 +27,7 @@ MARCH_TST_H = 423 / 60
 JUNE_TST_H = 453.5 / 60
 
 
-def _june(flag: bool = True) -> SleepStudyResult:
+def _june(flag: bool | None = None) -> SleepStudyResult:
     return home_sleep_study_2026_06_01(used_nasal_steroid=flag, used_nasal_strips=flag)
 
 
@@ -81,13 +81,16 @@ def test_single_study_pools_to_itself():
 
 
 def test_nasal_flags_pool_only_when_nights_agree():
-    agreeing = pool_sleep_studies([HOME_SLEEP_STUDY_2026_03_25, _june(True)])
+    march = replace(
+        HOME_SLEEP_STUDY_2026_03_25, used_nasal_steroid=True, used_nasal_strips=True
+    )
+    agreeing = pool_sleep_studies([march, _june(True)])
     assert agreeing.used_nasal_steroid is True
     assert agreeing.used_nasal_strips is True
     with pytest.raises(ValueError, match="nights disagree on used_nasal_steroid"):
-        pool_sleep_studies([HOME_SLEEP_STUDY_2026_03_25, _june(False)])
+        pool_sleep_studies([march, _june(False)])
     explicit = pool_sleep_studies(
-        [HOME_SLEEP_STUDY_2026_03_25, _june(False)],
+        [march, _june(False)],
         used_nasal_steroid=False,
         used_nasal_strips=True,
     )
@@ -95,6 +98,15 @@ def test_nasal_flags_pool_only_when_nights_agree():
     assert explicit.used_nasal_strips is True
     # The explicit pooled value never rewrites what a night recorded.
     assert explicit.nights[0].used_nasal_steroid is True
+
+
+@pytest.mark.parametrize("flag", [None, False, True])
+def test_unknown_nasal_flags_stay_unknown_when_pooled(flag):
+    pooled = pool_sleep_studies([HOME_SLEEP_STUDY_2026_03_25, _june(flag)])
+    assert HOME_SLEEP_STUDY_2026_03_25.used_nasal_steroid is None
+    assert HOME_SLEEP_STUDY_2026_03_25.used_nasal_strips is None
+    assert pooled.used_nasal_steroid is None
+    assert pooled.used_nasal_strips is None
 
 
 def test_pooling_fails_closed_on_unpoolable_input():
@@ -129,14 +141,14 @@ def test_night_without_counts_contributes_rei_times_hours():
     assert pooled.obstructive_apneas is None
 
 
-def test_june_study_needs_its_nasal_flags_stated():
+def test_unreported_nasal_flags_default_to_unknown():
     assert "used_nasal_steroid" not in HOME_SLEEP_STUDY_2026_06_01_REPORTED
     assert "used_nasal_strips" not in HOME_SLEEP_STUDY_2026_06_01_REPORTED
-    with pytest.raises(TypeError):
-        home_sleep_study_2026_06_01()  # type: ignore[call-arg]
-    with pytest.raises(TypeError):
-        pooled_home_sleep_study()  # type: ignore[call-arg]
-    june = _june()
+    june = home_sleep_study_2026_06_01()
+    assert june.used_nasal_steroid is None
+    assert june.used_nasal_strips is None
+    assert pooled_home_sleep_study().used_nasal_steroid is None
+    assert pooled_home_sleep_study().used_nasal_strips is None
     assert (june.rei, june.mean_spo2, june.nadir_spo2) == (8.3, 98.0, 95.0)
     assert (june.obstructive_apneas, june.hypopneas) == (55, 8)
     assert (june.supine_fraction, june.supine_rei) == (0.47, 13.4)
@@ -162,9 +174,15 @@ LEGACY_MARCH = SleepStudyResult(
 )
 
 
-def test_default_context_is_still_the_march_study_numerically():
-    """Sleep time and date are descriptive: the model output must not move."""
-    assert DEFAULT_PROTOCOL_CONTEXT.home_sleep_study is HOME_SLEEP_STUDY_2026_03_25
+def test_default_context_pools_both_studies_with_unknown_nasal_flags():
+    assert DEFAULT_PROTOCOL_CONTEXT.home_sleep_study == pooled_home_sleep_study()
+    assert len(DEFAULT_PROTOCOL_CONTEXT.home_sleep_study.nights) == 2
+    assert DEFAULT_PROTOCOL_CONTEXT.home_sleep_study.used_nasal_steroid is None
+    assert DEFAULT_PROTOCOL_CONTEXT.home_sleep_study.used_nasal_strips is None
+
+
+def test_study_sleep_time_date_and_nasal_flags_are_descriptive():
+    """Descriptive fields do not alter a fixed diagnostic REI's model output."""
     wearable = estimate_sleep_burden(
         SleepMetrics(
             duration_hours=6.6,
@@ -186,7 +204,7 @@ def test_default_context_is_still_the_march_study_numerically():
     assert new.airway == old.airway
 
 
-def test_single_study_payload_matches_the_legacy_literal():
+def test_single_study_payload_reports_unknown_nasal_flags():
     assert sleep_study_payload(HOME_SLEEP_STUDY_2026_03_25) == {
         "date": "2026-03-25",
         "type": "home",
@@ -197,8 +215,8 @@ def test_single_study_payload_matches_the_legacy_literal():
         "hypopneas": 19,
         "supine_fraction": 0.52,
         "supine_rei": 5.2,
-        "used_nasal_steroid": True,
-        "used_nasal_strips": True,
+        "used_nasal_steroid": None,
+        "used_nasal_strips": None,
     }
 
 
@@ -228,7 +246,9 @@ def test_osa_personalization_describes_the_study_the_context_carries():
         resolve_protocol_context,
     )
 
-    march_context = resolve_protocol_context(None)
+    march_context = replace(
+        resolve_protocol_context(None), home_sleep_study=HOME_SLEEP_STUDY_2026_03_25
+    )
     march_specs = build_additional_specs(load_baseline(march_context), march_context)
     assert march_specs["apap_nightly"].personalization.startswith(
         "Your March 25, 2026 home study showed mild OSA (REI 7.7/hr), "

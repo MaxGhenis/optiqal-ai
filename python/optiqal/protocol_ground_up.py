@@ -20,6 +20,7 @@ from typing import Any
 
 import numpy as np
 
+from .bundles import BUNDLES
 from .catalog import CATALOG, CatalogEntry, public_display_category
 from .confounding import ConfoundingPrior
 from .intervention import (
@@ -30,6 +31,7 @@ from .intervention import (
 )
 from .priors import load_priors
 from .profile import Profile
+from .protocol_overlap import OverlapMode, ProtocolInteractionEvaluator
 from .provisional_params import (
     L_THEANINE_BEDTIME_ID,
     L_THEANINE_BEDTIME_SANITY_RANGE,
@@ -52,15 +54,24 @@ from .sleep import (
     SleepStudyResult,
     apply_sleep_study,
     effective_sleep_component_relief,
-    estimate_airway_response_signal,
     estimate_sleep_burden,
+    estimate_sleep_mortality_relief_fraction,
     estimate_sleep_relief_annual_qaly,
     pool_sleep_studies,
     sleep_baseline_mortality_multiplier,
     sleep_intervention_mortality_hr_multiplier,
     sleep_utility_lineage,
 )
-from .stack_interactions import expected_stack_interaction_qaly
+from .sleep_baseline import (
+    WHOOP_ASLEEP_HOURS_SQL,
+    DurationConstruct,
+    duration_for_construct,
+    measured_duration_hours,
+    rounded_window,
+    sleep_window,
+)
+from .sleep_overlap import mortality_exposure_weights
+from .sleep_residual import ResidualMode, apply_sleep_residual_rule
 
 N_SIMULATIONS = 40_000
 SEED = 42
@@ -163,6 +174,10 @@ class ProtocolContext:
     output_md: Path
     profile: Profile
     home_sleep_study: SleepStudyResult
+    duration_construct: DurationConstruct = "calibrated_self_report"
+    breathing_mortality_gate_override: float | None = None
+    overlap_mode: OverlapMode = "component"
+    residual_mode: ResidualMode = "evidence_rule"
 
 
 BIRTH_DATE_ENV = "OPTIQAL_BIRTH_DATE"
@@ -212,15 +227,14 @@ HOME_SLEEP_STUDY_2026_03_25 = SleepStudyResult(
     mixed_apneas=0,
     supine_fraction=0.52,
     supine_rei=5.2,
-    used_nasal_steroid=True,
-    used_nasal_strips=True,
+    used_nasal_steroid=None,
+    used_nasal_strips=None,
     study_date="2026-03-25",
 )
 # Every field the 2026-06-01 report states (it also notes intermittent snoring,
 # which SleepStudyResult has no field for). The report does not say whether a
-# nasal steroid or nasal strips were used that night, and those two fields are
-# plain booleans with no "unknown" value, so they are deliberately absent here:
-# home_sleep_study_2026_06_01() makes the caller state them.
+# nasal steroid or nasal strips were used that night. The descriptive flags
+# therefore default to None (unknown).
 HOME_SLEEP_STUDY_2026_06_01_REPORTED: dict[str, Any] = {
     "study_type": "home",
     "rei": 8.3,
@@ -239,8 +253,8 @@ HOME_SLEEP_STUDY_2026_06_01_REPORTED: dict[str, Any] = {
 
 def home_sleep_study_2026_06_01(
     *,
-    used_nasal_steroid: bool,
-    used_nasal_strips: bool,
+    used_nasal_steroid: bool | None = None,
+    used_nasal_strips: bool | None = None,
 ) -> SleepStudyResult:
     """The 2026-06-01 home study, with the nasal-treatment flags the report omits."""
     return SleepStudyResult(
@@ -252,16 +266,15 @@ def home_sleep_study_2026_06_01(
 
 def pooled_home_sleep_study(
     *,
-    june_used_nasal_steroid: bool,
-    june_used_nasal_strips: bool,
+    june_used_nasal_steroid: bool | None = None,
+    june_used_nasal_strips: bool | None = None,
     used_nasal_steroid: bool | None = None,
     used_nasal_strips: bool | None = None,
 ) -> SleepStudyResult:
     """Both home studies pooled by ``pool_sleep_studies``.
 
-    The June nasal flags must be stated because the report does not record
-    them. When the two nights then disagree on a flag, the pooled flag must
-    also be stated (``used_nasal_steroid`` / ``used_nasal_strips``).
+    Both reports leave nasal-product use unrecorded, so the descriptive flags
+    default to unknown. Explicit values remain available for sensitivity inputs.
     """
     return pool_sleep_studies(
         [
@@ -295,7 +308,7 @@ DEFAULT_PROTOCOL_CONTEXT = ProtocolContext(
         has_hypertension=False,
         activity_level="active",
     ),
-    home_sleep_study=HOME_SLEEP_STUDY_2026_03_25,
+    home_sleep_study=pooled_home_sleep_study(),
 )
 
 # Backward-compatible aliases while callers migrate to ProtocolContext.
@@ -1470,14 +1483,41 @@ def rank_preserving_latent_draws(
 def latent_protocol_item_draws(
     item_id: str,
     estimate: dict[str, Any],
+    *,
+    legacy_entry: CatalogEntry | None = None,
 ) -> np.ndarray:
-    """Return item draws paired to shared latent protocol worlds."""
-    cached = estimate.get("_latent_total_draws")
-    if cached is not None:
+    """Pair draws, keeping the restored legacy tag ordering in its own cache."""
+    cache_key = (
+        "_legacy_latent_total_draws"
+        if legacy_entry is not None
+        else "_latent_total_draws"
+    )
+    legacy_signature = (
+        (
+            public_display_category(legacy_entry),
+            tuple(sorted(set(legacy_entry.benefit_tags))),
+            tuple(sorted(set(legacy_entry.interaction_tags))),
+        )
+        if legacy_entry is not None
+        else None
+    )
+    cached = estimate.get(cache_key)
+    if cached is not None and (
+        legacy_entry is None
+        or estimate.get("_legacy_latent_tag_signature") == legacy_signature
+    ):
         return cached
-    score = latent_protocol_item_score(item_id)
+    # Synthetic callers may supply already-paired arrays without standalone
+    # draws. Preserve their existing contract in either overlap mode.
+    if "_total_draws" not in estimate and "_latent_total_draws" in estimate:
+        return estimate["_latent_total_draws"]
+    score = latent_protocol_item_score(item_id, entry=legacy_entry)
     draws = rank_preserving_latent_draws(estimate["_total_draws"], score)
-    estimate["_latent_total_draws"] = draws
+    estimate[cache_key] = draws
+    if legacy_entry is not None:
+        # A later sensitivity may restore legacy sedation tags after an
+        # earlier legacy-overlap evaluation; it needs a new latent ordering.
+        estimate["_legacy_latent_tag_signature"] = legacy_signature
     return draws
 
 
@@ -1674,105 +1714,18 @@ def query_one(conn: sqlite3.Connection, sql: str) -> sqlite3.Row:
 
 def load_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
     context = resolve_protocol_context(context)
-    conn = sqlite3.connect(context.health_db)
+    conn = sqlite3.connect(f"file:{context.health_db}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
 
-    sleep_90 = query_one(
-        conn,
-        """
-        WITH recent AS (
-          SELECT * FROM sleep_nights WHERE date >= date('now', '-90 day')
-        )
-        SELECT
-          COUNT(*) AS nights,
-          AVG(whoop_sleep_hours) AS whoop_sleep_h,
-          AVG(whoop_sleep_perf) AS whoop_sleep_perf,
-          AVG(whoop_recovery) AS whoop_recovery,
-          AVG(whoop_spo2) AS whoop_spo2,
-          AVG(eight_score) AS eight_score,
-          AVG(eight_quality_score) AS eight_quality,
-          AVG(eight_routine_score) AS eight_routine,
-          AVG(eight_sleep_min) / 60.0 AS eight_sleep_h,
-          AVG(eight_waso_min) AS eight_waso
-          ,
-          AVG(eight_latency_min) AS eight_latency,
-          AVG(eight_breathing_score) AS eight_breathing,
-          AVG(eight_social_jetlag_min) AS eight_social_jetlag,
-          AVG(eight_snore_pct) AS eight_snore_pct,
-          AVG(eight_sleep_debt_min) AS eight_sleep_debt
-        FROM recent
-        """,
-    )
-    sleep_30 = query_one(
-        conn,
-        """
-        WITH recent AS (
-          SELECT * FROM sleep_nights WHERE date >= date('now', '-30 day')
-        )
-        SELECT
-          COUNT(*) AS nights,
-          AVG(whoop_sleep_hours) AS whoop_sleep_h,
-          AVG(whoop_sleep_perf) AS whoop_sleep_perf,
-          AVG(whoop_recovery) AS whoop_recovery,
-          AVG(whoop_spo2) AS whoop_spo2,
-          AVG(eight_score) AS eight_score,
-          AVG(eight_quality_score) AS eight_quality,
-          AVG(eight_routine_score) AS eight_routine,
-          AVG(eight_sleep_min) / 60.0 AS eight_sleep_h,
-          AVG(eight_waso_min) AS eight_waso
-          ,
-          AVG(eight_latency_min) AS eight_latency,
-          AVG(eight_breathing_score) AS eight_breathing,
-          AVG(eight_social_jetlag_min) AS eight_social_jetlag,
-          AVG(eight_snore_pct) AS eight_snore_pct,
-          AVG(eight_sleep_debt_min) AS eight_sleep_debt
-        FROM recent
-        """,
-    )
-    sleep_pre = query_one(
-        conn,
-        """
-        WITH recent AS (
-          SELECT * FROM sleep_nights
-          WHERE date >= date('now', '-15 day') AND date < date('now', '-7 day')
-        )
-        SELECT
-          COUNT(*) AS nights,
-          AVG(whoop_recovery) AS whoop_recovery,
-          AVG(whoop_spo2) AS whoop_spo2,
-          AVG(eight_quality_score) AS eight_quality,
-          AVG(eight_waso_min) AS eight_waso,
-          AVG(eight_latency_min) AS eight_latency,
-          AVG(eight_breathing_score) AS eight_breathing,
-          AVG(eight_snore_pct) AS eight_snore_pct
-        FROM recent
-        """,
-    )
-    sleep_post = query_one(
-        conn,
-        """
-        WITH recent AS (
-          SELECT * FROM sleep_nights
-          WHERE date >= date('now', '-7 day')
-        )
-        SELECT
-          COUNT(*) AS nights,
-          AVG(whoop_recovery) AS whoop_recovery,
-          AVG(whoop_spo2) AS whoop_spo2,
-          AVG(eight_quality_score) AS eight_quality,
-          AVG(eight_waso_min) AS eight_waso,
-          AVG(eight_latency_min) AS eight_latency,
-          AVG(eight_breathing_score) AS eight_breathing,
-          AVG(eight_snore_pct) AS eight_snore_pct
-        FROM recent
-        """,
-    )
+    anchor_date = conn.execute("SELECT MAX(date) FROM sleep_nights").fetchone()[0]
+    sleep_90 = sleep_window(conn, anchor_date, 90)
+    sleep_30 = sleep_window(conn, anchor_date, 30)
     training_180 = query_one(
         conn,
-        """
+        f"""
         WITH recent AS (
           SELECT * FROM sleep_nights
-          WHERE date >= date('now', '-180 day')
+          WHERE date >= date((SELECT MAX(date) FROM sleep_nights), '-180 day')
             AND whoop_strain IS NOT NULL
         )
         SELECT
@@ -1781,7 +1734,7 @@ def load_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
           AVG(whoop_recovery) AS avg_recovery,
           AVG(whoop_hrv) AS avg_hrv,
           AVG(whoop_rhr) AS avg_rhr,
-          AVG(whoop_sleep_hours) AS avg_sleep_h,
+          AVG({WHOOP_ASLEEP_HOURS_SQL}) AS avg_sleep_h,
           AVG(whoop_sleep_perf) AS avg_sleep_perf,
           AVG(CASE WHEN whoop_strain >= 14 THEN 1.0 ELSE 0.0 END) AS high_strain_share,
           AVG(CASE WHEN whoop_strain >= 16 THEN 1.0 ELSE 0.0 END) AS very_high_strain_share
@@ -1829,7 +1782,8 @@ def load_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
         """
         WITH recent AS (
           SELECT * FROM body_comp
-          WHERE date >= date('now', '-180 day')
+          WHERE date >= date((SELECT MAX(date) FROM sleep_nights), '-180 day')
+            AND date <= (SELECT MAX(date) FROM sleep_nights)
         )
         SELECT
           COUNT(*) AS days,
@@ -1854,7 +1808,8 @@ def load_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
         {
             str(row["catalog_id"]): str(row["product_name"])
             for row in conn.execute(
-                "SELECT catalog_id, product_name FROM catalog_product_mappings"
+                "SELECT catalog_id, product_name FROM catalog_product_mappings "
+                "ORDER BY catalog_id, product_name"
             )
         }
         if has_product_mappings
@@ -1862,49 +1817,39 @@ def load_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
     )
     conn.close()
 
-    combined_sleep = (
-        float(sleep_90["whoop_sleep_h"] or 0.0)
-        + float(sleep_90["eight_sleep_h"] or 0.0)
-    ) / 2.0
-    airway_response_signal = estimate_airway_response_signal(
-        SleepMetrics(
-            recovery_score=float(sleep_pre["whoop_recovery"] or 0.0),
-            sleep_quality_score=float(sleep_pre["eight_quality"] or 0.0),
-            waso_min=float(sleep_pre["eight_waso"] or 0.0),
-            latency_min=float(sleep_pre["eight_latency"] or 0.0),
-            breathing_score=float(sleep_pre["eight_breathing"] or 0.0),
-            spo2=float(sleep_pre["whoop_spo2"] or 0.0),
-            snore_pct=float(sleep_pre["eight_snore_pct"] or 0.0),
-        ),
-        SleepMetrics(
-            recovery_score=float(sleep_post["whoop_recovery"] or 0.0),
-            sleep_quality_score=float(sleep_post["eight_quality"] or 0.0),
-            waso_min=float(sleep_post["eight_waso"] or 0.0),
-            latency_min=float(sleep_post["eight_latency"] or 0.0),
-            breathing_score=float(sleep_post["eight_breathing"] or 0.0),
-            spo2=float(sleep_post["whoop_spo2"] or 0.0),
-            snore_pct=float(sleep_post["eight_snore_pct"] or 0.0),
-        ),
+    measured_sleep = measured_duration_hours(sleep_90)
+    calibrated_sleep = duration_for_construct(measured_sleep, "calibrated_self_report")
+    combined_sleep = duration_for_construct(measured_sleep, context.duration_construct)
+    # No dated airway intervention is modeled. Rolling pre/post windows cannot
+    # identify a treatment effect; keep this zero until a dated analysis exists.
+    airway_response_signal = 0.0
+    sleep_metrics = SleepMetrics(
+        duration_hours=combined_sleep,
+        recovery_score=sleep_90["whoop_recovery"],
+        sleep_quality_score=sleep_90["eight_quality"],
+        waso_min=sleep_90["eight_waso"],
+        routine_score=sleep_90["eight_routine"],
+        social_jetlag_min=sleep_90["eight_social_jetlag"],
+        latency_min=sleep_90["eight_latency"],
+        spo2=sleep_90["whoop_spo2"],
+        snore_pct=sleep_90["eight_snore_pct"],
+        airway_response_signal=airway_response_signal,
     )
     wearable_sleep_estimate = estimate_sleep_burden(
-        SleepMetrics(
-            duration_hours=combined_sleep,
-            recovery_score=float(sleep_90["whoop_recovery"] or 0.0),
-            sleep_quality_score=float(sleep_90["eight_quality"] or 0.0),
-            waso_min=float(sleep_90["eight_waso"] or 0.0),
-            routine_score=float(sleep_90["eight_routine"] or 0.0),
-            social_jetlag_min=float(sleep_90["eight_social_jetlag"] or 0.0),
-            latency_min=float(sleep_90["eight_latency"] or 0.0),
-            breathing_score=float(sleep_90["eight_breathing"] or 0.0),
-            spo2=float(sleep_90["whoop_spo2"] or 0.0),
-            snore_pct=float(sleep_90["eight_snore_pct"] or 0.0),
-            sleep_debt_min=float(sleep_90["eight_sleep_debt"] or 0.0),
-            airway_response_signal=airway_response_signal,
-        )
+        sleep_metrics,
+        breathing_mortality_gate_override=context.breathing_mortality_gate_override,
     )
     sleep_estimate = apply_sleep_study(
-        wearable_sleep_estimate, context.home_sleep_study
+        wearable_sleep_estimate,
+        context.home_sleep_study,
+        breathing_mortality_gate_override=context.breathing_mortality_gate_override,
     )
+    measured_duration_burden = estimate_sleep_burden(
+        replace(sleep_metrics, duration_hours=measured_sleep)
+    ).component_burdens["duration"]
+    calibrated_duration_burden = estimate_sleep_burden(
+        replace(sleep_metrics, duration_hours=calibrated_sleep)
+    ).component_burdens["duration"]
     sleep_need = clamp(
         0.55 * sleep_estimate.component_burdens["duration"]
         + 0.30 * sleep_estimate.component_burdens["daytime"]
@@ -1956,70 +1901,35 @@ def load_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
     )
 
     return {
-        "sleep_90d": {
-            "nights": int(sleep_90["nights"]),
-            "whoop_sleep_h": round(float(sleep_90["whoop_sleep_h"] or 0.0), 2),
-            "whoop_sleep_perf": round(float(sleep_90["whoop_sleep_perf"] or 0.0), 1),
-            "whoop_recovery": round(float(sleep_90["whoop_recovery"] or 0.0), 1),
-            "whoop_spo2": round(float(sleep_90["whoop_spo2"] or 0.0), 1),
-            "eight_score": round(float(sleep_90["eight_score"] or 0.0), 1),
-            "eight_quality": round(float(sleep_90["eight_quality"] or 0.0), 1),
-            "eight_routine": round(float(sleep_90["eight_routine"] or 0.0), 1),
-            "eight_sleep_h": round(float(sleep_90["eight_sleep_h"] or 0.0), 2),
-            "eight_waso": round(float(sleep_90["eight_waso"] or 0.0), 1),
-            "eight_latency": round(float(sleep_90["eight_latency"] or 0.0), 1),
-            "eight_breathing": round(float(sleep_90["eight_breathing"] or 0.0), 3),
-            "eight_social_jetlag": round(
-                float(sleep_90["eight_social_jetlag"] or 0.0), 1
-            ),
-            "eight_snore_pct": round(float(sleep_90["eight_snore_pct"] or 0.0), 1),
-            "eight_sleep_debt": round(float(sleep_90["eight_sleep_debt"] or 0.0), 1),
-        },
-        "sleep_30d": {
-            "nights": int(sleep_30["nights"]),
-            "whoop_sleep_h": round(float(sleep_30["whoop_sleep_h"] or 0.0), 2),
-            "whoop_sleep_perf": round(float(sleep_30["whoop_sleep_perf"] or 0.0), 1),
-            "whoop_recovery": round(float(sleep_30["whoop_recovery"] or 0.0), 1),
-            "whoop_spo2": round(float(sleep_30["whoop_spo2"] or 0.0), 1),
-            "eight_score": round(float(sleep_30["eight_score"] or 0.0), 1),
-            "eight_quality": round(float(sleep_30["eight_quality"] or 0.0), 1),
-            "eight_routine": round(float(sleep_30["eight_routine"] or 0.0), 1),
-            "eight_sleep_h": round(float(sleep_30["eight_sleep_h"] or 0.0), 2),
-            "eight_waso": round(float(sleep_30["eight_waso"] or 0.0), 1),
-            "eight_latency": round(float(sleep_30["eight_latency"] or 0.0), 1),
-            "eight_breathing": round(float(sleep_30["eight_breathing"] or 0.0), 3),
-            "eight_social_jetlag": round(
-                float(sleep_30["eight_social_jetlag"] or 0.0), 1
-            ),
-            "eight_snore_pct": round(float(sleep_30["eight_snore_pct"] or 0.0), 1),
-            "eight_sleep_debt": round(float(sleep_30["eight_sleep_debt"] or 0.0), 1),
-        },
-        "airway_trial_windows": {
-            "pre_nights": int(sleep_pre["nights"]),
-            "post_nights": int(sleep_post["nights"]),
-            "pre_quality": round(float(sleep_pre["eight_quality"] or 0.0), 1),
-            "post_quality": round(float(sleep_post["eight_quality"] or 0.0), 1),
-            "pre_waso": round(float(sleep_pre["eight_waso"] or 0.0), 1),
-            "post_waso": round(float(sleep_post["eight_waso"] or 0.0), 1),
-            "pre_latency": round(float(sleep_pre["eight_latency"] or 0.0), 1),
-            "post_latency": round(float(sleep_post["eight_latency"] or 0.0), 1),
-            "pre_breathing": round(float(sleep_pre["eight_breathing"] or 0.0), 3),
-            "post_breathing": round(float(sleep_post["eight_breathing"] or 0.0), 3),
-            "pre_snore_pct": round(float(sleep_pre["eight_snore_pct"] or 0.0), 1),
-            "post_snore_pct": round(float(sleep_post["eight_snore_pct"] or 0.0), 1),
-            "pre_spo2": round(float(sleep_pre["whoop_spo2"] or 0.0), 1),
-            "post_spo2": round(float(sleep_post["whoop_spo2"] or 0.0), 1),
-        },
+        "window_anchor_date": anchor_date,
+        "sleep_90d": rounded_window(sleep_90),
+        "sleep_30d": rounded_window(sleep_30),
         "training_180d": {
             "days": int(training_180["days"]),
-            "avg_strain": round(float(training_180["avg_strain"] or 0.0), 2),
-            "avg_recovery": round(float(training_180["avg_recovery"] or 0.0), 1),
-            "avg_hrv": round(float(training_180["avg_hrv"] or 0.0), 1),
-            "avg_rhr": round(float(training_180["avg_rhr"] or 0.0), 1),
-            "avg_sleep_h": round(float(training_180["avg_sleep_h"] or 0.0), 2),
-            "avg_sleep_perf": round(float(training_180["avg_sleep_perf"] or 0.0), 1),
-            "high_strain_share": round(high_strain_share, 3),
-            "very_high_strain_share": round(very_high_strain_share, 3),
+            "avg_strain": None
+            if training_180["avg_strain"] is None
+            else round(float(training_180["avg_strain"]), 2),
+            "avg_recovery": None
+            if training_180["avg_recovery"] is None
+            else round(float(training_180["avg_recovery"]), 1),
+            "avg_hrv": None
+            if training_180["avg_hrv"] is None
+            else round(float(training_180["avg_hrv"]), 1),
+            "avg_rhr": None
+            if training_180["avg_rhr"] is None
+            else round(float(training_180["avg_rhr"]), 1),
+            "avg_sleep_h": None
+            if training_180["avg_sleep_h"] is None
+            else round(float(training_180["avg_sleep_h"]), 2),
+            "avg_sleep_perf": None
+            if training_180["avg_sleep_perf"] is None
+            else round(float(training_180["avg_sleep_perf"]), 1),
+            "high_strain_share": None
+            if training_180["high_strain_share"] is None
+            else round(high_strain_share, 3),
+            "very_high_strain_share": None
+            if training_180["very_high_strain_share"] is None
+            else round(very_high_strain_share, 3),
         },
         "latest_lab_date": latest_lab_date,
         "body_comp_latest": (
@@ -2064,7 +1974,18 @@ def load_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
         },
         "supplying_products": supplying_products,
         "derived": {
-            "combined_sleep_h_90d": round(combined_sleep, 2),
+            "duration_construct": context.duration_construct,
+            "combined_sleep_h_90d": None
+            if combined_sleep is None
+            else round(combined_sleep, 2),
+            "measured_sleep_h_90d": None
+            if measured_sleep is None
+            else round(measured_sleep, 2),
+            "calibrated_self_report_sleep_h_90d": None
+            if calibrated_sleep is None
+            else round(calibrated_sleep, 2),
+            "measured_duration_burden": measured_duration_burden,
+            "calibrated_self_report_duration_burden": calibrated_duration_burden,
             "sleep_need": round(sleep_need, 3),
             "recovery_gap": round(recovery_gap, 3),
             "sleep_quality_gap": round(sleep_quality_gap, 3),
@@ -2083,7 +2004,9 @@ def load_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
             ),
             "sleep_component_utility_lineage": sleep_utility_lineage(sleep_estimate),
             "sleep_mortality_signal": round(sleep_estimate.mortality_signal, 3),
+            "sleep_breathing_mortality_gate": sleep_estimate.breathing_mortality_gate,
             "airway_response_signal": round(airway_response_signal, 3),
+            "airway_response_note": "No dated airway-intervention analysis is available; rolling pre/post windows were removed and response is set to zero.",
             "sleep_study": sleep_study_payload(context.home_sleep_study),
             "sleep_airway": {
                 "upper_airway_probability": round(
@@ -2211,7 +2134,7 @@ def build_specs(
                 low_qaly=0.01,
                 high_qaly=0.05,
                 personalization=(
-                    f"Upweighted because your 90-day combined sleep is only {baseline['derived']['combined_sleep_h_90d']} h/night; "
+                    f"Your 90-day duration construct is {baseline['derived']['combined_sleep_h_90d']} h/night; "
                     "small BP benefit remains because magnesium RCTs are stronger than most supplements."
                 ),
                 rationale=(
@@ -2286,8 +2209,8 @@ def build_specs(
                 low_qaly=-0.01,
                 high_qaly=0.06,
                 personalization=(
-                    "Upweighted because your recent airway-directed trial improved breathing, latency, snoring, and sleep quality, "
-                    f"producing an airway-response signal of {baseline['derived']['airway_response_signal']}."
+                    "No dated airway intervention establishes a personal response; "
+                    "the airway-response signal is zero."
                 ),
                 rationale=(
                     "Nasacort looks like a phenotype-specific sleep intervention here: worthwhile if nasal inflammation or congestion "
@@ -2310,8 +2233,8 @@ def build_specs(
                 low_qaly=0.0,
                 high_qaly=0.03,
                 personalization=(
-                    "Upweighted because your own notes say the first night with strips plus Nasacort gave zero snoring, "
-                    "but kept smaller than Nasacort because the evidence is mostly subjective-sleep benefit."
+                    "No dated trial isolates a benefit from nasal strips; "
+                    "the modeled effect rests on general evidence and the sleep phenotype."
                 ),
                 rationale=(
                     "Nasal strips can help if upper-airway narrowing is part of the problem, but they are usually an adjunct rather than a decisive treatment."
@@ -2355,7 +2278,7 @@ def build_specs(
                 low_qaly=-0.002,
                 high_qaly=0.03,
                 personalization=(
-                    "Upweighted because you now have confirmed mild OSA plus a strong recent airway-response pattern, "
+                    "You have confirmed mild OSA, with no dated airway-response evidence; "
                     "but kept below strips and head elevation because mouth tape only really makes sense if mouth breathing "
                     f"is part of the phenotype and your data still point heavily to nasal and upper-airway contributors; upper-airway probability is {baseline['derived']['sleep_airway']['upper_airway_probability']}."
                 ),
@@ -2382,7 +2305,7 @@ def build_specs(
                 low_qaly=0.0,
                 high_qaly=0.04,
                 personalization=(
-                    "Upweighted because your recent improvement pattern is compatible with an upper-airway contributor, but kept modest because your home data do not cleanly isolate elevation from the other airway changes."
+                    "Confirmed mild OSA supports an airway contributor, but no dated trial isolates head elevation from other airway changes."
                 ),
                 rationale=(
                     "Head elevation is a low-risk positional airway aid with the best case in upper-airway-predominant sleep-disordered breathing."
@@ -3907,6 +3830,8 @@ def simulate_structured_qaly(
     sleep_estimate: SleepBurdenEstimate | None = None,
     profile: Profile | None = None,
     active_interaction_tags: tuple[str, ...] = (),
+    *,
+    include_sleep_relief: bool = True,
 ) -> dict[str, Any]:
     catalog_entry = CATALOG[item_id]
     resolved = resolve_stack_spec(spec, catalog_entry)
@@ -3953,6 +3878,8 @@ def simulate_structured_qaly(
         ),
         sleep_relief_evidence_for(item_id),
     )
+    if not include_sleep_relief:
+        scaled_sleep_relief = {}
     result, qaly_draws = simulate_qaly_profile_vectorized(
         intervention,
         active_profile,
@@ -4078,6 +4005,9 @@ def protocol_sleep_estimate_from_baseline_dict(
         },
         annual_qaly_loss=float(derived.get("sleep_burden_annual_qaly", 0.0)),
         mortality_signal=float(derived.get("sleep_mortality_signal", 0.0)),
+        breathing_mortality_gate=float(
+            derived.get("sleep_breathing_mortality_gate", 0.0)
+        ),
         airway=None,
         component_utility_weight_ids={
             key: str(value)
@@ -4093,6 +4023,7 @@ def protocol_sleep_estimate_from_baseline_dict(
             component_losses=sleep_estimate.component_losses,
             annual_qaly_loss=sleep_estimate.annual_qaly_loss,
             mortality_signal=sleep_estimate.mortality_signal,
+            breathing_mortality_gate=sleep_estimate.breathing_mortality_gate,
             airway=AirwayContributorEstimate(
                 upper_airway_probability=float(
                     airway.get("upper_airway_probability", 0.0)
@@ -4118,6 +4049,19 @@ def estimate_item(
 ) -> dict[str, Any]:
     context = resolve_protocol_context(context)
     resolved = resolve_stack_spec(spec, CATALOG[item["id"]])
+    effective_residual = apply_sleep_residual_rule(
+        item["id"],
+        resolved.qol_annual,
+        context.residual_mode,
+        sleep_component_relief=resolved.sleep_component_relief,
+    )
+    if effective_residual != resolved.qol_annual:
+        resolved = replace(
+            resolved,
+            qol_annual=effective_residual,
+            general_qol_utility_weight_ids=(),
+            general_qol_lineage_note="Sleep-only outcomes are counted in component relief; no separate general-QoL claim.",
+        )
     sleep_estimate = protocol_sleep_estimate_from_baseline_dict(baseline)
     simulated = simulate_structured_qaly(
         spec,
@@ -4131,7 +4075,11 @@ def estimate_item(
 
     # General-QoL evidence guard. Positive claims only: shrinking an authored
     # harm (negative qol_annual) would flatter the intervention.
-    general_evidence = general_qol_evidence_for(item["id"])
+    general_evidence = general_qol_evidence_for(
+        item["id"],
+        residual_mode=context.residual_mode,
+        sleep_component_relief=resolved.sleep_component_relief,
+    )
     general_qol_claimed_qaly = resolved.qol_annual * discount_factor(resolved.qol_years)
     apply_general_guard = general_evidence is not None and general_qol_claimed_qaly > 0
     general_qol_qaly = (
@@ -4170,7 +4118,44 @@ def estimate_item(
         sleep_estimate,
         scaled_sleep_relief,
     )
+    # Paired same-seed counterfactual isolates the direct-HR mortality leg.
+    # Harms and baseline sleep hazard are unchanged. Avoid a second simulation
+    # when the guarded sleep relief has no mortality pathway.
+    direct_mortality_qaly = mortality_qaly
+    if sleep_mortality_hr_multiplier != 1.0:
+        direct_mortality_qaly = simulate_structured_qaly(
+            spec,
+            item["id"],
+            sleep_estimate=sleep_estimate,
+            profile=context.profile,
+            active_interaction_tags=active_interaction_tags,
+            include_sleep_relief=False,
+        )["mortality_qaly"]
+    sleep_mortality_qaly = mortality_qaly - direct_mortality_qaly
     sleep_qol_qaly = sleep_qol_annual * discount_factor(resolved.qol_years)
+    sleep_overlap = {
+        "relief": dict(scaled_sleep_relief),
+        "annual_losses": dict(sleep_estimate.component_losses),
+        "component_qol_qaly": {
+            component: sleep_estimate.component_losses.get(component, 0.0)
+            * relief
+            * discount_factor(resolved.qol_years)
+            for component, relief in scaled_sleep_relief.items()
+        },
+        "qol_years": resolved.qol_years,
+        "sleep_mortality_qaly": sleep_mortality_qaly,
+        "mortality_weights": {
+            component: estimate_sleep_mortality_relief_fraction(
+                sleep_estimate, {component: 1.0}
+            )
+            for component in sleep_estimate.component_burdens
+        },
+        "mortality_year_weights": mortality_exposure_weights(
+            context.profile, sleep_baseline_hazard_multiplier, QALY_DISCOUNT_RATE
+        )
+        if sleep_mortality_qaly > 0
+        else [],
+    }
     general_qol_draws = _evidence_scaled_draws(
         general_qol_qaly,
         item_id=item["id"],
@@ -4223,6 +4208,10 @@ def estimate_item(
         "direct_harm_qaly": round(direct_harm_qaly, 4),
         "general_qol_qaly": round(general_qol_qaly, 4),
         "sleep_qol_qaly": round(sleep_qol_qaly, 4),
+        "sleep_overlap": sleep_overlap,
+        "non_sleep_benefit_qaly": max(general_qol_qaly, 0.0)
+        + max(direct_mortality_qaly, 0.0),
+        "legacy_benefit_qaly": max(mortality_qaly, 0.0) + max(qol_qaly, 0.0),
         "qol_qaly": round(qol_qaly, 4),
         "total_qaly": round(total_qaly, 4),
         "days": round(total_qaly * 365.25, 1),
@@ -4268,6 +4257,7 @@ def estimate_item(
                 "beta": resolved.conf_beta,
             },
             "qol_annual": round(resolved.qol_annual, 6),
+            "residual_mode": context.residual_mode,
             "sleep_qol_annual": round(sleep_qol_annual, 6),
             "sleep_baseline_hazard_multiplier": round(
                 sleep_baseline_hazard_multiplier, 6
@@ -4294,6 +4284,8 @@ def estimate_item(
         estimate["assumptions"]["model_details"] = resolved.model_details
     if include_draws:
         estimate["_total_draws"] = total_draws
+        estimate["_sleep_overlap"] = sleep_overlap
+        estimate["_non_sleep_benefit_overlap_qaly"] = estimate["non_sleep_benefit_qaly"]
         estimate["_benefit_overlap_qaly"] = max(mortality_qaly, 0.0) + max(
             qol_qaly, 0.0
         )
@@ -4362,23 +4354,31 @@ def evaluate_protocol_state(
 ) -> dict[str, Any]:
     """Evaluate a full protocol state once, including shared stack effects."""
     state_ids = _ordered_state_ids(item_ids)
+    interactions = ProtocolInteractionEvaluator(
+        {item_id: estimates_by_id[item_id] for item_id in state_ids},
+        _state_item_active_years(state_ids, specs),
+        context.profile,
+        QALY_DISCOUNT_RATE,
+        context.overlap_mode,
+    )
     draws = np.zeros(N_SIMULATIONS)
     total_cost = 0.0
     additive_qaly = 0.0
     for item_id in state_ids:
         estimate = estimates_by_id[item_id]
-        draws += latent_protocol_item_draws(item_id, estimate)
+        draws += latent_protocol_item_draws(
+            item_id,
+            estimate,
+            legacy_entry=(
+                interactions.catalog[item_id]
+                if context.overlap_mode == "legacy_rank_retention"
+                else None
+            ),
+        )
         additive_qaly += float(estimate["total_qaly"])
         total_cost += float(estimate.get("modeled_total_cost") or 0.0)
 
-    interaction_qaly, interaction_details = expected_stack_interaction_qaly(
-        item_ids=state_ids,
-        catalog_entries=CATALOG,
-        profile=context.profile,
-        qaly_discount_rate=QALY_DISCOUNT_RATE,
-        item_active_years=_state_item_active_years(state_ids, specs),
-        item_qalys=_state_item_qalys(state_ids, estimates_by_id),
-    )
+    interaction_qaly, interaction_details = interactions.evaluate(state_ids)
     state_draws = draws + interaction_qaly
     total_qaly = float(np.mean(state_draws))
     return {
@@ -4392,6 +4392,7 @@ def evaluate_protocol_state(
         "p_positive": round(float(np.mean(state_draws > 0)), 4),
         "interaction_details": interaction_details,
         "draw_model": "paired_latent_rank_copula",
+        "overlap_mode": context.overlap_mode,
         "_total_qaly_raw": total_qaly,
         "_modeled_total_cost_raw": total_cost,
         "_draws": state_draws,
@@ -4438,15 +4439,12 @@ def resolve_supplying_products(
     """Map each item to the physical product that supplies it.
 
     health.db maps most items to their product by name; the catalog knows bundle
-    membership by id. Neither covers everything (the Longevity Mix actives are
-    mostly catalog-only), so resolve each bundle id to a product name using the
-    items that carry both, then fill the gaps.
+    membership by id. Resolve missing mappings through the explicit bundle
+    catalog: a standalone product supplying one member cannot rename a bundle.
     """
     supplying = dict(baseline.get("supplying_products") or {})
     bundle_product_names = {
-        CATALOG[item_id].bundle_id: product
-        for item_id, product in supplying.items()
-        if item_id in CATALOG and CATALOG[item_id].bundle_id
+        bundle_id: bundle.name for bundle_id, bundle in BUNDLES.items()
     }
     for item_id in state_ids:
         bundle_id = getattr(CATALOG.get(item_id), "bundle_id", None)
@@ -4996,8 +4994,8 @@ def render_markdown(payload: dict[str, Any]) -> str:
     lines.append("")
     lines.append(f"- Generated: {payload['generated_at']}")
     lines.append(
-        f"- 90-day combined sleep: {payload['baseline']['derived']['combined_sleep_h_90d']} h/night "
-        f"(Whoop {payload['baseline']['sleep_90d']['whoop_sleep_h']} h, Eight Sleep {payload['baseline']['sleep_90d']['eight_sleep_h']} h)"
+        f"- 90-day sleep duration ({payload['baseline']['derived']['duration_construct']}): {payload['baseline']['derived']['combined_sleep_h_90d']} h/night "
+        f"(measured time asleep: Whoop {payload['baseline']['sleep_90d']['whoop_sleep_h']} h, Eight Sleep {payload['baseline']['sleep_90d']['eight_sleep_h']} h)"
     )
     lines.append(
         f"- 90-day Whoop recovery: {payload['baseline']['sleep_90d']['whoop_recovery']}; "

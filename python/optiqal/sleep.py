@@ -22,7 +22,7 @@ alone.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Dict, Mapping, Optional, Sequence, Tuple
 
 from .reference_case import PUBLIC_HEALTH_UTILITY_WEIGHTS
@@ -41,6 +41,8 @@ class SleepMetrics:
     routine_score: Optional[float] = None
     social_jetlag_min: Optional[float] = None
     latency_min: Optional[float] = None
+    # Retained for input compatibility, but ignored: Eight's 0-14 event index
+    # is not a validated wearable burden or intervention-response measure.
     breathing_score: Optional[float] = None
     spo2: Optional[float] = None
     snore_pct: Optional[float] = None
@@ -61,9 +63,10 @@ class SleepStudyResult:
     mixed_apneas: Optional[int] = None
     supine_fraction: Optional[float] = None
     supine_rei: Optional[float] = None
-    used_nasal_steroid: bool = False
-    used_nasal_strips: bool = False
-    # Descriptive only; no model computation reads these two fields.
+    # Descriptive only; None means that use was not recorded.
+    used_nasal_steroid: Optional[bool] = None
+    used_nasal_strips: Optional[bool] = None
+    # Descriptive only; no model computation reads the date.
     study_date: Optional[str] = None
     # Set by pool_sleep_studies: the individual nights behind a pooled record.
     nights: Tuple["SleepStudyResult", ...] = ()
@@ -92,10 +95,12 @@ def _pooled_flag(
     name: str,
     studies: Sequence[SleepStudyResult],
     explicit: Optional[bool],
-) -> bool:
+) -> Optional[bool]:
     if explicit is not None:
         return bool(explicit)
-    values = {bool(getattr(study, name)) for study in studies}
+    values = {getattr(study, name) for study in studies}
+    if None in values:
+        return None
     if len(values) != 1:
         raise ValueError(
             f"nights disagree on {name}; pass {name}= explicitly to "
@@ -123,8 +128,8 @@ def pool_sleep_studies(
       they are the numerator and denominator of the pooled REI.
     - Per-night facts stay per night: every input night is kept, unchanged,
       in ``nights``. The nasal-treatment flags describe a condition on one
-      night, so the pooled flag is taken only when every night agrees; when
-      they disagree the caller must pass the pooled value explicitly.
+      night, so an unknown night makes the pooled flag unknown. When known
+      flags disagree the caller must pass the pooled value explicitly.
 
     A single study is returned unchanged. Pooling needs every night's
     ``total_sleep_hours`` and one shared ``study_type`` (a home test and an
@@ -241,6 +246,7 @@ class SleepBurdenEstimate:
     mortality_signal: float
     airway: Optional[AirwayContributorEstimate] = None
     component_utility_weight_ids: Dict[str, str] = field(default_factory=dict)
+    breathing_mortality_gate: float = 0.0
 
 
 INSOMNIA_UTILITY_WEIGHT_ID = "insomnia_disability_weight_europe_2015"
@@ -288,6 +294,60 @@ MORTALITY_COMPONENT_WEIGHTS = {
     "regularity": 0.25,
     "breathing": 0.35,
 }
+
+# Punjabi et al. 2009, SHHS, PMID 19688045 (fetched 2026-09-23): adjusted
+# mortality HRs were 0.93 (0.80-1.08) at AHI 5-14.9, 1.17 (0.97-1.42) at
+# AHI 15-29.9, and 1.46 (1.14-1.86) at AHI >=30.
+# https://pubmed.ncbi.nlm.nih.gov/19688045/
+# These transport gates are a judgment based on the severity pattern, not
+# observed treatment effects; the mild band receives no mortality credit.
+BREATHING_MORTALITY_REI_THRESHOLDS = (15.0, 30.0)
+BREATHING_MORTALITY_SEVERITY_GATES = (0.0, 0.5, 1.0)
+# Judgment: consumer metrics alone cannot establish moderate/severe OSA, so
+# absent a diagnostic REI there is no breathing-derived mortality credit.
+UNKNOWN_REI_BREATHING_MORTALITY_GATE = 0.0
+
+
+def breathing_mortality_gate_for_rei(
+    rei: Optional[float],
+    override: Optional[float] = None,
+) -> float:
+    """Severity-specific breathing transport, with an explicit sensitivity override."""
+    if override is not None:
+        if not math.isfinite(override) or not 0.0 <= override <= 1.0:
+            raise ValueError("breathing mortality gate override must be in [0, 1]")
+        return float(override)
+    if rei is None:
+        return UNKNOWN_REI_BREATHING_MORTALITY_GATE
+    for threshold, gate in zip(
+        BREATHING_MORTALITY_REI_THRESHOLDS, BREATHING_MORTALITY_SEVERITY_GATES
+    ):
+        if rei < threshold:
+            return gate
+    return BREATHING_MORTALITY_SEVERITY_GATES[-1]
+
+
+def mortality_component_weights(breathing_mortality_gate: float) -> Dict[str, float]:
+    """Use the same gated weights for baseline hazard and intervention relief."""
+    return {
+        component: weight
+        * (breathing_mortality_gate if component == "breathing" else 1.0)
+        for component, weight in MORTALITY_COMPONENT_WEIGHTS.items()
+    }
+
+
+def _sleep_mortality_signal(
+    burdens: Mapping[str, float], breathing_mortality_gate: float
+) -> float:
+    return _clamp(
+        sum(
+            weight * float(burdens.get(component, 0.0))
+            for component, weight in mortality_component_weights(
+                breathing_mortality_gate
+            ).items()
+        )
+    )
+
 
 # Literature-scale signal for pronounced poor sleep / airway pathology is often
 # in the ~1.3-1.6 HR range. Consumer-device-derived sleep phenotypes should not
@@ -349,14 +409,12 @@ def _daytime_burden(
 
 
 def _breathing_burden(
-    breathing_score: Optional[float],
     spo2: Optional[float],
     snore_pct: Optional[float],
 ) -> float:
-    breathing = _clamp((0.8 - (breathing_score or 0.8)) / 0.5)
     oxygen = _clamp((96.0 - (spo2 or 96.0)) / 4.0)
     snore = _clamp(((snore_pct or 0.0) - 5.0) / 20.0)
-    return _clamp(max(breathing, 0.7 * oxygen + 0.3 * snore))
+    return _clamp(0.7 * oxygen + 0.3 * snore)
 
 
 def estimate_airway_response_signal(
@@ -367,24 +425,21 @@ def estimate_airway_response_signal(
     if pre is None or post is None:
         return 0.0
 
-    breathing = _clamp(
-        ((post.breathing_score or 0.0) - (pre.breathing_score or 0.0)) / 0.20
-    )
-    oxygen = _clamp(((post.spo2 or 0.0) - (pre.spo2 or 0.0)) / 1.0)
-    snore = _clamp(((pre.snore_pct or 0.0) - (post.snore_pct or 0.0)) / 5.0)
-    latency = _clamp(((pre.latency_min or 0.0) - (post.latency_min or 0.0)) / 20.0)
-    waso = _clamp(((pre.waso_min or 0.0) - (post.waso_min or 0.0)) / 20.0)
-    quality = _clamp(
-        ((post.sleep_quality_score or 0.0) - (pre.sleep_quality_score or 0.0)) / 20.0
-    )
+    def improvement(
+        before: Optional[float], after: Optional[float], scale: float
+    ) -> float:
+        if before is None or after is None:
+            return 0.0
+        return _clamp((after - before) / scale)
+
+    oxygen = improvement(pre.spo2, post.spo2, 1.0)
+    snore = improvement(pre.snore_pct, post.snore_pct, -5.0)
+    latency = improvement(pre.latency_min, post.latency_min, -20.0)
+    waso = improvement(pre.waso_min, post.waso_min, -20.0)
+    quality = improvement(pre.sleep_quality_score, post.sleep_quality_score, 20.0)
 
     return _clamp(
-        0.25 * breathing
-        + 0.15 * oxygen
-        + 0.20 * snore
-        + 0.15 * latency
-        + 0.15 * waso
-        + 0.10 * quality
+        0.15 * oxygen + 0.20 * snore + 0.15 * latency + 0.15 * waso + 0.10 * quality
     )
 
 
@@ -412,7 +467,11 @@ def _estimate_airway_contributors(
     )
 
 
-def estimate_sleep_burden(metrics: SleepMetrics) -> SleepBurdenEstimate:
+def estimate_sleep_burden(
+    metrics: SleepMetrics,
+    *,
+    breathing_mortality_gate_override: Optional[float] = None,
+) -> SleepBurdenEstimate:
     """Estimate annual direct QALY burden from a sleep phenotype."""
     burdens = {
         "duration": _duration_burden(metrics.duration_hours),
@@ -422,20 +481,14 @@ def estimate_sleep_burden(metrics: SleepMetrics) -> SleepBurdenEstimate:
             metrics.routine_score, metrics.social_jetlag_min
         ),
         "daytime": _daytime_burden(metrics.recovery_score, metrics.sleep_debt_min),
-        "breathing": _breathing_burden(
-            metrics.breathing_score, metrics.spo2, metrics.snore_pct
-        ),
+        "breathing": _breathing_burden(metrics.spo2, metrics.snore_pct),
     }
     losses = {
         component: burden * COMPONENT_MAX_ANNUAL_QALY_LOSS[component]
         for component, burden in burdens.items()
     }
-    mortality_signal = _clamp(
-        sum(
-            MORTALITY_COMPONENT_WEIGHTS[component] * burdens[component]
-            for component in MORTALITY_COMPONENT_WEIGHTS
-        )
-    )
+    gate = breathing_mortality_gate_for_rei(None, breathing_mortality_gate_override)
+    mortality_signal = _sleep_mortality_signal(burdens, gate)
     airway = _estimate_airway_contributors(metrics, burdens)
     return SleepBurdenEstimate(
         component_burdens=burdens,
@@ -444,6 +497,7 @@ def estimate_sleep_burden(metrics: SleepMetrics) -> SleepBurdenEstimate:
         mortality_signal=mortality_signal,
         airway=airway,
         component_utility_weight_ids=dict(SLEEP_COMPONENT_UTILITY_WEIGHT_IDS),
+        breathing_mortality_gate=gate,
     )
 
 
@@ -464,8 +518,6 @@ def _study_breathing_burden(study: SleepStudyResult) -> float:
     underestimation_multiplier = 1.0
     if study.study_type.lower() == "home":
         underestimation_multiplier += 0.08
-    if study.used_nasal_steroid or study.used_nasal_strips:
-        underestimation_multiplier += 0.05
 
     burden = severity_core + 0.06 * mean_oxygen_signal + 0.10 * nadir_oxygen_signal
     return _clamp(burden * underestimation_multiplier)
@@ -474,9 +526,22 @@ def _study_breathing_burden(study: SleepStudyResult) -> float:
 def apply_sleep_study(
     estimate: SleepBurdenEstimate,
     study: Optional[SleepStudyResult],
+    *,
+    breathing_mortality_gate_override: Optional[float] = None,
 ) -> SleepBurdenEstimate:
     """Update a wearable-derived sleep phenotype with diagnostic study evidence."""
     if study is None:
+        if breathing_mortality_gate_override is not None:
+            gate = breathing_mortality_gate_for_rei(
+                None, breathing_mortality_gate_override
+            )
+            return replace(
+                estimate,
+                mortality_signal=_sleep_mortality_signal(
+                    estimate.component_burdens, gate
+                ),
+                breathing_mortality_gate=gate,
+            )
         return estimate
 
     burdens = dict(estimate.component_burdens)
@@ -491,12 +556,10 @@ def apply_sleep_study(
         burdens["breathing"] * COMPONENT_MAX_ANNUAL_QALY_LOSS["breathing"]
     )
 
-    mortality_signal = _clamp(
-        sum(
-            MORTALITY_COMPONENT_WEIGHTS[component] * burdens[component]
-            for component in MORTALITY_COMPONENT_WEIGHTS
-        )
+    gate = breathing_mortality_gate_for_rei(
+        study.rei, breathing_mortality_gate_override
     )
+    mortality_signal = _sleep_mortality_signal(burdens, gate)
 
     airway = estimate.airway
     response_signal = float(airway.response_signal) if airway is not None else 0.0
@@ -518,11 +581,7 @@ def apply_sleep_study(
         + 0.10 * obstructive_fraction
     )
     nasal_inflammation_probability = _clamp(
-        0.12
-        + 0.10 * severity_fraction
-        + 0.25 * response_signal
-        + (0.15 if study.used_nasal_steroid else 0.0)
-        + (0.08 if study.used_nasal_strips else 0.0)
+        0.12 + 0.10 * severity_fraction + 0.25 * response_signal
     )
     mucus_probability = _clamp(0.03 + 0.08 * response_signal + 0.05 * severity_fraction)
 
@@ -542,6 +601,7 @@ def apply_sleep_study(
             if estimate.component_utility_weight_ids
             else dict(SLEEP_COMPONENT_UTILITY_WEIGHT_IDS)
         ),
+        breathing_mortality_gate=gate,
     )
 
 
@@ -639,7 +699,9 @@ def estimate_sleep_mortality_relief_fraction(
     """Fraction of the current sleep mortality signal relieved by an intervention."""
     denominator = 0.0
     numerator = 0.0
-    for component, weight in MORTALITY_COMPONENT_WEIGHTS.items():
+    for component, weight in mortality_component_weights(
+        estimate.breathing_mortality_gate
+    ).items():
         burden = float(estimate.component_burdens.get(component, 0.0))
         denominator += weight * burden
         numerator += (

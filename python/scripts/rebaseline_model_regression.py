@@ -21,6 +21,7 @@ import sys
 from pathlib import Path
 
 REPO_PYTHON = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_PYTHON))
 sys.path.insert(0, str(REPO_PYTHON / "tests"))
 
 from test_model_regression import (  # noqa: E402
