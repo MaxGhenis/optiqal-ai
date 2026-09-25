@@ -26,6 +26,9 @@ from __future__ import annotations
 from typing import Dict, Optional
 
 from .provisional_params import (
+    EIGHT_SLEEP_POD6_QOL_CATEGORY,
+    EIGHT_SLEEP_POD6_QOL_STUDY_QUALITY,
+    EIGHT_SLEEP_POD6_UPGRADE_ID,
     L_THEANINE_BEDTIME_ID,
     L_THEANINE_BEDTIME_QOL_CATEGORY,
     L_THEANINE_BEDTIME_QOL_STUDY_QUALITY,
@@ -428,6 +431,15 @@ SLEEP_RELIEF_EVIDENCE: Dict[str, QolEvidence] = {
         "respiratory_airway",
         _SLEEP,
         note="Small uncontrolled positional studies.",
+    ),
+    EIGHT_SLEEP_POD6_UPGRADE_ID: QolEvidence(
+        EIGHT_SLEEP_POD6_QOL_STUDY_QUALITY,
+        EIGHT_SLEEP_POD6_QOL_CATEGORY,
+        _SLEEP,
+        note=(
+            "PROVISIONAL: no trial of any Pod 6 feature; the apnea mitigation "
+            "feature is filed, not cleared. See provisional_params.py."
+        ),
     ),
     "humidifier_nightly": QolEvidence(
         "mechanistic_or_self_experiment",

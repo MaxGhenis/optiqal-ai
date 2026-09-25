@@ -82,7 +82,9 @@ def _literal_projection(priors: dict) -> dict:
 # Catalog prior rows added after the 2026-09-04 fixture was frozen. The fixture
 # is never edited to admit them: everything else must still equal it exactly,
 # and every extra row must be declared here.
-POST_FREEZE_INTERVENTION_PRIORS = frozenset({"l_theanine_200_bedtime"})
+POST_FREEZE_INTERVENTION_PRIORS = frozenset(
+    {"l_theanine_200_bedtime", "eight_sleep_pod6_upgrade"}
+)
 
 
 def _without_post_freeze_rows(priors: dict) -> dict:

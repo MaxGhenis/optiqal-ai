@@ -33,6 +33,8 @@ from .priors import load_priors
 from .profile import Profile
 from .protocol_overlap import OverlapMode, ProtocolInteractionEvaluator
 from .provisional_params import (
+    EIGHT_SLEEP_POD6_SANITY_RANGE,
+    EIGHT_SLEEP_POD6_UPGRADE_ID,
     L_THEANINE_BEDTIME_ID,
     L_THEANINE_BEDTIME_SANITY_RANGE,
 )
@@ -3728,6 +3730,14 @@ def build_additional_specs(
                 low_qaly=L_THEANINE_BEDTIME_SANITY_RANGE[0],
                 high_qaly=L_THEANINE_BEDTIME_SANITY_RANGE[1],
             ),
+            # Eight Sleep Pod 6 upgrade (added 2026-09-24). Sparse spec: the
+            # provisional relief, airway weights, cost and device life all come
+            # from the catalog entry, which reads optiqal/provisional_params.py.
+            EIGHT_SLEEP_POD6_UPGRADE_ID: make_spec(
+                EIGHT_SLEEP_POD6_UPGRADE_ID,
+                low_qaly=EIGHT_SLEEP_POD6_SANITY_RANGE[0],
+                high_qaly=EIGHT_SLEEP_POD6_SANITY_RANGE[1],
+            ),
         }
     )
 
@@ -3918,6 +3928,10 @@ PREDECLARED_RANGES_PATH = Path(__file__).parent / "data" / "predeclared_ranges_v
 ITEMS_ADDED_AFTER_RANGE_FREEZE: dict[str, str] = {
     L_THEANINE_BEDTIME_ID: (
         "2026-09-23: standalone bedtime L-theanine with provisional parameters; "
+        "its spec range was declared after the freeze."
+    ),
+    EIGHT_SLEEP_POD6_UPGRADE_ID: (
+        "2026-09-24: Eight Sleep Pod 6 upgrade with provisional parameters; "
         "its spec range was declared after the freeze."
     ),
 }

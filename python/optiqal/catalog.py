@@ -38,6 +38,13 @@ from .intervention import (
 from .priors import load_priors
 from .profile import Profile
 from .provisional_params import (
+    EIGHT_SLEEP_POD6_AIRWAY_TARGET_WEIGHTS,
+    EIGHT_SLEEP_POD6_ANNUAL_COST,
+    EIGHT_SLEEP_POD6_HR,
+    EIGHT_SLEEP_POD6_QOL_ANNUAL,
+    EIGHT_SLEEP_POD6_QOL_YEARS,
+    EIGHT_SLEEP_POD6_SLEEP_COMPONENT_RELIEF,
+    EIGHT_SLEEP_POD6_UPGRADE_ID,
     L_THEANINE_BEDTIME_HR,
     L_THEANINE_BEDTIME_ID,
     L_THEANINE_BEDTIME_INTERACTION_TAGS,
@@ -1420,6 +1427,49 @@ _add(
             "https://pubmed.ncbi.nlm.nih.gov/39347559/",
         ],
         evidence_quality="moderate",
+    )
+)
+_add(
+    _catalog_entry(
+        EIGHT_SLEEP_POD6_UPGRADE_ID,
+        "Eight Sleep Pod 6 upgrade",
+        "sleep_candidate",
+        hr_observed=EIGHT_SLEEP_POD6_HR,
+        log_sd=0.05,
+        annual_cost=EIGHT_SLEEP_POD6_ANNUAL_COST,
+        qol_annual=EIGHT_SLEEP_POD6_QOL_ANNUAL,
+        qol_years=EIGHT_SLEEP_POD6_QOL_YEARS,
+        has_direct_mortality_effect=False,
+        sleep_component_relief=dict(EIGHT_SLEEP_POD6_SLEEP_COMPONENT_RELIEF),
+        airway_target_weights=dict(EIGHT_SLEEP_POD6_AIRWAY_TARGET_WEIGHTS),
+        benefit_tags=[
+            SLEEP_COMPONENT_BENEFIT_TAGS[component]
+            for component in EIGHT_SLEEP_POD6_SLEEP_COMPONENT_RELIEF
+        ],
+        access_profile=AccessProfile(
+            tier="cash_pay",
+            coverage_outlook="na",
+            friction="low",
+            notes=(
+                "One-time hardware purchase (Pod 6 King cover + hub; the Pod 5 "
+                "Base and the Autopilot plan carry over). 30-night trial."
+            ),
+        ),
+        notes=(
+            "Upgrade from a Pod 5 already in nightly use, modeled as the delta "
+            "over it. PROVISIONAL: relief is the expected value of a sleep apnea "
+            "mitigation feature that is filed but not cleared, plus a small "
+            "thermal allowance; see optiqal/provisional_params.py. The one-time "
+            "price is annualized over the device life so the engine's discounted "
+            "cost equals it."
+        ),
+        sources=[
+            "https://help.eightsleep.com/en_us/upgrading-to-pod-6-as-an-existing-member-SyypGUZWxl",
+            "https://pubmed.ncbi.nlm.nih.gov/41133665/",
+            "https://pubmed.ncbi.nlm.nih.gov/38671774/",
+            "https://pubmed.ncbi.nlm.nih.gov/28647854/",
+        ],
+        evidence_quality="very-low",
     )
 )
 _add(
