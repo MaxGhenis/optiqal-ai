@@ -148,6 +148,15 @@ Preview deploys will fail fast if this variable is missing. Production deploys
 can use the public `https://optiqal-model.vercel.app` alias without a local
 bypass secret.
 
+Both commands refuse to run unless the checkout is clean and its commit is on
+`origin/main` (`scripts/deploy-guard.mjs`, tested by
+`scripts/deploy-guard.test.mjs`). "Clean" means `git status --porcelain
+--untracked-files=all` prints nothing, so an untracked file blocks the deploy
+too; ignored paths such as `.vercel/` and `node_modules/` do not. The script
+fetches `main` before checking, so a commit merged moments ago passes. There is
+no override: merge first, then deploy from a checkout of `main`. The JSON the
+script prints on success includes the deployed `commit`.
+
 Preview deploy and smoke test:
 
 ```bash

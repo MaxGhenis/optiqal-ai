@@ -2,6 +2,7 @@
 
 import { execFileSync } from "node:child_process";
 import path from "node:path";
+import { assertDeployableCheckout } from "./deploy-guard.mjs";
 
 const projectRoot = process.cwd();
 const frontendProjectName = "optiqal-ai";
@@ -113,6 +114,10 @@ function deployFrontend(modelUrl, runtimeModelUrl = modelUrl) {
 }
 
 function main() {
+  // Refuse before building or uploading anything: a deployment must come from a
+  // clean checkout of a commit already on origin/main.
+  const commit = assertDeployableCheckout(projectRoot);
+
   if (!isProduction) {
     requireModelProtectionBypassSecret();
   }
@@ -145,6 +150,7 @@ function main() {
     JSON.stringify(
       {
         mode,
+        commit,
         modelUrl,
         runtimeModelUrl,
         frontendUrl,
