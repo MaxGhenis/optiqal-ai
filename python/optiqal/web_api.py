@@ -213,15 +213,45 @@ def _condition_quality_decrement(has_diabetes: bool, has_hypertension: bool) -> 
     return decrement
 
 
-def _calculate_projection(
+def _annual_survival(
     *,
     age: int,
     sex: Sex,
     mortality_multiplier: float,
+) -> list[float]:
+    """Survival from ``age`` to the start of each projection year.
+
+    Entry ``year`` is the probability of being alive at age ``age + year``.
+    The series always runs to ``MAX_AGE`` without truncation, so the series for
+    different sexes share one annual age grid and can be mixed entry by entry.
+    """
+    survival = 1.0
+    series: list[float] = []
+    for year in range(max(0, MAX_AGE - age + 1)):
+        series.append(survival)
+        base_qx = min(get_mortality_rate(age + year, sex) * mortality_multiplier, 0.99)
+        survival *= 1.0 - base_qx
+    return series
+
+
+def _mix_survival(series: list[list[float]]) -> list[float]:
+    """Equal-weight mixture of cohorts that are equally sized at the start age.
+
+    Each entry is the share of the combined cohort still alive, so the mixture
+    stays a non-increasing survival curve; its composition shifts toward the
+    longer-lived cohort with age. A single series passes through with its
+    values unchanged.
+    """
+    return [sum(values) / len(values) for values in zip(*series)]
+
+
+def _calculate_projection(
+    *,
+    age: int,
+    survival_by_year: list[float],
     quality_decrement: float,
     discount_rate: float,
 ) -> dict[str, Any]:
-    survival = 1.0
     remaining_life_expectancy = 0.0
     remaining_qalys = 0.0
     # Discounted QALYs accrued while alive (NOT survival-weighted): the lifetime
@@ -238,9 +268,11 @@ def _calculate_projection(
     qalys_at: dict[str, float] = {}
     last_year = 0
 
-    for year in range(max(0, MAX_AGE - age + 1)):
+    for year, survival in enumerate(survival_by_year):
+        # The projection ends once under 0.1% of the cohort is still alive.
+        if survival < 0.001:
+            break
         current_age = age + year
-        base_qx = min(get_mortality_rate(current_age, sex) * mortality_multiplier, 0.99)
         quality_weight = max(0.0, get_quality_weight(current_age) - quality_decrement)
         discount = 1.0 / ((1.0 + discount_rate) ** year)
         expected_qaly = survival * quality_weight * discount
@@ -265,9 +297,6 @@ def _calculate_projection(
             )
 
         last_year = year
-        survival *= 1.0 - base_qx
-        if survival < 0.001:
-            break
 
     # Percentiles not reached within the horizon clamp to the horizon end.
     for key in death_targets:
@@ -284,40 +313,6 @@ def _calculate_projection(
         "expected_death_age_ci": [age + le_at["p10"], age + le_at["p90"]],
         "remaining_qalys_ci": [qalys_at["p10"], qalys_at["p90"]],
     }
-
-
-def _average_curves(curves: list[list[dict[str, float]]]) -> list[dict[str, float]]:
-    by_age: dict[int, dict[str, list[float]]] = {}
-    for curve in curves:
-        for point in curve:
-            age = int(point["age"])
-            bucket = by_age.setdefault(
-                age,
-                {
-                    "survival_probability": [],
-                    "quality_weight": [],
-                    "expected_qaly": [],
-                },
-            )
-            bucket["survival_probability"].append(point["survival_probability"])
-            bucket["quality_weight"].append(point["quality_weight"])
-            bucket["expected_qaly"].append(point["expected_qaly"])
-
-    result: list[dict[str, float]] = []
-    for age in sorted(by_age):
-        bucket = by_age[age]
-        result.append(
-            {
-                "age": float(age),
-                "survival_probability": sum(bucket["survival_probability"])
-                / len(bucket["survival_probability"]),
-                "quality_weight": sum(bucket["quality_weight"])
-                / len(bucket["quality_weight"]),
-                "expected_qaly": sum(bucket["expected_qaly"])
-                / len(bucket["expected_qaly"]),
-            }
-        )
-    return result
 
 
 def build_baseline_response(payload: Dict[str, Any]) -> dict[str, Any]:
@@ -362,26 +357,29 @@ def build_baseline_response(payload: Dict[str, Any]) -> dict[str, Any]:
         lifestyle_multiplier * condition_multiplier * float(sleep_multiplier)
     )
 
-    projections = []
-    curves = []
+    # "other" is an equal mix of the male and female cohorts at the current
+    # age. Mix their survival on one annual age grid, then project the mixed
+    # cohort once, so the curve, point estimates and age-at-death interval all
+    # describe the same population.
+    survival_series = []
     calibration_factors = []
     calibrated_multipliers = []
     for sex in _sexes(sex_value):
         calibration_factor = _get_calibration_factor(age, sex)
         calibrated_multiplier = raw_multiplier / calibration_factor
-        projection = _calculate_projection(
-            age=age,
-            sex=sex,
-            mortality_multiplier=calibrated_multiplier,
-            quality_decrement=_condition_quality_decrement(
-                has_diabetes, has_hypertension
-            ),
-            discount_rate=DEFAULT_QALY_DISCOUNT_RATE,
+        survival_series.append(
+            _annual_survival(
+                age=age, sex=sex, mortality_multiplier=calibrated_multiplier
+            )
         )
-        projections.append(projection)
-        curves.append(projection["curve"])
         calibration_factors.append(calibration_factor)
         calibrated_multipliers.append(calibrated_multiplier)
+    projection = _calculate_projection(
+        age=age,
+        survival_by_year=_mix_survival(survival_series),
+        quality_decrement=_condition_quality_decrement(has_diabetes, has_hypertension),
+        discount_rate=DEFAULT_QALY_DISCOUNT_RATE,
+    )
 
     result = {
         "meta": {
@@ -400,78 +398,22 @@ def build_baseline_response(payload: Dict[str, Any]) -> dict[str, Any]:
         },
         "point_estimate": {
             "remaining_life_expectancy": round(
-                float(
-                    sum(p["remaining_life_expectancy"] for p in projections)
-                    / len(projections)
-                ),
-                1,
+                float(projection["remaining_life_expectancy"]), 1
             ),
-            "expected_death_age": round(
-                float(
-                    sum(p["expected_death_age"] for p in projections) / len(projections)
-                ),
-                1,
-            ),
-            "remaining_qalys": round(
-                float(
-                    sum(p["remaining_qalys"] for p in projections) / len(projections)
-                ),
-                1,
-            ),
+            "expected_death_age": round(float(projection["expected_death_age"]), 1),
+            "remaining_qalys": round(float(projection["remaining_qalys"]), 1),
             "current_quality_weight": round(
-                float(
-                    sum(p["current_quality_weight"] for p in projections)
-                    / len(projections)
-                ),
-                3,
+                float(projection["current_quality_weight"]), 3
             ),
             "remaining_life_expectancy_ci": [
-                round(
-                    float(
-                        sum(p["remaining_life_expectancy_ci"][0] for p in projections)
-                        / len(projections)
-                    ),
-                    1,
-                ),
-                round(
-                    float(
-                        sum(p["remaining_life_expectancy_ci"][1] for p in projections)
-                        / len(projections)
-                    ),
-                    1,
-                ),
+                round(float(value), 1)
+                for value in projection["remaining_life_expectancy_ci"]
             ],
             "expected_death_age_ci": [
-                round(
-                    float(
-                        sum(p["expected_death_age_ci"][0] for p in projections)
-                        / len(projections)
-                    ),
-                    1,
-                ),
-                round(
-                    float(
-                        sum(p["expected_death_age_ci"][1] for p in projections)
-                        / len(projections)
-                    ),
-                    1,
-                ),
+                round(float(value), 1) for value in projection["expected_death_age_ci"]
             ],
             "remaining_qalys_ci": [
-                round(
-                    float(
-                        sum(p["remaining_qalys_ci"][0] for p in projections)
-                        / len(projections)
-                    ),
-                    1,
-                ),
-                round(
-                    float(
-                        sum(p["remaining_qalys_ci"][1] for p in projections)
-                        / len(projections)
-                    ),
-                    1,
-                ),
+                round(float(value), 1) for value in projection["remaining_qalys_ci"]
             ],
         },
         "risk": {
@@ -493,7 +435,7 @@ def build_baseline_response(payload: Dict[str, Any]) -> dict[str, Any]:
                 "quality_weight": round(float(point["quality_weight"]), 4),
                 "expected_qaly": round(float(point["expected_qaly"]), 4),
             }
-            for point in _average_curves(curves)
+            for point in projection["curve"]
         ],
         "sleep_estimate": None,
     }
