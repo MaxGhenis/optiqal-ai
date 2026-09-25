@@ -77,6 +77,17 @@ N_SIMULATIONS = 32
 
 FRONTIER_CASES = [
     ("male_default", {"profile": DEFAULT_PROFILE}),
+    # At 40 draws, p_benefit and p_harm are shares k/40, and independent
+    # 2-decimal rounding can return a pair summing to 1.01 (0.675 -> 0.68 with
+    # 0.325 -> 0.33); keeps that rounding slack exercised by real output.
+    (
+        "high_risk_age_45_40_draws",
+        {
+            "profile": {**HIGH_RISK_PROFILE, "age": 45},
+            "sleep_metrics": HEAVY_SLEEP_METRICS,
+            "n_simulations": 40,
+        },
+    ),
     (
         "other_age_80_sleep",
         {
@@ -119,7 +130,7 @@ def main() -> None:
             }
         )
     for name, request in FRONTIER_CASES:
-        request = {**request, "n_simulations": N_SIMULATIONS}
+        request = {"n_simulations": N_SIMULATIONS, **request}
         fixtures["frontier"].append(
             {
                 "name": name,

@@ -229,6 +229,8 @@ describe("real model responses cross the JS contract", () => {
         "frontier:other_age_80_sleep",
         "frontier:high_risk_current_stack",
         "frontier:female_18_current_stack",
+        // 40 draws: independent rounding can return p_benefit + p_harm = 1.01.
+        "frontier:high_risk_age_45_40_draws",
       ])
     );
     const frontier = cases.filter((entry) => entry.kind === "frontier");
