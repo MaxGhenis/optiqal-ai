@@ -3,6 +3,7 @@ import {
   parseBaselineRequest,
   parseBaselineResponse,
 } from "@/lib/baseline-contract";
+import { modelResponse, setAt } from "@/lib/__fixtures__/model-responses";
 
 describe("baseline contract", () => {
   it("accepts valid request bodies", () => {
@@ -204,6 +205,44 @@ describe("baseline contract", () => {
         survival_curve: [{ age: "bad" }],
         sleep_estimate: null,
       })
+    ).toBeNull();
+  });
+});
+
+describe("baseline response value ranges", () => {
+  const response = modelResponse("baseline", "other_default");
+
+  it("parses the unmodified model response", () => {
+    expect(parseBaselineResponse(response)).not.toBeNull();
+  });
+
+  it("rejects reversed intervals", () => {
+    expect(
+      parseBaselineResponse(
+        setAt(response, ["point_estimate", "remaining_qalys_ci"], [39.7, 30.2])
+      )
+    ).toBeNull();
+    expect(
+      parseBaselineResponse(
+        setAt(response, ["point_estimate", "remaining_life_expectancy_ci"], [1, 0])
+      )
+    ).toBeNull();
+  });
+
+  it("rejects survival probabilities and quality weights outside [0, 1]", () => {
+    for (const [field, value] of [
+      ["survival_probability", 1.2],
+      ["survival_probability", -0.1],
+      ["quality_weight", 1.5],
+      ["quality_weight", -0.01],
+    ] as const) {
+      expect(parseBaselineResponse(setAt(response, ["survival_curve", 1, field], value))).toBeNull();
+    }
+    expect(
+      parseBaselineResponse(setAt(response, ["point_estimate", "current_quality_weight"], -0.1))
+    ).toBeNull();
+    expect(
+      parseBaselineResponse(setAt(response, ["point_estimate", "current_quality_weight"], 1.01))
     ).toBeNull();
   });
 });
