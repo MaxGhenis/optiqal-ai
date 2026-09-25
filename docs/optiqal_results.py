@@ -5,7 +5,8 @@ exercise confounding prior is read from ``python/optiqal/data/priors.yaml``; the
 per-intervention QALY figures below are hand-entered literals kept in sync
 manually. They were originally transcribed from the TypeScript engine, which
 rebuild PR B deleted, so they are no longer reproducible from any code in this
-repository; PR F retires the paper.
+repository; PR F retires the paper. The summary counts and ranges the abstract
+and conclusion render are computed from those literals rather than entered.
 
 Usage in paper:
     Inline: The QALY for exercise is {eval}`r.exercise.qaly`.
@@ -367,14 +368,38 @@ class PaperResults:
             35: 0.63,   # severely obese
         }
 
-        # Summary statistics
-        self.intervention_count = 10
-        self.category_count = 5
+    # Summary statistics and key findings. These are computed on access from
+    # the interventions all_interventions() displays, formatted exactly as each
+    # value is displayed, so they cannot drift from the literals above.
 
-        # Key findings (from precomputed, 40yo male overweight reference)
-        self.qaly_range = "0.05-1.15"
-        self.life_years_range = "0.2-4.4"
-        self.months_range = "2-53"
+    @property
+    def intervention_count(self) -> int:
+        return len(self.all_interventions())
+
+    @property
+    def category_count(self) -> int:
+        return len({i.category for i in self.all_interventions()})
+
+    @property
+    def qaly_range(self) -> str:
+        rows = self.all_interventions()
+        low = min(rows, key=lambda i: i.qaly_mean)
+        high = max(rows, key=lambda i: i.qaly_mean)
+        return f"{low.qaly}-{high.qaly}"
+
+    @property
+    def life_years_range(self) -> str:
+        rows = self.all_interventions()
+        low = min(rows, key=lambda i: i.life_years)
+        high = max(rows, key=lambda i: i.life_years)
+        return f"{low.life_years_fmt}-{high.life_years_fmt}"
+
+    @property
+    def months_range(self) -> str:
+        rows = self.all_interventions()
+        low = min(rows, key=lambda i: i.months)
+        high = max(rows, key=lambda i: i.months)
+        return f"{low.months_fmt}-{high.months_fmt}"
 
     @property
     def confounding_mean(self) -> str:
