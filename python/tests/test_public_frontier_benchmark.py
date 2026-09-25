@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from optiqal import (
     SleepMetrics,
     estimate_sleep_burden,
@@ -191,14 +193,13 @@ def test_pairwise_packets_and_hybrid_score_work_with_offline_verdicts():
         )
         > 0.9
     )
-    assert (
-        compute_hybrid_public_frontier_score(
-            hard_score=0.8,
-            judge_score=judge_score,
-            judge_weight=0.2,
-        )
-        == 0.8
-    )
+    # A hard-rule failure ignores the judge and is discounted by the judge
+    # weight, so it ranks below any perfect hard score (at least 0.8 here).
+    assert compute_hybrid_public_frontier_score(
+        hard_score=0.8,
+        judge_score=judge_score,
+        judge_weight=0.2,
+    ) == pytest.approx(0.64)
 
 
 def test_pairwise_packet_modes_focus_on_changed_representative_cases(tmp_path):
