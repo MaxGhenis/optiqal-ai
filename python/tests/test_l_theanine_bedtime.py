@@ -68,8 +68,11 @@ def test_distinct_from_the_longevity_mix_theanine():
 
 
 def test_qol_guard_annotations_use_the_provisional_tier():
+    # The default sleep residual rule gives bedtime items no general-QoL
+    # credit, so the authored annotation is reachable only in "authored" mode.
+    assert general_qol_evidence_for(ITEM) is None
     for evidence, anchor in (
-        (general_qol_evidence_for(ITEM), "authored_shaded"),
+        (general_qol_evidence_for(ITEM, residual_mode="authored"), "authored_shaded"),
         (sleep_relief_evidence_for(ITEM), "published_delta"),
     ):
         assert evidence is not None
