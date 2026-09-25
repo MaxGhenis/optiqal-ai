@@ -1,5 +1,8 @@
 # Optiqal rebuild charter
 
+> The lane briefs, progress logs and reports this file cites (`docs/rebuild/`, `PR_A_REPORT.md`, `FINAL_REPORT.md`) were removed from the tree when the rebuild merged to main; read them at commit `575b4e56`.
+
+
 Optiqal becomes one open Python engine fed by a fail-closed evidence table, emitting one
 content-hashed results file that every surface reads, with a scoreboard whose first rows count
 what is still unsourced. Everything that does not serve that object is deleted. This file is
