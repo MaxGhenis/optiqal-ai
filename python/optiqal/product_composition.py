@@ -62,7 +62,8 @@ def _decimal(value: Fraction) -> Decimal:
     while denominator % 5 == 0:
         denominator //= 5
         fives += 1
-    assert denominator == 1  # Only finite-decimal inputs enter this module.
+    if denominator != 1:  # Only finite-decimal inputs enter this module.
+        raise ValueError(f"{value} is not a finite decimal")
     places = max(twos, fives)
     coefficient = value.numerator * 2 ** (places - twos) * 5 ** (places - fives)
     return Decimal(f"{coefficient}e-{places}")

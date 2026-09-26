@@ -58,3 +58,4 @@ next-env.d.ts
 # Raw MEPS microdata. fetch_meps.py re-downloads these from AHRQ on demand;
 # they are large binaries and are no longer committed (see docs/DATA_PROVENANCE.md).
 python/optiqal/data/meps/*.parquet
+.hypothesis/

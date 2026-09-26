@@ -216,6 +216,17 @@ def test_incomplete_other_product_prevents_claiming_absence():
     assert row["change"] == "unknown"
 
 
+def test_unknown_before_and_known_after_leaves_the_change_unknown():
+    known = synthetic_product("synthetic_known", ("ingredient_a", 5, "g"))
+    incomplete = ProductUse(ProductComposition("synthetic_unlisted", ()))
+    row = ingredient(remove_products((known, incomplete), ("synthetic_unlisted",)))
+    assert row["before"]["total_per_day"] is None
+    assert row["after"]["total_per_day"] == {"amount": "5000", "unit": "mg"}
+    assert row["change"] == "unknown"
+    assert row["delta_per_day"] is None
+    assert row["full_withdrawal"] is False
+
+
 def test_entirely_unknown_composition_has_explicit_inventory_reason():
     use = ProductUse(ProductComposition("synthetic_unlisted", ()))
     payload = remove_products((use,), (use.product.product_id,)).to_payload()
