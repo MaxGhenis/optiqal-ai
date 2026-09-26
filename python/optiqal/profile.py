@@ -118,9 +118,15 @@ def get_baseline_mortality_multiplier(profile: Profile) -> float:
 
     Combines relative risks from BMI, smoking, and physical activity level.
 
-    NOTE: Diabetes and hypertension are NOT included here because they are
-    handled by the Markov model's HealthState.get_mortality_multiplier().
-    Including them here would double-count their effects.
+    NOTE: Diabetes and hypertension are NOT included here. The rationale used
+    to be that markov.HealthState applied them; that module is gone. Today the
+    only caller that applies DIABETES_MORTALITY_RR and HYPERTENSION_MORTALITY_RR
+    is web_api.build_baseline_response, which multiplies them onto the same
+    BMI/smoking/activity product it builds itself. The simulate.py and
+    stack_interactions.py callers of this function apply neither condition;
+    neither module reads profile.has_diabetes or profile.has_hypertension at
+    all. That gap is recorded here rather than silently closed, because closing
+    it moves served numbers.
 
     Args:
         profile: Demographic profile
@@ -132,8 +138,8 @@ def get_baseline_mortality_multiplier(profile: Profile) -> float:
     smoking_rr = SMOKING_MORTALITY_RR[profile.smoking_status]
     activity_rr = ACTIVITY_MORTALITY_RR[profile.activity_level]
 
-    # Multiplicative model for lifestyle factors only
-    # Diabetes/hypertension handled by markov.HealthState
+    # Multiplicative model for lifestyle factors only; see the NOTE above for
+    # why the condition relative risks are not applied here.
     return bmi_rr * smoking_rr * activity_rr
 
 

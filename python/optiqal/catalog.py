@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Literal, Mapping, Optional
 import numpy as np
 
 from .confounding import (
+    INTERVENTION_PRIORS,
     ConfoundingPrior,
     publication_bias_correct,
     shrinkage_for_study_quality,
@@ -31,8 +32,10 @@ from .intervention import (
     HarmEffect,
     InteractionRule,
     Intervention,
+    InterventionLineage,
     MortalityEffect,
 )
+from .priors import load_priors
 from .profile import Profile
 from .sleep import (
     SleepBurdenEstimate,
@@ -100,6 +103,80 @@ class AccessProfile:
     notes: str = ""
 
 
+# Access tiers a payer can plausibly cover. Behavioral interventions cost
+# nothing to begin with, and OTC supplements are excluded from essentially
+# every US medical benefit, so neither is payable regardless of insurance.
+COVERABLE_TIERS: frozenset[str] = frozenset(
+    {"generic_rx", "brand_rx_prior_auth", "dme_rx", "specialist_device"}
+)
+
+
+@dataclass(frozen=True)
+class InsuranceContext:
+    """Converts an item's sticker price into what the patient actually pays.
+
+    Every ``annual_cost`` in this catalog is a cash retail price. That is the
+    right number for supplements, which no payer covers, and the wrong number
+    for prescriptions and durable medical equipment. Pricing a CPAP or a brand
+    hypnotic at retail for someone whose insurance covers it puts a systematic
+    thumb on the scale against clinical interventions and in favour of
+    cash-pay supplements, because only the supplements were ever priced
+    correctly.
+
+    Expected patient cost for a coverable item is
+
+        sticker * [(1 - p_denied) * cost_share + p_denied * 1.0]
+
+    i.e. a covered claim costs ``cost_share`` of sticker, and a denied one
+    reverts to full retail. Items outside ``COVERABLE_TIERS`` always cost
+    sticker.
+
+    ``denial_rate`` is a modelling prior, not a measured statistic. No payer
+    publishes prior-authorization denial rates by coverage outlook, so these
+    encode "how likely is this to clear utilization review", judged the same
+    way ``conf_alpha``/``conf_beta`` are elsewhere in this catalog. They are
+    deliberately not zero even for ``likely`` items: an intervention that
+    needs prior authorization sometimes fails it.
+    """
+
+    name: str = "uninsured"
+    cost_share: float = 1.0
+    denial_rate: Mapping[str, float] = field(
+        default_factory=lambda: {
+            "likely": 0.15,
+            "mixed": 0.50,
+            "unlikely": 0.85,
+            "na": 1.00,
+        }
+    )
+
+    def patient_cost(self, sticker: float, access: AccessProfile) -> float:
+        """Expected annual out-of-pocket cost for an item at ``sticker``."""
+        if sticker <= 0:
+            return 0.0
+        if access.tier not in COVERABLE_TIERS:
+            return float(sticker)
+        p_denied = float(self.denial_rate.get(access.coverage_outlook, 1.0))
+        p_denied = min(max(p_denied, 0.0), 1.0)
+        share = (1.0 - p_denied) * float(self.cost_share) + p_denied
+        return float(sticker) * share
+
+
+#: Nobody's coverage. Every price is retail. This reproduces the model's
+#: behaviour before insurance was represented at all, so it is the default.
+UNINSURED = InsuranceContext(name="uninsured", cost_share=1.0)
+
+#: DC Medicaid managed care. DHCF states there is no cost sharing for
+#: beneficiaries enrolled in Medicaid managed care, so a covered claim costs
+#: the patient nothing; the residual expected cost is the chance of a denied
+#: prior authorization reverting to self-pay.
+#: https://dhcf.dc.gov/service/how-are-services-received
+DC_MEDICAID_MANAGED_CARE = InsuranceContext(
+    name="dc_medicaid_managed_care",
+    cost_share=0.0,
+)
+
+
 @dataclass(frozen=True)
 class QolEffect:
     """Named non-mortality QALY effect with explicit uncertainty."""
@@ -114,10 +191,8 @@ class QolEffect:
 EVIDENCE_EFFECT_MULTIPLIERS: Dict[
     Literal["high", "moderate", "low", "very-low"], float
 ] = {
-    "high": 1.0,
-    "moderate": 0.95,
-    "low": 0.75,
-    "very-low": 0.5,
+    quality: row["multiplier"]
+    for quality, row in load_priors()["evidence_effect_multipliers"].items()
 }
 
 EVIDENCE_CONFIDENCE_LABELS: Dict[
@@ -502,6 +577,7 @@ class CatalogEntry:
     access_profile: AccessProfile = field(default_factory=AccessProfile)
     notes: str = ""
     sources: List[str] = field(default_factory=list)
+    study_ids: List[str] = field(default_factory=list)
     evidence_quality: Literal["high", "moderate", "low", "very-low"] = "moderate"
     # Per-item publication-bias tier. When unset, the catalog falls back to the
     # caller's (AnalysisConfig) ``pub_bias_shrinkage`` value — preserving prior
@@ -555,7 +631,15 @@ class CatalogEntry:
         )
 
     def effective_qol_annual(self) -> float:
-        return self.raw_qol_annual() * self.evidence_effect_multiplier()
+        # Same replacement rule as the draw path: calibrated guard for
+        # annotated positive claims, legacy flat multiplier otherwise.
+        from .qol_annotations import general_qol_evidence_for
+
+        raw = self.raw_qol_annual()
+        evidence = general_qol_evidence_for(self.id)
+        if evidence is not None and raw > 0:
+            return raw * evidence.multiplier_mean
+        return raw * self.evidence_effect_multiplier()
 
     def raw_sleep_qol_annual(
         self,
@@ -593,15 +677,25 @@ class CatalogEntry:
         )
         return _profile_adjusted_hr(hr, combined_multiplier)
 
-    def effective_annual_cost(self) -> float:
+    def effective_annual_cost(
+        self,
+        insurance: Optional["InsuranceContext"] = None,
+    ) -> float:
         """Dollar cost attributed to this item, including any bundle allocation.
 
         Bundled catalog items historically declared ``annual_cost=0`` because
         their price was absorbed by the bundle (e.g. Blueprint Essentials).
         That understated true cost. When ``bundle_cost_share`` is set, it is
         added to ``annual_cost`` so $/QALY reflects the real marginal spend.
+
+        ``insurance`` converts that sticker price into expected out-of-pocket
+        cost via ``access_profile``. Omitting it prices everything at retail,
+        which is what this model did before insurance was represented.
         """
-        return float(self.annual_cost) + float(self.bundle_cost_share)
+        sticker = float(self.annual_cost) + float(self.bundle_cost_share)
+        if insurance is None:
+            return sticker
+        return insurance.patient_cost(sticker, self.access_profile)
 
     def _effective_sleep_component_relief(
         self,
@@ -612,7 +706,21 @@ class CatalogEntry:
             self.sleep_component_relief,
             self.airway_target_weights,
         )
-        multiplier = self.evidence_effect_multiplier()
+        # Prefer the calibrated per-claim evidence guard (study-quality
+        # shrinkage x transport prior) when this item is annotated; the flat
+        # evidence_quality multiplier stays as the legacy fallback. This is a
+        # replacement, never a stack — an annotated claim must not be shrunk
+        # twice. The guarded relief flows to the QoL leg AND the sleep
+        # mortality multiplier, which is applied after the confounding step
+        # and previously carried no evidence adjustment of its own.
+        from .qol_annotations import sleep_relief_evidence_for
+
+        evidence = sleep_relief_evidence_for(self.id)
+        multiplier = (
+            evidence.multiplier_mean
+            if evidence is not None
+            else self.evidence_effect_multiplier()
+        )
         if multiplier == 1.0:
             return relief
         return {component: value * multiplier for component, value in relief.items()}
@@ -696,6 +804,11 @@ class CatalogEntry:
             interaction_rules=list(self.interaction_rules),
             confounding_prior=confounding_prior,
             evidence_quality=self.evidence_quality,
+            lineage=InterventionLineage(
+                estimand="Lifetime net QALY delta versus not doing the intervention",
+                model_version="canonical-v1",
+                study_ids=list(self.study_ids),
+            ),
         )
 
 
@@ -704,6 +817,33 @@ class CatalogEntry:
 # =============================================================================
 
 CATALOG: Dict[str, CatalogEntry] = {}
+
+
+def _catalog_entry(
+    item_id: str,
+    name: str,
+    category: Literal[
+        "rx_current",
+        "rx_candidate",
+        "supplement_current",
+        "supplement_bought",
+        "supplement_candidate",
+        "sleep_current",
+        "sleep_candidate",
+    ],
+    **kwargs: Any,
+) -> CatalogEntry:
+    """Build a production entry from its centrally loaded confounding prior."""
+    prior = INTERVENTION_PRIORS[item_id]
+    return CatalogEntry(
+        id=item_id,
+        name=name,
+        category=category,
+        conf_alpha=prior.alpha,
+        conf_beta=prior.beta,
+        **kwargs,
+    )
+
 
 SEDATION_STACK_RULE = InteractionRule(
     id="sedation_stack",
@@ -753,14 +893,12 @@ def _add(entry: CatalogEntry) -> None:
 # Prescriptions — current
 # ---------------------------------------------------------------------------
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "finasteride_1.25mg",
         "Finasteride 1.25mg",
         "rx_current",
         hr_observed=0.93,
         log_sd=0.10,
-        conf_alpha=4.0,
-        conf_beta=2.5,
         annual_cost=171,  # $14.99 / (8*4 doses) * 365 = $171/yr
         qol_annual=0.015,
         harm_effects=[
@@ -776,14 +914,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "tadalafil_2.5mg",
         "Tadalafil 2.5mg",
         "rx_current",
         hr_observed=0.88,
         log_sd=0.15,
-        conf_alpha=2.0,
-        conf_beta=4.0,
         annual_cost=252,  # $20.72 / 30 * 365 = $252/yr
         qol_annual=0.020,
         harm_effects=[
@@ -799,14 +935,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "trazodone_50mg",
         "Trazodone 50mg",
         "rx_current",
         hr_observed=1.00,
         log_sd=0.05,
-        conf_alpha=3.0,
-        conf_beta=3.0,
         annual_cost=223,  # $18.34 / 30 * 365 = $223/yr
         qol_annual=0.0005,
         has_direct_mortality_effect=False,
@@ -845,14 +979,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "doxepin_3mg",
         "Doxepin 3mg",
         "sleep_candidate",
         hr_observed=1.0,
         log_sd=0.05,
-        conf_alpha=2.0,
-        conf_beta=4.5,
         annual_cost=60,
         qol_annual=0.0002,
         has_direct_mortality_effect=False,
@@ -898,14 +1030,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "daridorexant_25mg",
         "Daridorexant 25mg",
         "sleep_candidate",
         hr_observed=1.0,
         log_sd=0.05,
-        conf_alpha=2.4,
-        conf_beta=4.2,
         annual_cost=6156,
         qol_annual=0.0002,
         has_direct_mortality_effect=False,
@@ -952,14 +1082,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "lemborexant_5mg",
         "Lemborexant 5mg",
         "sleep_candidate",
         hr_observed=1.0,
         log_sd=0.05,
-        conf_alpha=2.5,
-        conf_beta=4.1,
         annual_cost=4350,
         qol_annual=0.0002,
         has_direct_mortality_effect=False,
@@ -1007,14 +1135,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "suvorexant_10mg",
         "Suvorexant 10mg",
         "sleep_candidate",
         hr_observed=1.0,
         log_sd=0.05,
-        conf_alpha=2.2,
-        conf_beta=4.8,
         annual_cost=5686,
         qol_annual=0.0002,
         has_direct_mortality_effect=False,
@@ -1062,14 +1188,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "nasacort_nightly",
         "Nasacort nightly",
         "sleep_current",
         hr_observed=1.0,
         log_sd=0.05,
-        conf_alpha=2.0,
-        conf_beta=4.5,
         annual_cost=120,
         qol_annual=0.0002,
         has_direct_mortality_effect=False,
@@ -1107,14 +1231,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "nasal_strips_nightly",
         "Nasal strips nightly",
         "sleep_current",
         hr_observed=1.0,
         log_sd=0.05,
-        conf_alpha=1.8,
-        conf_beta=4.8,
         annual_cost=180,
         qol_annual=0.0001,
         has_direct_mortality_effect=False,
@@ -1147,14 +1269,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "humidifier_nightly",
         "Humidifier nightly",
         "sleep_candidate",
         hr_observed=1.0,
         log_sd=0.06,
-        conf_alpha=1.2,
-        conf_beta=6.2,
         annual_cost=80,
         qol_annual=0.00005,
         has_direct_mortality_effect=False,
@@ -1192,14 +1312,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "mouth_tape_nightly",
         "Mouth tape nightly",
         "sleep_candidate",
         hr_observed=1.0,
         log_sd=0.06,
-        conf_alpha=1.3,
-        conf_beta=6.0,
         annual_cost=220,
         qol_annual=0.00008,
         has_direct_mortality_effect=False,
@@ -1246,14 +1364,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "head_elevation_nightly",
         "Head elevation nightly",
         "sleep_current",
         hr_observed=1.0,
         log_sd=0.05,
-        conf_alpha=2.2,
-        conf_beta=4.2,
         annual_cost=0,
         qol_annual=0.0001,
         has_direct_mortality_effect=False,
@@ -1284,14 +1400,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "apap_nightly",
         "APAP nightly",
         "sleep_candidate",
         hr_observed=1.0,
         log_sd=0.05,
-        conf_alpha=3.0,
-        conf_beta=3.8,
         annual_cost=400,
         qol_annual=0.0002,
         has_direct_mortality_effect=False,
@@ -1331,14 +1445,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "oral_appliance_custom",
         "Custom oral appliance",
         "sleep_candidate",
         hr_observed=1.0,
         log_sd=0.05,
-        conf_alpha=2.6,
-        conf_beta=4.2,
         annual_cost=500,
         qol_annual=0.0002,
         has_direct_mortality_effect=False,
@@ -1378,14 +1490,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "hiit_1x_week",
         "HIIT 1x/week",
         "supplement_candidate",
         hr_observed=1.0,
         log_sd=0.06,
-        conf_alpha=2.0,
-        conf_beta=4.8,
         annual_cost=0,
         qol_annual=0.0014,
         qol_years=12,
@@ -1402,14 +1512,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "hiit_2x_week",
         "HIIT 2x/week",
         "supplement_candidate",
         hr_observed=1.0,
         log_sd=0.07,
-        conf_alpha=1.9,
-        conf_beta=5.0,
         annual_cost=0,
         qol_annual=0.0022,
         qol_years=12,
@@ -1427,14 +1535,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "hiit_3x_week",
         "HIIT 3x/week",
         "supplement_candidate",
         hr_observed=1.0,
         log_sd=0.08,
-        conf_alpha=1.7,
-        conf_beta=5.4,
         annual_cost=0,
         qol_annual=0.0019,
         qol_years=12,
@@ -1452,14 +1558,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "zone2_cardio_2x_week",
         "Zone 2 cardio 2x/week",
         "supplement_candidate",
         hr_observed=1.0,
         log_sd=0.05,
-        conf_alpha=1.8,
-        conf_beta=5.0,
         annual_cost=0,
         qol_annual=0.0010,
         qol_years=12,
@@ -1475,14 +1579,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "tempo_run_1x_week",
         "Tempo run 1x/week",
         "supplement_candidate",
         hr_observed=1.0,
         log_sd=0.06,
-        conf_alpha=1.9,
-        conf_beta=4.9,
         annual_cost=0,
         qol_annual=0.0016,
         qol_years=12,
@@ -1499,21 +1601,19 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "strength_maintenance",
         "Strength maintenance",
         "supplement_candidate",
         hr_observed=1.0,
         log_sd=0.04,
-        conf_alpha=1.4,
-        conf_beta=5.6,
         annual_cost=0,
         qol_annual=0.0003,
         qol_years=12,
         has_direct_mortality_effect=False,
         exclusive_group="strength_mode",
         notes=(
-            "Structured maintenance lifting. Kept near flat because you already do strength work daily."
+            "Structured resistance training intended to preserve strength. Modeled conservatively because its marginal value depends heavily on the training already in your routine."
         ),
         sources=[
             "https://pubmed.ncbi.nlm.nih.gov/38599681/",
@@ -1525,28 +1625,24 @@ _add(
 # Prescriptions — candidates (off-label longevity)
 # ---------------------------------------------------------------------------
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "rapamycin_5mg_wk",
         "Rapamycin 5mg/wk",
         "rx_candidate",
         hr_observed=0.85,
         log_sd=0.20,
-        conf_alpha=2.0,
-        conf_beta=3.0,
         annual_cost=600,
         qol_annual=-0.003,
         notes="ITP mice: +26% median lifespan. Mannick 2014. Immunosuppression risk.",
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "metformin_500mg",
         "Metformin 500mg",
         "rx_candidate",
         hr_observed=0.90,
         log_sd=0.12,
-        conf_alpha=2.5,
-        conf_beta=3.5,
         annual_cost=48,
         qol_annual=0.000,
         benefit_tags=["cardiometabolic_support"],
@@ -1554,28 +1650,24 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "acarbose_50mg",
         "Acarbose 50mg",
         "rx_candidate",
         hr_observed=0.88,
         log_sd=0.18,
-        conf_alpha=2.0,
-        conf_beta=4.0,
         annual_cost=120,
         qol_annual=-0.005,
         notes="ITP mice: +22% median lifespan (males). GI side effects.",
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "aspirin_81mg",
         "Low-dose aspirin 81mg",
         "rx_candidate",
         hr_observed=0.94,
         log_sd=0.06,
-        conf_alpha=4.0,
-        conf_beta=2.0,
         annual_cost=15,
         qol_annual=-0.001,
         harm_effects=[
@@ -1593,14 +1685,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "semaglutide",
         "GLP-1 RA (semaglutide)",
         "rx_candidate",
         hr_observed=0.80,
         log_sd=0.12,
-        conf_alpha=3.5,
-        conf_beta=2.0,
         annual_cost=6000,
         qol_annual=0.004,
         harm_effects=[
@@ -1637,42 +1727,36 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "lithium_5mg",
         "Low-dose lithium 5mg",
         "rx_candidate",
         hr_observed=0.92,
         log_sd=0.18,
-        conf_alpha=1.5,
-        conf_beta=4.5,
         annual_cost=60,
         qol_annual=0.001,
         notes="Ecological: municipal Li → lower suicide/dementia. No RCTs at low dose.",
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "17a_estradiol",
         "17α-estradiol (topical)",
         "rx_candidate",
         hr_observed=0.88,
         log_sd=0.20,
-        conf_alpha=1.5,
-        conf_beta=4.5,
         annual_cost=360,
         qol_annual=-0.002,
         notes="ITP mice: +19% median lifespan (males only). No human data.",
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "empagliflozin",
         "SGLT2i (empagliflozin)",
         "rx_candidate",
         hr_observed=0.86,
         log_sd=0.10,
-        conf_alpha=3.5,
-        conf_beta=2.5,
         annual_cost=3600,
         qol_annual=0.002,
         benefit_tags=["cardiometabolic_support"],
@@ -1680,14 +1764,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "statin_5mg",
         "Statin (rosuvastatin 5mg)",
         "rx_candidate",
         hr_observed=0.88,
         log_sd=0.08,
-        conf_alpha=4.5,
-        conf_beta=1.5,
         annual_cost=120,
         qol_annual=-0.002,
         benefit_tags=["cardiometabolic_support"],
@@ -1699,14 +1781,12 @@ _add(
 # Supplements — current stack
 # ---------------------------------------------------------------------------
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "omega3_clo",
         "Omega-3 CLO ~500mg",
         "supplement_current",
         hr_observed=0.92,
         log_sd=0.10,
-        conf_alpha=2.5,
-        conf_beta=3.5,
         annual_cost=180,
         qol_annual=0.001,
         interaction_tags=["bleeding_stack"],
@@ -1716,15 +1796,17 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "vitamin_d_2000",
         "Vitamin D 2000 IU",
         "supplement_current",
         hr_observed=0.94,
         log_sd=0.08,
-        conf_alpha=3.0,
-        conf_beta=4.0,
-        annual_cost=30,
+        # Supplied by Blueprint Essential Capsules (2000 IU/serving), not a
+        # standalone bottle — see BUNDLE_ALLOCATIONS. A standalone annual_cost
+        # here made dropping it look like it saved money, which it does not
+        # while the bundle stays in the stack.
+        annual_cost=0,
         qol_annual=0.000,
         interaction_tags=["vitamin_d"],
         interaction_rules=[DUPLICATE_VITAMIN_D_RULE],
@@ -1732,14 +1814,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "magnesium_200",
         "Magnesium 400mg",
         "supplement_current",
         hr_observed=0.90,
         log_sd=0.12,
-        conf_alpha=2.0,
-        conf_beta=3.5,
         annual_cost=146,
         qol_annual=0.0005,
         sleep_component_relief={
@@ -1760,14 +1840,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "garlic_1200",
         "Garlic 1200mg",
         "supplement_current",
         hr_observed=0.88,
         log_sd=0.12,
-        conf_alpha=2.0,
-        conf_beta=4.0,
         annual_cost=300,
         qol_annual=0.000,
         interaction_tags=["bleeding_stack"],
@@ -1777,14 +1855,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "creatine_5g",
         "Creatine 5g",
         "supplement_current",
         hr_observed=0.98,
         log_sd=0.08,
-        conf_alpha=1.0,
-        conf_beta=6.0,
         annual_cost=120,
         qol_effects=[
             QolEffect(
@@ -1843,15 +1919,15 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "nac_1200",
         "NAC 1200mg",
         "supplement_current",
         hr_observed=0.93,
         log_sd=0.15,
-        conf_alpha=1.5,
-        conf_beta=4.0,
-        annual_cost=40,
+        # Supplied by Blueprint NAC+Ginger+Curcumin, not a standalone bottle —
+        # see BUNDLE_ALLOCATIONS.
+        annual_cost=0,
         qol_annual=0.001,
         sleep_component_relief={
             "breathing": 0.08,
@@ -1873,15 +1949,15 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "curcumin_250",
         "Curcumin 250mg",
         "supplement_current",
         hr_observed=0.90,
         log_sd=0.18,
-        conf_alpha=1.5,
-        conf_beta=4.5,
-        annual_cost=40,
+        # Supplied by Blueprint NAC+Ginger+Curcumin, not a standalone bottle —
+        # see BUNDLE_ALLOCATIONS.
+        annual_cost=0,
         qol_annual=0.000,
         harm_effects=[
             HarmEffect(
@@ -1897,14 +1973,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "ginger_400",
         "Ginger 400mg",
         "supplement_current",
         hr_observed=0.96,
         log_sd=0.15,
-        conf_alpha=1.0,
-        conf_beta=5.0,
         annual_cost=0,
         qol_annual=0.000,
         interaction_tags=["bleeding_stack"],
@@ -1913,28 +1987,26 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "vitamin_k2",
         "Vitamin K2 MK-7+MK-4",
         "supplement_current",
         hr_observed=0.92,
         log_sd=0.15,
-        conf_alpha=1.5,
-        conf_beta=4.0,
-        annual_cost=25,
+        # Supplied by Blueprint Advanced Antioxidants (MK-4 5mg + MK-7 0.6mg
+        # per serving), not a standalone bottle — see BUNDLE_ALLOCATIONS.
+        annual_cost=0,
         qol_annual=0.000,
         notes="Rotterdam obs. Calcification RCTs.",
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "melatonin_300mcg",
         "Melatonin 300mcg",
         "supplement_current",
         hr_observed=0.97,
         log_sd=0.10,
-        conf_alpha=1.2,
-        conf_beta=4.5,
         annual_cost=30,
         qol_annual=0.0003,
         harm_effects=[
@@ -1968,14 +2040,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "collagen_22g",
         "Collagen 22g",
         "supplement_current",
         hr_observed=0.99,
         log_sd=0.05,
-        conf_alpha=1.0,
-        conf_beta=7.0,
         annual_cost=360,
         qol_annual=0.003,
         notes="No mortality data. Joint/skin RCTs.",
@@ -1983,14 +2053,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "prebiotics",
         "Prebiotics combo",
         "supplement_current",
         hr_observed=0.96,
         log_sd=0.10,
-        conf_alpha=1.0,
-        conf_beta=5.5,
         annual_cost=180,
         qol_annual=0.003,
         benefit_tags=["gut_support"],
@@ -1998,14 +2066,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "probiotic_daily",
         "Daily probiotics",
         "supplement_bought",
         hr_observed=1.0,
         log_sd=0.08,
-        conf_alpha=1.2,
-        conf_beta=5.6,
         annual_cost=273,
         qol_annual=0.001,
         has_direct_mortality_effect=False,
@@ -2024,14 +2090,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "lutein_zeaxanthin",
         "Lutein+Zeaxanthin",
         "supplement_current",
         hr_observed=0.97,
         log_sd=0.10,
-        conf_alpha=1.0,
-        conf_beta=5.5,
         annual_cost=0,
         qol_annual=0.002,
         benefit_tags=["antioxidant_support"],
@@ -2039,14 +2103,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "astaxanthin_12",
         "Astaxanthin 12mg",
         "supplement_current",
         hr_observed=0.95,
         log_sd=0.12,
-        conf_alpha=1.0,
-        conf_beta=5.0,
         annual_cost=0,
         qol_annual=0.002,
         benefit_tags=["antioxidant_support"],
@@ -2054,14 +2116,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "lycopene_15",
         "Lycopene 15mg",
         "supplement_current",
         hr_observed=0.95,
         log_sd=0.15,
-        conf_alpha=1.2,
-        conf_beta=4.8,
         annual_cost=0,
         qol_annual=0.000,
         benefit_tags=["antioxidant_support"],
@@ -2069,14 +2129,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "nr_300",
         "NR 300mg",
         "supplement_current",
         hr_observed=0.97,
         log_sd=0.10,
-        conf_alpha=1.2,
-        conf_beta=5.0,
         annual_cost=0,
         qol_annual=0.001,
         benefit_tags=["mitochondrial_support"],
@@ -2084,14 +2142,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "nr_300_unbundled",
         "NR 300mg (unbundled)",
         "supplement_candidate",
         hr_observed=0.97,
         log_sd=0.10,
-        conf_alpha=1.2,
-        conf_beta=5.0,
         annual_cost=396,
         qol_annual=0.001,
         benefit_tags=["mitochondrial_support"],
@@ -2103,28 +2159,24 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "fisetin_100",
         "Fisetin 100mg",
         "supplement_current",
         hr_observed=0.97,
         log_sd=0.12,
-        conf_alpha=1.0,
-        conf_beta=5.5,
         annual_cost=0,
         qol_annual=0.000,
         notes="Senolytic. Animal. Bundled.",
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "fisetin_100_unbundled",
         "Fisetin 100mg (unbundled)",
         "supplement_candidate",
         hr_observed=0.97,
         log_sd=0.12,
-        conf_alpha=1.0,
-        conf_beta=5.5,
         annual_cost=133,
         qol_annual=0.000,
         notes=(
@@ -2135,28 +2187,24 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "spermidine_10",
         "Spermidine 10mg",
         "supplement_current",
         hr_observed=0.95,
         log_sd=0.15,
-        conf_alpha=1.2,
-        conf_beta=5.0,
         annual_cost=0,
         qol_annual=0.000,
         notes="Madeo obs HR 0.70. Animal.",
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "luteolin_100",
         "Luteolin 100mg",
         "supplement_current",
         hr_observed=0.97,
         log_sd=0.12,
-        conf_alpha=1.0,
-        conf_beta=5.5,
         annual_cost=0,
         qol_annual=0.001,
         benefit_tags=["antioxidant_support"],
@@ -2164,14 +2212,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "luteolin_100_unbundled",
         "Luteolin 100mg (unbundled)",
         "supplement_candidate",
         hr_observed=0.97,
         log_sd=0.12,
-        conf_alpha=1.0,
-        conf_beta=5.5,
         annual_cost=115,
         qol_annual=0.001,
         benefit_tags=["antioxidant_support"],
@@ -2183,14 +2229,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "ubiquinol_50",
         "Ubiquinol 50mg",
         "supplement_current",
         hr_observed=0.96,
         log_sd=0.12,
-        conf_alpha=1.5,
-        conf_beta=4.5,
         annual_cost=0,
         qol_annual=0.001,
         benefit_tags=["mitochondrial_support"],
@@ -2198,14 +2242,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "ubiquinol_50_unbundled",
         "Ubiquinol 50mg (unbundled)",
         "supplement_candidate",
         hr_observed=0.96,
         log_sd=0.12,
-        conf_alpha=1.5,
-        conf_beta=4.5,
         annual_cost=120,
         qol_annual=0.001,
         benefit_tags=["mitochondrial_support"],
@@ -2219,56 +2261,48 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "boron_3",
         "Boron 3mg",
         "supplement_current",
         hr_observed=0.97,
         log_sd=0.10,
-        conf_alpha=1.0,
-        conf_beta=5.5,
         annual_cost=0,
         qol_annual=0.000,
         notes="Prostate/bone obs. Bundled.",
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "lithium_1mg_orotate",
         "Lithium 1mg orotate",
         "supplement_current",
         hr_observed=0.98,
         log_sd=0.10,
-        conf_alpha=1.2,
-        conf_beta=5.0,
         annual_cost=0,
         qol_annual=0.001,
         notes="Ecological Li data. Neuroprotective. Bundled.",
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "broccoli_seed_200",
         "Broccoli Seed Ext 200mg",
         "supplement_current",
         hr_observed=0.95,
         log_sd=0.15,
-        conf_alpha=1.5,
-        conf_beta=4.5,
         annual_cost=0,
         qol_annual=0.000,
         notes="Sulforaphane. Phase 2 enzyme induction. Bundled.",
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "cocoa_flavanols_500",
         "Cocoa flavanols ~500mg",
         "supplement_current",
         hr_observed=0.90,
         log_sd=0.12,
-        conf_alpha=2.5,
-        conf_beta=3.0,
         annual_cost=260,
         qol_annual=0.001,
         benefit_tags=["cardiometabolic_support"],
@@ -2280,14 +2314,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "hyaluronic_acid_120",
         "Hyaluronic acid (oral)",
         "supplement_current",
         hr_observed=0.99,
         log_sd=0.08,
-        conf_alpha=1.0,
-        conf_beta=7.0,
         annual_cost=0,
         qol_annual=0.001,
         notes="Joint/skin support. No mortality effect.",
@@ -2299,14 +2331,12 @@ _add(
 # Supplements — already purchased (new additions)
 # ---------------------------------------------------------------------------
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "glycine_2g",
         "Glycine 2g bedtime",
         "supplement_bought",
         hr_observed=1.0,
         log_sd=0.05,
-        conf_alpha=1.5,
-        conf_beta=6.0,
         annual_cost=28,  # $17.40 / 227 doses (1lb/151×3g servings, 2g dose) * 365
         qol_annual=0.0002,
         has_direct_mortality_effect=False,
@@ -2333,14 +2363,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "apigenin_50",
         "Apigenin 50mg",
         "supplement_bought",
         hr_observed=0.96,
         log_sd=0.12,
-        conf_alpha=1.0,
-        conf_beta=6.0,
         annual_cost=76,  # $24.95 / 120 caps * 365
         qol_annual=0.0003,
         interaction_tags=["sedating"],
@@ -2358,14 +2386,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "omega3_epa_2g",
         "High-EPA Omega-3 +2g",
         "supplement_bought",
         hr_observed=0.955,
         log_sd=0.10,
-        conf_alpha=2.5,
-        conf_beta=3.0,
         annual_cost=227,  # $27.95 / 90 softgels * 2/day = 45 days, * 365/45
         qol_annual=0.002,
         interaction_tags=["bleeding_stack"],
@@ -2376,14 +2402,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "taurine_500_topup",
         "Taurine 500mg top-up",
         "supplement_bought",
         hr_observed=1.0,
         log_sd=0.05,
-        conf_alpha=1.2,
-        conf_beta=6.0,
         annual_cost=4.4,  # $23.97 / 2000 doses (1kg powder, 500mg top-up) * 365
         qol_annual=0.0001,
         has_direct_mortality_effect=False,
@@ -2404,42 +2428,36 @@ _add(
 # Supplements — candidates
 # ---------------------------------------------------------------------------
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "urolithin_a_500",
         "Urolithin A 500mg",
         "supplement_candidate",
         hr_observed=0.94,
         log_sd=0.15,
-        conf_alpha=1.5,
-        conf_beta=4.5,
         annual_cost=780,
         qol_annual=0.003,
         notes="Mitopure. RCTs: improved mitochondrial function. Expensive.",
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "ergothioneine_5",
         "Ergothioneine 5mg",
         "supplement_candidate",
         hr_observed=0.94,
         log_sd=0.15,
-        conf_alpha=1.2,
-        conf_beta=5.0,
         annual_cost=240,
         qol_annual=0.001,
         notes="Longevity vitamin hypothesis. Obs: low ergo → higher mortality.",
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "quercetin_500",
         "Quercetin 500mg",
         "supplement_candidate",
         hr_observed=0.93,
         log_sd=0.15,
-        conf_alpha=1.5,
-        conf_beta=4.5,
         annual_cost=60,
         qol_annual=0.000,
         benefit_tags=["antioxidant_support"],
@@ -2447,42 +2465,36 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "sulforaphane_20_extra",
         "Sulforaphane 20mg (extra)",
         "supplement_candidate",
         hr_observed=0.94,
         log_sd=0.15,
-        conf_alpha=1.5,
-        conf_beta=4.5,
         annual_cost=180,
         qol_annual=0.000,
         notes="NRF2 activator. Incremental over Broccoli Seed Ext.",
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "pterostilbene_50",
         "Pterostilbene 50mg",
         "supplement_candidate",
         hr_observed=0.96,
         log_sd=0.15,
-        conf_alpha=1.0,
-        conf_beta=5.5,
         annual_cost=120,
         qol_annual=0.000,
         notes="Resveratrol analog. AMPK/SIRT1. Animal only.",
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "egcg_400",
         "EGCG 400mg (green tea)",
         "supplement_candidate",
         hr_observed=0.92,
         log_sd=0.15,
-        conf_alpha=1.5,
-        conf_beta=4.5,
         annual_cost=60,
         qol_annual=0.000,
         harm_effects=[
@@ -2498,42 +2510,36 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "berberine_500",
         "Berberine 500mg",
         "supplement_candidate",
         hr_observed=0.88,
         log_sd=0.18,
-        conf_alpha=1.5,
-        conf_beta=4.5,
         annual_cost=180,
         qol_annual=-0.004,
         notes="Metformin-like. RCTs in diabetes. GI side effects.",
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "alpha_lipoic_acid_300",
         "Alpha-lipoic acid 300mg",
         "supplement_candidate",
         hr_observed=0.96,
         log_sd=0.12,
-        conf_alpha=1.2,
-        conf_beta=5.0,
         annual_cost=60,
         qol_annual=0.000,
         notes="Antioxidant. RCTs for diabetic neuropathy.",
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "pqq_20",
         "PQQ 20mg",
         "supplement_candidate",
         hr_observed=0.97,
         log_sd=0.12,
-        conf_alpha=1.0,
-        conf_beta=6.0,
         annual_cost=180,
         qol_annual=0.001,
         benefit_tags=["mitochondrial_support", "antioxidant_support"],
@@ -2541,28 +2547,24 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "tmg_1g",
         "TMG/Betaine 1g",
         "supplement_candidate",
         hr_observed=0.97,
         log_sd=0.10,
-        conf_alpha=1.0,
-        conf_beta=5.5,
         annual_cost=30,
         qol_annual=0.000,
         notes="Methyl donor. Homocysteine reduction. Often paired with NR/NMN.",
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "ashwagandha_600",
         "Ashwagandha 600mg",
         "supplement_bought",
         hr_observed=0.96,
         log_sd=0.15,
-        conf_alpha=1.2,
-        conf_beta=5.0,
         annual_cost=60,
         qol_annual=0.0010,
         harm_effects=[
@@ -2612,14 +2614,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "lions_mane_1g",
         "Lions Mane 1g",
         "supplement_bought",
         hr_observed=0.98,
         log_sd=0.12,
-        conf_alpha=1.0,
-        conf_beta=6.0,
         annual_cost=287,  # $47.21 / 120 caps, 2/day = 60 days, * 365/60
         qol_annual=0.003,
         notes="NGF stimulation. Small RCTs: cognitive improvement.",
@@ -2627,28 +2627,24 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "black_seed_oil_1g",
         "Black seed oil 1g",
         "supplement_candidate",
         hr_observed=0.91,
         log_sd=0.18,
-        conf_alpha=1.2,
-        conf_beta=5.0,
         annual_cost=60,
         qol_annual=0.000,
         notes="Thymoquinone. Anti-inflammatory. No mortality RCTs.",
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "cistanche_200",
         "Cistanche 200mg",
         "supplement_bought",
         hr_observed=0.95,
         log_sd=0.18,
-        conf_alpha=1.0,
-        conf_beta=6.0,
         annual_cost=231,  # $37.99 / 60 tabs, 1/day = 60 days, * 365/60
         qol_annual=0.002,
         benefit_tags=["performance_recovery"],
@@ -2657,14 +2653,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "nmn_500",
         "NMN 500mg",
         "supplement_candidate",
         hr_observed=0.96,
         log_sd=0.12,
-        conf_alpha=1.2,
-        conf_beta=5.0,
         annual_cost=360,
         qol_annual=0.001,
         benefit_tags=["mitochondrial_support"],
@@ -2672,28 +2666,24 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "ghk_cu",
         "GHK-Cu peptide (topical)",
         "supplement_candidate",
         hr_observed=0.99,
         log_sd=0.10,
-        conf_alpha=1.0,
-        conf_beta=7.0,
         annual_cost=300,
         qol_annual=0.002,
         notes="Wound healing, collagen. Skin only.",
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "vitamin_c_500_extra",
         "Vitamin C 500mg (extra)",
         "supplement_candidate",
         hr_observed=0.97,
         log_sd=0.08,
-        conf_alpha=2.0,
-        conf_beta=4.5,
         annual_cost=15,
         qol_annual=0.000,
         notes="Already getting 250mg from Longevity Mix. Obs meta: modest CVD.",
@@ -2708,14 +2698,12 @@ _add(
 # tiers actually defined in confounding.STUDY_QUALITY_SHRINKAGE.
 # -------------------------------------------------------------------------
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "caakg_2000",
         "Calcium AKG 2000mg",
         "supplement_current",
         hr_observed=1.0,
         log_sd=0.05,
-        conf_alpha=1.2,
-        conf_beta=6.0,
         annual_cost=0,
         qol_annual=0.0,
         has_direct_mortality_effect=False,
@@ -2742,48 +2730,66 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "glucosamine_sulfate_750",
         "Glucosamine sulfate 750mg",
         "supplement_current",
-        hr_observed=0.92,
+        hr_observed=1.0,
         log_sd=0.10,
-        conf_alpha=1.0,
-        conf_beta=5.5,
         annual_cost=0,
         qol_annual=0.0,
+        has_direct_mortality_effect=False,
         benefit_tags=["anti_inflammatory"],
         notes=(
-            "Glucosamine sulfate 750 mg (Blueprint Longevity Mix). The only Mix "
-            "active with direct human all-cause mortality data: in the UK Biobank "
-            "prospective cohort (n=495,077, median 8.9 y follow-up, 19,882 deaths), "
-            "regular glucosamine use had a multivariable-adjusted all-cause "
-            "mortality HR of 0.85 (95% CI 0.82-0.89) (Li et al., Ann Rheum Dis "
-            "2020;79:829-836, PMID 32253185). That association is almost certainly "
-            "inflated by healthy-user / selection bias - Suissa et al. "
-            "(Pharmacoepidemiol Drug Saf 2022) argue the apparent benefit largely "
-            "reflects who chooses to take glucosamine, not the supplement. We "
-            "therefore enter a conservative observed HR of 0.92 (well above the raw "
-            "0.85) and tier it observational_speculative (0.55 shrinkage) so the "
-            "confounding machinery pulls it further toward null."
+            "Glucosamine sulfate 750 mg (Blueprint Longevity Mix). Held at the "
+            "1.0 null as of 2026-08-03, revised down from an earlier 0.92. "
+            "The headline association is UK Biobank (n=495,077, median 8.9 y, "
+            "19,882 deaths): regular glucosamine use, all-cause mortality HR "
+            "0.85 (95% CI 0.82-0.89) (Li et al., Ann Rheum Dis 2020;79:829-836, "
+            "PMID 32253185). Four things argue that number should not carry "
+            "benefit here. (1) Exposure is a single yes/no touchscreen "
+            "checkbox; the paper states UK Biobank 'did not gather detailed "
+            "information on the dosage, forms or duration of glucosamine use', "
+            "so there is no dose-response anywhere in this literature and no "
+            "basis to attribute the effect to 750 mg specifically. (2) Suissa "
+            "et al. (Pharmacoepidemiol Drug Saf 2022) show all 11 "
+            "glucosamine-mortality studies are prevalent-user cohorts subject "
+            "to collider/selection bias, concluding they cannot support "
+            "glucosamine as a preventive measure for mortality. (3) Mendelian "
+            "randomization - the design that strips healthy-user confounding - "
+            "does not replicate it: Hayward et al. (2025) found a strongly "
+            "favourable observational association for albuminuria (OR 0.81) "
+            "that vanished in the MR arm of the same paper. (4) A cohort of "
+            "685,778 newly-diagnosed osteoarthritis patients found the "
+            "opposite direction entirely (CVD HR 1.68, with a dose-response "
+            "gradient), which the authors attribute to population differences "
+            "from UK Biobank's healthy-volunteer base. No RCT has ever tested "
+            "glucosamine for mortality at any dose. Separately, the OA-pain "
+            "RCTs that did work used Rotta crystalline glucosamine sulfate "
+            "stabilized with sodium chloride; generic sulfate and the "
+            "hydrochloride salt (GAIT) failed to replicate, and this product "
+            "is potassium-chloride stabilized - so the Mix does not even carry "
+            "the formulation with trial support. Treated the same way CaAKG "
+            "and lysine already are: no human evidence that survives "
+            "confounding correction means no modelled benefit, rather than a "
+            "shrunken one."
         ),
         sources=(
             "https://pubmed.ncbi.nlm.nih.gov/32253185/",
             "https://onlinelibrary.wiley.com/doi/abs/10.1002/pds.5535",
+            "https://pubmed.ncbi.nlm.nih.gov/30566740/",
         ),
         study_quality="observational_speculative",
-        evidence_quality="low",
+        evidence_quality="very-low",
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "l_lysine_1000",
         "L-Lysine 1000mg",
         "supplement_current",
         hr_observed=1.0,
         log_sd=0.04,
-        conf_alpha=1.1,
-        conf_beta=6.0,
         annual_cost=0,
         qol_annual=0.0,
         has_direct_mortality_effect=False,
@@ -2808,14 +2814,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "glutathione_250",
         "Reduced glutathione 250mg (oral)",
         "supplement_current",
         hr_observed=1.0,
         log_sd=0.05,
-        conf_alpha=1.1,
-        conf_beta=6.0,
         annual_cost=0,
         qol_annual=0.0,
         has_direct_mortality_effect=False,
@@ -2841,14 +2845,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "l_theanine_200",
         "L-Theanine 200mg",
         "supplement_current",
         hr_observed=1.0,
         log_sd=0.05,
-        conf_alpha=1.2,
-        conf_beta=5.5,
         annual_cost=0,
         qol_annual=0.0004,
         qol_years=10,
@@ -2873,14 +2875,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "magnesium_citrate_150",
         "Magnesium citrate 150mg",
         "supplement_current",
         hr_observed=1.0,
         log_sd=0.04,
-        conf_alpha=1.1,
-        conf_beta=6.0,
         annual_cost=0,
         qol_annual=0.0,
         has_direct_mortality_effect=False,
@@ -2901,14 +2901,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "zinc_carnosine_75",
         "Zinc carnosine 75mg",
         "supplement_bought",
         hr_observed=0.97,
         log_sd=0.10,
-        conf_alpha=1.5,
-        conf_beta=4.5,
         annual_cost=60,
         qol_annual=0.001,
         benefit_tags=["gut_support"],
@@ -2916,14 +2914,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "traditional_sauna_4x_week",
         "Traditional dry sauna 4x/week",
         "supplement_candidate",
         hr_observed=1.0,
         log_sd=0.08,
-        conf_alpha=1.8,
-        conf_beta=4.8,
         annual_cost=2178,
         qol_annual=0.0008,
         qol_years=15,
@@ -2941,14 +2937,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "infrared_sauna_4x_week",
         "Infrared sauna 4x/week",
         "supplement_candidate",
         hr_observed=1.0,
         log_sd=0.07,
-        conf_alpha=1.5,
-        conf_beta=5.2,
         annual_cost=3588,
         qol_annual=0.00035,
         qol_years=10,
@@ -2966,14 +2960,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "hbot_60sessions",
         "HBOT 60-session course",
         "supplement_candidate",
         hr_observed=1.0,
         log_sd=0.06,
-        conf_alpha=1.2,
-        conf_beta=6.4,
         annual_cost=1800,
         qol_annual=0.0002,
         qol_years=5,
@@ -2999,14 +2991,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "bpc157_cycle",
         "BPC-157 cycle",
         "supplement_candidate",
         hr_observed=1.0,
         log_sd=0.06,
-        conf_alpha=1.0,
-        conf_beta=6.8,
         annual_cost=1200,
         qol_annual=0.00005,
         qol_years=2,
@@ -3031,14 +3021,12 @@ _add(
     )
 )
 _add(
-    CatalogEntry(
+    _catalog_entry(
         "tb500_cycle",
         "TB-500 cycle",
         "supplement_candidate",
         hr_observed=1.0,
         log_sd=0.06,
-        conf_alpha=1.0,
-        conf_beta=7.0,
         annual_cost=1500,
         qol_annual=0.00003,
         qol_years=2,
@@ -3082,10 +3070,11 @@ if missing_public_policy_items:
 # harness later.
 #
 # 1. STUDY_QUALITY_BY_ID:   per-item pub-bias shrinkage tier.
-# 2. BUNDLE_ALLOCATIONS:    allocate bundle dollar cost to constituent items.
-# 3. EXTRA_BENEFIT_TAGS:    attach mechanism-cluster tags so the stack overlap
+# 2. STUDY_IDS_BY_ID:       link catalog claims to verified evidence-table rows.
+# 3. BUNDLE_ALLOCATIONS:    allocate bundle dollar cost to constituent items.
+# 4. EXTRA_BENEFIT_TAGS:    attach mechanism-cluster tags so the stack overlap
 #                           penalty fires for correlated supplements.
-# 4. EVIDENCE_OVERRIDES:    drop evidence_quality for items that have weaker
+# 5. EVIDENCE_OVERRIDES:    drop evidence_quality for items that have weaker
 #                           evidence than their default tier implies.
 
 STUDY_QUALITY_BY_ID: Dict[str, str] = {
@@ -3166,8 +3155,8 @@ STUDY_QUALITY_BY_ID: Dict[str, str] = {
     "rapamycin_5mg_wk": "animal_or_mechanistic",
     # Exercise interventions use RCT-plus-cohort evidence but the causal
     # fraction is weak (Ballin 2021, Finnish Twin Cohort). Treat as standard
-    # RCTs — the confounding prior (exercise: Beta(1.2, 6.0)) handles most
-    # of the shrinkage already.
+    # RCTs — the centrally loaded confounding prior handles most of the
+    # shrinkage already.
     "hiit_1x_week": "rct_standard",
     "hiit_2x_week": "rct_standard",
     "hiit_3x_week": "rct_standard",
@@ -3179,25 +3168,50 @@ STUDY_QUALITY_BY_ID: Dict[str, str] = {
     "nasacort_nightly": "rct_standard",
 }
 
+STUDY_IDS_BY_ID: Dict[str, List[str]] = {
+    "finasteride_1.25mg": ["thompson2013_pcpt_survival"],
+    "tadalafil_2.5mg": ["anderson2016_pde5_mortality"],
+    "aspirin_81mg": ["mcneil2018_aspree_mortality"],
+    "semaglutide": ["lincoff2023_select_mace"],
+    "empagliflozin": ["zinman2015_empareg_mace"],
+    "statin_5mg": ["ctt2010_ldl_vascular"],
+    "cocoa_flavanols_500": ["sesso2022_cosmos_cvd"],
+    "omega3_clo": ["manson2019_vital_cvd", "aung2018_omega3_vascular"],
+    "omega3_epa_2g": ["manson2019_vital_cvd", "bhatt2019_reduceit_primary"],
+    "vitamin_d_2000": ["bjelakovic2014_vitamin_d3_mortality"],
+    "vitamin_k2": ["geleijnse2004_k2_mortality"],
+    "melatonin_300mcg": ["ferraciolioda2013_melatonin_sleep_quality"],
+    "glucosamine_sulfate_750": [
+        "li2020_glucosamine_mortality",
+        "suissa2022_glucosamine_selection_bias",
+    ],
+    "magnesium_citrate_150": ["fang2016_magnesium_mortality"],
+    "traditional_sauna_4x_week": ["laukkanen2015_sauna_scd"],
+}
+
 # Bundle cost allocation. Each tuple is (bundle_id, annual_dollar_share).
 # Prices approximate current Blueprint subscription pricing, allocated evenly
 # across the Optiqal-tracked constituent ingredients. Prior to this
 # annotation, bundled items had annual_cost=0 and inflated their $/QALY.
 BUNDLE_ALLOCATIONS: Dict[str, tuple[str, float]] = {
-    # Blueprint Essential Capsules subscription: ~$480/yr across 8 tracked
-    # constituents → ~$60/yr each.
-    "fisetin_100": ("blueprint_essential_capsules", 60.0),
-    "spermidine_10": ("blueprint_essential_capsules", 60.0),
-    "nr_300": ("blueprint_essential_capsules", 60.0),
-    "ubiquinol_50": ("blueprint_essential_capsules", 60.0),
-    "lithium_1mg_orotate": ("blueprint_essential_capsules", 60.0),
-    "boron_3": ("blueprint_essential_capsules", 60.0),
-    "broccoli_seed_200": ("blueprint_essential_capsules", 60.0),
-    "luteolin_100": ("blueprint_essential_capsules", 60.0),
-    # Blueprint Advanced Antioxidants: ~$180/yr across 3 items → $60 each.
-    "astaxanthin_12": ("blueprint_advanced_antioxidants", 60.0),
-    "lutein_zeaxanthin": ("blueprint_advanced_antioxidants", 60.0),
-    "lycopene_15": ("blueprint_advanced_antioxidants", 60.0),
+    # Blueprint Essential Capsules subscription: ~$480/yr across 9 tracked
+    # constituents → ~$53.33/yr each. Vitamin D belongs here (2000 IU per
+    # serving) rather than carrying a standalone bottle cost.
+    "fisetin_100": ("blueprint_essential_capsules", 53.33),
+    "spermidine_10": ("blueprint_essential_capsules", 53.33),
+    "nr_300": ("blueprint_essential_capsules", 53.33),
+    "ubiquinol_50": ("blueprint_essential_capsules", 53.33),
+    "lithium_1mg_orotate": ("blueprint_essential_capsules", 53.33),
+    "boron_3": ("blueprint_essential_capsules", 53.33),
+    "broccoli_seed_200": ("blueprint_essential_capsules", 53.33),
+    "luteolin_100": ("blueprint_essential_capsules", 53.33),
+    "vitamin_d_2000": ("blueprint_essential_capsules", 53.33),
+    # Blueprint Advanced Antioxidants: ~$180/yr across 4 tracked items → $45
+    # each. K2 (MK-4 5mg + MK-7 0.6mg per serving) is in this capsule too.
+    "astaxanthin_12": ("blueprint_advanced_antioxidants", 45.0),
+    "lutein_zeaxanthin": ("blueprint_advanced_antioxidants", 45.0),
+    "lycopene_15": ("blueprint_advanced_antioxidants", 45.0),
+    "vitamin_k2": ("blueprint_advanced_antioxidants", 45.0),
     # Blueprint Longevity Mix: 1 scoop (14.8 g) = ~$537/yr across 11 actives.
     # Shares are allocated in proportion to each active's dose (mg) so they sum
     # to the real $537 retail price (total dose 9920 mg). Reused items
@@ -3215,9 +3229,13 @@ BUNDLE_ALLOCATIONS: Dict[str, tuple[str, float]] = {
     "l_theanine_200": ("blueprint_longevity_mix", 11.0),
     "magnesium_citrate_150": ("blueprint_longevity_mix", 8.0),
     "vitamin_c_500_extra": ("blueprint_longevity_mix", 14.0),
-    # Blueprint NAC+Ginger+Curcumin: allocate a fair share to ginger (NAC and
-    # curcumin are priced separately in the catalog).
-    "ginger_400": ("blueprint_nac_ginger_curcumin", 25.0),
+    # Blueprint NAC+Ginger+Curcumin: one capsule, ~$329/yr, split
+    # across its three tracked actives. Pricing NAC and curcumin as standalone
+    # bottles made each of them look individually cost-saving to drop, which is
+    # not possible while the capsule stays in the stack.
+    "nac_1200": ("blueprint_nac_ginger_curcumin", 109.67),
+    "curcumin_250": ("blueprint_nac_ginger_curcumin", 109.67),
+    "ginger_400": ("blueprint_nac_ginger_curcumin", 109.66),
 }
 
 # Extra benefit tags to enable mechanism-cluster diminishing returns. Each
@@ -3303,11 +3321,15 @@ def _apply_annotations() -> None:
     for item_id, tier in STUDY_QUALITY_BY_ID.items():
         _replace_entry(item_id, study_quality=tier)
 
-    # 2. Bundle cost allocations.
+    # 2. Verified evidence-table rows.
+    for item_id, study_ids in STUDY_IDS_BY_ID.items():
+        _replace_entry(item_id, study_ids=list(study_ids))
+
+    # 3. Bundle cost allocations.
     for item_id, (bundle_id, share) in BUNDLE_ALLOCATIONS.items():
         _replace_entry(item_id, bundle_id=bundle_id, bundle_cost_share=float(share))
 
-    # 3. Extra benefit tags (mechanism clusters).
+    # 4. Extra benefit tags (mechanism clusters).
     for item_id, extra_tags in EXTRA_BENEFIT_TAGS.items():
         entry = CATALOG.get(item_id)
         if entry is None:
@@ -3318,17 +3340,14 @@ def _apply_annotations() -> None:
                 existing.append(tag)
         _replace_entry(item_id, benefit_tags=existing)
 
-    # 4. Evidence-quality overrides.
+    # 5. Evidence-quality overrides.
     for item_id, quality in EVIDENCE_OVERRIDES.items():
         _replace_entry(item_id, evidence_quality=quality)
 
-    # 5. Individual calibrations:
+    # 6. Individual calibrations:
     #
-    # Aspirin at age 39 with no CVD risk factors. ASPREE (>70y) and ARRIVE
-    # (moderate-risk) showed null/harm in healthy primary prevention. The
-    # default conf_alpha=4.0, conf_beta=2.0 implies a 67% causal fraction
-    # too generous for a healthy 39-year-old. Shrink causal prior and raise
-    # bleeding event probability to reflect primary-prevention harm.
+    # Aspirin primary-prevention calibration: raise the bleeding event
+    # probability and add a low-risk-profile transport adjustment.
     aspirin = CATALOG.get("aspirin_81mg")
     if aspirin is not None:
         new_harms: List[HarmEffect] = []
@@ -3350,8 +3369,6 @@ def _apply_annotations() -> None:
                 new_harms.append(harm)
         _replace_entry(
             "aspirin_81mg",
-            conf_alpha=2.5,
-            conf_beta=5.0,  # mean causal fraction ~0.33
             harm_effects=new_harms,
             profile_effect_rules=list(aspirin.profile_effect_rules)
             + [
@@ -4172,13 +4189,31 @@ def _simulate_qol_effect_draws(
     rng: np.random.Generator,
 ) -> tuple[np.ndarray, np.ndarray, List[Dict[str, Any]]]:
     """Sample named QoL components and preserve the legacy scalar component."""
+    from .qol_annotations import general_qol_evidence_for
+    from .qol_evidence import stable_seed
+
     raw_qol_draws = np.zeros(n_simulations)
     qol_draws = np.zeros(n_simulations)
     component_summaries: List[Dict[str, Any]] = []
 
+    # Calibrated per-claim guard replaces the flat evidence multiplier for
+    # annotated positive claims (replacement, never stacked). Negative
+    # (harm-side) components keep the legacy multiplier: shrinking a claimed
+    # harm would flatter the intervention.
+    general_evidence = general_qol_evidence_for(entry.id)
+
+    def _guard(raw_component: np.ndarray, component_name: str) -> np.ndarray:
+        if general_evidence is None or float(np.mean(raw_component)) <= 0:
+            return raw_component * evidence_multiplier
+        theta = general_evidence.transport_prior.sample(
+            n_simulations,
+            stable_seed(entry.id, component_name, "transport"),
+        )
+        return raw_component * (1.0 - general_evidence.shrinkage) * theta
+
     if entry.qol_annual != 0:
         raw_component = np.full(n_simulations, entry.qol_annual * qol_factor)
-        component = raw_component * evidence_multiplier
+        component = _guard(raw_component, "qol_annual")
         raw_qol_draws += raw_component
         qol_draws += component
 
@@ -4189,7 +4224,7 @@ def _simulate_qol_effect_draws(
             rng,
         )
         raw_component = annual_draws * qol_factor
-        component = raw_component * evidence_multiplier
+        component = _guard(raw_component, effect.id)
         raw_qol_draws += raw_component
         qol_draws += component
         annual_summary = _summarize_qaly_draws(annual_draws * evidence_multiplier)
@@ -4229,6 +4264,7 @@ def simulate_catalog(
     catalog_entries: Optional[Dict[str, CatalogEntry]] = None,
     active_interaction_tags: Optional[List[str]] = None,
     sleep_estimate: Optional[SleepBurdenEstimate] = None,
+    insurance: Optional[InsuranceContext] = None,
 ) -> List[Dict]:
     """
     Simulate all catalog entries and return sorted results.
@@ -4238,6 +4274,11 @@ def simulate_catalog(
 
     Costs and QALYs use the shared reference-case discount defaults unless
     explicitly overridden for sensitivity analysis.
+
+    ``insurance`` prices coverable items (prescriptions, DME, specialist
+    devices) at expected out-of-pocket rather than cash retail. Omitting it
+    leaves every price at retail, which understates the relative value of
+    anything a payer would have covered.
     """
     from .simulate import (
         effective_qol_factor_for_years,
@@ -4339,7 +4380,7 @@ def simulate_catalog(
         # Survival-weighted discounted cost. Uses effective_annual_cost so
         # bundled items (NR, ubiquinol, astaxanthin, etc.) get their allocated
         # share of the Blueprint Essentials bundle price instead of free-riding.
-        effective_cost = entry.effective_annual_cost()
+        effective_cost = entry.effective_annual_cost(insurance)
         total_cost = effective_cost * r.expected_discounted_cost_factor
         cost_per_qaly = (
             total_cost / total_qaly if total_qaly > 0 and effective_cost > 0 else None
@@ -4432,7 +4473,15 @@ def simulate_catalog(
                 "expected_downside_days": float(
                     np.mean(np.clip(total_qaly_draws, None, 0)) * 365.25
                 ),
-                "annual_cost": entry.annual_cost,
+                # Patient-facing price. Downstream reports read this field, so
+                # insurance has to be applied here too or it never reaches the
+                # published tables. A no-op when ``insurance`` is None.
+                "annual_cost": (
+                    entry.annual_cost
+                    if insurance is None
+                    else insurance.patient_cost(entry.annual_cost, entry.access_profile)
+                ),
+                "retail_annual_cost": entry.annual_cost,
                 "effective_annual_cost": effective_cost,
                 "bundle_cost_share": entry.bundle_cost_share,
                 "bundle_id": entry.bundle_id,

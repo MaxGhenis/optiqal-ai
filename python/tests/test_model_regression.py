@@ -121,9 +121,15 @@ def test_confirmed_mild_osa_reweights_airway_choices_directionally():
     wearable_by_id = wearable.item_results_by_id
     confirmed_by_id = confirmed.item_results_by_id
 
+    # Pre-guard, unguarded subjective-trial claims let daridorexant beat APAP
+    # in the wearable-only scenario. Under the QoL evidence guard the orexin
+    # antagonist's sleep_symptom transport prior (placebo share ~2/3 of
+    # subjective response) bites harder than APAP's respiratory_airway prior,
+    # so APAP leads in BOTH scenarios; what OSA confirmation changes is the
+    # size of its lead, asserted via the ratio checks below.
     assert (
-        wearable_by_id["daridorexant_25mg"]["total_qaly"]
-        > wearable_by_id["apap_nightly"]["total_qaly"]
+        wearable_by_id["apap_nightly"]["total_qaly"]
+        > wearable_by_id["daridorexant_25mg"]["total_qaly"]
     )
     assert (
         confirmed_by_id["apap_nightly"]["total_qaly"]

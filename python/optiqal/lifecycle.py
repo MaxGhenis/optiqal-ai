@@ -12,98 +12,79 @@ from typing import Literal, Optional
 
 import numpy as np
 
-# CDC National Vital Statistics Life Tables (2021)
-# Probability of dying within one year (qx) by age
-# Source: https://www.cdc.gov/nchs/products/life_tables.htm
+from .snapshots import load_snapshot
+
+# The exact anchor ages the interpolators expect. Pinned so a snapshot that has
+# lost or gained an age fails at import instead of being silently interpolated
+# across the hole. `data_build.cdc_life_table.EXPECTED_AGES` and
+# `data_build.cause_fractions.EXPECTED_AGES` repeat the life-table and
+# cause-fraction sets for standalone validation; test_snapshots.py holds each
+# pair equal.
+LIFE_TABLE_AGES = (
+    0,
+    1,
+    5,
+    10,
+    15,
+    20,
+    25,
+    30,
+    35,
+    40,
+    45,
+    50,
+    55,
+    60,
+    65,
+    70,
+    75,
+    80,
+    85,
+    90,
+    95,
+    100,
+)
+QUALITY_WEIGHT_AGES = (25, 35, 45, 55, 65, 75, 85, 95)
+CAUSE_FRACTION_AGES = (40, 50, 60, 70, 80, 90)
+
+# Runtime data is loaded and validated at import. The snapshot provenance records
+# which values are derived, authored, or only transcribed from the legacy engine.
+_LIFE_TABLE_SNAPSHOT = load_snapshot("cdc_life_table")
 CDC_LIFE_TABLE = {
-    "male": {
-        0: 0.00566,
-        1: 0.00039,
-        5: 0.00012,
-        10: 0.00011,
-        15: 0.00050,
-        20: 0.00129,
-        25: 0.00156,
-        30: 0.00175,
-        35: 0.00209,
-        40: 0.00261,
-        45: 0.00369,
-        50: 0.00547,
-        55: 0.00832,
-        60: 0.01206,
-        65: 0.01697,
-        70: 0.02467,
-        75: 0.03711,
-        80: 0.05640,
-        85: 0.08737,
-        90: 0.13510,
-        95: 0.19853,
-        100: 0.27500,
-    },
-    "female": {
-        0: 0.00476,
-        1: 0.00031,
-        5: 0.00010,
-        10: 0.00009,
-        15: 0.00025,
-        20: 0.00047,
-        25: 0.00059,
-        30: 0.00073,
-        35: 0.00096,
-        40: 0.00136,
-        45: 0.00204,
-        50: 0.00310,
-        55: 0.00469,
-        60: 0.00692,
-        65: 0.01019,
-        70: 0.01556,
-        75: 0.02502,
-        80: 0.04085,
-        85: 0.06837,
-        90: 0.11295,
-        95: 0.17639,
-        100: 0.25500,
-    },
+    "male": _LIFE_TABLE_SNAPSHOT.age_table(
+        "life_table", "male", ages=LIFE_TABLE_AGES, maximum=1.0
+    ),
+    "female": _LIFE_TABLE_SNAPSHOT.age_table(
+        "life_table", "female", ages=LIFE_TABLE_AGES, maximum=1.0
+    ),
 }
 
-# Age-varying cause-of-death fractions (CDC WONDER 2021)
-CAUSE_FRACTIONS = {
-    40: {"cvd": 0.20, "cancer": 0.25, "other": 0.55},
-    50: {"cvd": 0.25, "cancer": 0.35, "other": 0.40},
-    60: {"cvd": 0.30, "cancer": 0.35, "other": 0.35},
-    70: {"cvd": 0.35, "cancer": 0.30, "other": 0.35},
-    80: {"cvd": 0.40, "cancer": 0.20, "other": 0.40},
-    90: {"cvd": 0.45, "cancer": 0.12, "other": 0.43},
-}
+_CAUSE_FRACTION_SNAPSHOT = load_snapshot("cause_fractions")
+CAUSE_FRACTIONS = _CAUSE_FRACTION_SNAPSHOT.age_rows(
+    "cause_fractions",
+    columns=("cvd", "cancer", "other"),
+    ages=CAUSE_FRACTION_AGES,
+    sums_to=1.0,
+    tolerance=1e-12,
+)
 
-# Age-varying quality weights (MEPS 2019-2022 SF-12 → EQ-5D mapping)
-# SF-12 mapped to EQ-5D via Franks et al. 2004 formula
-# Mean values by age group from ~67,000 observations
-QUALITY_WEIGHTS = {
-    25: 0.935,  # MEPS 18-30: 0.935
-    35: 0.922,  # MEPS 30-40: 0.922
-    45: 0.904,  # MEPS 40-50: 0.904
-    55: 0.878,  # MEPS 50-60: 0.878
-    65: 0.865,  # MEPS 60-70: 0.865
-    75: 0.847,  # MEPS 70-80: 0.847
-    85: 0.792,  # MEPS 80+: 0.792
-    95: 0.75,  # Extrapolated
-}
-
-# Within-age-group quality weight standard deviation (MEPS 2019-2022)
-# Captures individual heterogeneity in health status not explained by age
-QUALITY_WEIGHT_STD = 0.117
-
-# Condition-specific quality decrements (MEPS 2019-2022)
-# These are subtracted from the base quality weight when condition is present
-CONDITION_DECREMENTS = {
-    "diabetes": 0.092,  # EQ-5D 0.809 vs 0.901 without
-    "hypertension": 0.081,  # EQ-5D 0.838 vs 0.920 without
-    "heart_disease": 0.108,  # EQ-5D 0.787 vs 0.895 without
-    "stroke": 0.133,  # EQ-5D 0.762 vs 0.895 without
-    "cancer": 0.050,  # EQ-5D 0.845 vs 0.895 without
-    "arthritis": 0.108,  # EQ-5D 0.813 vs 0.921 without
-}
+_QUALITY_WEIGHT_SNAPSHOT = load_snapshot("meps_quality_weights")
+QUALITY_WEIGHTS = _QUALITY_WEIGHT_SNAPSHOT.age_table(
+    "quality_weights", ages=QUALITY_WEIGHT_AGES, maximum=1.0
+)
+QUALITY_WEIGHT_STD = _QUALITY_WEIGHT_SNAPSHOT.value("quality_weight_std", maximum=1.0)
+CONDITION_DECREMENTS = _QUALITY_WEIGHT_SNAPSHOT.named_table(
+    "condition_decrements",
+    keys=(
+        "diabetes",
+        "hypertension",
+        "heart_disease",
+        "stroke",
+        "cancer",
+        "arthritis",
+    ),
+    maximum=1.0,
+)
 
 
 def interpolate_table(table: dict, age: float) -> float:

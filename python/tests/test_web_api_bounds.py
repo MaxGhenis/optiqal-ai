@@ -53,6 +53,33 @@ def test_frontier_rejects_out_of_range_profile(field, value):
         web_api.build_frontier_response(payload)
 
 
+@pytest.mark.parametrize(
+    "builder",
+    [web_api.build_baseline_response, web_api.build_frontier_response],
+)
+@pytest.mark.parametrize("sleep_hours", [-1, 25, 1_000_000])
+def test_web_responses_reject_out_of_range_profile_sleep(builder, sleep_hours):
+    payload = {"profile": {**VALID_PROFILE, "sleep_hours_per_night": sleep_hours}}
+    with pytest.raises(ValueError, match="sleep_hours_per_night"):
+        builder(payload)
+
+
+@pytest.mark.parametrize(
+    "sleep_metrics",
+    [
+        {"breathing_score": 80},
+        {"spo2": 150},
+        {"snore_pct": -1},
+        {"sleep_quality_score": 101},
+    ],
+)
+def test_baseline_rejects_out_of_range_sleep_metrics(sleep_metrics):
+    with pytest.raises(ValueError):
+        web_api.build_baseline_response(
+            {"profile": dict(VALID_PROFILE), "sleep_metrics": sleep_metrics}
+        )
+
+
 def test_frontier_clamps_n_simulations():
     payload = {"profile": dict(VALID_PROFILE), "n_simulations": 100_000_000}
     response = web_api.build_frontier_response(payload)

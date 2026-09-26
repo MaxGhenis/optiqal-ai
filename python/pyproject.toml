@@ -5,14 +5,14 @@ build-backend = "hatchling.build"
 [project]
 name = "optiqal"
 version = "0.1.0"
-description = "Bayesian QALY estimation for lifestyle interventions"
+description = "QALY estimation for lifestyle interventions"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
 authors = [
     { name = "Max Ghenis" }
 ]
-keywords = ["qaly", "health", "bayesian", "mcmc", "lifestyle"]
+keywords = ["qaly", "health", "monte-carlo", "lifestyle"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -34,11 +34,6 @@ dependencies = [
 optiqal-pan-ukb = "optiqal.validation.pan_ukb:main"
 
 [project.optional-dependencies]
-bayesian = [
-    "pymc>=5.10",
-    "arviz>=0.17",
-    "xarray>=2023.1",
-]
 validation = [
     "matplotlib>=3.8",
     "seaborn>=0.13",
@@ -50,7 +45,7 @@ dev = [
     "ruff>=0.1",
     "mypy>=1.0",
 ]
-all = ["optiqal[bayesian,validation,dev]"]
+all = ["optiqal[validation,dev]"]
 
 [project.urls]
 Homepage = "https://optiqal.ai"
@@ -62,6 +57,11 @@ packages = ["optiqal"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+# Production-scale runs. They are part of the default suite, since the slowest one
+# adds about nine seconds; deselect them with `pytest -m "not slow"`.
+markers = [
+    "slow: runs at production draw counts rather than a reduced test count",
+]
 
 [tool.ruff]
 line-length = 88

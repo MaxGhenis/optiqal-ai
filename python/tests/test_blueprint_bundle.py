@@ -182,31 +182,46 @@ def test_new_entries_hr_in_reasonable_range():
         )
 
 
-def test_glucosamine_uses_observational_tier_and_cites_uk_biobank():
-    """Glucosamine has confounded prospective-cohort mortality data.
+def test_glucosamine_is_held_at_null_pending_causal_evidence():
+    """Glucosamine's mortality signal does not survive confounding correction.
 
-    The raw UK Biobank all-cause mortality HR is 0.85 (95% CI 0.82-0.89), but
-    that is selection-bias inflated; the catalog enters a conservative sub-null
-    HR and an observational tier so the confounding machinery shrinks it.
+    Revised 2026-08-03 from a conservative sub-null 0.92 to the 1.0 null. The
+    UK Biobank HR of 0.85 comes from a single yes/no exposure checkbox with no
+    dose, form, or duration recorded; Suissa (2022) shows the whole literature
+    is prevalent-user cohorts subject to selection bias; Mendelian
+    randomization does not replicate it; and a 685,778-patient osteoarthritis
+    cohort found the opposite direction. No RCT has tested it for mortality at
+    any dose. This is the same treatment CaAKG and lysine already get: no
+    human evidence that survives correction means no modelled benefit.
+
+    This matters disproportionately because glucosamine carried ~92% of the
+    Longevity Mix's modelled in-state value, so the Mix's keep/drop verdict
+    turns on this one prior.
     """
     entry = get_entry("glucosamine_sulfate_750")
     assert entry is not None
-    # Conservative sub-null HR, not the raw 0.85 and not a fabricated effect.
-    assert 0.85 < entry.hr_observed < 1.0, (
-        f"glucosamine HR {entry.hr_observed} should be a conservative sub-null "
-        "value above the confounded raw 0.85"
+    assert entry.hr_observed == 1.0, (
+        f"glucosamine HR {entry.hr_observed} should sit at the null; the "
+        "observational signal does not survive MR or a second cohort"
     )
-    # Tier must reflect confounded observational evidence (heavy shrinkage),
-    # and must be one of the tiers actually defined in confounding.py.
+    assert entry.has_direct_mortality_effect is False, (
+        "glucosamine should carry no direct mortality term"
+    )
+    # Tier must still reflect confounded observational evidence, and must be
+    # one of the tiers actually defined in confounding.py.
     assert entry.study_quality in STUDY_QUALITY_SHRINKAGE
     assert entry.study_quality in (
         "observational_speculative",
         "cohort_large",
         "cohort_small",
     ), f"glucosamine tier {entry.study_quality} should reflect cohort data"
-    # Cites the UK Biobank all-cause mortality study (Li et al., PMID 32253185).
+    # Still cites the UK Biobank study it is arguing against (PMID 32253185)
+    # plus the Suissa methodological critique.
     assert any("32253185" in s for s in entry.sources), (
         "glucosamine should cite the UK Biobank mortality study (PMID 32253185)"
+    )
+    assert any("pds.5535" in s for s in entry.sources), (
+        "glucosamine should cite the Suissa selection-bias critique"
     )
 
 

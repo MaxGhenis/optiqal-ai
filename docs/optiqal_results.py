@@ -1,7 +1,11 @@
 """Paper results wrapper for MyST {eval} directives.
 
-This Python module wraps the TypeScript paper-results.ts values for use
-in the JupyterBook documentation. Values are kept in sync manually.
+This module supplies the values the paper renders through ``{eval}``. The
+exercise confounding prior is read from ``python/optiqal/data/priors.yaml``; the
+per-intervention QALY figures below are hand-entered literals kept in sync
+manually. They were originally transcribed from the TypeScript engine, which
+rebuild PR B deleted, so they are no longer reproducible from any code in this
+repository; PR F retires the paper.
 
 Usage in paper:
     Inline: The QALY for exercise is {eval}`r.exercise.qaly`.
@@ -12,8 +16,25 @@ Usage in paper:
         ```
 """
 
+import math
 from dataclasses import dataclass
-from typing import Optional
+from pathlib import Path
+
+import yaml
+
+PRIORS_PATH = (
+    Path(__file__).resolve().parents[1] / "python" / "optiqal" / "data" / "priors.yaml"
+)
+
+
+def _exercise_prior_parameters() -> tuple[float, float]:
+    """Read the paper's reference prior from the engine's canonical registry."""
+    with PRIORS_PATH.open(encoding="utf-8") as stream:
+        row = yaml.safe_load(stream)["confounding"]["categories"]["exercise"]
+    return float(row["alpha"]), float(row["beta"])
+
+
+EXERCISE_PRIOR_ALPHA, EXERCISE_PRIOR_BETA = _exercise_prior_parameters()
 
 
 @dataclass
@@ -69,10 +90,25 @@ class ConfoundingParams:
 
     alpha: float
     beta: float
-    mean: float
     ci_lower: float
     ci_upper: float
+    tail_probability_above_45: float
     category: str = "exercise"  # Reference category
+
+    @property
+    def mean(self) -> float:
+        return self.alpha / (self.alpha + self.beta)
+
+    @property
+    def standard_deviation(self) -> float:
+        total = self.alpha + self.beta
+        return math.sqrt(self.alpha * self.beta / (total**2 * (total + 1.0)))
+
+
+def _e_value(hazard_ratio: float) -> float:
+    """Match optiqal.confounding.calculate_e_value without importing the engine."""
+    risk_ratio = 1.0 / hazard_ratio if hazard_ratio < 1.0 else hazard_ratio
+    return risk_ratio + math.sqrt(risk_ratio * (risk_ratio - 1.0))
 
 
 @dataclass
@@ -124,11 +160,11 @@ class PaperResults:
         # Confounding calibration (exercise category - primary reference)
         # See paper for category-specific priors table
         self.confounding = ConfoundingParams(
-            alpha=1.2,
-            beta=6.0,
-            mean=0.17,  # 1.2 / (1.2 + 6.0) = 0.167
-            ci_lower=0.02,
-            ci_upper=0.45,
+            alpha=EXERCISE_PRIOR_ALPHA,
+            beta=EXERCISE_PRIOR_BETA,
+            ci_lower=0.00837895018929104,
+            ci_upper=0.4896417597200204,
+            tail_probability_above_45=0.038665969812802736,
             category="exercise",
         )
 
@@ -346,7 +382,25 @@ class PaperResults:
 
     @property
     def confounding_ci(self) -> str:
-        return f"{self.confounding.ci_lower:.0%}-{self.confounding.ci_upper:.0%}"
+        return f"{self.confounding.ci_lower:.1%}-{self.confounding.ci_upper:.1%}"
+
+    @property
+    def confounding_tail_above_45(self) -> str:
+        return f"{self.confounding.tail_probability_above_45:.3f}"
+
+    @property
+    def confounding_one_sd_range(self) -> str:
+        mean = self.confounding.mean
+        standard_deviation = self.confounding.standard_deviation
+        return f"{mean - standard_deviation:.1%}-{mean + standard_deviation:.1%}"
+
+    @property
+    def exercise_e_value(self) -> str:
+        return f"{_e_value(0.70):.2f}"
+
+    @property
+    def smoking_e_value(self) -> str:
+        return f"{_e_value(2.80):.2f}"
 
     def all_interventions(self) -> list[InterventionResult]:
         """Return all intervention results sorted by QALY impact."""

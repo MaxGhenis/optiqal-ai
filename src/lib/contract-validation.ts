@@ -238,18 +238,22 @@ export function parseAnalysisSleepInput(value: unknown): {
   }
 
   const fields = {
-    duration_hours: parseOptionalFiniteNumber(value.duration_hours),
-    recovery_score: parseOptionalFiniteNumber(value.recovery_score),
-    sleep_quality_score: parseOptionalFiniteNumber(value.sleep_quality_score),
-    waso_min: parseOptionalFiniteNumber(value.waso_min),
-    routine_score: parseOptionalFiniteNumber(value.routine_score),
-    social_jetlag_min: parseOptionalFiniteNumber(value.social_jetlag_min),
-    latency_min: parseOptionalFiniteNumber(value.latency_min),
-    breathing_score: parseOptionalFiniteNumber(value.breathing_score),
-    spo2: parseOptionalFiniteNumber(value.spo2),
-    snore_pct: parseOptionalFiniteNumber(value.snore_pct),
-    sleep_debt_min: parseOptionalFiniteNumber(value.sleep_debt_min),
-    airway_response_signal: parseOptionalFiniteNumber(value.airway_response_signal),
+    duration_hours: parseOptionalBoundedNumber(value.duration_hours, 0, 24),
+    recovery_score: parseOptionalBoundedNumber(value.recovery_score, 0, 100),
+    sleep_quality_score: parseOptionalBoundedNumber(value.sleep_quality_score, 0, 100),
+    waso_min: parseOptionalBoundedNumber(value.waso_min, 0, 1440),
+    routine_score: parseOptionalBoundedNumber(value.routine_score, 0, 100),
+    social_jetlag_min: parseOptionalBoundedNumber(value.social_jetlag_min, 0, 1440),
+    latency_min: parseOptionalBoundedNumber(value.latency_min, 0, 1440),
+    breathing_score: parseOptionalBoundedNumber(value.breathing_score, 0, 1),
+    spo2: parseOptionalBoundedNumber(value.spo2, 0, 100),
+    snore_pct: parseOptionalBoundedNumber(value.snore_pct, 0, 100),
+    sleep_debt_min: parseOptionalBoundedNumber(value.sleep_debt_min, 0, 1440),
+    airway_response_signal: parseOptionalBoundedNumber(
+      value.airway_response_signal,
+      0,
+      1
+    ),
   };
 
   if (Object.values(fields).includes(INVALID)) {

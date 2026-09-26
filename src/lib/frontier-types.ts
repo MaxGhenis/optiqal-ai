@@ -30,6 +30,8 @@ export interface FrontierSleepInput {
 export interface FrontierRequest {
   profile: FrontierProfileInput;
   sleep_metrics?: FrontierSleepInput | null;
+  /** Catalog IDs the user already has in their routine. */
+  current_stack_ids?: string[];
   n_simulations?: number;
 }
 
@@ -61,13 +63,15 @@ export interface FrontierItem {
   category: string;
   display_category: string;
   public_lane: "consumer_public" | "conditional_public" | "personal_only";
+  /** Alternatives in the same group replace one another in the current stack. */
+  exclusive_group?: string | null;
   annual_cost: number | null;
   total_cost: number;
   cost_per_qaly: number | null;
   total_qaly: number;
-  /** Optional 90% confidence interval for net QALYs, as [low, high]. */
+  /** Optional 80% model interval for net QALYs, as [low, high]. */
   net_qaly_ci?: [number, number];
-  /** Optional 90% confidence interval for net days, as [low, high]. */
+  /** Optional 80% model interval for net days, as [low, high]. */
   net_days_ci?: [number, number];
   days: number;
   p_benefit: number;

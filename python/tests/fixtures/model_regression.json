@@ -1,101 +1,149 @@
 {
-  "wearable_only_subset": {
-    "ordered_ids_prefix": [
-      "daridorexant_25mg",
-      "lemborexant_5mg",
-      "apap_nightly",
-      "oral_appliance_custom",
-      "nasacort_nightly"
+ "wearable_only_subset": {
+  "ordered_ids_prefix": [
+   "apap_nightly",
+   "oral_appliance_custom",
+   "nasacort_nightly",
+   "nasal_strips_nightly",
+   "daridorexant_25mg"
+  ],
+  "items": {
+   "daridorexant_25mg": {
+    "total_qaly": [
+     -0.0004,
+     0.0026
     ],
-    "items": {
-      "daridorexant_25mg": {
-        "total_qaly": [0.01, 0.016],
-        "p_harm": [0.0, 0.05]
-      },
-      "apap_nightly": {
-        "total_qaly": [0.005, 0.009]
-      },
-      "oral_appliance_custom": {
-        "total_qaly": [0.004, 0.008]
-      },
-      "mouth_tape_nightly": {
-        "total_qaly": [-0.006, 0.001]
-      }
-    }
-  },
-  "confirmed_mild_osa_subset": {
-    "ordered_ids_prefix": [
-      "apap_nightly",
-      "oral_appliance_custom",
-      "nasacort_nightly",
-      "head_elevation_nightly",
-      "nasal_strips_nightly"
-    ],
-    "items": {
-      "apap_nightly": {
-        "total_qaly": [0.1, 0.12],
-        "sleep_qol_qaly": [0.08, 0.095]
-      },
-      "oral_appliance_custom": {
-        "total_qaly": [0.07, 0.09]
-      },
-      "nasacort_nightly": {
-        "total_qaly": [0.035, 0.045]
-      },
-      "mouth_tape_nightly": {
-        "total_qaly": [0.008, 0.014]
-      }
-    }
-  },
-  "public_sleep_decision_states_confirmed_mild_osa": {
-    "ordered_option_prefix_by_state": {
-      "conservative_airway_support": [
-        "combined_airway_support",
-        "nasacort_nightly",
-        "head_elevation_nightly",
-        "nasal_strips_nightly"
-      ],
-      "primary_osa_therapy_choice": [
-        "apap_nightly",
-        "oral_appliance_custom",
-        "status_quo"
-      ],
-      "rx_after_apap_if_needed": [
-        "daridorexant_25mg",
-        "lemborexant_5mg",
-        "doxepin_3mg"
-      ],
-      "rx_after_oral_appliance_if_needed": [
-        "daridorexant_25mg",
-        "lemborexant_5mg",
-        "doxepin_3mg"
-      ]
-    },
-    "ranges": {
-      "conservative_airway_support": {
-        "combined_airway_support": {
-          "marginal_qaly": [0.065, 0.075]
-        }
-      },
-      "primary_osa_therapy_choice": {
-        "apap_nightly": {
-          "marginal_qaly": [0.1, 0.12]
-        },
-        "oral_appliance_custom": {
-          "marginal_qaly": [0.07, 0.09]
-        }
-      },
-      "rx_after_apap_if_needed": {
-        "daridorexant_25mg": {
-          "marginal_qaly": [0.006, 0.0085]
-        },
-        "trazodone_50mg": {
-          "marginal_qaly": [0.0015, 0.0035]
-        },
-        "doxepin_3mg": {
-          "marginal_qaly": [0.0018, 0.0035]
-        }
-      }
-    }
+    "p_harm": [
+     0.2992,
+     0.4048
+    ]
+   },
+   "apap_nightly": {
+    "total_qaly": [
+     0.0025,
+     0.0055
+    ]
+   },
+   "oral_appliance_custom": {
+    "total_qaly": [
+     0.0017,
+     0.0047
+    ]
+   },
+   "mouth_tape_nightly": {
+    "total_qaly": [
+     -0.0053,
+     -0.0023
+    ]
+   }
   }
+ },
+ "confirmed_mild_osa_subset": {
+  "ordered_ids_prefix": [
+   "apap_nightly",
+   "oral_appliance_custom",
+   "nasacort_nightly",
+   "nasal_strips_nightly",
+   "head_elevation_nightly"
+  ],
+  "items": {
+   "apap_nightly": {
+    "total_qaly": [
+     0.041,
+     0.0555
+    ],
+    "sleep_qol_qaly": [
+     0.0336,
+     0.0454
+    ]
+   },
+   "oral_appliance_custom": {
+    "total_qaly": [
+     0.0276,
+     0.0373
+    ]
+   },
+   "nasacort_nightly": {
+    "total_qaly": [
+     0.0145,
+     0.0197
+    ]
+   },
+   "mouth_tape_nightly": {
+    "total_qaly": [
+     -0.0025,
+     0.0005
+    ]
+   }
+  }
+ },
+ "public_sleep_decision_states_confirmed_mild_osa": {
+  "ordered_option_prefix_by_state": {
+   "conservative_airway_support": [
+    "combined_airway_support",
+    "nasacort_nightly",
+    "nasal_strips_nightly",
+    "head_elevation_nightly"
+   ],
+   "primary_osa_therapy_choice": [
+    "apap_nightly",
+    "oral_appliance_custom",
+    "status_quo"
+   ],
+   "rx_after_apap_if_needed": [
+    "daridorexant_25mg",
+    "no_insomnia_rx",
+    "lemborexant_5mg"
+   ],
+   "rx_after_oral_appliance_if_needed": [
+    "daridorexant_25mg",
+    "no_insomnia_rx",
+    "lemborexant_5mg"
+   ]
+  },
+  "ranges": {
+   "conservative_airway_support": {
+    "combined_airway_support": {
+     "marginal_qaly": [
+      0.0222,
+      0.03
+     ]
+    }
+   },
+   "primary_osa_therapy_choice": {
+    "apap_nightly": {
+     "marginal_qaly": [
+      0.0411,
+      0.0555
+     ]
+    },
+    "oral_appliance_custom": {
+     "marginal_qaly": [
+      0.0275,
+      0.0373
+     ]
+    }
+   },
+   "rx_after_apap_if_needed": {
+    "daridorexant_25mg": {
+     "marginal_qaly": [
+      -0.0009,
+      0.0021
+     ]
+    },
+    "trazodone_50mg": {
+     "marginal_qaly": [
+      -0.0183,
+      -0.0135
+     ]
+    },
+    "doxepin_3mg": {
+     "marginal_qaly": [
+      -0.0047,
+      -0.0017
+     ]
+    }
+   }
+  }
+ }
 }

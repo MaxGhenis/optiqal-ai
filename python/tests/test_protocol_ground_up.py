@@ -3,6 +3,7 @@
 import json
 import math
 from dataclasses import replace
+from datetime import date
 from types import SimpleNamespace
 
 import numpy as np
@@ -13,7 +14,9 @@ from optiqal.catalog import CATALOG
 from optiqal.genetics import GeneticProfile
 from optiqal.profile import Profile
 from optiqal.protocol_ground_up import (
+    BIRTH_DATE_ENV,
     PROFILE,
+    PROFILE_AGE_FALLBACK,
     StackSpec,
     apply_joint_fall_pathway,
     build_additional_specs,
@@ -23,11 +26,14 @@ from optiqal.protocol_ground_up import (
     build_protocol_optimizers,
     build_specs,
     build_state_marginal_decision_table,
+    co_packaged_item_ids,
     cost_per_qaly,
     current_stack_interaction_tags,
     discount_factor,
     estimate_item,
     evaluate_protocol_state,
+    format_drop_granularity,
+    format_marginal_cost_per_qaly,
     latent_protocol_item_draws,
     latent_protocol_item_score,
     load_baseline,
@@ -39,7 +45,9 @@ from optiqal.protocol_ground_up import (
     profile_payload,
     qaly_lineage_payload,
     reference_case_payload,
+    resolve_profile_age,
     resolve_stack_spec,
+    resolve_supplying_products,
     simulate_structured_qaly,
 )
 from optiqal.protocol_personalization import (
@@ -53,6 +61,104 @@ from optiqal.protocol_personalization import (
 def test_protocol_profile_has_single_active_source_of_truth():
     assert PROFILE.activity_level == "active"
     assert load_protocol_profile() == PROFILE
+
+
+def test_profile_age_falls_back_without_a_birth_date(monkeypatch):
+    monkeypatch.delenv(BIRTH_DATE_ENV, raising=False)
+    assert resolve_profile_age() == PROFILE_AGE_FALLBACK
+
+
+def test_profile_age_tracks_the_calendar_when_a_birth_date_is_set(monkeypatch):
+    monkeypatch.setenv(BIRTH_DATE_ENV, "1990-03-15")  # synthetic
+
+    assert resolve_profile_age(today=date(2026, 3, 14)) == 35
+    assert resolve_profile_age(today=date(2026, 3, 15)) == 36
+    assert resolve_profile_age(today=date(2027, 1, 1)) == 36
+
+
+@pytest.mark.parametrize("raw", ["", "   ", "not-a-date", "1986-13-45", "2999-01-01"])
+def test_profile_age_ignores_unusable_birth_dates(monkeypatch, raw):
+    monkeypatch.setenv(BIRTH_DATE_ENV, raw)
+    assert resolve_profile_age(today=date(2026, 7, 25)) == PROFILE_AGE_FALLBACK
+
+
+def test_co_packaged_items_are_not_reported_as_separably_droppable():
+    """Ingredients sharing one capsule cannot be stopped one at a time."""
+    baseline = load_baseline()
+    state_ids = ["vitamin_d_2000", "nr_300", "trazodone_50mg"]
+
+    co_packaged = co_packaged_item_ids(baseline, state_ids)
+
+    assert set(co_packaged["vitamin_d_2000"]) == {"nr_300"}
+    assert set(co_packaged["nr_300"]) == {"vitamin_d_2000"}
+    # Trazodone is its own product, so it is droppable on its own.
+    assert co_packaged["trazodone_50mg"] == []
+
+    assert format_drop_granularity({"separably_droppable": True}) == "on its own"
+    assert "Blueprint Essential Capsules" in format_drop_granularity(
+        {
+            "separably_droppable": False,
+            "supplying_product": "Blueprint Essential Capsules",
+            "co_packaged_with": ["nr_300"],
+        }
+    )
+
+
+def test_co_packaging_falls_back_to_catalog_bundle_ids():
+    """Longevity Mix actives are bundle-only in the catalog, not in health.db."""
+    baseline = load_baseline()
+    state_ids = ["caakg_2000", "l_lysine_1000", "hyaluronic_acid_120"]
+
+    supplying = resolve_supplying_products(baseline, state_ids)
+    co_packaged = co_packaged_item_ids(baseline, state_ids)
+
+    # hyaluronic_acid_120 is mapped by name in the DB; the other two resolve
+    # through their shared catalog bundle id to the same product name.
+    assert supplying["caakg_2000"] == "Blueprint Longevity Mix"
+    assert supplying["l_lysine_1000"] == "Blueprint Longevity Mix"
+    assert set(co_packaged["caakg_2000"]) == {
+        "l_lysine_1000",
+        "hyaluronic_acid_120",
+    }
+
+
+def test_marginal_cost_label_separates_zero_qaly_cases():
+    """A zero-QALY drop that saves money dominates; it is not "net negative"."""
+    assert (
+        format_marginal_cost_per_qaly({"delta_qaly": -0.01, "delta_cost": -100})
+        == "net negative"
+    )
+    assert (
+        format_marginal_cost_per_qaly({"delta_qaly": 0.0, "delta_cost": -383})
+        == "dominant"
+    )
+    assert (
+        format_marginal_cost_per_qaly({"delta_qaly": 0.0, "delta_cost": 0.0}) == "flat"
+    )
+    assert (
+        format_marginal_cost_per_qaly({"delta_qaly": 0.0, "delta_cost": 500})
+        == "cost, no gain"
+    )
+
+
+def test_bundle_supplied_items_carry_no_standalone_cost():
+    """Dropping a bundled ingredient cannot save its standalone bottle price.
+
+    Vitamin D and K2 come inside Blueprint Essential Capsules and Advanced
+    Antioxidants respectively, so a standalone annual_cost made "drop it" look
+    cost-saving while the bundle stayed in the stack.
+    """
+    from optiqal.catalog import BUNDLE_ALLOCATIONS
+
+    for item_id, (_bundle_id, share) in BUNDLE_ALLOCATIONS.items():
+        entry = CATALOG[item_id]
+        assert entry.bundle_cost_share == pytest.approx(share)
+
+    for item_id in ("vitamin_d_2000", "vitamin_k2", "nac_1200", "curcumin_250"):
+        entry = CATALOG[item_id]
+        assert item_id in BUNDLE_ALLOCATIONS
+        assert entry.annual_cost == 0
+        assert entry.effective_annual_cost() > 0
 
 
 def test_hiit_three_times_weekly_does_not_exceed_two_for_current_baseline():
@@ -915,6 +1021,35 @@ def test_protocol_optimizer_drops_negative_current_item():
     context = protocol_ground_up.resolve_protocol_context(None)
     loaded_items = {item["id"]: item for item in load_protocol_items()}
     estimates_by_id = {
+        "aspirin_81mg": estimate_item(
+            loaded_items["aspirin_81mg"],
+            specs["aspirin_81mg"],
+            baseline,
+            context,
+            include_draws=True,
+        )
+    }
+
+    result = optimize_protocol_state(
+        [{"id": "aspirin_81mg", "status": "testing"}],
+        estimates_by_id,
+        specs,
+        context,
+        objective="qaly",
+    )
+
+    assert result["recommended_state"]["item_ids"] == []
+    assert result["actions_from_current"]["drop"] == ["aspirin_81mg"]
+    assert result["delta_qaly"] > 0
+
+
+def test_protocol_optimizer_keeps_positive_current_item():
+    baseline = load_baseline()
+    specs = build_specs(baseline)
+    specs.update(build_additional_specs(baseline))
+    context = protocol_ground_up.resolve_protocol_context(None)
+    loaded_items = {item["id"]: item for item in load_protocol_items()}
+    estimates_by_id = {
         "vitamin_d_2000": estimate_item(
             loaded_items["vitamin_d_2000"],
             specs["vitamin_d_2000"],
@@ -932,9 +1067,10 @@ def test_protocol_optimizer_drops_negative_current_item():
         objective="qaly",
     )
 
-    assert result["recommended_state"]["item_ids"] == []
-    assert result["actions_from_current"]["drop"] == ["vitamin_d_2000"]
-    assert result["delta_qaly"] > 0
+    assert estimates_by_id["vitamin_d_2000"]["total_qaly"] > 0
+    assert result["recommended_state"]["item_ids"] == ["vitamin_d_2000"]
+    assert result["actions_from_current"]["drop"] == []
+    assert result["delta_qaly"] == 0
 
 
 def test_protocol_optimizer_payload_has_net_and_qaly_views():
@@ -1331,11 +1467,21 @@ def test_longevity_mix_specs_inherit_catalog_evidence():
         assert resolved.rationale == CATALOG[iid].notes
 
 
-def test_glucosamine_is_the_only_mix_component_with_mortality_signal():
-    """Glucosamine alone has cohort mortality data (catalog HR 0.92); the
-    other five hold mortality at the 1.0 null. l-theanine carries a small
-    cited QoL term but no mortality signal, so the cohort-signal distinction
-    is on mortality_qaly, not total_qaly."""
+def test_no_mix_component_carries_a_mortality_signal():
+    """No Longevity Mix active has mortality evidence that survives correction.
+
+    Glucosamine used to be the sole exception, entered at a conservative HR of
+    0.92 off the UK Biobank cohort. It was moved to the 1.0 null on 2026-08-03:
+    the exposure is a yes/no checkbox with no dose recorded, Mendelian
+    randomization does not replicate it, and a 685,778-patient osteoarthritis
+    cohort found the opposite direction. So every Mix active now holds
+    mortality at the null, and whatever value the product has comes from QoL
+    terms only.
+
+    That is a substantive claim about the product, not a bookkeeping detail:
+    glucosamine carried ~92% of the Mix's modelled in-state value, so zeroing
+    it is what decides the Mix's keep/drop verdict.
+    """
     baseline = load_baseline()
     specs = build_specs(baseline)
     specs.update(build_additional_specs(baseline))
@@ -1352,30 +1498,31 @@ def test_glucosamine_is_the_only_mix_component_with_mortality_signal():
             # Null-mortality components contribute no mortality QALYs.
             assert estimate["mortality_qaly"] == pytest.approx(0.0, abs=1e-6)
 
-    assert with_mortality_signal == ["glucosamine_sulfate_750"]
+    assert with_mortality_signal == []
 
-    # l-theanine is modeled-null on mortality but carries its cited QoL term.
+    # l-theanine is modeled-null on mortality but carries its cited QoL term,
+    # so the Mix is not uniformly worthless — the distinction is on
+    # mortality_qaly, not total_qaly.
     theanine = estimate_item(
         loaded["l_theanine_200"], specs["l_theanine_200"], baseline
     )
     assert theanine["mortality_qaly"] == pytest.approx(0.0, abs=1e-6)
     assert theanine["qol_qaly"] > 0.0
 
+    # Glucosamine keeps its cohort citations — the sources are why it is held
+    # at the null, not evidence that was discarded.
     gluc = estimate_item(
         loaded["glucosamine_sulfate_750"],
         specs["glucosamine_sulfate_750"],
         baseline,
     )
-    assert gluc["total_qaly"] > 0.0
     assert gluc["within_range"]
-    # Glucosamine's modeled benefit flows from the (confounded) mortality
-    # signal, with its real cohort citations attached.
-    assert gluc["mortality_qaly"] > 0.0
+    assert gluc["mortality_qaly"] == pytest.approx(0.0, abs=1e-6)
     assert gluc["sources"]
 
 
-def test_main_runs_to_temp_dir_and_writes_valid_outputs(tmp_path):
-    """End-to-end: main() writes parseable JSON + non-empty Markdown."""
+def _assert_main_writes_valid_outputs(tmp_path) -> dict:
+    """Run main() into a temp directory and check the shape of what it wrote."""
     out_json = tmp_path / "protocol-ground-up.json"
     out_md = tmp_path / "protocol-ground-up.md"
     context = replace(
@@ -1395,3 +1542,27 @@ def test_main_runs_to_temp_dir_and_writes_valid_outputs(tmp_path):
         assert iid in item_ids
     assert out_md.read_text().strip()
     assert "Glucosamine" in out_md.read_text()
+    return payload
+
+
+def test_main_runs_to_temp_dir_and_writes_valid_outputs(tmp_path, monkeypatch):
+    """End-to-end: main() writes parseable JSON + non-empty Markdown.
+
+    Runs at 1,000 draws. Numerical precision is covered by the golden tests; this
+    case only checks that the pipeline runs end to end and writes the right shape.
+    """
+    monkeypatch.setattr(protocol_ground_up, "N_SIMULATIONS", 1_000)
+    _assert_main_writes_valid_outputs(tmp_path)
+
+
+@pytest.mark.slow
+def test_main_runs_at_production_draw_count(tmp_path):
+    """The same end-to-end run at the production 40,000 draws.
+
+    The fast case above monkeypatches N_SIMULATIONS, so nothing else would exercise
+    main() at the draw count the protocol actually ships with. Deselect it with
+    ``-m "not slow"``.
+    """
+    assert protocol_ground_up.N_SIMULATIONS == 40_000
+    payload = _assert_main_writes_valid_outputs(tmp_path)
+    assert len(payload["items"]) == len(load_protocol_items())

@@ -15,6 +15,9 @@ Data sources:
 References:
 - Mapping SF-12 to EQ-5D: Franks et al. 2004, Med Care
   EQ-5D = 0.057867 + 0.010367*PCS + 0.00822*MCS - 0.000034*PCS*MCS - 0.01067
+
+Usage (from python/; requests and pyarrow are not project dependencies):
+    uv run --with requests --with pyarrow python optiqal/data/meps/fetch_meps.py
 """
 
 import zipfile
@@ -24,6 +27,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import requests
+
+from optiqal.data_build.meps_quality_weights import write_quality_weight_snapshot
 
 # MEPS data URLs (Full-Year Consolidated Files)
 # Format: HC-XXX where XXX is the file number
@@ -347,6 +352,9 @@ def main():
     with open(output_file, "w") as f:
         json.dump(convert_for_json(results), f, indent=2)
     print(f"\nSaved calibration to {output_file}")
+
+    snapshot_file = write_quality_weight_snapshot(calibration_path=output_file)
+    print(f"Saved runtime snapshot to {snapshot_file}")
 
     # Save processed data
     df.to_parquet(cache_dir / "meps_combined.parquet")

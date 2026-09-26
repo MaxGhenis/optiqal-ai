@@ -1,7 +1,8 @@
 """
 Intervention Definition Module
 
-Reads YAML intervention definitions (shared with TypeScript package).
+Reads the packaged YAML intervention definitions under
+``optiqal/data/interventions/``.
 """
 
 from dataclasses import dataclass, field, replace
@@ -11,7 +12,31 @@ from typing import Any, Dict, List, Literal, Optional, Union
 import numpy as np
 import yaml
 
-from .confounding import ConfoundingPrior, get_confounding_prior
+from .confounding import (
+    INTERVENTION_PRIORS,
+    ConfoundingPrior,
+    get_confounding_prior,
+)
+
+#: Directory holding the shipped intervention YAMLs. They live inside the
+#: package so the engine, its tests, and the deployed model service all read
+#: one copy.
+INTERVENTIONS_DIR = Path(__file__).resolve().parent / "data" / "interventions"
+
+
+def packaged_intervention_path(intervention_id: str) -> Path:
+    """Return the packaged YAML path for ``intervention_id``."""
+    return INTERVENTIONS_DIR / f"{intervention_id}.yaml"
+
+
+def _copy_confounding_prior(prior: ConfoundingPrior) -> ConfoundingPrior:
+    """Return a per-intervention prior without sharing mutable registry state."""
+    return ConfoundingPrior(
+        alpha=prior.alpha,
+        beta=prior.beta,
+        rationale=prior.rationale,
+        calibration_sources=list(prior.calibration_sources),
+    )
 
 
 @dataclass
@@ -110,7 +135,11 @@ class Distribution:
             log_mean = float(self.params["log_mean"])
         return log_mean, log_sd
 
-    def sample(self, n: int = 1, random_state: Optional[int] = None) -> np.ndarray:
+    def sample(
+        self,
+        n: int = 1,
+        random_state: Optional[Union[int, np.random.Generator]] = None,
+    ) -> np.ndarray:
         """Sample from the distribution."""
         rng = np.random.default_rng(random_state)
 
@@ -246,6 +275,7 @@ class InterventionLineage:
 
     estimand: str
     model_version: Optional[str] = None
+    study_ids: List[str] = field(default_factory=list)
     studies: List[Dict[str, Any]] = field(default_factory=list)
     parameter_lineage: List[Dict[str, Any]] = field(default_factory=list)
     prior_lineage: List[Dict[str, Any]] = field(default_factory=list)
@@ -291,12 +321,21 @@ class Intervention:
 
     @classmethod
     def from_yaml(cls, path: Union[str, Path]) -> "Intervention":
-        """Load intervention from YAML file."""
+        """Load intervention from a YAML file path.
+
+        Shipped definitions live in :data:`INTERVENTIONS_DIR`, e.g.
+        ``Intervention.from_yaml(packaged_intervention_path("walking_30min_daily"))``.
+        """
         path = Path(path)
         with open(path) as f:
             data = yaml.safe_load(f)
 
         return cls._from_dict(data)
+
+    @classmethod
+    def packaged(cls, intervention_id: str) -> "Intervention":
+        """Load a shipped intervention by id from :data:`INTERVENTIONS_DIR`."""
+        return cls.from_yaml(packaged_intervention_path(intervention_id))
 
     @classmethod
     def from_yaml_string(cls, yaml_str: str) -> "Intervention":
@@ -397,12 +436,30 @@ class Intervention:
             prior_dist = Distribution.from_dict(prior_data)
             if prior_dist.type != "beta":
                 raise ValueError("Confounding prior must be Beta distribution")
-            confounding_prior = ConfoundingPrior(
-                alpha=prior_dist.params["alpha"],
-                beta=prior_dist.params["beta"],
-                rationale=data["confounding"].get("rationale", ""),
-                calibration_sources=data["confounding"].get("calibration_sources", []),
-            )
+            canonical_prior = INTERVENTION_PRIORS.get(data["id"])
+            if canonical_prior is not None:
+                inline_parameters = (
+                    prior_dist.params["alpha"],
+                    prior_dist.params["beta"],
+                )
+                canonical_parameters = (
+                    canonical_prior.alpha,
+                    canonical_prior.beta,
+                )
+                if inline_parameters != canonical_parameters:
+                    raise ValueError(
+                        f"Confounding prior for {data['id']} does not match priors.yaml"
+                    )
+                confounding_prior = _copy_confounding_prior(canonical_prior)
+            else:
+                confounding_prior = ConfoundingPrior(
+                    alpha=prior_dist.params["alpha"],
+                    beta=prior_dist.params["beta"],
+                    rationale=data["confounding"].get("rationale", ""),
+                    calibration_sources=data["confounding"].get(
+                        "calibration_sources", []
+                    ),
+                )
         elif "category" in data:
             # Use default prior for category
             confounding_prior = get_confounding_prior(
@@ -416,6 +473,7 @@ class Intervention:
             lineage = InterventionLineage(
                 estimand=lineage_data["estimand"],
                 model_version=lineage_data.get("model_version"),
+                study_ids=lineage_data.get("study_ids", []),
                 studies=lineage_data.get("studies", []),
                 parameter_lineage=lineage_data.get("parameter_lineage", []),
                 prior_lineage=lineage_data.get("prior_lineage", []),
