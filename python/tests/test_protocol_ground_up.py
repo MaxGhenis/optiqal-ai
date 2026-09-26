@@ -69,11 +69,11 @@ def test_profile_age_falls_back_without_a_birth_date(monkeypatch):
 
 
 def test_profile_age_tracks_the_calendar_when_a_birth_date_is_set(monkeypatch):
-    monkeypatch.setenv(BIRTH_DATE_ENV, "1986-09-12")
+    monkeypatch.setenv(BIRTH_DATE_ENV, "1990-03-15")  # synthetic
 
-    assert resolve_profile_age(today=date(2026, 9, 11)) == 39
-    assert resolve_profile_age(today=date(2026, 9, 12)) == 40
-    assert resolve_profile_age(today=date(2027, 1, 1)) == 40
+    assert resolve_profile_age(today=date(2026, 3, 14)) == 35
+    assert resolve_profile_age(today=date(2026, 3, 15)) == 36
+    assert resolve_profile_age(today=date(2027, 1, 1)) == 36
 
 
 @pytest.mark.parametrize("raw", ["", "   ", "not-a-date", "1986-13-45", "2999-01-01"])

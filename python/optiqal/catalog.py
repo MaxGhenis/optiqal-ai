@@ -3195,8 +3195,8 @@ STUDY_IDS_BY_ID: Dict[str, List[str]] = {
 # annotation, bundled items had annual_cost=0 and inflated their $/QALY.
 BUNDLE_ALLOCATIONS: Dict[str, tuple[str, float]] = {
     # Blueprint Essential Capsules subscription: ~$480/yr across 9 tracked
-    # constituents → ~$53.33/yr each. Vitamin D belongs here (2000 IU/serving
-    # per health.db ingredients) rather than carrying a standalone bottle cost.
+    # constituents → ~$53.33/yr each. Vitamin D belongs here (2000 IU per
+    # serving) rather than carrying a standalone bottle cost.
     "fisetin_100": ("blueprint_essential_capsules", 53.33),
     "spermidine_10": ("blueprint_essential_capsules", 53.33),
     "nr_300": ("blueprint_essential_capsules", 53.33),
@@ -3229,7 +3229,7 @@ BUNDLE_ALLOCATIONS: Dict[str, tuple[str, float]] = {
     "l_theanine_200": ("blueprint_longevity_mix", 11.0),
     "magnesium_citrate_150": ("blueprint_longevity_mix", 8.0),
     "vitamin_c_500_extra": ("blueprint_longevity_mix", 14.0),
-    # Blueprint NAC+Ginger+Curcumin: one capsule, ~$329/yr per health.db, split
+    # Blueprint NAC+Ginger+Curcumin: one capsule, ~$329/yr, split
     # across its three tracked actives. Pricing NAC and curcumin as standalone
     # bottles made each of them look individually cost-saving to drop, which is
     # not possible while the capsule stays in the stack.
