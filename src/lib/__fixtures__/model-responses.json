@@ -373,17 +373,17 @@
      "expected_death_age": 90.2,
      "expected_death_age_ci": [
       71.0,
-      107.5
+      108.0
      ],
      "remaining_life_expectancy": 55.2,
      "remaining_life_expectancy_ci": [
       36.0,
-      72.5
+      73.0
      ],
      "remaining_qalys": 23.6,
      "remaining_qalys_ci": [
-      20.3,
-      26.4
+      20.4,
+      26.5
      ]
     },
     "risk": {
@@ -541,17 +541,17 @@
      "current_quality_weight": 0.935,
      "expected_death_age": 85.6,
      "expected_death_age_ci": [
-      65.5,
-      101.5
+      65.0,
+      102.0
      ],
      "remaining_life_expectancy": 67.6,
      "remaining_life_expectancy_ci": [
-      47.5,
-      83.5
+      47.0,
+      84.0
      ],
      "remaining_qalys": 26.3,
      "remaining_qalys_ci": [
-      23.9,
+      23.8,
       28.3
      ]
     },
@@ -692,12 +692,6 @@
       "survival_probability": 0.0542
      },
      {
-      "age": 109,
-      "expected_qaly": 0.0009,
-      "quality_weight": 0.75,
-      "survival_probability": 0.0176
-     },
-     {
       "age": 110,
       "expected_qaly": 0.0011,
       "quality_weight": 0.75,
@@ -744,33 +738,33 @@
     },
     "point_estimate": {
      "current_quality_weight": 0.674,
-     "expected_death_age": 77.8,
+     "expected_death_age": 77.9,
      "expected_death_age_ci": [
       76.0,
-      80.0
+      81.0
      ],
-     "remaining_life_expectancy": 2.8,
+     "remaining_life_expectancy": 2.9,
      "remaining_life_expectancy_ci": [
       1.0,
-      5.0
+      6.0
      ],
      "remaining_qalys": 1.8,
      "remaining_qalys_ci": [
       1.3,
-      3.7
+      4.2
      ]
     },
     "risk": {
-     "calibrated_multiplier": 8.4515,
+     "calibrated_multiplier": 8.0993,
      "calibration_factor": 2.8262,
      "condition_multiplier": 2.7,
      "lifestyle_multiplier": 8.0752,
-     "raw_multiplier": 23.8857,
-     "sleep_multiplier": 1.0955
+     "raw_multiplier": 22.8901,
+     "sleep_multiplier": 1.0499
     },
     "sleep_estimate": {
      "annual_qaly_loss": 0.0417,
-     "baseline_hazard_multiplier": 1.095521,
+     "baseline_hazard_multiplier": 1.049859,
      "component_losses": {
       "breathing": 0.036,
       "continuity": 0.0,
@@ -779,7 +773,7 @@
       "quality": 0.0,
       "regularity": 0.0
      },
-     "mortality_signal": 0.75
+     "mortality_signal": 0.4
     },
     "survival_curve": [
      {
@@ -790,27 +784,27 @@
      },
      {
       "age": 80,
-      "expected_qaly": 0.0532,
+      "expected_qaly": 0.0602,
       "quality_weight": 0.6465,
-      "survival_probability": 0.0954
+      "survival_probability": 0.108
      },
      {
       "age": 83,
-      "expected_qaly": 0.0051,
+      "expected_qaly": 0.0067,
       "quality_weight": 0.63,
-      "survival_probability": 0.0103
+      "survival_probability": 0.0134
      },
      {
       "age": 84,
-      "expected_qaly": 0.0019,
+      "expected_qaly": 0.0026,
       "quality_weight": 0.6245,
-      "survival_probability": 0.0039
+      "survival_probability": 0.0054
      },
      {
       "age": 85,
-      "expected_qaly": 0.0006,
+      "expected_qaly": 0.0009,
       "quality_weight": 0.619,
-      "survival_probability": 0.0013
+      "survival_probability": 0.0019
      }
     ]
    }
@@ -1313,7 +1307,7 @@
      }
     ],
     "meta": {
-     "analyzed_count": 92,
+     "analyzed_count": 94,
      "cost_discount_rate": 0.03,
      "n_simulations": 32,
      "positive_count": 6,
@@ -1827,6 +1821,14 @@
        "condition": null,
        "display_category": "sleep",
        "explicitly_excluded": false,
+       "id": "eight_sleep_pod6_upgrade",
+       "lane": "personal_only",
+       "name": "Eight Sleep Pod 6 upgrade"
+      },
+      {
+       "condition": null,
+       "display_category": "sleep",
+       "explicitly_excluded": false,
        "id": "lemborexant_5mg",
        "lane": "personal_only",
        "name": "Lemborexant 5mg"
@@ -2078,6 +2080,14 @@
        "id": "l_theanine_200",
        "lane": "personal_only",
        "name": "L-Theanine 200mg"
+      },
+      {
+       "condition": null,
+       "display_category": "supplement",
+       "explicitly_excluded": false,
+       "id": "l_theanine_200_bedtime",
+       "lane": "personal_only",
+       "name": "L-Theanine 200mg bedtime"
       },
       {
        "condition": null,
@@ -2373,7 +2383,7 @@
        "condition_ids": [],
        "description": "Current-stack, diagnosis-specific, or clinician-mediated items that stay out of the generic public frontier.",
        "id": "personal_only",
-       "item_count": 77,
+       "item_count": 79,
        "item_ids": [
         "17a_estradiol",
         "acarbose_50mg",
@@ -2396,6 +2406,7 @@
         "daridorexant_25mg",
         "doxepin_3mg",
         "egcg_400",
+        "eight_sleep_pod6_upgrade",
         "empagliflozin",
         "ergothioneine_5",
         "finasteride_1.25mg",
@@ -2412,6 +2423,7 @@
         "infrared_sauna_4x_week",
         "l_lysine_1000",
         "l_theanine_200",
+        "l_theanine_200_bedtime",
         "lemborexant_5mg",
         "lions_mane_1g",
         "lithium_1mg_orotate",
@@ -2591,7 +2603,7 @@
           },
           "annual_cost": 0.0,
           "cost_per_qaly": null,
-          "days": 3.6,
+          "days": 2.5,
           "id": "head_elevation_nightly",
           "name": "Head elevation nightly",
           "p_benefit": 1.0,
@@ -2605,8 +2617,8 @@
            "tier": "otc"
           },
           "annual_cost": 180.0,
-          "cost_per_qaly": 102948.0,
-          "days": 6.9,
+          "cost_per_qaly": 147823.0,
+          "days": 4.9,
           "id": "nasal_strips_nightly",
           "name": "Nasal strips nightly",
           "p_benefit": 1.0,
@@ -2620,8 +2632,8 @@
            "tier": "otc"
           },
           "annual_cost": 120.0,
-          "cost_per_qaly": 49014.0,
-          "days": 9.6,
+          "cost_per_qaly": 69927.0,
+          "days": 6.9,
           "id": "nasacort_nightly",
           "name": "Nasacort nightly",
           "p_benefit": 1.0,
@@ -2635,8 +2647,8 @@
            "tier": "cash_pay"
           },
           "annual_cost": 80.0,
-          "cost_per_qaly": 468071.0,
-          "days": 0.7,
+          "cost_per_qaly": 663984.0,
+          "days": 0.5,
           "id": "humidifier_nightly",
           "name": "Humidifier nightly",
           "p_benefit": 1.0,
@@ -2646,17 +2658,17 @@
         "id": "combined_airway_support",
         "label": "Combine elevation, strips, Nasacort, and humidifier",
         "marginal_annual_cost": 380,
-        "marginal_cost_per_qaly": 95751,
-        "marginal_cost_value": 4079,
-        "marginal_days": 15.6,
-        "marginal_qaly": 0.0426,
+        "marginal_cost_per_qaly": 137096,
+        "marginal_cost_value": 4154,
+        "marginal_days": 11.1,
+        "marginal_qaly": 0.0303,
         "stack": {
-         "adjusted_days": 15.5,
-         "adjusted_qaly": 0.0426,
-         "base_days": 20.7,
-         "base_qaly": 0.0567,
-         "interaction_penalty_days": -5.2,
-         "interaction_penalty_qaly": -0.0141,
+         "adjusted_days": 11.1,
+         "adjusted_qaly": 0.0303,
+         "base_days": 14.7,
+         "base_qaly": 0.0403,
+         "interaction_penalty_days": -3.7,
+         "interaction_penalty_qaly": -0.01,
          "item_ids": [
           "head_elevation_nightly",
           "nasal_strips_nightly",
@@ -2664,7 +2676,7 @@
           "humidifier_nightly"
          ],
          "total_annual_cost": 380,
-         "total_cost_value": 4079
+         "total_cost_value": 4154
         }
        },
        {
@@ -2694,8 +2706,8 @@
            "tier": "otc"
           },
           "annual_cost": 120.0,
-          "cost_per_qaly": 49014.0,
-          "days": 9.6,
+          "cost_per_qaly": 69927.0,
+          "days": 6.9,
           "id": "nasacort_nightly",
           "name": "Nasacort nightly",
           "p_benefit": 1.0,
@@ -2705,22 +2717,22 @@
         "id": "nasacort_nightly",
         "label": "Use Nasacort",
         "marginal_annual_cost": 120,
-        "marginal_cost_per_qaly": 48973,
-        "marginal_cost_value": 1288,
-        "marginal_days": 9.6,
-        "marginal_qaly": 0.0263,
+        "marginal_cost_per_qaly": 69787,
+        "marginal_cost_value": 1312,
+        "marginal_days": 6.9,
+        "marginal_qaly": 0.0188,
         "stack": {
-         "adjusted_days": 9.6,
-         "adjusted_qaly": 0.0263,
-         "base_days": 9.6,
-         "base_qaly": 0.0263,
+         "adjusted_days": 6.9,
+         "adjusted_qaly": 0.0188,
+         "base_days": 6.9,
+         "base_qaly": 0.0188,
          "interaction_penalty_days": 0.0,
          "interaction_penalty_qaly": 0.0,
          "item_ids": [
           "nasacort_nightly"
          ],
          "total_annual_cost": 120,
-         "total_cost_value": 1288
+         "total_cost_value": 1312
         }
        },
        {
@@ -2750,8 +2762,8 @@
            "tier": "otc"
           },
           "annual_cost": 180.0,
-          "cost_per_qaly": 102948.0,
-          "days": 6.9,
+          "cost_per_qaly": 147823.0,
+          "days": 4.9,
           "id": "nasal_strips_nightly",
           "name": "Nasal strips nightly",
           "p_benefit": 1.0,
@@ -2761,22 +2773,22 @@
         "id": "nasal_strips_nightly",
         "label": "Use nasal strips",
         "marginal_annual_cost": 180,
-        "marginal_cost_per_qaly": 102766,
-        "marginal_cost_value": 1932,
-        "marginal_days": 6.9,
-        "marginal_qaly": 0.0188,
+        "marginal_cost_per_qaly": 147970,
+        "marginal_cost_value": 1968,
+        "marginal_days": 4.9,
+        "marginal_qaly": 0.0133,
         "stack": {
-         "adjusted_days": 6.9,
-         "adjusted_qaly": 0.0188,
-         "base_days": 6.9,
-         "base_qaly": 0.0188,
+         "adjusted_days": 4.9,
+         "adjusted_qaly": 0.0133,
+         "base_days": 4.9,
+         "base_qaly": 0.0133,
          "interaction_penalty_days": 0.0,
          "interaction_penalty_qaly": 0.0,
          "item_ids": [
           "nasal_strips_nightly"
          ],
          "total_annual_cost": 180,
-         "total_cost_value": 1932
+         "total_cost_value": 1968
         }
        },
        {
@@ -2807,7 +2819,7 @@
           },
           "annual_cost": 0.0,
           "cost_per_qaly": null,
-          "days": 3.6,
+          "days": 2.5,
           "id": "head_elevation_nightly",
           "name": "Head elevation nightly",
           "p_benefit": 1.0,
@@ -2819,13 +2831,13 @@
         "marginal_annual_cost": 0,
         "marginal_cost_per_qaly": 0,
         "marginal_cost_value": 0,
-        "marginal_days": 3.6,
-        "marginal_qaly": 0.0098,
+        "marginal_days": 2.5,
+        "marginal_qaly": 0.0069,
         "stack": {
-         "adjusted_days": 3.6,
-         "adjusted_qaly": 0.0098,
-         "base_days": 3.6,
-         "base_qaly": 0.0098,
+         "adjusted_days": 2.5,
+         "adjusted_qaly": 0.0069,
+         "base_days": 2.5,
+         "base_qaly": 0.0069,
          "interaction_penalty_days": 0.0,
          "interaction_penalty_qaly": 0.0,
          "item_ids": [
@@ -2862,8 +2874,8 @@
            "tier": "cash_pay"
           },
           "annual_cost": 80.0,
-          "cost_per_qaly": 468071.0,
-          "days": 0.7,
+          "cost_per_qaly": 663984.0,
+          "days": 0.5,
           "id": "humidifier_nightly",
           "name": "Humidifier nightly",
           "p_benefit": 1.0,
@@ -2873,22 +2885,22 @@
         "id": "humidifier_nightly",
         "label": "Use humidifier",
         "marginal_annual_cost": 80,
-        "marginal_cost_per_qaly": 476667,
-        "marginal_cost_value": 858,
-        "marginal_days": 0.7,
-        "marginal_qaly": 0.0018,
+        "marginal_cost_per_qaly": 672308,
+        "marginal_cost_value": 874,
+        "marginal_days": 0.5,
+        "marginal_qaly": 0.0013,
         "stack": {
-         "adjusted_days": 0.7,
-         "adjusted_qaly": 0.0018,
-         "base_days": 0.7,
-         "base_qaly": 0.0018,
+         "adjusted_days": 0.5,
+         "adjusted_qaly": 0.0013,
+         "base_days": 0.5,
+         "base_qaly": 0.0013,
          "interaction_penalty_days": 0.0,
          "interaction_penalty_qaly": 0.0,
          "item_ids": [
           "humidifier_nightly"
          ],
          "total_annual_cost": 80,
-         "total_cost_value": 858
+         "total_cost_value": 874
         }
        },
        {
@@ -2968,8 +2980,8 @@
            "tier": "dme_rx"
           },
           "annual_cost": 400.0,
-          "cost_per_qaly": 51362.0,
-          "days": 30.6,
+          "cost_per_qaly": 74285.0,
+          "days": 21.5,
           "id": "apap_nightly",
           "name": "APAP nightly",
           "p_benefit": 1.0,
@@ -2979,22 +2991,22 @@
         "id": "apap_nightly",
         "label": "Start APAP",
         "marginal_annual_cost": 400,
-        "marginal_cost_per_qaly": 51348,
-        "marginal_cost_value": 4303,
-        "marginal_days": 30.6,
-        "marginal_qaly": 0.0838,
+        "marginal_cost_per_qaly": 74228,
+        "marginal_cost_value": 4372,
+        "marginal_days": 21.5,
+        "marginal_qaly": 0.0589,
         "stack": {
-         "adjusted_days": 30.6,
-         "adjusted_qaly": 0.0838,
-         "base_days": 30.6,
-         "base_qaly": 0.0838,
+         "adjusted_days": 21.5,
+         "adjusted_qaly": 0.0589,
+         "base_days": 21.5,
+         "base_qaly": 0.0589,
          "interaction_penalty_days": 0.0,
          "interaction_penalty_qaly": 0.0,
          "item_ids": [
           "apap_nightly"
          ],
          "total_annual_cost": 400,
-         "total_cost_value": 4303
+         "total_cost_value": 4372
         }
        },
        {
@@ -3024,8 +3036,8 @@
            "tier": "specialist_device"
           },
           "annual_cost": 500.0,
-          "cost_per_qaly": 96940.0,
-          "days": 20.2,
+          "cost_per_qaly": 139848.0,
+          "days": 14.3,
           "id": "oral_appliance_custom",
           "name": "Custom oral appliance",
           "p_benefit": 1.0,
@@ -3035,22 +3047,22 @@
         "id": "oral_appliance_custom",
         "label": "Start custom oral appliance",
         "marginal_annual_cost": 500,
-        "marginal_cost_per_qaly": 96986,
-        "marginal_cost_value": 5373,
-        "marginal_days": 20.2,
-        "marginal_qaly": 0.0554,
+        "marginal_cost_per_qaly": 139770,
+        "marginal_cost_value": 5465,
+        "marginal_days": 14.3,
+        "marginal_qaly": 0.0391,
         "stack": {
-         "adjusted_days": 20.2,
-         "adjusted_qaly": 0.0554,
-         "base_days": 20.2,
-         "base_qaly": 0.0554,
+         "adjusted_days": 14.3,
+         "adjusted_qaly": 0.0391,
+         "base_days": 14.3,
+         "base_qaly": 0.0391,
          "interaction_penalty_days": 0.0,
          "interaction_penalty_qaly": 0.0,
          "item_ids": [
           "oral_appliance_custom"
          ],
          "total_annual_cost": 500,
-         "total_cost_value": 5373
+         "total_cost_value": 5465
         }
        },
        {
@@ -3095,7 +3107,7 @@
       "marginal_cost_value": 0.0,
       "marginal_days": 4.7,
       "marginal_interaction_qaly": 0.0,
-      "marginal_qaly": 0.0128,
+      "marginal_qaly": 0.0129,
       "selected_interventions": [
        "hiit_2x_week"
       ],
@@ -3103,7 +3115,7 @@
       "total_annual_cost": 0.0,
       "total_cost_value": 0.0,
       "total_days": 4.7,
-      "total_qaly": 0.0128
+      "total_qaly": 0.0129
      },
      {
       "added_intervention": "head_elevation_nightly",
@@ -3112,9 +3124,9 @@
       "interaction_penalty_qaly": 0.0,
       "marginal_cost_per_qaly": 0.0,
       "marginal_cost_value": 0.0,
-      "marginal_days": 3.6,
+      "marginal_days": 2.5,
       "marginal_interaction_qaly": 0.0,
-      "marginal_qaly": 0.0098,
+      "marginal_qaly": 0.0069,
       "selected_interventions": [
        "hiit_2x_week",
        "head_elevation_nightly"
@@ -3122,8 +3134,8 @@
       "step": 2,
       "total_annual_cost": 0.0,
       "total_cost_value": 0.0,
-      "total_days": 8.3,
-      "total_qaly": 0.0226
+      "total_days": 7.3,
+      "total_qaly": 0.0199
      },
      {
       "added_intervention": "strength_maintenance",
@@ -3134,7 +3146,7 @@
       "marginal_cost_value": 0.0,
       "marginal_days": 0.6,
       "marginal_interaction_qaly": 0.0,
-      "marginal_qaly": 0.0017,
+      "marginal_qaly": 0.0018,
       "selected_interventions": [
        "hiit_2x_week",
        "head_elevation_nightly",
@@ -3143,19 +3155,19 @@
       "step": 3,
       "total_annual_cost": 0.0,
       "total_cost_value": 0.0,
-      "total_days": 8.9,
-      "total_qaly": 0.0244
+      "total_days": 7.9,
+      "total_qaly": 0.0216
      },
      {
       "added_intervention": "metformin_500mg",
       "added_name": "Metformin",
       "interaction_penalty_days": 0.0,
       "interaction_penalty_qaly": 0.0,
-      "marginal_cost_per_qaly": 2527.0,
-      "marginal_cost_value": 526.59,
-      "marginal_days": 76.1,
+      "marginal_cost_per_qaly": 2565.0,
+      "marginal_cost_value": 536.41,
+      "marginal_days": 76.4,
       "marginal_interaction_qaly": 0.0,
-      "marginal_qaly": 0.2084,
+      "marginal_qaly": 0.2091,
       "selected_interventions": [
        "hiit_2x_week",
        "head_elevation_nightly",
@@ -3164,20 +3176,20 @@
       ],
       "step": 4,
       "total_annual_cost": 48.0,
-      "total_cost_value": 526.59,
-      "total_days": 85.0,
-      "total_qaly": 0.2328
+      "total_cost_value": 536.41,
+      "total_days": 84.3,
+      "total_qaly": 0.2307
      },
      {
       "added_intervention": "statin_5mg",
       "added_name": "Statin",
-      "interaction_penalty_days": -22.8,
-      "interaction_penalty_qaly": -0.0625,
-      "marginal_cost_per_qaly": 3017.0,
-      "marginal_cost_value": 1361.3,
-      "marginal_days": 164.8,
-      "marginal_interaction_qaly": -0.0625,
-      "marginal_qaly": 0.4512,
+      "interaction_penalty_days": -22.9,
+      "interaction_penalty_qaly": -0.0627,
+      "marginal_cost_per_qaly": 3065.0,
+      "marginal_cost_value": 1386.02,
+      "marginal_days": 165.2,
+      "marginal_interaction_qaly": -0.0627,
+      "marginal_qaly": 0.4522,
       "selected_interventions": [
        "hiit_2x_week",
        "head_elevation_nightly",
@@ -3187,20 +3199,20 @@
       ],
       "step": 5,
       "total_annual_cost": 168.0,
-      "total_cost_value": 1887.89,
-      "total_days": 249.8,
-      "total_qaly": 0.684
+      "total_cost_value": 1922.43,
+      "total_days": 249.4,
+      "total_qaly": 0.6829
      },
      {
       "added_intervention": "apap_nightly",
       "added_name": "APAP nightly",
-      "interaction_penalty_days": -24.4,
-      "interaction_penalty_qaly": -0.0669,
-      "marginal_cost_per_qaly": 53940.0,
-      "marginal_cost_value": 4302.79,
-      "marginal_days": 29.1,
-      "marginal_interaction_qaly": -0.0044,
-      "marginal_qaly": 0.0798,
+      "interaction_penalty_days": -24.1,
+      "interaction_penalty_qaly": -0.0658,
+      "marginal_cost_per_qaly": 78442.0,
+      "marginal_cost_value": 4372.37,
+      "marginal_days": 20.4,
+      "marginal_interaction_qaly": -0.0031,
+      "marginal_qaly": 0.0557,
       "selected_interventions": [
        "hiit_2x_week",
        "head_elevation_nightly",
@@ -3211,45 +3223,20 @@
       ],
       "step": 6,
       "total_annual_cost": 568.0,
-      "total_cost_value": 6190.68,
-      "total_days": 279.0,
-      "total_qaly": 0.7638
-     },
-     {
-      "added_intervention": "nasacort_nightly",
-      "added_name": "Nasacort nightly",
-      "interaction_penalty_days": -29.7,
-      "interaction_penalty_qaly": -0.0812,
-      "marginal_cost_per_qaly": 106193.0,
-      "marginal_cost_value": 1288.37,
-      "marginal_days": 4.4,
-      "marginal_interaction_qaly": -0.0143,
-      "marginal_qaly": 0.0121,
-      "selected_interventions": [
-       "hiit_2x_week",
-       "head_elevation_nightly",
-       "strength_maintenance",
-       "metformin_500mg",
-       "statin_5mg",
-       "apap_nightly",
-       "nasacort_nightly"
-      ],
-      "step": 7,
-      "total_annual_cost": 688.0,
-      "total_cost_value": 7479.05,
-      "total_days": 283.4,
-      "total_qaly": 0.7759
+      "total_cost_value": 6294.8,
+      "total_days": 269.8,
+      "total_qaly": 0.7387
      },
      {
       "added_intervention": "semaglutide",
       "added_name": "GLP-1 RA",
-      "interaction_penalty_days": -100.9,
-      "interaction_penalty_qaly": -0.2763,
-      "marginal_cost_per_qaly": 117678.0,
-      "marginal_cost_value": 69873.43,
-      "marginal_days": 216.9,
-      "marginal_interaction_qaly": -0.1951,
-      "marginal_qaly": 0.5938,
+      "interaction_penalty_days": -95.5,
+      "interaction_penalty_qaly": -0.2615,
+      "marginal_cost_per_qaly": 120024.0,
+      "marginal_cost_value": 71114.74,
+      "marginal_days": 216.4,
+      "marginal_interaction_qaly": -0.1957,
+      "marginal_qaly": 0.5925,
       "selected_interventions": [
        "hiit_2x_week",
        "head_elevation_nightly",
@@ -3257,25 +3244,50 @@
        "metformin_500mg",
        "statin_5mg",
        "apap_nightly",
-       "nasacort_nightly",
        "semaglutide"
+      ],
+      "step": 7,
+      "total_annual_cost": 6568.0,
+      "total_cost_value": 77409.54,
+      "total_days": 486.2,
+      "total_qaly": 1.3312
+     },
+     {
+      "added_intervention": "nasacort_nightly",
+      "added_name": "Nasacort nightly",
+      "interaction_penalty_days": -99.2,
+      "interaction_penalty_qaly": -0.2717,
+      "marginal_cost_per_qaly": 152808.0,
+      "marginal_cost_value": 1311.71,
+      "marginal_days": 3.1,
+      "marginal_interaction_qaly": -0.0102,
+      "marginal_qaly": 0.0086,
+      "selected_interventions": [
+       "hiit_2x_week",
+       "head_elevation_nightly",
+       "strength_maintenance",
+       "metformin_500mg",
+       "statin_5mg",
+       "apap_nightly",
+       "semaglutide",
+       "nasacort_nightly"
       ],
       "step": 8,
       "total_annual_cost": 6688.0,
-      "total_cost_value": 77352.48,
-      "total_days": 500.3,
-      "total_qaly": 1.3697
+      "total_cost_value": 78721.25,
+      "total_days": 489.3,
+      "total_qaly": 1.3398
      },
      {
       "added_intervention": "nasal_strips_nightly",
       "added_name": "Nasal strips nightly",
-      "interaction_penalty_days": -105.7,
-      "interaction_penalty_qaly": -0.2894,
-      "marginal_cost_per_qaly": 334339.0,
-      "marginal_cost_value": 1932.1,
-      "marginal_days": 2.1,
-      "marginal_interaction_qaly": -0.0131,
-      "marginal_qaly": 0.0058,
+      "interaction_penalty_days": -102.6,
+      "interaction_penalty_qaly": -0.281,
+      "marginal_cost_per_qaly": 492742.0,
+      "marginal_cost_value": 1967.57,
+      "marginal_days": 1.5,
+      "marginal_interaction_qaly": -0.0093,
+      "marginal_qaly": 0.004,
       "selected_interventions": [
        "hiit_2x_week",
        "head_elevation_nightly",
@@ -3283,26 +3295,26 @@
        "metformin_500mg",
        "statin_5mg",
        "apap_nightly",
-       "nasacort_nightly",
        "semaglutide",
+       "nasacort_nightly",
        "nasal_strips_nightly"
       ],
       "step": 9,
       "total_annual_cost": 6868.0,
-      "total_cost_value": 79284.58,
-      "total_days": 502.4,
-      "total_qaly": 1.3755
+      "total_cost_value": 80688.82,
+      "total_days": 490.8,
+      "total_qaly": 1.3437
      },
      {
       "added_intervention": "humidifier_nightly",
       "added_name": "Humidifier nightly",
-      "interaction_penalty_days": -106.3,
-      "interaction_penalty_qaly": -0.291,
-      "marginal_cost_per_qaly": 2967754.0,
-      "marginal_cost_value": 858.24,
+      "interaction_penalty_days": -103.0,
+      "interaction_penalty_qaly": -0.2821,
+      "marginal_cost_per_qaly": 4426563.0,
+      "marginal_cost_value": 874.47,
       "marginal_days": 0.1,
-      "marginal_interaction_qaly": -0.0016,
-      "marginal_qaly": 0.0003,
+      "marginal_interaction_qaly": -0.0011,
+      "marginal_qaly": 0.0002,
       "selected_interventions": [
        "hiit_2x_week",
        "head_elevation_nightly",
@@ -3310,16 +3322,16 @@
        "metformin_500mg",
        "statin_5mg",
        "apap_nightly",
-       "nasacort_nightly",
        "semaglutide",
+       "nasacort_nightly",
        "nasal_strips_nightly",
        "humidifier_nightly"
       ],
       "step": 10,
       "total_annual_cost": 6948.0,
-      "total_cost_value": 80142.82,
-      "total_days": 502.5,
-      "total_qaly": 1.3757
+      "total_cost_value": 81563.3,
+      "total_days": 490.9,
+      "total_qaly": 1.3439
      }
     ],
     "items": [
@@ -3348,8 +3360,8 @@
        5.6
       ],
       "net_qaly_ci": [
-       0.0095,
-       0.0153
+       0.0096,
+       0.0154
       ],
       "notes": "Structured interval training twice weekly, assumed to replace easier cardio. Modeled as a somewhat larger CRF stimulus with diminishing marginal return.",
       "p_benefit": 1.0,
@@ -3357,7 +3369,7 @@
       "pricing_status": "free",
       "profile_effect_multiplier": 1.0,
       "public_lane": "consumer_public",
-      "qol_qaly": 0.0128,
+      "qol_qaly": 0.0129,
       "rankability_reason": null,
       "selected_in_frontier": true,
       "sleep_mortality_hr_multiplier": 1.0,
@@ -3369,7 +3381,7 @@
        "https://pubmed.ncbi.nlm.nih.gov/40976973/"
       ],
       "total_cost": 0.0,
-      "total_qaly": 0.0128
+      "total_qaly": 0.0129
      },
      {
       "access": {
@@ -3383,7 +3395,7 @@
       "benefit_tags": [],
       "category": "supplement_candidate",
       "cost_per_qaly": null,
-      "days": 3.8,
+      "days": 3.9,
       "display_category": "exercise",
       "exclusive_group": "cardio_mode",
       "harm_qaly": 0.0,
@@ -3392,12 +3404,12 @@
       "mort_qaly": 0.0,
       "name": "HIIT 3x/week",
       "net_days_ci": [
-       2.5,
+       2.6,
        4.7
       ],
       "net_qaly_ci": [
-       0.0069,
-       0.0128
+       0.007,
+       0.0129
       ],
       "notes": "Three structured interval sessions weekly, assumed to replace easier cardio. Modeled with extra recovery uncertainty and a small recurring downside because current frequency evidence suggests no clear added benefit over 2x/week in recreational runners.",
       "p_benefit": 1.0,
@@ -3422,55 +3434,6 @@
      {
       "access": {
        "coverage_outlook": "na",
-       "friction": "low",
-       "notes": "Behavioral setup change. No prescription or purchase barrier if you already have the hardware.",
-       "tier": "behavioral"
-      },
-      "airway_effect_multiplier": 0.63,
-      "annual_cost": 0.0,
-      "benefit_tags": [
-       "sleep_breathing_support",
-       "sleep_continuity_support"
-      ],
-      "category": "sleep_current",
-      "cost_per_qaly": null,
-      "days": 3.6,
-      "display_category": "sleep",
-      "exclusive_group": null,
-      "harm_qaly": 0.0,
-      "id": "head_elevation_nightly",
-      "interaction_tags": [],
-      "mort_qaly": 0.003,
-      "name": "Head elevation nightly",
-      "net_days_ci": [
-       3.4,
-       3.7
-      ],
-      "net_qaly_ci": [
-       0.0093,
-       0.0102
-      ],
-      "notes": "Behavioral airway aid. Most plausible in positional or upper-airway-predominant sleep-disordered breathing.",
-      "p_benefit": 1.0,
-      "p_harm": 0.0,
-      "pricing_status": "free",
-      "profile_effect_multiplier": 1.0,
-      "public_lane": "conditional_public",
-      "qol_qaly": 0.0002,
-      "rankability_reason": null,
-      "selected_in_frontier": true,
-      "sleep_mortality_hr_multiplier": 0.999276,
-      "sleep_mortality_relief_fraction": 0.0079,
-      "sleep_qol_qaly": 0.0066,
-      "sources": [
-       "https://pubmed.ncbi.nlm.nih.gov/39347559/"
-      ],
-      "total_cost": 0.0,
-      "total_qaly": 0.0098
-     },
-     {
-      "access": {
-       "coverage_outlook": "na",
        "friction": "medium",
        "notes": "",
        "tier": "cash_pay"
@@ -3490,11 +3453,11 @@
       "name": "Tempo run 1x/week",
       "net_days_ci": [
        2.4,
-       3.9
+       4.0
       ],
       "net_qaly_ci": [
-       0.0065,
-       0.0108
+       0.0066,
+       0.0109
       ],
       "notes": "One threshold/tempo-style run weekly, assumed to replace easier cardio. Modeled as intermediate between easy cardio and HIIT for CRF benefit.",
       "p_benefit": 1.0,
@@ -3502,7 +3465,7 @@
       "pricing_status": "free",
       "profile_effect_multiplier": 1.0,
       "public_lane": "consumer_public",
-      "qol_qaly": 0.0092,
+      "qol_qaly": 0.0093,
       "rankability_reason": null,
       "selected_in_frontier": false,
       "sleep_mortality_hr_multiplier": 1.0,
@@ -3513,7 +3476,7 @@
        "https://pubmed.ncbi.nlm.nih.gov/38599681/"
       ],
       "total_cost": 0.0,
-      "total_qaly": 0.0092
+      "total_qaly": 0.0093
      },
      {
       "access": {
@@ -3537,11 +3500,11 @@
       "name": "HIIT 1x/week",
       "net_days_ci": [
        2.1,
-       3.4
+       3.5
       ],
       "net_qaly_ci": [
-       0.0057,
-       0.0094
+       0.0058,
+       0.0095
       ],
       "notes": "Structured interval training once weekly, assumed to replace an easier cardio session rather than add volume. Modeled through modest CRF/VO2max utility, not a direct mortality claim.",
       "p_benefit": 1.0,
@@ -3565,6 +3528,55 @@
      {
       "access": {
        "coverage_outlook": "na",
+       "friction": "low",
+       "notes": "Behavioral setup change. No prescription or purchase barrier if you already have the hardware.",
+       "tier": "behavioral"
+      },
+      "airway_effect_multiplier": 0.63,
+      "annual_cost": 0.0,
+      "benefit_tags": [
+       "sleep_breathing_support",
+       "sleep_continuity_support"
+      ],
+      "category": "sleep_current",
+      "cost_per_qaly": null,
+      "days": 2.5,
+      "display_category": "sleep",
+      "exclusive_group": null,
+      "harm_qaly": 0.0,
+      "id": "head_elevation_nightly",
+      "interaction_tags": [],
+      "mort_qaly": 0.0,
+      "name": "Head elevation nightly",
+      "net_days_ci": [
+       2.5,
+       2.6
+      ],
+      "net_qaly_ci": [
+       0.0069,
+       0.007
+      ],
+      "notes": "Behavioral airway aid. Most plausible in positional or upper-airway-predominant sleep-disordered breathing.",
+      "p_benefit": 1.0,
+      "p_harm": 0.0,
+      "pricing_status": "free",
+      "profile_effect_multiplier": 1.0,
+      "public_lane": "conditional_public",
+      "qol_qaly": 0.0002,
+      "rankability_reason": null,
+      "selected_in_frontier": true,
+      "sleep_mortality_hr_multiplier": 1.0,
+      "sleep_mortality_relief_fraction": 0.0,
+      "sleep_qol_qaly": 0.0067,
+      "sources": [
+       "https://pubmed.ncbi.nlm.nih.gov/39347559/"
+      ],
+      "total_cost": 0.0,
+      "total_qaly": 0.0069
+     },
+     {
+      "access": {
+       "coverage_outlook": "na",
        "friction": "medium",
        "notes": "",
        "tier": "cash_pay"
@@ -3583,12 +3595,12 @@
       "mort_qaly": 0.0,
       "name": "Zone 2 cardio 2x/week",
       "net_days_ci": [
-       1.6,
+       1.7,
        2.4
       ],
       "net_qaly_ci": [
-       0.0045,
-       0.0065
+       0.0046,
+       0.0066
       ],
       "notes": "Two structured low-to-moderate intensity cardio sessions weekly, assumed to replace unstructured easier running. Modeled as a small CRF and recovery-positive intervention.",
       "p_benefit": 1.0,
@@ -3596,7 +3608,7 @@
       "pricing_status": "free",
       "profile_effect_multiplier": 1.0,
       "public_lane": "consumer_public",
-      "qol_qaly": 0.0056,
+      "qol_qaly": 0.0057,
       "rankability_reason": null,
       "selected_in_frontier": false,
       "sleep_mortality_hr_multiplier": 1.0,
@@ -3606,7 +3618,7 @@
        "https://pubmed.ncbi.nlm.nih.gov/38599681/"
       ],
       "total_cost": 0.0,
-      "total_qaly": 0.0056
+      "total_qaly": 0.0057
      },
      {
       "access": {
@@ -3642,7 +3654,7 @@
       "pricing_status": "free",
       "profile_effect_multiplier": 1.0,
       "public_lane": "consumer_public",
-      "qol_qaly": 0.0017,
+      "qol_qaly": 0.0018,
       "rankability_reason": null,
       "selected_in_frontier": true,
       "sleep_mortality_hr_multiplier": 1.0,
@@ -3652,7 +3664,7 @@
        "https://pubmed.ncbi.nlm.nih.gov/38599681/"
       ],
       "total_cost": 0.0,
-      "total_qaly": 0.0017
+      "total_qaly": 0.0018
      },
      {
       "access": {
@@ -3667,22 +3679,22 @@
        "cardiometabolic_support"
       ],
       "category": "rx_candidate",
-      "cost_per_qaly": 2527.0,
-      "days": 76.1,
+      "cost_per_qaly": 2565.0,
+      "days": 76.4,
       "display_category": "rx",
       "exclusive_group": null,
       "harm_qaly": 0.0,
       "id": "metformin_500mg",
       "interaction_tags": [],
-      "mort_qaly": 0.2084,
+      "mort_qaly": 0.2091,
       "name": "Metformin",
       "net_days_ci": [
-       -86.9,
-       216.0
+       -87.3,
+       216.9
       ],
       "net_qaly_ci": [
-       -0.238,
-       0.5915
+       -0.2391,
+       0.5938
       ],
       "notes": "Bannister 2014: diabetics on metformin outlived controls. TAME pending.",
       "p_benefit": 0.68,
@@ -3697,8 +3709,8 @@
       "sleep_mortality_relief_fraction": 0.0,
       "sleep_qol_qaly": 0.0,
       "sources": [],
-      "total_cost": 526.59,
-      "total_qaly": 0.2084
+      "total_cost": 536.41,
+      "total_qaly": 0.2091
      },
      {
       "access": {
@@ -3713,22 +3725,22 @@
        "cardiometabolic_support"
       ],
       "category": "rx_candidate",
-      "cost_per_qaly": 2662.0,
-      "days": 186.8,
+      "cost_per_qaly": 2703.0,
+      "days": 187.3,
       "display_category": "rx",
       "exclusive_group": null,
       "harm_qaly": 0.0,
       "id": "statin_5mg",
       "interaction_tags": [],
-      "mort_qaly": 0.5329,
+      "mort_qaly": 0.5347,
       "name": "Statin",
       "net_days_ci": [
-       -4.0,
-       399.1
+       -4.1,
+       400.4
       ],
       "net_qaly_ci": [
-       -0.0109,
-       1.0928
+       -0.0113,
+       1.0962
       ],
       "notes": "CTT meta: 21% CVD reduction per mmol/L LDL.",
       "p_benefit": 0.88,
@@ -3736,15 +3748,15 @@
       "pricing_status": "priced",
       "profile_effect_multiplier": 1.0,
       "public_lane": "conditional_public",
-      "qol_qaly": -0.0216,
+      "qol_qaly": -0.0219,
       "rankability_reason": null,
       "selected_in_frontier": true,
       "sleep_mortality_hr_multiplier": 1.0,
       "sleep_mortality_relief_fraction": 0.0,
       "sleep_qol_qaly": 0.0,
       "sources": [],
-      "total_cost": 1361.3,
-      "total_qaly": 0.5113
+      "total_cost": 1386.02,
+      "total_qaly": 0.5128
      },
      {
       "access": {
@@ -3761,22 +3773,22 @@
        "sleep_quality_support"
       ],
       "category": "sleep_current",
-      "cost_per_qaly": 49014.0,
-      "days": 9.6,
+      "cost_per_qaly": 69927.0,
+      "days": 6.9,
       "display_category": "sleep",
       "exclusive_group": null,
       "harm_qaly": 0.0,
       "id": "nasacort_nightly",
       "interaction_tags": [],
-      "mort_qaly": 0.0079,
+      "mort_qaly": 0.0,
       "name": "Nasacort nightly",
       "net_days_ci": [
-       9.2,
-       10.0
+       6.7,
+       6.9
       ],
       "net_qaly_ci": [
-       0.0251,
-       0.0274
+       0.0183,
+       0.019
       ],
       "notes": "Best-supported for congestion-mediated sleep disturbance and as an adjunct in nasal-obstruction OSA phenotypes. Main benefit is upper-airway, not general prevention.",
       "p_benefit": 1.0,
@@ -3787,16 +3799,16 @@
       "qol_qaly": 0.0013,
       "rankability_reason": null,
       "selected_in_frontier": true,
-      "sleep_mortality_hr_multiplier": 0.998114,
-      "sleep_mortality_relief_fraction": 0.0207,
-      "sleep_qol_qaly": 0.0171,
+      "sleep_mortality_hr_multiplier": 1.0,
+      "sleep_mortality_relief_fraction": 0.0,
+      "sleep_qol_qaly": 0.0175,
       "sources": [
        "https://pubmed.ncbi.nlm.nih.gov/9042068/",
        "https://pubmed.ncbi.nlm.nih.gov/30154874/",
        "https://pubmed.ncbi.nlm.nih.gov/15124166/"
       ],
-      "total_cost": 1288.37,
-      "total_qaly": 0.0263
+      "total_cost": 1311.71,
+      "total_qaly": 0.0188
      },
      {
       "access": {
@@ -3814,22 +3826,22 @@
        "sleep_daytime_support"
       ],
       "category": "sleep_candidate",
-      "cost_per_qaly": 51362.0,
-      "days": 30.6,
+      "cost_per_qaly": 74285.0,
+      "days": 21.5,
       "display_category": "sleep",
       "exclusive_group": "osa_primary_therapy",
       "harm_qaly": 0.0,
       "id": "apap_nightly",
       "interaction_tags": [],
-      "mort_qaly": 0.0259,
+      "mort_qaly": 0.0,
       "name": "APAP nightly",
       "net_days_ci": [
-       29.0,
-       31.8
+       21.3,
+       21.6
       ],
       "net_qaly_ci": [
-       0.0793,
-       0.0872
+       0.0584,
+       0.0592
       ],
       "notes": "Modeled as the strongest pre-diagnosis airway intervention candidate. No direct mortality term; benefit comes through sleep-burden and sleep-mortality relief.",
       "p_benefit": 1.0,
@@ -3840,15 +3852,15 @@
       "qol_qaly": 0.0015,
       "rankability_reason": null,
       "selected_in_frontier": true,
-      "sleep_mortality_hr_multiplier": 0.993811,
-      "sleep_mortality_relief_fraction": 0.068,
-      "sleep_qol_qaly": 0.0565,
+      "sleep_mortality_hr_multiplier": 1.0,
+      "sleep_mortality_relief_fraction": 0.0,
+      "sleep_qol_qaly": 0.0574,
       "sources": [
        "https://aasm.org/wp-content/uploads/2019/11/Treatment-OSA-with-PAP-Patient-Guide.pdf",
        "https://pubmed.ncbi.nlm.nih.gov/30736887/"
       ],
-      "total_cost": 4302.79,
-      "total_qaly": 0.0838
+      "total_cost": 4372.37,
+      "total_qaly": 0.0589
      },
      {
       "access": {
@@ -3863,22 +3875,22 @@
        "cardiometabolic_support"
       ],
       "category": "rx_candidate",
-      "cost_per_qaly": 89741.0,
-      "days": 284.4,
+      "cost_per_qaly": 91223.0,
+      "days": 284.7,
       "display_category": "rx",
       "exclusive_group": null,
-      "harm_qaly": -0.047,
+      "harm_qaly": -0.049,
       "id": "semaglutide",
       "interaction_tags": [],
-      "mort_qaly": 0.7967,
+      "mort_qaly": 0.7991,
       "name": "GLP-1 RA",
       "net_days_ci": [
-       25.5,
-       571.1
+       25.2,
+       572.1
       ],
       "net_qaly_ci": [
-       0.0699,
-       1.5637
+       0.0689,
+       1.5663
       ],
       "notes": "SELECT trial: HR 0.80 MACE in overweight/obesity with established CVD. Strong transport shrinkage applied for lean, low-risk profiles plus GI/gallbladder harms.",
       "p_benefit": 0.97,
@@ -3886,15 +3898,15 @@
       "pricing_status": "priced",
       "profile_effect_multiplier": 1.0,
       "public_lane": "conditional_public",
-      "qol_qaly": 0.029,
+      "qol_qaly": 0.0295,
       "rankability_reason": null,
       "selected_in_frontier": true,
       "sleep_mortality_hr_multiplier": 1.0,
       "sleep_mortality_relief_fraction": 0.0,
       "sleep_qol_qaly": 0.0,
       "sources": [],
-      "total_cost": 69873.43,
-      "total_qaly": 0.7786
+      "total_cost": 71114.74,
+      "total_qaly": 0.7796
      },
      {
       "access": {
@@ -3912,22 +3924,22 @@
        "sleep_daytime_support"
       ],
       "category": "sleep_candidate",
-      "cost_per_qaly": 96940.0,
-      "days": 20.2,
+      "cost_per_qaly": 139848.0,
+      "days": 14.3,
       "display_category": "sleep",
       "exclusive_group": "osa_primary_therapy",
       "harm_qaly": 0.0,
       "id": "oral_appliance_custom",
       "interaction_tags": [],
-      "mort_qaly": 0.017,
+      "mort_qaly": 0.0,
       "name": "Custom oral appliance",
       "net_days_ci": [
-       19.2,
-       21.1
+       14.2,
+       14.4
       ],
       "net_qaly_ci": [
-       0.0525,
-       0.0577
+       0.0388,
+       0.0394
       ],
       "notes": "Custom mandibular advancement device, annualized over replacement and follow-up. Typically less effective than PAP but often easier to tolerate.",
       "p_benefit": 1.0,
@@ -3938,15 +3950,15 @@
       "qol_qaly": 0.0013,
       "rankability_reason": null,
       "selected_in_frontier": false,
-      "sleep_mortality_hr_multiplier": 0.995924,
-      "sleep_mortality_relief_fraction": 0.0448,
-      "sleep_qol_qaly": 0.0371,
+      "sleep_mortality_hr_multiplier": 1.0,
+      "sleep_mortality_relief_fraction": 0.0,
+      "sleep_qol_qaly": 0.0378,
       "sources": [
        "https://aasm.org/aasm-and-aadsm-issue-new-joint-clinical-practice-guideline-for-oral-appliance-therapy/",
        "https://pubmed.ncbi.nlm.nih.gov/26094920/"
       ],
-      "total_cost": 5373.43,
-      "total_qaly": 0.0554
+      "total_cost": 5465.46,
+      "total_qaly": 0.0391
      },
      {
       "access": {
@@ -3962,22 +3974,22 @@
        "sleep_quality_support"
       ],
       "category": "sleep_current",
-      "cost_per_qaly": 102948.0,
-      "days": 6.9,
+      "cost_per_qaly": 147823.0,
+      "days": 4.9,
       "display_category": "sleep",
       "exclusive_group": null,
       "harm_qaly": 0.0,
       "id": "nasal_strips_nightly",
       "interaction_tags": [],
-      "mort_qaly": 0.0057,
+      "mort_qaly": 0.0,
       "name": "Nasal strips nightly",
       "net_days_ci": [
-       6.5,
-       7.1
+       4.8,
+       4.9
       ],
       "net_qaly_ci": [
-       0.0179,
-       0.0195
+       0.0132,
+       0.0134
       ],
       "notes": "Primarily a subjective nasal-congestion and snoring aid. Helps when the problem is upper-airway narrowing, but usually not a large standalone OSA treatment.",
       "p_benefit": 1.0,
@@ -3985,17 +3997,17 @@
       "pricing_status": "priced",
       "profile_effect_multiplier": 1.0,
       "public_lane": "conditional_public",
-      "qol_qaly": 0.0006,
+      "qol_qaly": 0.0007,
       "rankability_reason": null,
       "selected_in_frontier": true,
-      "sleep_mortality_hr_multiplier": 0.998632,
-      "sleep_mortality_relief_fraction": 0.015,
-      "sleep_qol_qaly": 0.0124,
+      "sleep_mortality_hr_multiplier": 1.0,
+      "sleep_mortality_relief_fraction": 0.0,
+      "sleep_qol_qaly": 0.0126,
       "sources": [
        "https://pubmed.ncbi.nlm.nih.gov/30154874/"
       ],
-      "total_cost": 1932.1,
-      "total_qaly": 0.0188
+      "total_cost": 1967.57,
+      "total_qaly": 0.0133
      },
      {
       "access": {
@@ -4012,22 +4024,22 @@
        "sleep_quality_support"
       ],
       "category": "sleep_candidate",
-      "cost_per_qaly": 468071.0,
-      "days": 0.7,
+      "cost_per_qaly": 663984.0,
+      "days": 0.5,
       "display_category": "sleep",
       "exclusive_group": null,
       "harm_qaly": 0.0,
       "id": "humidifier_nightly",
       "interaction_tags": [],
-      "mort_qaly": 0.0005,
+      "mort_qaly": 0.0,
       "name": "Humidifier nightly",
       "net_days_ci": [
-       0.6,
-       0.7
+       0.5,
+       0.5
       ],
       "net_qaly_ci": [
-       0.0017,
-       0.0019
+       0.0013,
+       0.0014
       ],
       "notes": "Modeled as a small dryness / nasal-comfort intervention, not a meaningful standalone OSA treatment. Best case is low ambient humidity or waking with dry irritated nasal passages.",
       "p_benefit": 1.0,
@@ -4038,20 +4050,20 @@
       "qol_qaly": 0.0001,
       "rankability_reason": null,
       "selected_in_frontier": true,
-      "sleep_mortality_hr_multiplier": 0.99987,
-      "sleep_mortality_relief_fraction": 0.0014,
+      "sleep_mortality_hr_multiplier": 1.0,
+      "sleep_mortality_relief_fraction": 0.0,
       "sleep_qol_qaly": 0.0012,
       "sources": [
        "https://www.aaaai.org/tools-for-the-public/conditions-library/allergies/humidifiers-and-indoor-allergies",
        "https://www.epa.gov/mold/mold-course-chapter-2",
        "https://pubmed.ncbi.nlm.nih.gov/3348500/"
       ],
-      "total_cost": 858.24,
-      "total_qaly": 0.0018
+      "total_cost": 874.47,
+      "total_qaly": 0.0013
      }
     ],
     "meta": {
-     "analyzed_count": 92,
+     "analyzed_count": 94,
      "cost_discount_rate": 0.03,
      "n_simulations": 40,
      "positive_count": 15,
@@ -4565,6 +4577,14 @@
        "condition": null,
        "display_category": "sleep",
        "explicitly_excluded": false,
+       "id": "eight_sleep_pod6_upgrade",
+       "lane": "personal_only",
+       "name": "Eight Sleep Pod 6 upgrade"
+      },
+      {
+       "condition": null,
+       "display_category": "sleep",
+       "explicitly_excluded": false,
        "id": "lemborexant_5mg",
        "lane": "personal_only",
        "name": "Lemborexant 5mg"
@@ -4816,6 +4836,14 @@
        "id": "l_theanine_200",
        "lane": "personal_only",
        "name": "L-Theanine 200mg"
+      },
+      {
+       "condition": null,
+       "display_category": "supplement",
+       "explicitly_excluded": false,
+       "id": "l_theanine_200_bedtime",
+       "lane": "personal_only",
+       "name": "L-Theanine 200mg bedtime"
       },
       {
        "condition": null,
@@ -5111,7 +5139,7 @@
        "condition_ids": [],
        "description": "Current-stack, diagnosis-specific, or clinician-mediated items that stay out of the generic public frontier.",
        "id": "personal_only",
-       "item_count": 77,
+       "item_count": 79,
        "item_ids": [
         "17a_estradiol",
         "acarbose_50mg",
@@ -5134,6 +5162,7 @@
         "daridorexant_25mg",
         "doxepin_3mg",
         "egcg_400",
+        "eight_sleep_pod6_upgrade",
         "empagliflozin",
         "ergothioneine_5",
         "finasteride_1.25mg",
@@ -5150,6 +5179,7 @@
         "infrared_sauna_4x_week",
         "l_lysine_1000",
         "l_theanine_200",
+        "l_theanine_200_bedtime",
         "lemborexant_5mg",
         "lions_mane_1g",
         "lithium_1mg_orotate",
@@ -5219,7 +5249,7 @@
       "quality": 0.0,
       "regularity": 0.0
      },
-     "mortality_signal": 0.75
+     "mortality_signal": 0.4
     }
    }
   },
@@ -5327,7 +5357,7 @@
           },
           "annual_cost": 0.0,
           "cost_per_qaly": null,
-          "days": 1.1,
+          "days": 0.8,
           "id": "head_elevation_nightly",
           "name": "Head elevation nightly",
           "p_benefit": 1.0,
@@ -5341,8 +5371,8 @@
            "tier": "otc"
           },
           "annual_cost": 180.0,
-          "cost_per_qaly": 215749.0,
-          "days": 2.2,
+          "cost_per_qaly": 310762.0,
+          "days": 1.5,
           "id": "nasal_strips_nightly",
           "name": "Nasal strips nightly",
           "p_benefit": 1.0,
@@ -5356,8 +5386,8 @@
            "tier": "otc"
           },
           "annual_cost": 120.0,
-          "cost_per_qaly": 95852.0,
-          "days": 3.3,
+          "cost_per_qaly": 136540.0,
+          "days": 2.3,
           "id": "nasacort_nightly",
           "name": "Nasacort nightly",
           "p_benefit": 1.0,
@@ -5371,7 +5401,7 @@
            "tier": "cash_pay"
           },
           "annual_cost": 80.0,
-          "cost_per_qaly": 899673.0,
+          "cost_per_qaly": 1267970.0,
           "days": 0.2,
           "id": "humidifier_nightly",
           "name": "Humidifier nightly",
@@ -5382,17 +5412,17 @@
         "id": "combined_airway_support",
         "label": "Combine elevation, strips, Nasacort, and humidifier",
         "marginal_annual_cost": 380,
-        "marginal_cost_per_qaly": 192553,
-        "marginal_cost_value": 2715,
-        "marginal_days": 5.2,
-        "marginal_qaly": 0.0141,
+        "marginal_cost_per_qaly": 275800,
+        "marginal_cost_value": 2758,
+        "marginal_days": 3.7,
+        "marginal_qaly": 0.01,
         "stack": {
-         "adjusted_days": 5.1,
-         "adjusted_qaly": 0.0141,
-         "base_days": 6.8,
-         "base_qaly": 0.0186,
-         "interaction_penalty_days": -1.6,
-         "interaction_penalty_qaly": -0.0045,
+         "adjusted_days": 3.6,
+         "adjusted_qaly": 0.01,
+         "base_days": 4.8,
+         "base_qaly": 0.0131,
+         "interaction_penalty_days": -1.2,
+         "interaction_penalty_qaly": -0.0032,
          "item_ids": [
           "head_elevation_nightly",
           "nasal_strips_nightly",
@@ -5400,7 +5430,7 @@
           "humidifier_nightly"
          ],
          "total_annual_cost": 380,
-         "total_cost_value": 2715
+         "total_cost_value": 2758
         }
        },
        {
@@ -5430,8 +5460,8 @@
            "tier": "otc"
           },
           "annual_cost": 120.0,
-          "cost_per_qaly": 95852.0,
-          "days": 3.3,
+          "cost_per_qaly": 136540.0,
+          "days": 2.3,
           "id": "nasacort_nightly",
           "name": "Nasacort nightly",
           "p_benefit": 1.0,
@@ -5441,22 +5471,22 @@
         "id": "nasacort_nightly",
         "label": "Use Nasacort",
         "marginal_annual_cost": 120,
-        "marginal_cost_per_qaly": 96404,
-        "marginal_cost_value": 858,
-        "marginal_days": 3.3,
-        "marginal_qaly": 0.0089,
+        "marginal_cost_per_qaly": 136094,
+        "marginal_cost_value": 871,
+        "marginal_days": 2.3,
+        "marginal_qaly": 0.0064,
         "stack": {
-         "adjusted_days": 3.3,
-         "adjusted_qaly": 0.0089,
-         "base_days": 3.3,
-         "base_qaly": 0.0089,
+         "adjusted_days": 2.3,
+         "adjusted_qaly": 0.0064,
+         "base_days": 2.3,
+         "base_qaly": 0.0064,
          "interaction_penalty_days": 0.0,
          "interaction_penalty_qaly": 0.0,
          "item_ids": [
           "nasacort_nightly"
          ],
          "total_annual_cost": 120,
-         "total_cost_value": 858
+         "total_cost_value": 871
         }
        },
        {
@@ -5486,8 +5516,8 @@
            "tier": "otc"
           },
           "annual_cost": 180.0,
-          "cost_per_qaly": 215749.0,
-          "days": 2.2,
+          "cost_per_qaly": 310762.0,
+          "days": 1.5,
           "id": "nasal_strips_nightly",
           "name": "Nasal strips nightly",
           "p_benefit": 1.0,
@@ -5497,22 +5527,22 @@
         "id": "nasal_strips_nightly",
         "label": "Use nasal strips",
         "marginal_annual_cost": 180,
-        "marginal_cost_per_qaly": 214333,
-        "marginal_cost_value": 1286,
-        "marginal_days": 2.2,
-        "marginal_qaly": 0.006,
+        "marginal_cost_per_qaly": 310952,
+        "marginal_cost_value": 1306,
+        "marginal_days": 1.5,
+        "marginal_qaly": 0.0042,
         "stack": {
-         "adjusted_days": 2.2,
-         "adjusted_qaly": 0.006,
-         "base_days": 2.2,
-         "base_qaly": 0.006,
+         "adjusted_days": 1.5,
+         "adjusted_qaly": 0.0042,
+         "base_days": 1.5,
+         "base_qaly": 0.0042,
          "interaction_penalty_days": 0.0,
          "interaction_penalty_qaly": 0.0,
          "item_ids": [
           "nasal_strips_nightly"
          ],
          "total_annual_cost": 180,
-         "total_cost_value": 1286
+         "total_cost_value": 1306
         }
        },
        {
@@ -5543,7 +5573,7 @@
           },
           "annual_cost": 0.0,
           "cost_per_qaly": null,
-          "days": 1.1,
+          "days": 0.8,
           "id": "head_elevation_nightly",
           "name": "Head elevation nightly",
           "p_benefit": 1.0,
@@ -5555,13 +5585,13 @@
         "marginal_annual_cost": 0,
         "marginal_cost_per_qaly": 0,
         "marginal_cost_value": 0,
-        "marginal_days": 1.1,
-        "marginal_qaly": 0.003,
+        "marginal_days": 0.8,
+        "marginal_qaly": 0.0021,
         "stack": {
-         "adjusted_days": 1.1,
-         "adjusted_qaly": 0.003,
-         "base_days": 1.1,
-         "base_qaly": 0.003,
+         "adjusted_days": 0.8,
+         "adjusted_qaly": 0.0021,
+         "base_days": 0.8,
+         "base_qaly": 0.0021,
          "interaction_penalty_days": 0.0,
          "interaction_penalty_qaly": 0.0,
          "item_ids": [
@@ -5598,7 +5628,7 @@
            "tier": "cash_pay"
           },
           "annual_cost": 80.0,
-          "cost_per_qaly": 899673.0,
+          "cost_per_qaly": 1267970.0,
           "days": 0.2,
           "id": "humidifier_nightly",
           "name": "Humidifier nightly",
@@ -5609,22 +5639,22 @@
         "id": "humidifier_nightly",
         "label": "Use humidifier",
         "marginal_annual_cost": 80,
-        "marginal_cost_per_qaly": 951667,
-        "marginal_cost_value": 571,
+        "marginal_cost_per_qaly": 1162000,
+        "marginal_cost_value": 581,
         "marginal_days": 0.2,
-        "marginal_qaly": 0.0006,
+        "marginal_qaly": 0.0005,
         "stack": {
          "adjusted_days": 0.2,
-         "adjusted_qaly": 0.0006,
+         "adjusted_qaly": 0.0005,
          "base_days": 0.2,
-         "base_qaly": 0.0006,
+         "base_qaly": 0.0005,
          "interaction_penalty_days": 0.0,
          "interaction_penalty_qaly": 0.0,
          "item_ids": [
           "humidifier_nightly"
          ],
          "total_annual_cost": 80,
-         "total_cost_value": 571
+         "total_cost_value": 581
         }
        },
        {
@@ -5704,8 +5734,8 @@
            "tier": "dme_rx"
           },
           "annual_cost": 400.0,
-          "cost_per_qaly": 110334.0,
-          "days": 9.5,
+          "cost_per_qaly": 161508.0,
+          "days": 6.6,
           "id": "apap_nightly",
           "name": "APAP nightly",
           "p_benefit": 1.0,
@@ -5715,22 +5745,22 @@
         "id": "apap_nightly",
         "label": "Start APAP",
         "marginal_annual_cost": 400,
-        "marginal_cost_per_qaly": 110463,
-        "marginal_cost_value": 2861,
-        "marginal_days": 9.5,
-        "marginal_qaly": 0.0259,
+        "marginal_cost_per_qaly": 161278,
+        "marginal_cost_value": 2903,
+        "marginal_days": 6.6,
+        "marginal_qaly": 0.018,
         "stack": {
-         "adjusted_days": 9.5,
-         "adjusted_qaly": 0.0259,
-         "base_days": 9.5,
-         "base_qaly": 0.0259,
+         "adjusted_days": 6.6,
+         "adjusted_qaly": 0.018,
+         "base_days": 6.6,
+         "base_qaly": 0.018,
          "interaction_penalty_days": 0.0,
          "interaction_penalty_qaly": 0.0,
          "item_ids": [
           "apap_nightly"
          ],
          "total_annual_cost": 400,
-         "total_cost_value": 2861
+         "total_cost_value": 2903
         }
        },
        {
@@ -5760,8 +5790,8 @@
            "tier": "specialist_device"
           },
           "annual_cost": 500.0,
-          "cost_per_qaly": 207240.0,
-          "days": 6.3,
+          "cost_per_qaly": 301563.0,
+          "days": 4.4,
           "id": "oral_appliance_custom",
           "name": "Custom oral appliance",
           "p_benefit": 1.0,
@@ -5771,22 +5801,22 @@
         "id": "oral_appliance_custom",
         "label": "Start custom oral appliance",
         "marginal_annual_cost": 500,
-        "marginal_cost_per_qaly": 207849,
-        "marginal_cost_value": 3575,
-        "marginal_days": 6.3,
-        "marginal_qaly": 0.0172,
+        "marginal_cost_per_qaly": 302333,
+        "marginal_cost_value": 3628,
+        "marginal_days": 4.4,
+        "marginal_qaly": 0.012,
         "stack": {
-         "adjusted_days": 6.3,
-         "adjusted_qaly": 0.0172,
-         "base_days": 6.3,
-         "base_qaly": 0.0172,
+         "adjusted_days": 4.4,
+         "adjusted_qaly": 0.012,
+         "base_days": 4.4,
+         "base_qaly": 0.012,
          "interaction_penalty_days": 0.0,
          "interaction_penalty_qaly": 0.0,
          "item_ids": [
           "oral_appliance_custom"
          ],
          "total_annual_cost": 500,
-         "total_cost_value": 3575
+         "total_cost_value": 3628
         }
        },
        {
@@ -5829,17 +5859,17 @@
       "interaction_penalty_qaly": 0.0,
       "marginal_cost_per_qaly": 0.0,
       "marginal_cost_value": 0.0,
-      "marginal_days": 3.7,
+      "marginal_days": 3.8,
       "marginal_interaction_qaly": 0.0,
-      "marginal_qaly": 0.0103,
+      "marginal_qaly": 0.0104,
       "selected_interventions": [
        "hiit_2x_week"
       ],
       "step": 1,
       "total_annual_cost": 0.0,
       "total_cost_value": 0.0,
-      "total_days": 3.7,
-      "total_qaly": 0.0103
+      "total_days": 3.8,
+      "total_qaly": 0.0104
      },
      {
       "added_intervention": "head_elevation_nightly",
@@ -5848,9 +5878,9 @@
       "interaction_penalty_qaly": 0.0,
       "marginal_cost_per_qaly": 0.0,
       "marginal_cost_value": 0.0,
-      "marginal_days": 1.1,
+      "marginal_days": 0.8,
       "marginal_interaction_qaly": 0.0,
-      "marginal_qaly": 0.003,
+      "marginal_qaly": 0.0021,
       "selected_interventions": [
        "hiit_2x_week",
        "head_elevation_nightly"
@@ -5858,8 +5888,8 @@
       "step": 2,
       "total_annual_cost": 0.0,
       "total_cost_value": 0.0,
-      "total_days": 4.8,
-      "total_qaly": 0.0133
+      "total_days": 4.6,
+      "total_qaly": 0.0125
      },
      {
       "added_intervention": "strength_maintenance",
@@ -5879,19 +5909,19 @@
       "step": 3,
       "total_annual_cost": 0.0,
       "total_cost_value": 0.0,
-      "total_days": 5.4,
-      "total_qaly": 0.0147
+      "total_days": 5.1,
+      "total_qaly": 0.0139
      },
      {
       "added_intervention": "nasacort_nightly",
       "added_name": "Nasacort nightly",
-      "interaction_penalty_days": -0.5,
-      "interaction_penalty_qaly": -0.0014,
-      "marginal_cost_per_qaly": 113009.0,
-      "marginal_cost_value": 857.5,
-      "marginal_days": 2.8,
-      "marginal_interaction_qaly": -0.0014,
-      "marginal_qaly": 0.0076,
+      "interaction_penalty_days": -0.3,
+      "interaction_penalty_qaly": -0.0009,
+      "marginal_cost_per_qaly": 160399.0,
+      "marginal_cost_value": 870.82,
+      "marginal_days": 2.0,
+      "marginal_interaction_qaly": -0.0009,
+      "marginal_qaly": 0.0054,
       "selected_interventions": [
        "hiit_2x_week",
        "head_elevation_nightly",
@@ -5900,20 +5930,20 @@
       ],
       "step": 4,
       "total_annual_cost": 120.0,
-      "total_cost_value": 857.5,
-      "total_days": 8.1,
-      "total_qaly": 0.0223
+      "total_cost_value": 870.82,
+      "total_days": 7.1,
+      "total_qaly": 0.0193
      },
      {
       "added_intervention": "apap_nightly",
       "added_name": "APAP nightly",
-      "interaction_penalty_days": -2.2,
-      "interaction_penalty_qaly": -0.0061,
-      "marginal_cost_per_qaly": 135262.0,
-      "marginal_cost_value": 2861.22,
-      "marginal_days": 7.7,
-      "marginal_interaction_qaly": -0.0048,
-      "marginal_qaly": 0.0212,
+      "interaction_penalty_days": -1.6,
+      "interaction_penalty_qaly": -0.0043,
+      "marginal_cost_per_qaly": 199150.0,
+      "marginal_cost_value": 2902.75,
+      "marginal_days": 5.3,
+      "marginal_interaction_qaly": -0.0034,
+      "marginal_qaly": 0.0146,
       "selected_interventions": [
        "hiit_2x_week",
        "head_elevation_nightly",
@@ -5923,20 +5953,20 @@
       ],
       "step": 5,
       "total_annual_cost": 520.0,
-      "total_cost_value": 3718.72,
-      "total_days": 15.9,
-      "total_qaly": 0.0434
+      "total_cost_value": 3773.57,
+      "total_days": 12.4,
+      "total_qaly": 0.0339
      },
      {
       "added_intervention": "nasal_strips_nightly",
       "added_name": "Nasal strips nightly",
-      "interaction_penalty_days": -3.8,
-      "interaction_penalty_qaly": -0.0103,
-      "marginal_cost_per_qaly": 718791.0,
-      "marginal_cost_value": 1286.06,
-      "marginal_days": 0.7,
-      "marginal_interaction_qaly": -0.0042,
-      "marginal_qaly": 0.0018,
+      "interaction_penalty_days": -2.7,
+      "interaction_penalty_qaly": -0.0073,
+      "marginal_cost_per_qaly": 1035873.0,
+      "marginal_cost_value": 1306.24,
+      "marginal_days": 0.5,
+      "marginal_interaction_qaly": -0.0029,
+      "marginal_qaly": 0.0013,
       "selected_interventions": [
        "hiit_2x_week",
        "head_elevation_nightly",
@@ -5947,19 +5977,19 @@
       ],
       "step": 6,
       "total_annual_cost": 700.0,
-      "total_cost_value": 5004.78,
-      "total_days": 16.5,
-      "total_qaly": 0.0452
+      "total_cost_value": 5079.81,
+      "total_days": 12.8,
+      "total_qaly": 0.0352
      },
      {
       "added_intervention": "humidifier_nightly",
       "added_name": "Humidifier nightly",
-      "interaction_penalty_days": -4.0,
-      "interaction_penalty_qaly": -0.0109,
-      "marginal_cost_per_qaly": 5991008.0,
-      "marginal_cost_value": 571.41,
+      "interaction_penalty_days": -2.8,
+      "interaction_penalty_qaly": -0.0077,
+      "marginal_cost_per_qaly": 8453133.0,
+      "marginal_cost_value": 580.55,
       "marginal_days": 0.0,
-      "marginal_interaction_qaly": -0.0005,
+      "marginal_interaction_qaly": -0.0004,
       "marginal_qaly": 0.0001,
       "selected_interventions": [
        "hiit_2x_week",
@@ -5972,9 +6002,9 @@
       ],
       "step": 7,
       "total_annual_cost": 780.0,
-      "total_cost_value": 5576.2,
-      "total_days": 16.6,
-      "total_qaly": 0.0453
+      "total_cost_value": 5660.36,
+      "total_days": 12.9,
+      "total_qaly": 0.0352
      }
     ],
     "items": [
@@ -5990,7 +6020,7 @@
       "benefit_tags": [],
       "category": "supplement_candidate",
       "cost_per_qaly": null,
-      "days": 3.7,
+      "days": 3.8,
       "display_category": "exercise",
       "exclusive_group": "cardio_mode",
       "harm_qaly": 0.0,
@@ -6000,11 +6030,11 @@
       "name": "HIIT 2x/week",
       "net_days_ci": [
        2.8,
-       4.4
+       4.5
       ],
       "net_qaly_ci": [
-       0.0076,
-       0.0121
+       0.0077,
+       0.0122
       ],
       "notes": "Structured interval training twice weekly, assumed to replace easier cardio. Modeled as a somewhat larger CRF stimulus with diminishing marginal return.",
       "p_benefit": 1.0,
@@ -6012,7 +6042,7 @@
       "pricing_status": "free",
       "profile_effect_multiplier": 1.0,
       "public_lane": "consumer_public",
-      "qol_qaly": 0.0103,
+      "qol_qaly": 0.0104,
       "rankability_reason": null,
       "selected_in_frontier": true,
       "sleep_mortality_hr_multiplier": 1.0,
@@ -6024,7 +6054,7 @@
        "https://pubmed.ncbi.nlm.nih.gov/40976973/"
       ],
       "total_cost": 0.0,
-      "total_qaly": 0.0103
+      "total_qaly": 0.0104
      },
      {
       "access": {
@@ -6038,7 +6068,7 @@
       "benefit_tags": [],
       "category": "supplement_candidate",
       "cost_per_qaly": null,
-      "days": 3.0,
+      "days": 3.1,
       "display_category": "exercise",
       "exclusive_group": "cardio_mode",
       "harm_qaly": 0.0,
@@ -6047,12 +6077,12 @@
       "mort_qaly": 0.0,
       "name": "HIIT 3x/week",
       "net_days_ci": [
-       2.2,
-       3.7
+       2.3,
+       3.8
       ],
       "net_qaly_ci": [
-       0.0061,
-       0.0102
+       0.0062,
+       0.0103
       ],
       "notes": "Three structured interval sessions weekly, assumed to replace easier cardio. Modeled with extra recovery uncertainty and a small recurring downside because current frequency evidence suggests no clear added benefit over 2x/week in recreational runners.",
       "p_benefit": 1.0,
@@ -6060,7 +6090,7 @@
       "pricing_status": "free",
       "profile_effect_multiplier": 1.0,
       "public_lane": "consumer_public",
-      "qol_qaly": 0.0083,
+      "qol_qaly": 0.0084,
       "rankability_reason": null,
       "selected_in_frontier": false,
       "sleep_mortality_hr_multiplier": 1.0,
@@ -6072,7 +6102,7 @@
        "https://pubmed.ncbi.nlm.nih.gov/40976973/"
       ],
       "total_cost": 0.0,
-      "total_qaly": 0.0083
+      "total_qaly": 0.0084
      },
      {
       "access": {
@@ -6099,8 +6129,8 @@
        3.1
       ],
       "net_qaly_ci": [
-       0.0052,
-       0.0084
+       0.0053,
+       0.0085
       ],
       "notes": "One threshold/tempo-style run weekly, assumed to replace easier cardio. Modeled as intermediate between easy cardio and HIIT for CRF benefit.",
       "p_benefit": 1.0,
@@ -6108,7 +6138,7 @@
       "pricing_status": "free",
       "profile_effect_multiplier": 1.0,
       "public_lane": "consumer_public",
-      "qol_qaly": 0.0073,
+      "qol_qaly": 0.0074,
       "rankability_reason": null,
       "selected_in_frontier": false,
       "sleep_mortality_hr_multiplier": 1.0,
@@ -6119,7 +6149,7 @@
        "https://pubmed.ncbi.nlm.nih.gov/38599681/"
       ],
       "total_cost": 0.0,
-      "total_qaly": 0.0073
+      "total_qaly": 0.0074
      },
      {
       "access": {
@@ -6146,7 +6176,7 @@
        2.7
       ],
       "net_qaly_ci": [
-       0.0044,
+       0.0045,
        0.0075
       ],
       "notes": "Structured interval training once weekly, assumed to replace an easier cardio session rather than add volume. Modeled through modest CRF/VO2max utility, not a direct mortality claim.",
@@ -6155,7 +6185,7 @@
       "pricing_status": "free",
       "profile_effect_multiplier": 1.0,
       "public_lane": "consumer_public",
-      "qol_qaly": 0.0062,
+      "qol_qaly": 0.0063,
       "rankability_reason": null,
       "selected_in_frontier": false,
       "sleep_mortality_hr_multiplier": 1.0,
@@ -6166,7 +6196,7 @@
        "https://pubmed.ncbi.nlm.nih.gov/38599681/"
       ],
       "total_cost": 0.0,
-      "total_qaly": 0.0062
+      "total_qaly": 0.0063
      },
      {
       "access": {
@@ -6229,21 +6259,21 @@
       ],
       "category": "sleep_current",
       "cost_per_qaly": null,
-      "days": 1.1,
+      "days": 0.8,
       "display_category": "sleep",
       "exclusive_group": null,
       "harm_qaly": 0.0,
       "id": "head_elevation_nightly",
       "interaction_tags": [],
-      "mort_qaly": 0.0009,
+      "mort_qaly": 0.0,
       "name": "Head elevation nightly",
       "net_days_ci": [
-       1.1,
-       1.2
+       0.8,
+       0.8
       ],
       "net_qaly_ci": [
-       0.0029,
-       0.0032
+       0.0021,
+       0.0021
       ],
       "notes": "Behavioral airway aid. Most plausible in positional or upper-airway-predominant sleep-disordered breathing.",
       "p_benefit": 1.0,
@@ -6254,14 +6284,14 @@
       "qol_qaly": 0.0002,
       "rankability_reason": null,
       "selected_in_frontier": true,
-      "sleep_mortality_hr_multiplier": 0.999682,
-      "sleep_mortality_relief_fraction": 0.0041,
-      "sleep_qol_qaly": 0.0019,
+      "sleep_mortality_hr_multiplier": 1.0,
+      "sleep_mortality_relief_fraction": 0.0,
+      "sleep_qol_qaly": 0.002,
       "sources": [
        "https://pubmed.ncbi.nlm.nih.gov/39347559/"
       ],
       "total_cost": 0.0,
-      "total_qaly": 0.003
+      "total_qaly": 0.0021
      },
      {
       "access": {
@@ -6324,22 +6354,22 @@
        "sleep_quality_support"
       ],
       "category": "sleep_current",
-      "cost_per_qaly": 95852.0,
-      "days": 3.3,
+      "cost_per_qaly": 136540.0,
+      "days": 2.3,
       "display_category": "sleep",
       "exclusive_group": null,
       "harm_qaly": 0.0,
       "id": "nasacort_nightly",
       "interaction_tags": [],
-      "mort_qaly": 0.0027,
+      "mort_qaly": 0.0,
       "name": "Nasacort nightly",
       "net_days_ci": [
-       3.1,
-       3.4
+       2.2,
+       2.4
       ],
       "net_qaly_ci": [
-       0.0085,
-       0.0094
+       0.0061,
+       0.0066
       ],
       "notes": "Best-supported for congestion-mediated sleep disturbance and as an adjunct in nasal-obstruction OSA phenotypes. Main benefit is upper-airway, not general prevention.",
       "p_benefit": 1.0,
@@ -6350,16 +6380,16 @@
       "qol_qaly": 0.0009,
       "rankability_reason": null,
       "selected_in_frontier": true,
-      "sleep_mortality_hr_multiplier": 0.999102,
-      "sleep_mortality_relief_fraction": 0.0115,
-      "sleep_qol_qaly": 0.0054,
+      "sleep_mortality_hr_multiplier": 1.0,
+      "sleep_mortality_relief_fraction": 0.0,
+      "sleep_qol_qaly": 0.0055,
       "sources": [
        "https://pubmed.ncbi.nlm.nih.gov/9042068/",
        "https://pubmed.ncbi.nlm.nih.gov/30154874/",
        "https://pubmed.ncbi.nlm.nih.gov/15124166/"
       ],
-      "total_cost": 857.5,
-      "total_qaly": 0.0089
+      "total_cost": 870.82,
+      "total_qaly": 0.0064
      },
      {
       "access": {
@@ -6377,22 +6407,22 @@
        "sleep_daytime_support"
       ],
       "category": "sleep_candidate",
-      "cost_per_qaly": 110334.0,
-      "days": 9.5,
+      "cost_per_qaly": 161508.0,
+      "days": 6.6,
       "display_category": "sleep",
       "exclusive_group": "osa_primary_therapy",
       "harm_qaly": 0.0,
       "id": "apap_nightly",
       "interaction_tags": [],
-      "mort_qaly": 0.0082,
+      "mort_qaly": 0.0,
       "name": "APAP nightly",
       "net_days_ci": [
-       8.8,
-       10.1
+       6.5,
+       6.6
       ],
       "net_qaly_ci": [
-       0.0242,
-       0.0277
+       0.0178,
+       0.0182
       ],
       "notes": "Modeled as the strongest pre-diagnosis airway intervention candidate. No direct mortality term; benefit comes through sleep-burden and sleep-mortality relief.",
       "p_benefit": 1.0,
@@ -6403,15 +6433,15 @@
       "qol_qaly": 0.001,
       "rankability_reason": null,
       "selected_in_frontier": true,
-      "sleep_mortality_hr_multiplier": 0.997235,
-      "sleep_mortality_relief_fraction": 0.0353,
-      "sleep_qol_qaly": 0.0167,
+      "sleep_mortality_hr_multiplier": 1.0,
+      "sleep_mortality_relief_fraction": 0.0,
+      "sleep_qol_qaly": 0.017,
       "sources": [
        "https://aasm.org/wp-content/uploads/2019/11/Treatment-OSA-with-PAP-Patient-Guide.pdf",
        "https://pubmed.ncbi.nlm.nih.gov/30736887/"
       ],
-      "total_cost": 2861.22,
-      "total_qaly": 0.0259
+      "total_cost": 2902.75,
+      "total_qaly": 0.018
      },
      {
       "access": {
@@ -6429,22 +6459,22 @@
        "sleep_daytime_support"
       ],
       "category": "sleep_candidate",
-      "cost_per_qaly": 207240.0,
-      "days": 6.3,
+      "cost_per_qaly": 301563.0,
+      "days": 4.4,
       "display_category": "sleep",
       "exclusive_group": "osa_primary_therapy",
       "harm_qaly": 0.0,
       "id": "oral_appliance_custom",
       "interaction_tags": [],
-      "mort_qaly": 0.0054,
+      "mort_qaly": 0.0,
       "name": "Custom oral appliance",
       "net_days_ci": [
-       5.9,
-       6.8
+       4.3,
+       4.5
       ],
       "net_qaly_ci": [
-       0.0162,
-       0.0185
+       0.0118,
+       0.0122
       ],
       "notes": "Custom mandibular advancement device, annualized over replacement and follow-up. Typically less effective than PAP but often easier to tolerate.",
       "p_benefit": 1.0,
@@ -6455,15 +6485,15 @@
       "qol_qaly": 0.0009,
       "rankability_reason": null,
       "selected_in_frontier": false,
-      "sleep_mortality_hr_multiplier": 0.998184,
-      "sleep_mortality_relief_fraction": 0.0232,
-      "sleep_qol_qaly": 0.011,
+      "sleep_mortality_hr_multiplier": 1.0,
+      "sleep_mortality_relief_fraction": 0.0,
+      "sleep_qol_qaly": 0.0112,
       "sources": [
        "https://aasm.org/aasm-and-aadsm-issue-new-joint-clinical-practice-guideline-for-oral-appliance-therapy/",
        "https://pubmed.ncbi.nlm.nih.gov/26094920/"
       ],
-      "total_cost": 3574.7,
-      "total_qaly": 0.0172
+      "total_cost": 3628.43,
+      "total_qaly": 0.012
      },
      {
       "access": {
@@ -6479,22 +6509,22 @@
        "sleep_quality_support"
       ],
       "category": "sleep_current",
-      "cost_per_qaly": 215749.0,
-      "days": 2.2,
+      "cost_per_qaly": 310762.0,
+      "days": 1.5,
       "display_category": "sleep",
       "exclusive_group": null,
       "harm_qaly": 0.0,
       "id": "nasal_strips_nightly",
       "interaction_tags": [],
-      "mort_qaly": 0.0018,
+      "mort_qaly": 0.0,
       "name": "Nasal strips nightly",
       "net_days_ci": [
-       2.0,
-       2.3
+       1.5,
+       1.6
       ],
       "net_qaly_ci": [
-       0.0056,
-       0.0063
+       0.0041,
+       0.0043
       ],
       "notes": "Primarily a subjective nasal-congestion and snoring aid. Helps when the problem is upper-airway narrowing, but usually not a large standalone OSA treatment.",
       "p_benefit": 1.0,
@@ -6505,14 +6535,14 @@
       "qol_qaly": 0.0004,
       "rankability_reason": null,
       "selected_in_frontier": true,
-      "sleep_mortality_hr_multiplier": 0.999386,
-      "sleep_mortality_relief_fraction": 0.0078,
-      "sleep_qol_qaly": 0.0037,
+      "sleep_mortality_hr_multiplier": 1.0,
+      "sleep_mortality_relief_fraction": 0.0,
+      "sleep_qol_qaly": 0.0038,
       "sources": [
        "https://pubmed.ncbi.nlm.nih.gov/30154874/"
       ],
-      "total_cost": 1286.06,
-      "total_qaly": 0.006
+      "total_cost": 1306.24,
+      "total_qaly": 0.0042
      },
      {
       "access": {
@@ -6529,22 +6559,22 @@
        "sleep_quality_support"
       ],
       "category": "sleep_candidate",
-      "cost_per_qaly": 899673.0,
+      "cost_per_qaly": 1267970.0,
       "days": 0.2,
       "display_category": "sleep",
       "exclusive_group": null,
       "harm_qaly": 0.0,
       "id": "humidifier_nightly",
       "interaction_tags": [],
-      "mort_qaly": 0.0002,
+      "mort_qaly": 0.0,
       "name": "Humidifier nightly",
       "net_days_ci": [
-       0.2,
-       0.3
+       0.1,
+       0.2
       ],
       "net_qaly_ci": [
-       0.0006,
-       0.0007
+       0.0004,
+       0.0005
       ],
       "notes": "Modeled as a small dryness / nasal-comfort intervention, not a meaningful standalone OSA treatment. Best case is low ambient humidity or waking with dry irritated nasal passages.",
       "p_benefit": 1.0,
@@ -6555,20 +6585,20 @@
       "qol_qaly": 0.0001,
       "rankability_reason": null,
       "selected_in_frontier": true,
-      "sleep_mortality_hr_multiplier": 0.999938,
-      "sleep_mortality_relief_fraction": 0.0008,
+      "sleep_mortality_hr_multiplier": 1.0,
+      "sleep_mortality_relief_fraction": 0.0,
       "sleep_qol_qaly": 0.0004,
       "sources": [
        "https://www.aaaai.org/tools-for-the-public/conditions-library/allergies/humidifiers-and-indoor-allergies",
        "https://www.epa.gov/mold/mold-course-chapter-2",
        "https://pubmed.ncbi.nlm.nih.gov/3348500/"
       ],
-      "total_cost": 571.41,
-      "total_qaly": 0.0006
+      "total_cost": 580.55,
+      "total_qaly": 0.0005
      }
     ],
     "meta": {
-     "analyzed_count": 92,
+     "analyzed_count": 94,
      "cost_discount_rate": 0.03,
      "n_simulations": 32,
      "positive_count": 12,
@@ -7082,6 +7112,14 @@
        "condition": null,
        "display_category": "sleep",
        "explicitly_excluded": false,
+       "id": "eight_sleep_pod6_upgrade",
+       "lane": "personal_only",
+       "name": "Eight Sleep Pod 6 upgrade"
+      },
+      {
+       "condition": null,
+       "display_category": "sleep",
+       "explicitly_excluded": false,
        "id": "lemborexant_5mg",
        "lane": "personal_only",
        "name": "Lemborexant 5mg"
@@ -7333,6 +7371,14 @@
        "id": "l_theanine_200",
        "lane": "personal_only",
        "name": "L-Theanine 200mg"
+      },
+      {
+       "condition": null,
+       "display_category": "supplement",
+       "explicitly_excluded": false,
+       "id": "l_theanine_200_bedtime",
+       "lane": "personal_only",
+       "name": "L-Theanine 200mg bedtime"
       },
       {
        "condition": null,
@@ -7628,7 +7674,7 @@
        "condition_ids": [],
        "description": "Current-stack, diagnosis-specific, or clinician-mediated items that stay out of the generic public frontier.",
        "id": "personal_only",
-       "item_count": 77,
+       "item_count": 79,
        "item_ids": [
         "17a_estradiol",
         "acarbose_50mg",
@@ -7651,6 +7697,7 @@
         "daridorexant_25mg",
         "doxepin_3mg",
         "egcg_400",
+        "eight_sleep_pod6_upgrade",
         "empagliflozin",
         "ergothioneine_5",
         "finasteride_1.25mg",
@@ -7667,6 +7714,7 @@
         "infrared_sauna_4x_week",
         "l_lysine_1000",
         "l_theanine_200",
+        "l_theanine_200_bedtime",
         "lemborexant_5mg",
         "lions_mane_1g",
         "lithium_1mg_orotate",
@@ -7736,7 +7784,7 @@
       "quality": 0.0,
       "regularity": 0.0
      },
-     "mortality_signal": 0.645
+     "mortality_signal": 0.4
     }
    }
   },
@@ -7850,7 +7898,7 @@
           },
           "annual_cost": 0.0,
           "cost_per_qaly": null,
-          "days": 1.0,
+          "days": 0.6,
           "id": "head_elevation_nightly",
           "name": "Head elevation nightly",
           "p_benefit": 1.0,
@@ -7864,8 +7912,8 @@
            "tier": "otc"
           },
           "annual_cost": 180.0,
-          "cost_per_qaly": 85769.0,
-          "days": 2.0,
+          "cost_per_qaly": 147894.0,
+          "days": 1.2,
           "id": "nasal_strips_nightly",
           "name": "Nasal strips nightly",
           "p_benefit": 1.0,
@@ -7879,8 +7927,8 @@
            "tier": "otc"
           },
           "annual_cost": 120.0,
-          "cost_per_qaly": 40928.0,
-          "days": 2.8,
+          "cost_per_qaly": 69934.0,
+          "days": 1.7,
           "id": "nasacort_nightly",
           "name": "Nasacort nightly",
           "p_benefit": 1.0,
@@ -7894,8 +7942,8 @@
            "tier": "cash_pay"
           },
           "annual_cost": 80.0,
-          "cost_per_qaly": 391811.0,
-          "days": 0.2,
+          "cost_per_qaly": 664382.0,
+          "days": 0.1,
           "id": "humidifier_nightly",
           "name": "Humidifier nightly",
           "p_benefit": 1.0,
@@ -7905,17 +7953,17 @@
         "id": "combined_airway_support",
         "label": "Combine elevation, strips, Nasacort, and humidifier",
         "marginal_annual_cost": 380,
-        "marginal_cost_per_qaly": 80000,
-        "marginal_cost_value": 976,
-        "marginal_days": 4.5,
-        "marginal_qaly": 0.0122,
+        "marginal_cost_per_qaly": 136216,
+        "marginal_cost_value": 1008,
+        "marginal_days": 2.7,
+        "marginal_qaly": 0.0074,
         "stack": {
-         "adjusted_days": 4.5,
-         "adjusted_qaly": 0.0122,
-         "base_days": 5.9,
-         "base_qaly": 0.0163,
-         "interaction_penalty_days": -1.5,
-         "interaction_penalty_qaly": -0.0041,
+         "adjusted_days": 2.7,
+         "adjusted_qaly": 0.0074,
+         "base_days": 3.6,
+         "base_qaly": 0.0098,
+         "interaction_penalty_days": -0.9,
+         "interaction_penalty_qaly": -0.0024,
          "item_ids": [
           "head_elevation_nightly",
           "nasal_strips_nightly",
@@ -7923,7 +7971,7 @@
           "humidifier_nightly"
          ],
          "total_annual_cost": 380,
-         "total_cost_value": 976
+         "total_cost_value": 1008
         }
        },
        {
@@ -7953,8 +8001,8 @@
            "tier": "otc"
           },
           "annual_cost": 120.0,
-          "cost_per_qaly": 40928.0,
-          "days": 2.8,
+          "cost_per_qaly": 69934.0,
+          "days": 1.7,
           "id": "nasacort_nightly",
           "name": "Nasacort nightly",
           "p_benefit": 1.0,
@@ -7964,22 +8012,22 @@
         "id": "nasacort_nightly",
         "label": "Use Nasacort",
         "marginal_annual_cost": 120,
-        "marginal_cost_per_qaly": 41067,
-        "marginal_cost_value": 308,
-        "marginal_days": 2.7,
-        "marginal_qaly": 0.0075,
+        "marginal_cost_per_qaly": 69130,
+        "marginal_cost_value": 318,
+        "marginal_days": 1.7,
+        "marginal_qaly": 0.0046,
         "stack": {
-         "adjusted_days": 2.8,
-         "adjusted_qaly": 0.0075,
-         "base_days": 2.8,
-         "base_qaly": 0.0075,
+         "adjusted_days": 1.7,
+         "adjusted_qaly": 0.0046,
+         "base_days": 1.7,
+         "base_qaly": 0.0046,
          "interaction_penalty_days": 0.0,
          "interaction_penalty_qaly": 0.0,
          "item_ids": [
           "nasacort_nightly"
          ],
          "total_annual_cost": 120,
-         "total_cost_value": 308
+         "total_cost_value": 318
         }
        },
        {
@@ -8009,8 +8057,8 @@
            "tier": "otc"
           },
           "annual_cost": 180.0,
-          "cost_per_qaly": 85769.0,
-          "days": 2.0,
+          "cost_per_qaly": 147894.0,
+          "days": 1.2,
           "id": "nasal_strips_nightly",
           "name": "Nasal strips nightly",
           "p_benefit": 1.0,
@@ -8020,22 +8068,22 @@
         "id": "nasal_strips_nightly",
         "label": "Use nasal strips",
         "marginal_annual_cost": 180,
-        "marginal_cost_per_qaly": 85741,
-        "marginal_cost_value": 463,
-        "marginal_days": 2.0,
-        "marginal_qaly": 0.0054,
+        "marginal_cost_per_qaly": 149375,
+        "marginal_cost_value": 478,
+        "marginal_days": 1.2,
+        "marginal_qaly": 0.0032,
         "stack": {
-         "adjusted_days": 2.0,
-         "adjusted_qaly": 0.0054,
-         "base_days": 2.0,
-         "base_qaly": 0.0054,
+         "adjusted_days": 1.2,
+         "adjusted_qaly": 0.0032,
+         "base_days": 1.2,
+         "base_qaly": 0.0032,
          "interaction_penalty_days": 0.0,
          "interaction_penalty_qaly": 0.0,
          "item_ids": [
           "nasal_strips_nightly"
          ],
          "total_annual_cost": 180,
-         "total_cost_value": 463
+         "total_cost_value": 478
         }
        },
        {
@@ -8066,7 +8114,7 @@
           },
           "annual_cost": 0.0,
           "cost_per_qaly": null,
-          "days": 1.0,
+          "days": 0.6,
           "id": "head_elevation_nightly",
           "name": "Head elevation nightly",
           "p_benefit": 1.0,
@@ -8078,13 +8126,13 @@
         "marginal_annual_cost": 0,
         "marginal_cost_per_qaly": 0,
         "marginal_cost_value": 0,
-        "marginal_days": 1.0,
-        "marginal_qaly": 0.0028,
+        "marginal_days": 0.6,
+        "marginal_qaly": 0.0017,
         "stack": {
-         "adjusted_days": 1.0,
-         "adjusted_qaly": 0.0028,
-         "base_days": 1.0,
-         "base_qaly": 0.0028,
+         "adjusted_days": 0.6,
+         "adjusted_qaly": 0.0017,
+         "base_days": 0.6,
+         "base_qaly": 0.0017,
          "interaction_penalty_days": 0.0,
          "interaction_penalty_qaly": 0.0,
          "item_ids": [
@@ -8121,8 +8169,8 @@
            "tier": "cash_pay"
           },
           "annual_cost": 80.0,
-          "cost_per_qaly": 391811.0,
-          "days": 0.2,
+          "cost_per_qaly": 664382.0,
+          "days": 0.1,
           "id": "humidifier_nightly",
           "name": "Humidifier nightly",
           "p_benefit": 1.0,
@@ -8132,22 +8180,22 @@
         "id": "humidifier_nightly",
         "label": "Use humidifier",
         "marginal_annual_cost": 80,
-        "marginal_cost_per_qaly": 410000,
-        "marginal_cost_value": 205,
-        "marginal_days": 0.2,
-        "marginal_qaly": 0.0005,
+        "marginal_cost_per_qaly": 706667,
+        "marginal_cost_value": 212,
+        "marginal_days": 0.1,
+        "marginal_qaly": 0.0003,
         "stack": {
-         "adjusted_days": 0.2,
-         "adjusted_qaly": 0.0005,
-         "base_days": 0.2,
-         "base_qaly": 0.0005,
+         "adjusted_days": 0.1,
+         "adjusted_qaly": 0.0003,
+         "base_days": 0.1,
+         "base_qaly": 0.0003,
          "interaction_penalty_days": 0.0,
          "interaction_penalty_qaly": 0.0,
          "item_ids": [
           "humidifier_nightly"
          ],
          "total_annual_cost": 80,
-         "total_cost_value": 205
+         "total_cost_value": 212
         }
        },
        {
@@ -8227,8 +8275,8 @@
            "tier": "dme_rx"
           },
           "annual_cost": 400.0,
-          "cost_per_qaly": 42669.0,
-          "days": 8.8,
+          "cost_per_qaly": 74283.0,
+          "days": 5.2,
           "id": "apap_nightly",
           "name": "APAP nightly",
           "p_benefit": 1.0,
@@ -8238,22 +8286,22 @@
         "id": "apap_nightly",
         "label": "Start APAP",
         "marginal_annual_cost": 400,
-        "marginal_cost_per_qaly": 42645,
-        "marginal_cost_value": 1032,
-        "marginal_days": 8.8,
-        "marginal_qaly": 0.0242,
+        "marginal_cost_per_qaly": 74196,
+        "marginal_cost_value": 1061,
+        "marginal_days": 5.2,
+        "marginal_qaly": 0.0143,
         "stack": {
-         "adjusted_days": 8.8,
-         "adjusted_qaly": 0.0242,
-         "base_days": 8.8,
-         "base_qaly": 0.0242,
+         "adjusted_days": 5.2,
+         "adjusted_qaly": 0.0143,
+         "base_days": 5.2,
+         "base_qaly": 0.0143,
          "interaction_penalty_days": 0.0,
          "interaction_penalty_qaly": 0.0,
          "item_ids": [
           "apap_nightly"
          ],
          "total_annual_cost": 400,
-         "total_cost_value": 1032
+         "total_cost_value": 1061
         }
        },
        {
@@ -8283,8 +8331,8 @@
            "tier": "specialist_device"
           },
           "annual_cost": 500.0,
-          "cost_per_qaly": 80614.0,
-          "days": 5.8,
+          "cost_per_qaly": 139875.0,
+          "days": 3.5,
           "id": "oral_appliance_custom",
           "name": "Custom oral appliance",
           "p_benefit": 1.0,
@@ -8294,22 +8342,22 @@
         "id": "oral_appliance_custom",
         "label": "Start custom oral appliance",
         "marginal_annual_cost": 500,
-        "marginal_cost_per_qaly": 80500,
-        "marginal_cost_value": 1288,
-        "marginal_days": 5.8,
-        "marginal_qaly": 0.016,
+        "marginal_cost_per_qaly": 139684,
+        "marginal_cost_value": 1327,
+        "marginal_days": 3.5,
+        "marginal_qaly": 0.0095,
         "stack": {
-         "adjusted_days": 5.8,
-         "adjusted_qaly": 0.016,
-         "base_days": 5.8,
-         "base_qaly": 0.016,
+         "adjusted_days": 3.5,
+         "adjusted_qaly": 0.0095,
+         "base_days": 3.5,
+         "base_qaly": 0.0095,
          "interaction_penalty_days": 0.0,
          "interaction_penalty_qaly": 0.0,
          "item_ids": [
           "oral_appliance_custom"
          ],
          "total_annual_cost": 500,
-         "total_cost_value": 1288
+         "total_cost_value": 1327
         }
        },
        {
@@ -8352,9 +8400,9 @@
       "interaction_penalty_qaly": 0.0,
       "marginal_cost_per_qaly": 0.0,
       "marginal_cost_value": 0.0,
-      "marginal_days": 1.1,
+      "marginal_days": 0.6,
       "marginal_interaction_qaly": 0.0,
-      "marginal_qaly": 0.0029,
+      "marginal_qaly": 0.0017,
       "selected_interventions": [
        "statin_5mg",
        "hiit_2x_week",
@@ -8362,9 +8410,9 @@
       ],
       "step": 1,
       "total_annual_cost": 120.0,
-      "total_cost_value": 341.41,
-      "total_days": 83.3,
-      "total_qaly": 0.228
+      "total_cost_value": 352.64,
+      "total_days": 84.8,
+      "total_qaly": 0.2322
      },
      {
       "added_intervention": "strength_maintenance",
@@ -8384,20 +8432,20 @@
       ],
       "step": 2,
       "total_annual_cost": 120.0,
-      "total_cost_value": 341.41,
-      "total_days": 83.5,
-      "total_qaly": 0.2285
+      "total_cost_value": 352.64,
+      "total_days": 85.0,
+      "total_qaly": 0.2327
      },
      {
       "added_intervention": "metformin_500mg",
       "added_name": "Metformin",
-      "interaction_penalty_days": -10.7,
-      "interaction_penalty_qaly": -0.0294,
-      "marginal_cost_per_qaly": 1694.0,
-      "marginal_cost_value": 129.0,
-      "marginal_days": 27.8,
-      "marginal_interaction_qaly": -0.0294,
-      "marginal_qaly": 0.0762,
+      "interaction_penalty_days": -11.0,
+      "interaction_penalty_qaly": -0.0301,
+      "marginal_cost_per_qaly": 1713.0,
+      "marginal_cost_value": 133.3,
+      "marginal_days": 28.4,
+      "marginal_interaction_qaly": -0.0301,
+      "marginal_qaly": 0.0778,
       "selected_interventions": [
        "statin_5mg",
        "hiit_2x_week",
@@ -8407,139 +8455,139 @@
       ],
       "step": 3,
       "total_annual_cost": 168.0,
-      "total_cost_value": 470.41,
-      "total_days": 111.3,
-      "total_qaly": 0.3047
-     },
-     {
-      "added_intervention": "apap_nightly",
-      "added_name": "APAP nightly",
-      "interaction_penalty_days": -11.2,
-      "interaction_penalty_qaly": -0.0306,
-      "marginal_cost_per_qaly": 42841.0,
-      "marginal_cost_value": 1031.8,
-      "marginal_days": 8.8,
-      "marginal_interaction_qaly": -0.0013,
-      "marginal_qaly": 0.0241,
-      "selected_interventions": [
-       "statin_5mg",
-       "hiit_2x_week",
-       "head_elevation_nightly",
-       "strength_maintenance",
-       "metformin_500mg",
-       "apap_nightly"
-      ],
-      "step": 4,
-      "total_annual_cost": 568.0,
-      "total_cost_value": 1502.21,
-      "total_days": 120.1,
-      "total_qaly": 0.3288
+      "total_cost_value": 485.95,
+      "total_days": 113.4,
+      "total_qaly": 0.3106
      },
      {
       "added_intervention": "semaglutide",
       "added_name": "GLP-1 RA",
-      "interaction_penalty_days": -42.6,
-      "interaction_penalty_qaly": -0.1165,
-      "marginal_cost_per_qaly": 61622.0,
-      "marginal_cost_value": 17909.13,
-      "marginal_days": 106.2,
-      "marginal_interaction_qaly": -0.0859,
-      "marginal_qaly": 0.2906,
+      "interaction_penalty_days": -43.1,
+      "interaction_penalty_qaly": -0.118,
+      "marginal_cost_per_qaly": 62684.0,
+      "marginal_cost_value": 18490.47,
+      "marginal_days": 107.7,
+      "marginal_interaction_qaly": -0.088,
+      "marginal_qaly": 0.295,
       "selected_interventions": [
        "statin_5mg",
        "hiit_2x_week",
        "head_elevation_nightly",
        "strength_maintenance",
        "metformin_500mg",
-       "apap_nightly",
        "semaglutide"
+      ],
+      "step": 4,
+      "total_annual_cost": 6168.0,
+      "total_cost_value": 18976.42,
+      "total_days": 221.2,
+      "total_qaly": 0.6055
+     },
+     {
+      "added_intervention": "apap_nightly",
+      "added_name": "APAP nightly",
+      "interaction_penalty_days": -43.4,
+      "interaction_penalty_qaly": -0.1188,
+      "marginal_cost_per_qaly": 78439.0,
+      "marginal_cost_value": 1061.45,
+      "marginal_days": 4.9,
+      "marginal_interaction_qaly": -0.0008,
+      "marginal_qaly": 0.0135,
+      "selected_interventions": [
+       "statin_5mg",
+       "hiit_2x_week",
+       "head_elevation_nightly",
+       "strength_maintenance",
+       "metformin_500mg",
+       "semaglutide",
+       "apap_nightly"
       ],
       "step": 5,
       "total_annual_cost": 6568.0,
-      "total_cost_value": 19411.34,
-      "total_days": 226.2,
-      "total_qaly": 0.6194
+      "total_cost_value": 20037.87,
+      "total_days": 226.1,
+      "total_qaly": 0.6191
      },
      {
       "added_intervention": "nasacort_nightly",
       "added_name": "Nasacort nightly",
-      "interaction_penalty_days": -44.1,
-      "interaction_penalty_qaly": -0.1206,
-      "marginal_cost_per_qaly": 73734.0,
-      "marginal_cost_value": 308.5,
-      "marginal_days": 1.5,
-      "marginal_interaction_qaly": -0.0041,
-      "marginal_qaly": 0.0042,
+      "interaction_penalty_days": -44.3,
+      "interaction_penalty_qaly": -0.1213,
+      "marginal_cost_per_qaly": 152823.0,
+      "marginal_cost_value": 318.44,
+      "marginal_days": 0.8,
+      "marginal_interaction_qaly": -0.0025,
+      "marginal_qaly": 0.0021,
       "selected_interventions": [
        "statin_5mg",
        "hiit_2x_week",
        "head_elevation_nightly",
        "strength_maintenance",
        "metformin_500mg",
-       "apap_nightly",
        "semaglutide",
+       "apap_nightly",
        "nasacort_nightly"
       ],
       "step": 6,
       "total_annual_cost": 6688.0,
-      "total_cost_value": 19719.83,
-      "total_days": 227.8,
-      "total_qaly": 0.6236
+      "total_cost_value": 20356.3,
+      "total_days": 226.9,
+      "total_qaly": 0.6211
      },
      {
       "added_intervention": "nasal_strips_nightly",
       "added_name": "Nasal strips nightly",
-      "interaction_penalty_days": -45.4,
-      "interaction_penalty_qaly": -0.1244,
-      "marginal_cost_per_qaly": 214092.0,
-      "marginal_cost_value": 462.56,
-      "marginal_days": 0.8,
-      "marginal_interaction_qaly": -0.0038,
-      "marginal_qaly": 0.0022,
+      "interaction_penalty_days": -45.1,
+      "interaction_penalty_qaly": -0.1235,
+      "marginal_cost_per_qaly": 492981.0,
+      "marginal_cost_value": 477.65,
+      "marginal_days": 0.4,
+      "marginal_interaction_qaly": -0.0023,
+      "marginal_qaly": 0.001,
       "selected_interventions": [
        "statin_5mg",
        "hiit_2x_week",
        "head_elevation_nightly",
        "strength_maintenance",
        "metformin_500mg",
-       "apap_nightly",
        "semaglutide",
+       "apap_nightly",
        "nasacort_nightly",
        "nasal_strips_nightly"
       ],
       "step": 7,
       "total_annual_cost": 6868.0,
-      "total_cost_value": 20182.39,
-      "total_days": 228.5,
-      "total_qaly": 0.6257
+      "total_cost_value": 20833.95,
+      "total_days": 227.2,
+      "total_qaly": 0.6221
      },
      {
       "added_intervention": "humidifier_nightly",
       "added_name": "Humidifier nightly",
-      "interaction_penalty_days": -45.6,
-      "interaction_penalty_qaly": -0.1248,
-      "marginal_cost_per_qaly": 1575776.0,
-      "marginal_cost_value": 205.38,
+      "interaction_penalty_days": -45.2,
+      "interaction_penalty_qaly": -0.1238,
+      "marginal_cost_per_qaly": 4429214.0,
+      "marginal_cost_value": 212.29,
       "marginal_days": 0.0,
-      "marginal_interaction_qaly": -0.0004,
-      "marginal_qaly": 0.0001,
+      "marginal_interaction_qaly": -0.0003,
+      "marginal_qaly": 0.0,
       "selected_interventions": [
        "statin_5mg",
        "hiit_2x_week",
        "head_elevation_nightly",
        "strength_maintenance",
        "metformin_500mg",
-       "apap_nightly",
        "semaglutide",
+       "apap_nightly",
        "nasacort_nightly",
        "nasal_strips_nightly",
        "humidifier_nightly"
       ],
       "step": 8,
       "total_annual_cost": 6948.0,
-      "total_cost_value": 20387.77,
-      "total_days": 228.6,
-      "total_qaly": 0.6259
+      "total_cost_value": 21046.24,
+      "total_days": 227.2,
+      "total_qaly": 0.6222
      }
     ],
     "items": [
@@ -8565,11 +8613,11 @@
       "name": "HIIT 2x/week",
       "net_days_ci": [
        1.1,
-       1.7
+       1.8
       ],
       "net_qaly_ci": [
-       0.003,
-       0.0047
+       0.0031,
+       0.0049
       ],
       "notes": "Structured interval training twice weekly, assumed to replace easier cardio. Modeled as a somewhat larger CRF stimulus with diminishing marginal return.",
       "p_benefit": 1.0,
@@ -8577,7 +8625,7 @@
       "pricing_status": "free",
       "profile_effect_multiplier": 1.0,
       "public_lane": "consumer_public",
-      "qol_qaly": 0.004,
+      "qol_qaly": 0.0041,
       "rankability_reason": null,
       "selected_in_frontier": true,
       "sleep_mortality_hr_multiplier": 1.0,
@@ -8589,7 +8637,7 @@
        "https://pubmed.ncbi.nlm.nih.gov/40976973/"
       ],
       "total_cost": 0.0,
-      "total_qaly": 0.004
+      "total_qaly": 0.0041
      },
      {
       "access": {
@@ -8616,8 +8664,8 @@
        1.5
       ],
       "net_qaly_ci": [
-       0.0024,
-       0.004
+       0.0025,
+       0.0041
       ],
       "notes": "Three structured interval sessions weekly, assumed to replace easier cardio. Modeled with extra recovery uncertainty and a small recurring downside because current frequency evidence suggests no clear added benefit over 2x/week in recreational runners.",
       "p_benefit": 1.0,
@@ -8625,7 +8673,7 @@
       "pricing_status": "free",
       "profile_effect_multiplier": 1.0,
       "public_lane": "consumer_public",
-      "qol_qaly": 0.0032,
+      "qol_qaly": 0.0033,
       "rankability_reason": null,
       "selected_in_frontier": false,
       "sleep_mortality_hr_multiplier": 1.0,
@@ -8637,7 +8685,7 @@
        "https://pubmed.ncbi.nlm.nih.gov/40976973/"
       ],
       "total_cost": 0.0,
-      "total_qaly": 0.0032
+      "total_qaly": 0.0033
      },
      {
       "access": {
@@ -8651,7 +8699,7 @@
       "benefit_tags": [],
       "category": "supplement_candidate",
       "cost_per_qaly": null,
-      "days": 1.0,
+      "days": 1.1,
       "display_category": "exercise",
       "exclusive_group": "cardio_mode",
       "harm_qaly": 0.0,
@@ -8660,12 +8708,12 @@
       "mort_qaly": 0.0,
       "name": "Tempo run 1x/week",
       "net_days_ci": [
-       0.7,
+       0.8,
        1.2
       ],
       "net_qaly_ci": [
-       0.002,
-       0.0033
+       0.0021,
+       0.0034
       ],
       "notes": "One threshold/tempo-style run weekly, assumed to replace easier cardio. Modeled as intermediate between easy cardio and HIIT for CRF benefit.",
       "p_benefit": 1.0,
@@ -8673,7 +8721,7 @@
       "pricing_status": "free",
       "profile_effect_multiplier": 1.0,
       "public_lane": "consumer_public",
-      "qol_qaly": 0.0029,
+      "qol_qaly": 0.003,
       "rankability_reason": null,
       "selected_in_frontier": false,
       "sleep_mortality_hr_multiplier": 1.0,
@@ -8684,56 +8732,7 @@
        "https://pubmed.ncbi.nlm.nih.gov/38599681/"
       ],
       "total_cost": 0.0,
-      "total_qaly": 0.0029
-     },
-     {
-      "access": {
-       "coverage_outlook": "na",
-       "friction": "low",
-       "notes": "Behavioral setup change. No prescription or purchase barrier if you already have the hardware.",
-       "tier": "behavioral"
-      },
-      "airway_effect_multiplier": 0.63,
-      "annual_cost": 0.0,
-      "benefit_tags": [
-       "sleep_breathing_support",
-       "sleep_continuity_support"
-      ],
-      "category": "sleep_current",
-      "cost_per_qaly": null,
-      "days": 1.0,
-      "display_category": "sleep",
-      "exclusive_group": null,
-      "harm_qaly": 0.0,
-      "id": "head_elevation_nightly",
-      "interaction_tags": [],
-      "mort_qaly": 0.0012,
-      "name": "Head elevation nightly",
-      "net_days_ci": [
-       0.9,
-       1.1
-      ],
-      "net_qaly_ci": [
-       0.0026,
-       0.0031
-      ],
-      "notes": "Behavioral airway aid. Most plausible in positional or upper-airway-predominant sleep-disordered breathing.",
-      "p_benefit": 1.0,
-      "p_harm": 0.0,
-      "pricing_status": "free",
-      "profile_effect_multiplier": 1.0,
-      "public_lane": "conditional_public",
-      "qol_qaly": 0.0001,
-      "rankability_reason": null,
-      "selected_in_frontier": true,
-      "sleep_mortality_hr_multiplier": 0.999276,
-      "sleep_mortality_relief_fraction": 0.0079,
-      "sleep_qol_qaly": 0.0016,
-      "sources": [
-       "https://pubmed.ncbi.nlm.nih.gov/39347559/"
-      ],
-      "total_cost": 0.0,
-      "total_qaly": 0.0028
+      "total_qaly": 0.003
      },
      {
       "access": {
@@ -8756,12 +8755,12 @@
       "mort_qaly": 0.0,
       "name": "HIIT 1x/week",
       "net_days_ci": [
-       0.6,
+       0.7,
        1.1
       ],
       "net_qaly_ci": [
-       0.0017,
-       0.0029
+       0.0018,
+       0.003
       ],
       "notes": "Structured interval training once weekly, assumed to replace an easier cardio session rather than add volume. Modeled through modest CRF/VO2max utility, not a direct mortality claim.",
       "p_benefit": 1.0,
@@ -8769,7 +8768,7 @@
       "pricing_status": "free",
       "profile_effect_multiplier": 1.0,
       "public_lane": "consumer_public",
-      "qol_qaly": 0.0024,
+      "qol_qaly": 0.0025,
       "rankability_reason": null,
       "selected_in_frontier": false,
       "sleep_mortality_hr_multiplier": 1.0,
@@ -8780,7 +8779,7 @@
        "https://pubmed.ncbi.nlm.nih.gov/38599681/"
       ],
       "total_cost": 0.0,
-      "total_qaly": 0.0024
+      "total_qaly": 0.0025
      },
      {
       "access": {
@@ -8804,11 +8803,11 @@
       "name": "Zone 2 cardio 2x/week",
       "net_days_ci": [
        0.5,
-       0.7
+       0.8
       ],
       "net_qaly_ci": [
        0.0014,
-       0.002
+       0.0021
       ],
       "notes": "Two structured low-to-moderate intensity cardio sessions weekly, assumed to replace unstructured easier running. Modeled as a small CRF and recovery-positive intervention.",
       "p_benefit": 1.0,
@@ -8816,7 +8815,7 @@
       "pricing_status": "free",
       "profile_effect_multiplier": 1.0,
       "public_lane": "consumer_public",
-      "qol_qaly": 0.0017,
+      "qol_qaly": 0.0018,
       "rankability_reason": null,
       "selected_in_frontier": false,
       "sleep_mortality_hr_multiplier": 1.0,
@@ -8824,6 +8823,55 @@
       "sleep_qol_qaly": 0.0,
       "sources": [
        "https://pubmed.ncbi.nlm.nih.gov/38599681/"
+      ],
+      "total_cost": 0.0,
+      "total_qaly": 0.0018
+     },
+     {
+      "access": {
+       "coverage_outlook": "na",
+       "friction": "low",
+       "notes": "Behavioral setup change. No prescription or purchase barrier if you already have the hardware.",
+       "tier": "behavioral"
+      },
+      "airway_effect_multiplier": 0.63,
+      "annual_cost": 0.0,
+      "benefit_tags": [
+       "sleep_breathing_support",
+       "sleep_continuity_support"
+      ],
+      "category": "sleep_current",
+      "cost_per_qaly": null,
+      "days": 0.6,
+      "display_category": "sleep",
+      "exclusive_group": null,
+      "harm_qaly": 0.0,
+      "id": "head_elevation_nightly",
+      "interaction_tags": [],
+      "mort_qaly": 0.0,
+      "name": "Head elevation nightly",
+      "net_days_ci": [
+       0.6,
+       0.6
+      ],
+      "net_qaly_ci": [
+       0.0017,
+       0.0017
+      ],
+      "notes": "Behavioral airway aid. Most plausible in positional or upper-airway-predominant sleep-disordered breathing.",
+      "p_benefit": 1.0,
+      "p_harm": 0.0,
+      "pricing_status": "free",
+      "profile_effect_multiplier": 1.0,
+      "public_lane": "conditional_public",
+      "qol_qaly": 0.0001,
+      "rankability_reason": null,
+      "selected_in_frontier": true,
+      "sleep_mortality_hr_multiplier": 1.0,
+      "sleep_mortality_relief_fraction": 0.0,
+      "sleep_qol_qaly": 0.0016,
+      "sources": [
+       "https://pubmed.ncbi.nlm.nih.gov/39347559/"
       ],
       "total_cost": 0.0,
       "total_qaly": 0.0017
@@ -8849,12 +8897,12 @@
       "mort_qaly": 0.0,
       "name": "Strength maintenance",
       "net_days_ci": [
-       0.1,
-       0.2
+       0.2,
+       0.3
       ],
       "net_qaly_ci": [
-       0.0004,
-       0.0006
+       0.0005,
+       0.0007
       ],
       "notes": "Structured resistance training intended to preserve strength. Modeled conservatively because its marginal value depends heavily on the training already in your routine.",
       "p_benefit": 1.0,
@@ -8887,22 +8935,22 @@
        "cardiometabolic_support"
       ],
       "category": "rx_candidate",
-      "cost_per_qaly": 1318.0,
-      "days": 35.8,
+      "cost_per_qaly": 1330.0,
+      "days": 36.6,
       "display_category": "rx",
       "exclusive_group": null,
       "harm_qaly": 0.0,
       "id": "metformin_500mg",
       "interaction_tags": [],
-      "mort_qaly": 0.0979,
+      "mort_qaly": 0.1003,
       "name": "Metformin",
       "net_days_ci": [
-       -24.3,
-       91.5
+       -24.9,
+       93.7
       ],
       "net_qaly_ci": [
-       -0.0665,
-       0.2506
+       -0.0682,
+       0.2566
       ],
       "notes": "Bannister 2014: diabetics on metformin outlived controls. TAME pending.",
       "p_benefit": 0.69,
@@ -8917,8 +8965,8 @@
       "sleep_mortality_relief_fraction": 0.0,
       "sleep_qol_qaly": 0.0,
       "sources": [],
-      "total_cost": 129.0,
-      "total_qaly": 0.0979
+      "total_cost": 133.3,
+      "total_qaly": 0.1003
      },
      {
       "access": {
@@ -8933,22 +8981,22 @@
        "cardiometabolic_support"
       ],
       "category": "rx_candidate",
-      "cost_per_qaly": 1545.0,
-      "days": 80.7,
+      "cost_per_qaly": 1558.0,
+      "days": 82.7,
       "display_category": "rx",
       "exclusive_group": null,
       "harm_qaly": 0.0,
       "id": "statin_5mg",
       "interaction_tags": [],
-      "mort_qaly": 0.2264,
+      "mort_qaly": 0.2319,
       "name": "Statin",
       "net_days_ci": [
-       1.9,
-       170.1
+       2.0,
+       174.2
       ],
       "net_qaly_ci": [
-       0.0053,
-       0.4658
+       0.0054,
+       0.477
       ],
       "notes": "CTT meta: 21% CVD reduction per mmol/L LDL.",
       "p_benefit": 0.91,
@@ -8956,15 +9004,61 @@
       "pricing_status": "priced",
       "profile_effect_multiplier": 1.0,
       "public_lane": "conditional_public",
-      "qol_qaly": -0.0054,
+      "qol_qaly": -0.0056,
       "rankability_reason": null,
       "selected_in_frontier": true,
       "sleep_mortality_hr_multiplier": 1.0,
       "sleep_mortality_relief_fraction": 0.0,
       "sleep_qol_qaly": 0.0,
       "sources": [],
-      "total_cost": 341.41,
-      "total_qaly": 0.221
+      "total_cost": 352.64,
+      "total_qaly": 0.2263
+     },
+     {
+      "access": {
+       "coverage_outlook": "na",
+       "friction": "medium",
+       "notes": "",
+       "tier": "cash_pay"
+      },
+      "airway_effect_multiplier": 1.0,
+      "annual_cost": 6000.0,
+      "benefit_tags": [
+       "cardiometabolic_support"
+      ],
+      "category": "rx_candidate",
+      "cost_per_qaly": 53523.0,
+      "days": 126.2,
+      "display_category": "rx",
+      "exclusive_group": null,
+      "harm_qaly": -0.0122,
+      "id": "semaglutide",
+      "interaction_tags": [],
+      "mort_qaly": 0.3501,
+      "name": "GLP-1 RA",
+      "net_days_ci": [
+       9.1,
+       234.1
+      ],
+      "net_qaly_ci": [
+       0.025,
+       0.641
+      ],
+      "notes": "SELECT trial: HR 0.80 MACE in overweight/obesity with established CVD. Strong transport shrinkage applied for lean, low-risk profiles plus GI/gallbladder harms.",
+      "p_benefit": 0.97,
+      "p_harm": 0.03,
+      "pricing_status": "priced",
+      "profile_effect_multiplier": 1.0,
+      "public_lane": "conditional_public",
+      "qol_qaly": 0.0076,
+      "rankability_reason": null,
+      "selected_in_frontier": true,
+      "sleep_mortality_hr_multiplier": 1.0,
+      "sleep_mortality_relief_fraction": 0.0,
+      "sleep_qol_qaly": 0.0,
+      "sources": [],
+      "total_cost": 18490.47,
+      "total_qaly": 0.3455
      },
      {
       "access": {
@@ -8981,22 +9075,22 @@
        "sleep_quality_support"
       ],
       "category": "sleep_current",
-      "cost_per_qaly": 40928.0,
-      "days": 2.8,
+      "cost_per_qaly": 69934.0,
+      "days": 1.7,
       "display_category": "sleep",
       "exclusive_group": null,
       "harm_qaly": 0.0,
       "id": "nasacort_nightly",
       "interaction_tags": [],
-      "mort_qaly": 0.0031,
+      "mort_qaly": 0.0,
       "name": "Nasacort nightly",
       "net_days_ci": [
-       2.6,
-       3.0
+       1.6,
+       1.7
       ],
       "net_qaly_ci": [
-       0.007,
-       0.0081
+       0.0045,
+       0.0046
       ],
       "notes": "Best-supported for congestion-mediated sleep disturbance and as an adjunct in nasal-obstruction OSA phenotypes. Main benefit is upper-airway, not general prevention.",
       "p_benefit": 1.0,
@@ -9007,16 +9101,16 @@
       "qol_qaly": 0.0003,
       "rankability_reason": null,
       "selected_in_frontier": true,
-      "sleep_mortality_hr_multiplier": 0.998114,
-      "sleep_mortality_relief_fraction": 0.0207,
-      "sleep_qol_qaly": 0.0041,
+      "sleep_mortality_hr_multiplier": 1.0,
+      "sleep_mortality_relief_fraction": 0.0,
+      "sleep_qol_qaly": 0.0042,
       "sources": [
        "https://pubmed.ncbi.nlm.nih.gov/9042068/",
        "https://pubmed.ncbi.nlm.nih.gov/30154874/",
        "https://pubmed.ncbi.nlm.nih.gov/15124166/"
       ],
-      "total_cost": 308.5,
-      "total_qaly": 0.0075
+      "total_cost": 318.44,
+      "total_qaly": 0.0046
      },
      {
       "access": {
@@ -9034,22 +9128,22 @@
        "sleep_daytime_support"
       ],
       "category": "sleep_candidate",
-      "cost_per_qaly": 42669.0,
-      "days": 8.8,
+      "cost_per_qaly": 74283.0,
+      "days": 5.2,
       "display_category": "sleep",
       "exclusive_group": "osa_primary_therapy",
       "harm_qaly": 0.0,
       "id": "apap_nightly",
       "interaction_tags": [],
-      "mort_qaly": 0.0103,
+      "mort_qaly": 0.0,
       "name": "APAP nightly",
       "net_days_ci": [
-       8.1,
-       9.6
+       5.2,
+       5.3
       ],
       "net_qaly_ci": [
-       0.0223,
-       0.0262
+       0.0142,
+       0.0144
       ],
       "notes": "Modeled as the strongest pre-diagnosis airway intervention candidate. No direct mortality term; benefit comes through sleep-burden and sleep-mortality relief.",
       "p_benefit": 1.0,
@@ -9057,64 +9151,18 @@
       "pricing_status": "priced",
       "profile_effect_multiplier": 1.0,
       "public_lane": "conditional_public",
-      "qol_qaly": 0.0003,
-      "rankability_reason": null,
-      "selected_in_frontier": true,
-      "sleep_mortality_hr_multiplier": 0.993811,
-      "sleep_mortality_relief_fraction": 0.068,
-      "sleep_qol_qaly": 0.0135,
-      "sources": [
-       "https://aasm.org/wp-content/uploads/2019/11/Treatment-OSA-with-PAP-Patient-Guide.pdf",
-       "https://pubmed.ncbi.nlm.nih.gov/30736887/"
-      ],
-      "total_cost": 1031.8,
-      "total_qaly": 0.0242
-     },
-     {
-      "access": {
-       "coverage_outlook": "na",
-       "friction": "medium",
-       "notes": "",
-       "tier": "cash_pay"
-      },
-      "airway_effect_multiplier": 1.0,
-      "annual_cost": 6000.0,
-      "benefit_tags": [
-       "cardiometabolic_support"
-      ],
-      "category": "rx_candidate",
-      "cost_per_qaly": 53016.0,
-      "days": 123.4,
-      "display_category": "rx",
-      "exclusive_group": null,
-      "harm_qaly": -0.0115,
-      "id": "semaglutide",
-      "interaction_tags": [],
-      "mort_qaly": 0.342,
-      "name": "GLP-1 RA",
-      "net_days_ci": [
-       9.1,
-       228.8
-      ],
-      "net_qaly_ci": [
-       0.0248,
-       0.6265
-      ],
-      "notes": "SELECT trial: HR 0.80 MACE in overweight/obesity with established CVD. Strong transport shrinkage applied for lean, low-risk profiles plus GI/gallbladder harms.",
-      "p_benefit": 0.97,
-      "p_harm": 0.03,
-      "pricing_status": "priced",
-      "profile_effect_multiplier": 1.0,
-      "public_lane": "conditional_public",
-      "qol_qaly": 0.0073,
+      "qol_qaly": 0.0004,
       "rankability_reason": null,
       "selected_in_frontier": true,
       "sleep_mortality_hr_multiplier": 1.0,
       "sleep_mortality_relief_fraction": 0.0,
-      "sleep_qol_qaly": 0.0,
-      "sources": [],
-      "total_cost": 17909.13,
-      "total_qaly": 0.3378
+      "sleep_qol_qaly": 0.0139,
+      "sources": [
+       "https://aasm.org/wp-content/uploads/2019/11/Treatment-OSA-with-PAP-Patient-Guide.pdf",
+       "https://pubmed.ncbi.nlm.nih.gov/30736887/"
+      ],
+      "total_cost": 1061.45,
+      "total_qaly": 0.0143
      },
      {
       "access": {
@@ -9132,22 +9180,22 @@
        "sleep_daytime_support"
       ],
       "category": "sleep_candidate",
-      "cost_per_qaly": 80614.0,
-      "days": 5.8,
+      "cost_per_qaly": 139875.0,
+      "days": 3.5,
       "display_category": "sleep",
       "exclusive_group": "osa_primary_therapy",
       "harm_qaly": 0.0,
       "id": "oral_appliance_custom",
       "interaction_tags": [],
-      "mort_qaly": 0.0068,
+      "mort_qaly": 0.0,
       "name": "Custom oral appliance",
       "net_days_ci": [
-       5.4,
-       6.4
+       3.4,
+       3.5
       ],
       "net_qaly_ci": [
-       0.0147,
-       0.0174
+       0.0094,
+       0.0095
       ],
       "notes": "Custom mandibular advancement device, annualized over replacement and follow-up. Typically less effective than PAP but often easier to tolerate.",
       "p_benefit": 1.0,
@@ -9158,15 +9206,15 @@
       "qol_qaly": 0.0003,
       "rankability_reason": null,
       "selected_in_frontier": false,
-      "sleep_mortality_hr_multiplier": 0.995924,
-      "sleep_mortality_relief_fraction": 0.0448,
-      "sleep_qol_qaly": 0.0089,
+      "sleep_mortality_hr_multiplier": 1.0,
+      "sleep_mortality_relief_fraction": 0.0,
+      "sleep_qol_qaly": 0.0092,
       "sources": [
        "https://aasm.org/aasm-and-aadsm-issue-new-joint-clinical-practice-guideline-for-oral-appliance-therapy/",
        "https://pubmed.ncbi.nlm.nih.gov/26094920/"
       ],
-      "total_cost": 1287.61,
-      "total_qaly": 0.016
+      "total_cost": 1326.81,
+      "total_qaly": 0.0095
      },
      {
       "access": {
@@ -9182,22 +9230,22 @@
        "sleep_quality_support"
       ],
       "category": "sleep_current",
-      "cost_per_qaly": 85769.0,
-      "days": 2.0,
+      "cost_per_qaly": 147894.0,
+      "days": 1.2,
       "display_category": "sleep",
       "exclusive_group": null,
       "harm_qaly": 0.0,
       "id": "nasal_strips_nightly",
       "interaction_tags": [],
-      "mort_qaly": 0.0023,
+      "mort_qaly": 0.0,
       "name": "Nasal strips nightly",
       "net_days_ci": [
-       1.8,
-       2.1
+       1.2,
+       1.2
       ],
       "net_qaly_ci": [
-       0.005,
-       0.0058
+       0.0032,
+       0.0033
       ],
       "notes": "Primarily a subjective nasal-congestion and snoring aid. Helps when the problem is upper-airway narrowing, but usually not a large standalone OSA treatment.",
       "p_benefit": 1.0,
@@ -9208,14 +9256,14 @@
       "qol_qaly": 0.0002,
       "rankability_reason": null,
       "selected_in_frontier": true,
-      "sleep_mortality_hr_multiplier": 0.998632,
-      "sleep_mortality_relief_fraction": 0.015,
-      "sleep_qol_qaly": 0.003,
+      "sleep_mortality_hr_multiplier": 1.0,
+      "sleep_mortality_relief_fraction": 0.0,
+      "sleep_qol_qaly": 0.0031,
       "sources": [
        "https://pubmed.ncbi.nlm.nih.gov/30154874/"
       ],
-      "total_cost": 462.56,
-      "total_qaly": 0.0054
+      "total_cost": 477.65,
+      "total_qaly": 0.0032
      },
      {
       "access": {
@@ -9232,22 +9280,22 @@
        "sleep_quality_support"
       ],
       "category": "sleep_candidate",
-      "cost_per_qaly": 391811.0,
-      "days": 0.2,
+      "cost_per_qaly": 664382.0,
+      "days": 0.1,
       "display_category": "sleep",
       "exclusive_group": null,
       "harm_qaly": 0.0,
       "id": "humidifier_nightly",
       "interaction_tags": [],
-      "mort_qaly": 0.0002,
+      "mort_qaly": 0.0,
       "name": "Humidifier nightly",
       "net_days_ci": [
-       0.2,
-       0.2
+       0.1,
+       0.1
       ],
       "net_qaly_ci": [
-       0.0005,
-       0.0006
+       0.0003,
+       0.0003
       ],
       "notes": "Modeled as a small dryness / nasal-comfort intervention, not a meaningful standalone OSA treatment. Best case is low ambient humidity or waking with dry irritated nasal passages.",
       "p_benefit": 1.0,
@@ -9258,20 +9306,20 @@
       "qol_qaly": 0.0,
       "rankability_reason": null,
       "selected_in_frontier": true,
-      "sleep_mortality_hr_multiplier": 0.99987,
-      "sleep_mortality_relief_fraction": 0.0014,
+      "sleep_mortality_hr_multiplier": 1.0,
+      "sleep_mortality_relief_fraction": 0.0,
       "sleep_qol_qaly": 0.0003,
       "sources": [
        "https://www.aaaai.org/tools-for-the-public/conditions-library/allergies/humidifiers-and-indoor-allergies",
        "https://www.epa.gov/mold/mold-course-chapter-2",
        "https://pubmed.ncbi.nlm.nih.gov/3348500/"
       ],
-      "total_cost": 205.38,
-      "total_qaly": 0.0005
+      "total_cost": 212.29,
+      "total_qaly": 0.0003
      }
     ],
     "meta": {
-     "analyzed_count": 92,
+     "analyzed_count": 94,
      "cost_discount_rate": 0.03,
      "n_simulations": 32,
      "positive_count": 15,
@@ -9785,6 +9833,14 @@
        "condition": null,
        "display_category": "sleep",
        "explicitly_excluded": false,
+       "id": "eight_sleep_pod6_upgrade",
+       "lane": "personal_only",
+       "name": "Eight Sleep Pod 6 upgrade"
+      },
+      {
+       "condition": null,
+       "display_category": "sleep",
+       "explicitly_excluded": false,
        "id": "lemborexant_5mg",
        "lane": "personal_only",
        "name": "Lemborexant 5mg"
@@ -10036,6 +10092,14 @@
        "id": "l_theanine_200",
        "lane": "personal_only",
        "name": "L-Theanine 200mg"
+      },
+      {
+       "condition": null,
+       "display_category": "supplement",
+       "explicitly_excluded": false,
+       "id": "l_theanine_200_bedtime",
+       "lane": "personal_only",
+       "name": "L-Theanine 200mg bedtime"
       },
       {
        "condition": null,
@@ -10331,7 +10395,7 @@
        "condition_ids": [],
        "description": "Current-stack, diagnosis-specific, or clinician-mediated items that stay out of the generic public frontier.",
        "id": "personal_only",
-       "item_count": 77,
+       "item_count": 79,
        "item_ids": [
         "17a_estradiol",
         "acarbose_50mg",
@@ -10354,6 +10418,7 @@
         "daridorexant_25mg",
         "doxepin_3mg",
         "egcg_400",
+        "eight_sleep_pod6_upgrade",
         "empagliflozin",
         "ergothioneine_5",
         "finasteride_1.25mg",
@@ -10370,6 +10435,7 @@
         "infrared_sauna_4x_week",
         "l_lysine_1000",
         "l_theanine_200",
+        "l_theanine_200_bedtime",
         "lemborexant_5mg",
         "lions_mane_1g",
         "lithium_1mg_orotate",
@@ -10439,7 +10505,7 @@
       "quality": 0.0,
       "regularity": 0.0
      },
-     "mortality_signal": 0.75
+     "mortality_signal": 0.4
     }
    }
   },
@@ -10772,7 +10838,7 @@
      }
     ],
     "meta": {
-     "analyzed_count": 92,
+     "analyzed_count": 94,
      "cost_discount_rate": 0.03,
      "n_simulations": 32,
      "positive_count": 6,
@@ -11286,6 +11352,14 @@
        "condition": null,
        "display_category": "sleep",
        "explicitly_excluded": false,
+       "id": "eight_sleep_pod6_upgrade",
+       "lane": "personal_only",
+       "name": "Eight Sleep Pod 6 upgrade"
+      },
+      {
+       "condition": null,
+       "display_category": "sleep",
+       "explicitly_excluded": false,
        "id": "lemborexant_5mg",
        "lane": "personal_only",
        "name": "Lemborexant 5mg"
@@ -11537,6 +11611,14 @@
        "id": "l_theanine_200",
        "lane": "personal_only",
        "name": "L-Theanine 200mg"
+      },
+      {
+       "condition": null,
+       "display_category": "supplement",
+       "explicitly_excluded": false,
+       "id": "l_theanine_200_bedtime",
+       "lane": "personal_only",
+       "name": "L-Theanine 200mg bedtime"
       },
       {
        "condition": null,
@@ -11832,7 +11914,7 @@
        "condition_ids": [],
        "description": "Current-stack, diagnosis-specific, or clinician-mediated items that stay out of the generic public frontier.",
        "id": "personal_only",
-       "item_count": 77,
+       "item_count": 79,
        "item_ids": [
         "17a_estradiol",
         "acarbose_50mg",
@@ -11855,6 +11937,7 @@
         "daridorexant_25mg",
         "doxepin_3mg",
         "egcg_400",
+        "eight_sleep_pod6_upgrade",
         "empagliflozin",
         "ergothioneine_5",
         "finasteride_1.25mg",
@@ -11871,6 +11954,7 @@
         "infrared_sauna_4x_week",
         "l_lysine_1000",
         "l_theanine_200",
+        "l_theanine_200_bedtime",
         "lemborexant_5mg",
         "lions_mane_1g",
         "lithium_1mg_orotate",
