@@ -346,6 +346,40 @@ def estimate_combined_qaly_from_singles(
 # =============================================================================
 # OPTIMAL PORTFOLIO SELECTION
 # =============================================================================
+#
+# Every greedy optimizer below scans its candidates in sorted-id order and
+# replaces the incumbent best only on a strict improvement, so an exact tie
+# goes to the first id in sorted order. (Scanning the candidate set directly
+# let ties, and through interactions and exclusive groups the final totals,
+# depend on PYTHONHASHSEED.) Each optimizer also accepts ``exclusive_groups``
+# mapping an id to a mutually exclusive group: a candidate is skipped while
+# another member of its group is selected, preselected members included.
+
+
+def _taken_exclusive_groups(
+    item_ids: List[str],
+    exclusive_groups: Optional[Dict[str, str]],
+) -> set[str]:
+    """Exclusive groups already represented among ``item_ids``."""
+    if not exclusive_groups:
+        return set()
+    return {
+        exclusive_groups[item_id]
+        for item_id in item_ids
+        if exclusive_groups.get(item_id)
+    }
+
+
+def _blocked_by_exclusive_group(
+    candidate_id: str,
+    taken_groups: set[str],
+    exclusive_groups: Optional[Dict[str, str]],
+) -> bool:
+    """Whether another member of ``candidate_id``'s group is already selected."""
+    if not exclusive_groups:
+        return False
+    group = exclusive_groups.get(candidate_id)
+    return bool(group) and group in taken_groups
 
 
 def find_optimal_portfolio(
@@ -353,12 +387,14 @@ def find_optimal_portfolio(
     profile: Profile,
     max_interventions: int = 5,
     precomputed_qalys: Optional[Dict[str, float]] = None,
+    exclusive_groups: Optional[Dict[str, str]] = None,
 ) -> List[Tuple[List[str], float]]:
     """
     Find the optimal portfolio of interventions by marginal QALY gain.
 
     Uses greedy selection: at each step, add the intervention with
-    highest marginal QALY gain given what's already selected.
+    highest marginal QALY gain given what's already selected. Exact ties go
+    to the first id in sorted order.
 
     Args:
         interventions: Available interventions
@@ -367,6 +403,8 @@ def find_optimal_portfolio(
             `preselected` is provided, these are additions beyond the
             preselected base state.
         precomputed_qalys: Optional precomputed single QALYs (faster)
+        exclusive_groups: Optional map from intervention ID to a mutually
+            exclusive group; at most one member of a group is selected.
 
     Returns:
         List of (intervention_ids, cumulative_qaly) tuples for each step
@@ -401,7 +439,10 @@ def find_optimal_portfolio(
             else 0.0
         )
 
-        for int_id in available:
+        taken_groups = _taken_exclusive_groups(selected, exclusive_groups)
+        for int_id in sorted(available):
+            if _blocked_by_exclusive_group(int_id, taken_groups, exclusive_groups):
+                continue
             candidate = selected + [int_id]
             candidate_total = estimate_combined_qaly_from_singles(
                 precomputed_qalys,
@@ -458,6 +499,7 @@ def find_optimal_portfolio_with_costs(
     item_mortality_hrs: Optional[Dict[str, float]] = None,
     item_qol_qalys: Optional[Dict[str, float]] = None,
     mortality_qaly_fn: Optional[Callable[[float], float]] = None,
+    exclusive_groups: Optional[Dict[str, str]] = None,
 ) -> List[Dict]:
     """
     Find optimal portfolio using cost-aware greedy selection.
@@ -474,7 +516,8 @@ def find_optimal_portfolio_with_costs(
     - Explicit stack interaction penalties on the QALY side
     - Monetary cost vs willingness-to-pay
 
-    Stops when no intervention has positive marginal net value.
+    Stops when no intervention has positive marginal net value. Exact ties in
+    marginal net value go to the first id in sorted order.
 
     Args:
         single_qalys: Dict mapping intervention ID to single QALY gain
@@ -493,6 +536,9 @@ def find_optimal_portfolio_with_costs(
             charged again.
         total_annual_cost_fn: Optional callback returning actual annual spend for
             the selected stack.
+        exclusive_groups: Optional map from intervention ID to a mutually
+            exclusive group. A candidate is skipped while another member of
+            its group is selected, preselected members included.
 
     Returns:
         List of dicts with step, added_intervention, marginal_qaly,
@@ -567,8 +613,11 @@ def find_optimal_portfolio_with_costs(
         )
         current_interaction_penalty = _interaction_penalty(selected)
         current_total_cost_value = _total_cost_value(selected)
+        taken_groups = _taken_exclusive_groups(selected, exclusive_groups)
 
-        for int_id in available:
+        for int_id in sorted(available):
+            if _blocked_by_exclusive_group(int_id, taken_groups, exclusive_groups):
+                continue
             candidate_selected = selected + [int_id]
             candidate_base_total_qaly = _base_total_qaly(candidate_selected)
             candidate_interaction_penalty = _interaction_penalty(candidate_selected)
@@ -654,7 +703,9 @@ def rank_interventions_by_marginal_cost_per_qaly(
     At each step, add the remaining intervention with the lowest positive
     marginal cost per QALY, after explicit interaction penalties and shared
     product pricing. Stop when no remaining intervention has positive marginal
-    QALY.
+    QALY. Equal ratios go to the larger marginal QALY; exact ties in both go
+    to the first id in sorted order. A candidate whose ``exclusive_groups``
+    group already has a selected member (preselected included) is skipped.
     """
     preselected = [
         item_id for item_id in (preselected or []) if item_id in single_qalys
@@ -711,13 +762,7 @@ def rank_interventions_by_marginal_cost_per_qaly(
         current_total_qaly = _base_total_qaly(selected) + _interaction_penalty(selected)
         current_interaction_penalty = _interaction_penalty(selected)
         current_total_cost_value = _total_cost_value(selected)
-        selected_exclusive_groups = {
-            exclusive_groups[item_id]
-            for item_id in selected
-            if exclusive_groups
-            and item_id in exclusive_groups
-            and exclusive_groups[item_id]
-        }
+        taken_groups = _taken_exclusive_groups(selected, exclusive_groups)
 
         best_id = None
         best_ratio = float("inf")
@@ -728,11 +773,9 @@ def rank_interventions_by_marginal_cost_per_qaly(
         best_total_cost_value = current_total_cost_value
         best_marginal_cost_value = 0.0
 
-        for int_id in available:
-            if exclusive_groups:
-                group = exclusive_groups.get(int_id)
-                if group and group in selected_exclusive_groups:
-                    continue
+        for int_id in sorted(available):
+            if _blocked_by_exclusive_group(int_id, taken_groups, exclusive_groups):
+                continue
             candidate_selected = selected + [int_id]
             candidate_base_total_qaly = _base_total_qaly(candidate_selected)
             candidate_interaction_penalty = _interaction_penalty(candidate_selected)
@@ -794,16 +837,20 @@ def find_optimal_portfolio_from_qalys(
     single_qalys: Dict[str, float],
     max_interventions: int = 10,
     exclude: Optional[List[str]] = None,
+    exclusive_groups: Optional[Dict[str, str]] = None,
 ) -> List[Dict]:
     """
     Find optimal portfolio using only precomputed QALYs (no Intervention objects needed).
 
-    Simplified version for frontend use.
+    Simplified version for frontend use. Exact ties in marginal QALY go to the
+    first id in sorted order.
 
     Args:
         single_qalys: Dict mapping intervention ID to single QALY gain
         max_interventions: Maximum portfolio size
         exclude: Intervention IDs to exclude (e.g., quit_smoking for never-smokers)
+        exclusive_groups: Optional map from intervention ID to a mutually
+            exclusive group; at most one member of a group is selected.
 
     Returns:
         List of dicts with step, added_intervention, marginal_qaly, total_qaly
@@ -832,7 +879,10 @@ def find_optimal_portfolio_from_qalys(
         best_marginal = -float("inf")
         best_total = 0.0
 
-        for int_id in available:
+        taken_groups = _taken_exclusive_groups(selected, exclusive_groups)
+        for int_id in sorted(available):
+            if _blocked_by_exclusive_group(int_id, taken_groups, exclusive_groups):
+                continue
             candidate = selected + [int_id]
             candidate_total = estimate_combined_qaly_from_singles(
                 single_qalys,
