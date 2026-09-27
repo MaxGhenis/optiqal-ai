@@ -1,8 +1,9 @@
 """
 Precomputation Module
 
-Generates precomputed QALY results for TypeScript web app.
-Run MCMC once, store results for fast client-side lookup.
+Runs the Monte Carlo engine over an intervention across a grid of ages, sexes
+or full profiles and writes the results as JSON. The output is a local
+artifact; the served routes call the engine live.
 """
 
 import json
@@ -19,13 +20,6 @@ from .simulate import (
     simulate_qaly,
     simulate_qaly_profile_vectorized,
 )
-
-try:
-    from .bayesian import run_mcmc
-
-    HAS_BAYESIAN = True
-except ImportError:
-    HAS_BAYESIAN = False
 
 
 @dataclass
@@ -57,7 +51,7 @@ class PrecomputedResult:
     # Metadata
     n_samples: int
     discount_rate: float
-    method: str  # "mcmc" or "monte_carlo"
+    method: str  # always "monte_carlo"
 
 
 @dataclass
@@ -81,7 +75,7 @@ class PrecomputedIntervention:
         return self.results.get(key)
 
     def to_json(self) -> str:
-        """Export as JSON for TypeScript consumption."""
+        """Export as JSON."""
         return json.dumps(asdict(self), indent=2)
 
     def save(self, path: Path):
@@ -114,9 +108,7 @@ def precompute_intervention(
     intervention: Intervention,
     ages: List[int] = [30, 40, 50, 60, 70],
     sexes: List[Literal["male", "female"]] = ["male", "female"],
-    use_mcmc: bool = True,
     n_samples: int = 2000,
-    chains: int = 4,
     discount_rate: float = DEFAULT_QALY_DISCOUNT_RATE,
     random_seed: Optional[int] = 42,
 ) -> PrecomputedIntervention:
@@ -127,9 +119,7 @@ def precompute_intervention(
         intervention: Intervention to precompute
         ages: Ages to compute for
         sexes: Sexes to compute for
-        use_mcmc: Use full MCMC (slower, more accurate) vs Monte Carlo
-        n_samples: Number of samples
-        chains: Number of MCMC chains (if use_mcmc)
+        n_samples: Number of Monte Carlo samples
         discount_rate: Annual QALY discount rate
         random_seed: Random seed for reproducibility
 
@@ -143,73 +133,35 @@ def precompute_intervention(
         for sex in sexes:
             key = f"{age}_{sex}"
 
-            if use_mcmc and HAS_BAYESIAN:
-                # Full MCMC
-                trace = run_mcmc(
-                    intervention,
-                    age=age,
-                    sex=sex,
-                    n_samples=n_samples,
-                    chains=chains,
-                    random_seed=random_seed,
-                )
+            sim_result = simulate_qaly(
+                intervention,
+                age=age,
+                sex=sex,
+                n_simulations=n_samples,
+                discount_rate=discount_rate,
+                random_state=random_seed,
+            )
 
-                qaly_samples = trace.posterior["qaly_gain"].values.flatten()
-                causal_samples = trace.posterior["causal_fraction"].values.flatten()
+            cf_ci = sim_result.causal_fraction_ci or (0, 1)
 
-                result = PrecomputedResult(
-                    age=age,
-                    sex=sex,
-                    qaly_median=float(np.median(qaly_samples)),
-                    qaly_mean=float(np.mean(qaly_samples)),
-                    qaly_ci95_low=float(np.percentile(qaly_samples, 2.5)),
-                    qaly_ci95_high=float(np.percentile(qaly_samples, 97.5)),
-                    cvd_contribution=0,  # Would need to track in MCMC
-                    cancer_contribution=0,
-                    other_contribution=0,
-                    life_years_gained=float(
-                        np.median(trace.posterior["life_years_gained"].values.flatten())
-                    ),
-                    causal_fraction_mean=float(np.mean(causal_samples)),
-                    causal_fraction_ci95_low=float(np.percentile(causal_samples, 2.5)),
-                    causal_fraction_ci95_high=float(
-                        np.percentile(causal_samples, 97.5)
-                    ),
-                    n_samples=n_samples * chains,
-                    discount_rate=discount_rate,
-                    method="mcmc",
-                )
-            else:
-                # Fast Monte Carlo
-                sim_result = simulate_qaly(
-                    intervention,
-                    age=age,
-                    sex=sex,
-                    n_simulations=n_samples,
-                    discount_rate=discount_rate,
-                    random_state=random_seed,
-                )
-
-                cf_ci = sim_result.causal_fraction_ci or (0, 1)
-
-                result = PrecomputedResult(
-                    age=age,
-                    sex=sex,
-                    qaly_median=sim_result.median,
-                    qaly_mean=sim_result.mean,
-                    qaly_ci95_low=sim_result.ci95[0],
-                    qaly_ci95_high=sim_result.ci95[1],
-                    cvd_contribution=sim_result.cvd_contribution,
-                    cancer_contribution=sim_result.cancer_contribution,
-                    other_contribution=sim_result.other_contribution,
-                    life_years_gained=sim_result.life_years_gained,
-                    causal_fraction_mean=sim_result.causal_fraction_mean or 1.0,
-                    causal_fraction_ci95_low=cf_ci[0],
-                    causal_fraction_ci95_high=cf_ci[1],
-                    n_samples=n_samples,
-                    discount_rate=discount_rate,
-                    method="monte_carlo",
-                )
+            result = PrecomputedResult(
+                age=age,
+                sex=sex,
+                qaly_median=sim_result.median,
+                qaly_mean=sim_result.mean,
+                qaly_ci95_low=sim_result.ci95[0],
+                qaly_ci95_high=sim_result.ci95[1],
+                cvd_contribution=sim_result.cvd_contribution,
+                cancer_contribution=sim_result.cancer_contribution,
+                other_contribution=sim_result.other_contribution,
+                life_years_gained=sim_result.life_years_gained,
+                causal_fraction_mean=sim_result.causal_fraction_mean or 1.0,
+                causal_fraction_ci95_low=cf_ci[0],
+                causal_fraction_ci95_high=cf_ci[1],
+                n_samples=n_samples,
+                discount_rate=discount_rate,
+                method="monte_carlo",
+            )
 
             results[key] = result
             all_qaly_gains.append(result.qaly_median)
@@ -344,7 +296,7 @@ class ProfilePrecomputedIntervention:
         return self.results.get(key)
 
     def to_json(self) -> str:
-        """Export as JSON for TypeScript consumption."""
+        """Export as JSON."""
         return json.dumps(asdict(self), indent=2)
 
     def save(self, path: Path):

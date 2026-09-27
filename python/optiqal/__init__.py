@@ -1,26 +1,21 @@
 """
-Optiqal - Bayesian QALY Estimation for Lifestyle Interventions
+Optiqal - QALY estimation for lifestyle interventions
 
-This package provides rigorous, evidence-based QALY calculations with:
-- Bayesian MCMC inference using PyMC
-- CDC life tables for survival modeling
+This package provides evidence-based QALY calculations with:
+- Monte Carlo simulation over priors for confounding, transport and harm
+- Committed life-table and quality-weight snapshots for survival modeling
 - Pathway decomposition (CVD, cancer, other)
-- Confounding adjustment with calibrated priors
 - Full uncertainty quantification
 
 Usage:
-    from optiqal import Intervention, LifecycleModel, run_mcmc
+    from optiqal import Intervention, LifecycleModel
 
-    # Load intervention from YAML
-    walking = Intervention.from_yaml("walking_30min_daily.yaml")
+    # Load a shipped intervention by id
+    walking = Intervention.packaged("walking_30min_daily")
 
-    # Quick Monte Carlo estimate
+    # Monte Carlo estimate
     result = walking.simulate(age=40, sex="male")
     print(f"QALY gain: {result.median:.2f} (95% CI: {result.ci95})")
-
-    # Full Bayesian MCMC
-    trace = run_mcmc(walking, n_samples=2000, chains=4)
-    print(f"Posterior mean: {trace.posterior['qaly_gain'].mean():.3f}")
 """
 
 __version__ = "0.1.0"
@@ -74,7 +69,13 @@ from .decision_states import (
     ordered_unique,
     summarize_stack_from_qalys,
 )
-from .intervention import HarmEffect, InteractionRule, Intervention
+from .intervention import (
+    INTERVENTIONS_DIR,
+    HarmEffect,
+    InteractionRule,
+    Intervention,
+    packaged_intervention_path,
+)
 from .lifecycle import CAUSE_FRACTIONS, CDC_LIFE_TABLE, LifecycleModel
 from .precompute import (
     PrecomputedResult,
@@ -165,6 +166,8 @@ __all__ = [
     "Intervention",
     "HarmEffect",
     "InteractionRule",
+    "INTERVENTIONS_DIR",
+    "packaged_intervention_path",
     "LifecycleModel",
     "CDC_LIFE_TABLE",
     "CAUSE_FRACTIONS",
@@ -285,11 +288,3 @@ __all__ = [
     "render_public_frontier_judge_prompt",
     "run_public_frontier_benchmark",
 ]
-
-
-# Lazy import for Bayesian module (requires optional dependencies)
-def run_mcmc(*args, **kwargs):
-    """Run MCMC inference. Requires optiqal[bayesian] installation."""
-    from .bayesian import run_mcmc as _run_mcmc
-
-    return _run_mcmc(*args, **kwargs)

@@ -3,8 +3,8 @@
 Precompute QALY results for all interventions.
 
 This script generates precomputed JSON files for all intervention YAML files
-in the src/lib/qaly/interventions/ directory. The results are saved to the
-public/precomputed/ directory for fast client-side lookup.
+in python/optiqal/data/interventions/. The output is a local artifact under
+build/precomputed/; nothing the site serves reads it.
 
 Usage:
     python scripts/precompute_all.py [--samples N] [--ages AGE1 AGE2 ...] [--dry-run]
@@ -75,8 +75,10 @@ def main():
     args = parser.parse_args()
 
     # Define paths
-    intervention_dir = project_root / "src" / "lib" / "qaly" / "interventions"
-    output_dir = project_root / "public" / "precomputed"
+    intervention_dir = (
+        project_root / "python" / "optiqal" / "data" / "interventions"
+    )
+    output_dir = project_root / "build" / "precomputed"
 
     # Validate intervention directory exists
     if not intervention_dir.exists():
@@ -114,7 +116,6 @@ def main():
             output_dir=output_dir,
             ages=args.ages,
             sexes=args.sexes,
-            use_mcmc=False,  # Use fast Monte Carlo
             n_samples=args.samples,
             discount_rate=args.discount_rate,
             random_seed=args.random_seed,

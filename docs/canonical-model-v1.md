@@ -6,13 +6,15 @@ It is intentionally separate from the current implementation. The point is to ma
 
 ## Why This Exists
 
-Optiqal currently has multiple overlapping estimation paths:
+When this note was written, Optiqal had multiple overlapping estimation paths:
 
 - TypeScript lifecycle Monte Carlo for product-serving estimates
 - Python Monte Carlo for catalog and stack analysis
 - Python PyMC MCMC for a narrower posterior workflow
 
-Those paths share ideas, but they do not yet share one explicit generative specification. Canonical Model V1 defines that specification.
+Those paths shared ideas, but they did not share one explicit generative specification. Canonical Model V1 defines that specification.
+
+Update, 2026-09-04 (rebuild PR B): only the second path is left. The TypeScript engine and the PyMC MCMC module were deleted, so the sections below that compare or reconcile them describe history, not the current code. The remaining engine is `python/optiqal/`, reached through `/api/baseline` and `/api/frontier`.
 
 ## Design Principles
 

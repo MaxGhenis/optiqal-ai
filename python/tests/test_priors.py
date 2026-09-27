@@ -21,7 +21,7 @@ from optiqal.confounding import (
     STUDY_QUALITY_SHRINKAGE,
     ConfoundingPrior,
 )
-from optiqal.intervention import Intervention
+from optiqal.intervention import INTERVENTIONS_DIR, Intervention
 from optiqal.priors import load_priors
 from optiqal.protocol_ground_up import StackSpec, make_spec
 from optiqal.qol_evidence import (
@@ -32,7 +32,7 @@ from optiqal.qol_evidence import (
 
 PYTHON_ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_PATH = Path(__file__).with_name("fixtures") / "priors_2026-09-04.json"
-SHIPPED_INTERVENTIONS = PYTHON_ROOT.parent / "src" / "lib" / "qaly" / "interventions"
+SHIPPED_INTERVENTIONS = INTERVENTIONS_DIR
 
 
 def _beta_values(rows: dict) -> dict[str, list[float]]:
@@ -227,7 +227,9 @@ def test_load_priors_rejects_malformed_values(
 
 
 def test_shipped_yaml_priors_resolve_to_registry() -> None:
-    for path in sorted(SHIPPED_INTERVENTIONS.glob("*.yaml")):
+    paths = sorted(SHIPPED_INTERVENTIONS.glob("*.yaml"))
+    assert paths, f"no intervention YAMLs under {SHIPPED_INTERVENTIONS}"
+    for path in paths:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
         if data["id"] not in INTERVENTION_PRIORS:
             continue

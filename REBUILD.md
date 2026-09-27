@@ -1,5 +1,8 @@
 # Optiqal rebuild charter
 
+> The lane briefs, progress logs and reports this file cites (`docs/rebuild/`, `PR_A_REPORT.md`, `FINAL_REPORT.md`) were removed from the tree when the rebuild merged to main; read them at commit `575b4e56`.
+
+
 Optiqal becomes one open Python engine fed by a fail-closed evidence table, emitting one
 content-hashed results file that every surface reads, with a scoreboard whose first rows count
 what is still unsourced. Everything that does not serve that object is deleted. This file is
@@ -277,3 +280,51 @@ quote was a substring of the abstract. No abstract text is committed. `--check` 
 each row's digest and fails on a mismatch, so an edited quote or a changed abstract is
 caught offline. `scripts/verify_evidence.py --refresh --abstracts-cache <path>` performs the
 same refresh from a local JSON abstract cache when a lane has no network.
+
+## PR B notes (2026-09-04)
+
+- Lane progress lives in `docs/rebuild/B-progress.md`, following PR E's rule that
+  the sibling lanes must not all write one root `PROGRESS.md`.
+- The ten shipped intervention YAMLs moved from `src/lib/qaly/interventions/` to
+  `python/optiqal/data/interventions/`. `intervention.py` gained
+  `INTERVENTIONS_DIR`, `packaged_intervention_path(id)` and
+  `Intervention.packaged(id)`; `from_yaml` had no default path to update, only a
+  docstring. PR A's drift glob in `tests/test_priors_drift.py` follows the new
+  directory. The table in the PR A notes above still cites the old path; it is
+  describing where those YAMLs were when PR A read them.
+- Three more readers of the old directory surfaced when B merged onto the D line:
+  D's `ratchets.DEFAULT_INTERVENTION_DIRECTORY`, D's `INTERVENTION_DIR` in
+  `tests/test_intervention.py`, and PR A's `SHIPPED_INTERVENTIONS` in
+  `tests/test_priors.py`, which B had missed. Against the deleted path the ratchet
+  saw no YAMLs and the priors test passed vacuously. All three now read
+  `intervention.INTERVENTIONS_DIR`, and the priors test asserts it found YAMLs.
+- `src/lib/qaly` (41 files after the YAML move), `src/lib/evidence` (11 files) and
+  `public/precomputed` (14 JSON files, 11 MB) are deleted. The only readers of
+  `/precomputed/*` anywhere were three modules inside those two directories.
+  `seedrandom` went with `src/lib/qaly/random.ts`. Web tests fall from 419 across
+  25 files to 43 across 8.
+- `bayesian.py`, `bayesian_updating.py`, `markov.py` and `population.py` are
+  deleted with their tests and `scripts/precompute_baseline_profiles.py`.
+  `precompute.py` lost its `use_mcmc` arm, `__init__.py` lost the lazy `run_mcmc`
+  export, and `pyproject.toml` lost the `bayesian` extra (pymc, pytensor, arviz
+  and xarray drop out of `uv.lock`). Python tests fall from 559 to 550: the
+  review restored four tests of the surviving profile multiplier that the lane
+  had deleted with the Markov file (see `docs/rebuild/B-progress.md`).
+- The 50 MB of raw MEPS parquet and `condition_joint_distribution.json` are gone
+  at `9bbbabaa`. History is not rewritten. `fetch_meps.py` and
+  `quality_weight_calibration.json` stay, and `.gitignore` now excludes
+  `python/optiqal/data/meps/*.parquet` so a refetch does not recommit them.
+- Behavior is unchanged: the frontier and baseline JSON for all fifteen canonical
+  scenarios are byte-identical before and after the whole branch.
+- Two things this lane found and recorded rather than fixed, because fixing them
+  moves served numbers and belongs to a later PR:
+  - `profile.get_baseline_mortality_multiplier` excludes diabetes and
+    hypertension. The stated reason was that `markov.HealthState` applied them.
+    It did not apply them for the served paths: `web_api.build_baseline_response`
+    applies both condition relative risks itself, while the `simulate.py` and
+    `stack_interactions.py` callers apply neither and never read
+    `profile.has_diabetes` or `profile.has_hypertension`.
+  - `docs/optiqal_results.py` holds hand-entered QALY literals originally
+    transcribed from the deleted TypeScript engine. Only the exercise prior is
+    read from `priors.yaml`. Nothing in the repository reproduces the rest. PR F
+    retires the paper.

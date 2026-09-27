@@ -1,7 +1,6 @@
 """Regressions for independent simulation streams and null mortality arms."""
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Optional, Union
 
 import numpy as np
@@ -10,17 +9,18 @@ import pytest
 from optiqal.analyzer import AnalysisConfig, Decision, analyze
 from optiqal.catalog import CATALOG
 from optiqal.confounding import ConfoundingPrior
-from optiqal.intervention import Distribution, Intervention, MortalityEffect
+from optiqal.intervention import (
+    Distribution,
+    Intervention,
+    MortalityEffect,
+    packaged_intervention_path,
+)
 from optiqal.lifecycle import QUALITY_WEIGHT_STD
 from optiqal.profile import Profile
 from optiqal.simulate import (
     simulate_qaly,
     simulate_qaly_profile,
     simulate_qaly_profile_vectorized,
-)
-
-INTERVENTIONS_DIR = (
-    Path(__file__).resolve().parents[2] / "src" / "lib" / "qaly" / "interventions"
 )
 
 #: Seeds at which the quality and log-hazard-ratio streams were formerly identical.
@@ -45,7 +45,7 @@ def default_profile() -> Profile:
 
 @pytest.fixture
 def walking() -> Intervention:
-    return Intervention.from_yaml(INTERVENTIONS_DIR / "walking_30min_daily.yaml")
+    return Intervention.from_yaml(packaged_intervention_path("walking_30min_daily"))
 
 
 @dataclass(frozen=True)

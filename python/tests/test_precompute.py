@@ -222,7 +222,6 @@ costs:
                 intervention,
                 ages=[40, 50],
                 sexes=["male"],
-                use_mcmc=False,
                 n_samples=100,  # Small for test speed
                 random_seed=42,
             )
@@ -315,7 +314,6 @@ mortality:
                 output_dir,
                 ages=[40],
                 sexes=["male"],
-                use_mcmc=False,
                 n_samples=100,
                 random_seed=42,
             )

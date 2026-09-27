@@ -82,6 +82,10 @@ This is stronger than:
 
 ## MVP scope
 
+Implementation status: the current product slice ranks additions by marginal cost-effectiveness
+against the user's stated routine. Removal and swap recommendations, burden-adjusted utility, and
+fully marginal uncertainty remain roadmap work.
+
 Include in v1:
 - Baseline profile estimation
 - Intervention ranking on a common QALY scale
@@ -149,25 +153,41 @@ This avoids false precision without introducing a brittle strong-versus-speculat
 - Penalize burden and cost explicitly
 - Make it easy to remove low-value habits or supplements, not just add more
 
-## Monetization
+## What ships
 
-Free:
-- Basic profile
-- Limited intervention comparisons
-- Public methodology and citations
+The product is the open engine and what it emits. There are no tiers.
 
-Paid individual:
-- Saved profile and stack
-- Lab and wearable imports
-- More interventions and swap analysis
-- Personalized rankings over time
-- Scenario planning and portfolio optimization
+Shipping today:
 
-Paid pro:
-- Coaching or clinician view
-- Shared plans
-- Client reports
-- White-label decision support
+- The engine: one Python package that computes a decision card for a
+  (profile, intervention) pair, reached through `/api/baseline` and
+  `/api/frontier`. Both routes compute each response on request; nothing is
+  precomputed into a results file.
+- The evidence table and its debt ledgers, in the repository rather than in the
+  served numbers. `python/optiqal/data/evidence/studies.yaml` (PR D) holds 48 study
+  rows, each with a DOI or PMID checked against a committed fixture, and the three
+  ratchet files under `python/optiqal/data/ratchets/` list what is still
+  unsourced (85 catalog claims), unverified (115 atoms) or hand-set (130 judgment
+  atoms). A test fails whenever those files drift from the live debt, so a
+  count cannot move silently. No served number reads a study row yet: the
+  routes still use the hazard ratios and priors typed into the catalog, and
+  frontier responses still include catalog items the unsourced-claims ratchet
+  lists.
+
+Charter deliverables, not yet built (see `REBUILD.md`):
+
+- Hazard ratios derived from the evidence table's rows instead of typed into the
+  catalog (the follow-on to PR D).
+- The results file: one content-hashed `results/cards.json` per commit that the
+  site, the methods note and any downstream surface all read (PR C).
+- The scoreboard: a public page with the ratchet counts, drift status and
+  reproduce-versus-published rows, published alongside the results rather than
+  behind them (PR F).
+- Rejection of unsourced cards: a card whose chain does not terminate in ground
+  truth is nulled and listed, not softened and served. This is the charter's
+  admissibility rule; no PR in the table implements it yet.
+
+Anyone can read the code and rerun the engine to get the same numbers.
 
 ## Go-to-market
 
@@ -182,7 +202,7 @@ Phase 2:
 - Expand into practitioner or coach workflows
 
 Phase 3:
-- Add team plans, clinician tooling, and enterprise distribution if the consumer layer proves sticky
+- Add clinician and coach tooling on the same open engine if the consumer layer proves sticky
 
 ## Success criteria
 

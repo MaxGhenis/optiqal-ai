@@ -19,7 +19,6 @@ Output:
 - data/nhanes/raw/*.XPT (cached NHANES files)
 - data/nhanes/processed.parquet (processed microdata)
 - data/nhanes/calibration.json (calibration factors)
-- src/lib/evidence/baseline/calibration.ts (TypeScript export)
 
 Usage:
     python scripts/calibrate_nhanes.py
@@ -66,7 +65,9 @@ NHANES_FILES = {
     "P_BPQ": "https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/2017/DataFiles/P_BPQ.xpt",
 }
 
-# Hazard ratios matching TypeScript code (src/lib/evidence/baseline/index.ts)
+# Hazard ratios transcribed from the former TypeScript baseline module,
+# deleted in rebuild PR B. The Python engine's own copies live in
+# optiqal/profile.py and optiqal/web_api.py.
 HAZARD_RATIOS = {
     "bmi": {
         "underweight": 1.51,  # BMI <18.5
@@ -303,7 +304,7 @@ def compute_exercise_hours_per_week(row: pd.Series) -> float:
 
 
 def classify_bmi(bmi: float) -> str:
-    """Classify BMI into categories matching TypeScript code."""
+    """Classify BMI into the categories the engine uses."""
     if pd.isna(bmi):
         return "normal"  # Default assumption
     if bmi < 18.5:
@@ -320,7 +321,7 @@ def classify_bmi(bmi: float) -> str:
 
 
 def classify_exercise(hours_per_week: float) -> str:
-    """Classify exercise level matching TypeScript code."""
+    """Classify exercise level into the categories the engine uses."""
     if pd.isna(hours_per_week) or hours_per_week == 0:
         return "none"
     if hours_per_week < 2.5:
@@ -333,7 +334,7 @@ def classify_exercise(hours_per_week: float) -> str:
 
 
 def classify_sleep(hours_per_night: float) -> str:
-    """Classify sleep duration matching TypeScript code."""
+    """Classify sleep duration into the categories the engine uses."""
     if pd.isna(hours_per_night):
         return "normal"  # Default assumption
     if hours_per_night < 6:
@@ -584,159 +585,6 @@ def compute_calibration_factors(df: pd.DataFrame) -> Dict:
 # Output Generation
 # =============================================================================
 
-def generate_typescript_file(calibration: Dict, output_path: Path):
-    """
-    Generate TypeScript file exporting calibration factors.
-
-    The TypeScript code will use these to adjust baseline life expectancy:
-    adjusted_baseline = life_table_LE * (1 / calibration_factor) * individual_HR
-
-    This ensures population average matches life tables while still allowing
-    individual variation.
-    """
-    ts_content = '''/**
- * NHANES Calibration Factors for Baseline QALY Calculation
- *
- * Generated from NHANES 2017-March 2020 (pre-pandemic) microdata.
- *
- * These factors represent the expected population-level hazard ratio (HR)
- * for mortality risk factors. Life tables already include people with
- * conditions like smoking, obesity, diabetes, etc. To avoid double-counting
- * when applying individual HRs, we calibrate:
- *
- * adjusted_individual_HR = individual_HR / population_HR
- *
- * This ensures that:
- * - A person with average risk factors gets the life table expectancy
- * - A person with below-average risk gets longer expectancy
- * - A person with above-average risk gets shorter expectancy
- *
- * Usage:
- *   const calibrationFactor = getCalibrationFactor(age, sex);
- *   const adjustedHR = individualHR / calibrationFactor;
- *   const adjustedLE = baselineLE * hrToLifeExpectancyMultiplier(adjustedHR);
- */
-
-export interface CalibrationData {
-  weightedMeanHR: number;
-  n: number;
-}
-
-/**
- * Calibration factors by age group and sex.
- * Key format: "ageStart-ageEnd" -> { male: CalibrationData, female: CalibrationData }
- */
-export const CALIBRATION_BY_AGE_SEX: Record<
-  string,
-  Record<"male" | "female", CalibrationData>
-> = '''
-
-    # Format the by_age_sex data
-    by_age_sex_formatted = {}
-    for age_group, sex_data in calibration["by_age_sex"].items():
-        by_age_sex_formatted[age_group] = {}
-        for sex, data in sex_data.items():
-            by_age_sex_formatted[age_group][sex] = {
-                "weightedMeanHR": data["weighted_mean_hr"],
-                "n": data["n"],
-            }
-
-    ts_content += json.dumps(by_age_sex_formatted, indent=2) + ";\n\n"
-
-    ts_content += '''/**
- * Overall calibration factors by sex only.
- */
-export const CALIBRATION_BY_SEX: Record<"male" | "female", CalibrationData> = '''
-
-    by_sex_formatted = {}
-    for sex, data in calibration["by_sex"].items():
-        by_sex_formatted[sex] = {
-            "weightedMeanHR": data["weighted_mean_hr"],
-            "n": data["n"],
-        }
-
-    ts_content += json.dumps(by_sex_formatted, indent=2) + ";\n\n"
-
-    ts_content += f'''/**
- * Overall population calibration factor.
- */
-export const CALIBRATION_OVERALL: CalibrationData = {{
-  weightedMeanHR: {calibration["overall"]["weighted_mean_hr"]},
-  n: {calibration["overall"]["n"]},
-}};
-
-/**
- * Age group boundaries for lookup.
- */
-const AGE_GROUP_BOUNDS: Array<[number, number, string]> = [
-  [18, 24, "18-24"],
-  [25, 34, "25-34"],
-  [35, 44, "35-44"],
-  [45, 54, "45-54"],
-  [55, 64, "55-64"],
-  [65, 74, "65-74"],
-  [75, 84, "75-84"],
-  [85, 100, "85-100"],
-];
-
-/**
- * Get the age group string for a given age.
- */
-function getAgeGroup(age: number): string | null {{
-  for (const [min, max, group] of AGE_GROUP_BOUNDS) {{
-    if (age >= min && age <= max) {{
-      return group;
-    }}
-  }}
-  return null;
-}}
-
-/**
- * Get the calibration factor (expected population HR) for a given age and sex.
- *
- * @param age - Age in years (18+)
- * @param sex - "male" or "female"
- * @returns The weighted mean HR for this demographic, or overall if not found
- */
-export function getCalibrationFactor(
-  age: number,
-  sex: "male" | "female" | "other"
-): number {{
-  // Use binary sex for lookup (average for "other")
-  if (sex === "other") {{
-    const male = getCalibrationFactor(age, "male");
-    const female = getCalibrationFactor(age, "female");
-    return (male + female) / 2;
-  }}
-
-  const ageGroup = getAgeGroup(age);
-  if (ageGroup && CALIBRATION_BY_AGE_SEX[ageGroup]?.[sex]) {{
-    return CALIBRATION_BY_AGE_SEX[ageGroup][sex].weightedMeanHR;
-  }}
-
-  // Fallback to sex-only calibration
-  if (CALIBRATION_BY_SEX[sex]) {{
-    return CALIBRATION_BY_SEX[sex].weightedMeanHR;
-  }}
-
-  // Ultimate fallback
-  return CALIBRATION_OVERALL.weightedMeanHR;
-}}
-
-/**
- * Prevalence statistics from NHANES (for reference/validation).
- */
-export const POPULATION_PREVALENCE = '''
-
-    ts_content += json.dumps(calibration["prevalence"], indent=2) + ";\n"
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w") as f:
-        f.write(ts_content)
-
-    print(f"  Saved TypeScript file: {output_path}")
-
-
 def save_outputs(df: pd.DataFrame, calibration: Dict):
     """Save all output files."""
     print("\nSaving outputs...")
@@ -773,9 +621,6 @@ def save_outputs(df: pd.DataFrame, calibration: Dict):
         json.dump(calibration, f, indent=2)
     print(f"  Saved calibration factors: {calibration_path}")
 
-    # Generate TypeScript file
-    ts_path = REPO_ROOT / "src" / "lib" / "evidence" / "baseline" / "calibration.ts"
-    generate_typescript_file(calibration, ts_path)
 
 
 def print_summary(calibration: Dict):

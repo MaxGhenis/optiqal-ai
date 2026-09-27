@@ -6,7 +6,10 @@ This directory contains utility scripts for the Optiqal project.
 
 ### precompute_all.py
 
-Generates precomputed QALY results for all interventions defined in YAML files. This allows the web application to show instant results without running full simulations.
+Generates precomputed QALY results for every intervention YAML in
+`python/optiqal/data/interventions/`, as a local artifact. Nothing the site
+serves reads it; `/predict` and `/analyze` call the Python engine live through
+`/api/baseline` and `/api/frontier`.
 
 **Usage:**
 
@@ -31,12 +34,12 @@ python3 scripts/precompute_all.py --help
 ```
 
 **Output:**
-- Generates JSON files in `public/precomputed/`
+- Generates JSON files in `build/precomputed/` (gitignored)
 - One file per intervention (e.g., `walking_30min_daily.json`)
 - Each file contains results for all age/sex combinations
 
 **Performance:**
-- Uses fast Monte Carlo simulation (not MCMC)
+- Monte Carlo simulation over the priors registry
 - 5000 samples provides good precision in ~1-2 seconds per intervention
 - Total runtime scales linearly with number of interventions × age/sex combinations
 
@@ -61,16 +64,16 @@ python3 scripts/validate_precomputed.py
 
 When adding a new intervention or updating existing ones:
 
-1. Create/update the YAML file in `src/lib/qaly/interventions/`
+1. Create/update the YAML file in `python/optiqal/data/interventions/`
 2. Run precomputation: `python3 scripts/precompute_all.py`
 3. Validate output: `python3 scripts/validate_precomputed.py`
-4. Commit both YAML and generated JSON files
+4. Commit the YAML. The generated JSON is a local artifact and is not committed.
 
 ## File Structure
 
 ```
-src/lib/qaly/interventions/     # Input: Intervention YAML definitions
-public/precomputed/             # Output: Precomputed JSON results
+python/optiqal/data/interventions/  # Input: Intervention YAML definitions
+build/precomputed/                  # Output: local JSON, gitignored
 scripts/
   precompute_all.py            # Generate precomputed results
   validate_precomputed.py      # Validate JSON structure
@@ -144,6 +147,15 @@ export MODEL_PROTECTION_BYPASS_SECRET=...
 Preview deploys will fail fast if this variable is missing. Production deploys
 can use the public `https://optiqal-model.vercel.app` alias without a local
 bypass secret.
+
+Both commands refuse to run unless the checkout is clean and its commit is on
+`origin/main` (`scripts/deploy-guard.mjs`, tested by
+`scripts/deploy-guard.test.mjs`). "Clean" means `git status --porcelain
+--untracked-files=all` prints nothing, so an untracked file blocks the deploy
+too; ignored paths such as `.vercel/` and `node_modules/` do not. The script
+fetches `main` before checking, so a commit merged moments ago passes. There is
+no override: merge first, then deploy from a checkout of `main`. The JSON the
+script prints on success includes the deployed `commit`.
 
 Preview deploy and smoke test:
 

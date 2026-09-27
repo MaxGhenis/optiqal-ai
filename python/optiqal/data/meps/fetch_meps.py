@@ -15,6 +15,9 @@ Data sources:
 References:
 - Mapping SF-12 to EQ-5D: Franks et al. 2004, Med Care
   EQ-5D = 0.057867 + 0.010367*PCS + 0.00822*MCS - 0.000034*PCS*MCS - 0.01067
+
+Usage (from python/; requests and pyarrow are not project dependencies):
+    uv run --with requests --with pyarrow python optiqal/data/meps/fetch_meps.py
 """
 
 import zipfile

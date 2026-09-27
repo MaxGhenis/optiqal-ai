@@ -1,17 +1,18 @@
 """Tests for intervention module."""
 
-from pathlib import Path
-
 import numpy as np
 import pytest
 
 from optiqal.catalog import CATALOG
 from optiqal.evidence import load_studies
-from optiqal.intervention import Distribution, Intervention, MortalityEffect
-
-INTERVENTION_DIR = (
-    Path(__file__).resolve().parents[2] / "src" / "lib" / "qaly" / "interventions"
+from optiqal.intervention import (
+    INTERVENTIONS_DIR,
+    Distribution,
+    Intervention,
+    MortalityEffect,
 )
+
+INTERVENTION_DIR = INTERVENTIONS_DIR
 EXPECTED_YAML_STUDY_IDS = {
     "daily_exercise_moderate": [
         "wen2011_low_volume_activity_mortality",
@@ -120,8 +121,8 @@ class TestDistribution:
     def test_lognormal_params_helper_resolves_both_parameterizations(self):
         """_lognormal_params() must return usable (log_mean, log_sd) for both forms.
 
-        This is the path used by bayesian.py and any other caller that needs
-        the raw (log_mean, log_sd) tuple. Hr-keyed lognormals must not
+        This is the path used by any caller that needs the raw
+        (log_mean, log_sd) tuple. Hr-keyed lognormals must not
         KeyError here — the helper must mean-center internally.
         """
         hr_keyed = Distribution(type="lognormal", params={"hr": 0.80, "log_sd": 0.15})
