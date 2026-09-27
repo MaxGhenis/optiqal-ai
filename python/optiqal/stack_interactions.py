@@ -11,6 +11,7 @@ from .catalog import CatalogEntry
 from .defaults import DEFAULT_QALY_DISCOUNT_RATE, validate_qaly_discount_rate
 from .lifecycle import get_mortality_rate
 from .profile import Profile, get_baseline_mortality_multiplier
+from .simulate import expected_event_loss
 from .sleep import SLEEP_COMPONENT_BENEFIT_TAGS
 
 SLEEP_COMPONENT_RETENTION = (1.0, 0.55, 0.30, 0.15)
@@ -320,16 +321,19 @@ def expected_stack_interaction_qaly(
         if rule.annual_qaly_loss is not None:
             penalty -= rule.annual_qaly_loss.mean * exposure_factor
         if rule.event_probability is not None and rule.event_qaly_loss is not None:
-            p = float(np.clip(rule.event_probability.mean, 0, 1))
-            annual_event_prob = np.clip(survival * p, 0, 1)
-            if rule.max_events == 1:
-                lifetime_prob = float(1 - np.prod(1 - annual_event_prob))
-                penalty -= lifetime_prob * rule.event_qaly_loss.mean
-            else:
-                expected_events = float(np.sum(annual_event_prob))
-                penalty -= (
-                    min(expected_events, rule.max_events) * rule.event_qaly_loss.mean
-                )
+            # Same event accounting as the per-item simulator: an event while
+            # the rule is active, valued at the discount factor of its year,
+            # with the first-event (or first max_events) risk counted once.
+            penalty -= float(
+                expected_event_loss(
+                    survival,
+                    exposure_curve,
+                    discount,
+                    rule.event_probability.mean,
+                    rule.event_qaly_loss.mean,
+                    rule.max_events,
+                )[0]
+            )
 
         total_penalty += penalty
         details.append(

@@ -5,11 +5,19 @@ Ties together catalog simulation, portfolio optimization, bundle analysis,
 and decision evaluation into a single `analyze()` call.
 """
 
-from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Literal, Optional
+from dataclasses import dataclass, field, replace
+from typing import Callable, Dict, List, Literal, Optional, Tuple
+
+import numpy as np
 
 from .bundles import recommend_bundles
-from .catalog import CATALOG, CatalogEntry, get_catalog, simulate_catalog
+from .catalog import (
+    CATALOG,
+    CatalogEntry,
+    get_catalog,
+    simulate_catalog,
+    simulate_catalog_entry,
+)
 from .combination import _saturate_total_qaly, find_optimal_portfolio_with_costs
 from .confounding import ConfoundingPrior, publication_bias_correct
 from .defaults import (
@@ -22,9 +30,7 @@ from .product_composition import ProductChange, UnsupportedProductChangeError
 from .profile import Profile
 from .simulate import (
     effective_hr_for_mortality_qaly,
-    effective_qol_factor_for_years,
     mortality_qaly_for_combined_hr,
-    simulate_qaly_profile_vectorized,
 )
 from .sleep import (
     SleepBurdenEstimate,
@@ -82,8 +88,11 @@ class Decision:
     type: Literal["add", "drop", "adjust"]
     item_id: str
     label: str  # Human-readable description, e.g. "ADD: Glycine 2g ($40/yr)"
-    # For DROP: the item's effect is negated and cost becomes savings
-    # For ADJUST: override any of these to model the changed version
+    # For ADD: the catalog item as simulate_catalog models it, overrides on top
+    # For DROP: the exact negation of the ADD with the same overrides; the
+    #   item's effect is negated and cost becomes savings
+    # For ADJUST: override any of these to model the changed version; unset
+    #   cost and QoL overrides count as 0, not the entry's values
     override_hr: Optional[float] = None
     override_cost: Optional[float] = None
     override_qol: Optional[float] = None
@@ -140,111 +149,202 @@ def _decision_has_mortality_arm(entry: CatalogEntry, decision: Decision) -> bool
     """Whether the item a decision simulates carries a direct mortality arm.
 
     A QoL-only catalog entry carries none, so its mortality leg is exactly zero.
-    An explicit ``override_hr`` is a mortality claim about the adjusted item, so
-    a non-null override restores an arm the entry does not itself have; an
-    override of exactly 1.0 is still null and stays exact. The DROP branch never
-    reads ``override_hr``, so it keeps the entry's own flag.
+    An explicit ``override_hr`` is a mortality claim about the item, so a
+    non-null override restores an arm the entry does not itself have; an
+    override of exactly 1.0 is still null and stays exact. DROP negates the
+    ADD with the same overrides, so the same rule applies to every type.
     """
     if entry.has_direct_mortality_effect:
         return True
-    if decision.type == "drop":
-        return False
     return decision.override_hr is not None and decision.override_hr != 1.0
 
 
-def _simulate_one(
-    name: str,
-    hr: float,
-    log_sd: float,
-    conf_a: float,
-    conf_b: float,
-    has_direct_mortality_effect: bool,
-    annual_cost: float,
-    qol_annual: float,
-    qol_years: float,
-    sleep_qol_annual: float,
-    sleep_mortality_hr_multiplier: float,
+def _decision_intervention(
+    entry: CatalogEntry,
+    decision: Decision,
     config: AnalysisConfig,
-) -> dict:
-    """Simulate a single intervention (used for decisions with overrides)."""
-    mortality = None
-    confounding_prior = None
-    if has_direct_mortality_effect:
-        mortality = MortalityEffect(
-            hazard_ratio=Distribution(
-                type="lognormal",
-                params={"hr": hr, "log_sd": log_sd},
+) -> Intervention:
+    """The intervention a decision simulates: the catalog's, HR override on top.
+
+    Starting from ``entry.to_intervention`` keeps everything the catalog
+    simulation carries, including the harm model and the interaction tags and
+    rules. ``override_hr`` replaces the HR mean with
+    ``publication_bias_correct(override_hr, config.pub_bias_shrinkage)`` and
+    keeps the entry's ``log_sd`` and confounding prior.
+    """
+    intervention = entry.to_intervention(
+        config.pub_bias_shrinkage, profile=config.profile
+    )
+    if decision.override_hr is None or not _decision_has_mortality_arm(entry, decision):
+        return intervention
+    hazard_ratio = Distribution(
+        type="lognormal",
+        params={
+            "hr": publication_bias_correct(
+                decision.override_hr, config.pub_bias_shrinkage
             ),
-        )
-        confounding_prior = ConfoundingPrior(alpha=conf_a, beta=conf_b)
-    intervention = Intervention(
-        id=name,
-        name=name,
-        category="diet",
-        mortality=mortality,
-        confounding_prior=confounding_prior,
+            "log_sd": entry.log_sd,
+        },
     )
-    r = simulate_qaly_profile_vectorized(
+    mortality = (
+        MortalityEffect(hazard_ratio=hazard_ratio)
+        if intervention.mortality is None
+        else replace(intervention.mortality, hazard_ratio=hazard_ratio)
+    )
+    return replace(
         intervention,
-        config.profile,
-        n_simulations=config.n_simulations,
-        discount_rate=config.qaly_discount_rate,
-        cost_discount_rate=config.cost_discount_rate,
-        active_interaction_tags=config.active_interaction_tags,
-        baseline_hazard_multiplier=config.sleep_baseline_hazard_multiplier,
-        global_intervention_hr_multiplier=sleep_mortality_hr_multiplier,
-        random_state=config.random_state,
-    )
-    harm_qaly = r.expected_harm_qalys + r.expected_interaction_harm_qalys
-    mort_qaly = r.mean - harm_qaly
-    effective_years = min(float(qol_years), float(config.horizon_years))
-    qol_factor = effective_qol_factor_for_years(
-        r.expected_qol_weights,
-        effective_years,
-        r.expected_qol_factor,
-    )
-    qol_qaly = qol_annual * qol_factor
-    sleep_qol_qaly = sleep_qol_annual * qol_factor
-    total_qaly = mort_qaly + harm_qaly + qol_qaly + sleep_qol_qaly
-    # Survival-weighted discounted cost
-    total_cost = annual_cost * r.expected_discounted_cost_factor
-    net_value = total_qaly * config.wtp - total_cost
-    cost_per_qaly = (
-        total_cost / total_qaly if total_qaly > 0 and annual_cost > 0 else None
+        mortality=mortality,
+        confounding_prior=ConfoundingPrior(
+            alpha=entry.conf_alpha, beta=entry.conf_beta
+        ),
     )
 
+
+def _decision_row(label: str, row: dict) -> dict:
+    """Project a ``simulate_catalog_entry`` row onto the decision output keys.
+
+    Every probability and interval here comes from the row, which computes
+    them from the same total-QALY draws whose mean is ``total_qaly``.
+    ``annual_cost`` is the effective annual cost that prices ``total_cost``
+    (it includes any bundle allocation), and ``net_value`` is the row's
+    ``gross_value``.
+    """
+    posterior_hr = row["hr_posterior_mean"]
     return {
-        "name": name,
-        "mort_qaly": mort_qaly,
-        "posterior_hr": float(r.posterior_hr_mean)
-        if r.posterior_hr_mean is not None
-        else 1.0,
-        "harm_qaly": harm_qaly,
-        "direct_harm_qaly": r.expected_harm_qalys,
-        "interaction_harm_qaly": r.expected_interaction_harm_qalys,
-        "qol_qaly": qol_qaly,
-        "qol_years": effective_years,
-        "sleep_qol_annual": sleep_qol_annual,
-        "sleep_qol_qaly": sleep_qol_qaly,
-        "total_qaly": total_qaly,
-        "days": total_qaly * 365.25,
-        "annual_cost": annual_cost,
-        "total_cost": total_cost,
-        "cost_per_qaly": cost_per_qaly,
-        "net_value": net_value,
-        "p_benefit": r.prob_positive,
-        "p_harm": r.prob_negative,
-        "expected_upside_days": r.expected_upside * 365.25,
-        "expected_downside_days": r.expected_downside * 365.25,
-        "ci_low": r.ci95[0] * 365.25 if r.ci95 else 0,
-        "ci_high": r.ci95[1] * 365.25 if r.ci95 else 0,
-        # 80% interval on TOTAL QALYs: shift the draw-based interval by the
-        # deterministic non-mortality (QoL) component (total_qaly - r.mean).
-        "net_qaly_ci": [
-            r.ci80[0] + (total_qaly - r.mean),
-            r.ci80[1] + (total_qaly - r.mean),
-        ],
+        "name": label,
+        "mort_qaly": row["mort_qaly"],
+        "posterior_hr": float(posterior_hr) if posterior_hr is not None else 1.0,
+        "harm_qaly": row["harm_qaly"],
+        "direct_harm_qaly": row["direct_harm_qaly"],
+        "interaction_harm_qaly": row["interaction_harm_qaly"],
+        "qol_qaly": row["qol_qaly"],
+        "qol_years": row["qol_years"],
+        "sleep_qol_annual": row["sleep_qol_annual"],
+        "sleep_qol_qaly": row["sleep_qol_qaly"],
+        "total_qaly": row["total_qaly"],
+        "days": row["days"],
+        "annual_cost": row["effective_annual_cost"],
+        "total_cost": row["total_cost"],
+        "cost_per_qaly": row["cost_per_qaly"],
+        "net_value": row["gross_value"],
+        "p_benefit": row["p_benefit"],
+        "p_harm": row["p_harm"],
+        "expected_upside_days": row["expected_upside_days"],
+        "expected_downside_days": row["expected_downside_days"],
+        "ci_low": row["ci_low"],
+        "ci_high": row["ci_high"],
+        "net_qaly_ci": list(row["net_qaly_ci"]),
     }
+
+
+# Decision fields that change sign under DROP: every QALY, day and money
+# quantity. ``posterior_hr`` and ``qol_years`` describe the item rather than
+# the change and are kept.
+_DROP_NEGATED_FIELDS = (
+    "mort_qaly",
+    "harm_qaly",
+    "direct_harm_qaly",
+    "interaction_harm_qaly",
+    "qol_qaly",
+    "sleep_qol_annual",
+    "sleep_qol_qaly",
+    "total_qaly",
+    "days",
+    "annual_cost",
+    "total_cost",
+    "net_value",
+)
+
+
+def _negate_for_drop(add_row: dict) -> dict:
+    """The DROP row: the exact negation of the ADD row on the same draws.
+
+    Dropping an item forgoes its whole effect, so the total-QALY change is
+    ``-X`` draw by draw, where ``X`` are the ADD draws. Every QALY, day and
+    cost quantity is negated (cost becomes savings), intervals are negated
+    with their endpoints swapped, P(benefit) and P(harm) swap, and expected
+    upside and downside are negated and swap. The fields are transformed from
+    the ADD row rather than recomputed from ``-X``, so the identity is exact
+    instead of holding only up to percentile-interpolation rounding.
+
+    ``cost_per_qaly`` is None for DROP. Savings per QALY forgone is a
+    south-west-quadrant ratio whose decision rule runs the other way (dropping
+    pays when it exceeds the WTP), so it is not reported as a cost per QALY
+    gained; ``net_value`` carries the decision.
+    """
+    row = dict(add_row)
+    for key in _DROP_NEGATED_FIELDS:
+        row[key] = -add_row[key]
+    row["p_benefit"], row["p_harm"] = add_row["p_harm"], add_row["p_benefit"]
+    row["expected_upside_days"] = -add_row["expected_downside_days"]
+    row["expected_downside_days"] = -add_row["expected_upside_days"]
+    row["ci_low"], row["ci_high"] = -add_row["ci_high"], -add_row["ci_low"]
+    low, high = add_row["net_qaly_ci"]
+    row["net_qaly_ci"] = [-high, -low]
+    row["cost_per_qaly"] = None
+    return row
+
+
+def _decision_verdict(net_value: float) -> str:
+    if net_value > 0:
+        return "DO IT"
+    if net_value > -2000:
+        return "MARGINAL"
+    return "SKIP"
+
+
+def _evaluate_decision(
+    decision: Decision,
+    config: AnalysisConfig,
+) -> Tuple[dict, np.ndarray]:
+    """Evaluate one decision; return its row and its total-QALY draws.
+
+    The draws are the per-simulation change in total QALYs the decision
+    causes (negated for DROP); the row's point estimate is their mean and its
+    probabilities and intervals describe them.
+    """
+    entry = CATALOG.get(decision.item_id)
+    if entry is None:
+        raise ValueError(f"Unknown catalog item: {decision.item_id}")
+    if decision.type in ("add", "drop"):
+        cost_override = decision.override_cost
+        qol_override = decision.override_qol
+    elif decision.type == "adjust":
+        cost_override = (
+            decision.override_cost if decision.override_cost is not None else 0.0
+        )
+        qol_override = (
+            decision.override_qol if decision.override_qol is not None else 0.0
+        )
+    else:
+        raise ValueError(f"Unknown decision type: {decision.type}")
+
+    catalog_row, draws = simulate_catalog_entry(
+        entry,
+        config.profile,
+        n_simulations=config.n_simulations,
+        random_state=config.random_state,
+        pub_bias_shrinkage=config.pub_bias_shrinkage,
+        horizon_years=config.horizon_years,
+        qaly_discount_rate=config.qaly_discount_rate,
+        cost_discount_rate=config.cost_discount_rate,
+        wtp=config.wtp,
+        active_interaction_tags=config.active_interaction_tags,
+        sleep_estimate=config.sleep_estimate,
+        intervention=_decision_intervention(entry, decision, config),
+        annual_qol_override=qol_override,
+        annual_cost_override=cost_override,
+    )
+    row = _decision_row(decision.label, catalog_row)
+    if decision.type == "drop":
+        row = _negate_for_drop(row)
+        draws = -draws
+
+    row["decision_type"] = decision.type
+    row["item_id"] = decision.item_id
+    row["label"] = decision.label
+    row["verdict"] = _decision_verdict(row["net_value"])
+    return row, draws
 
 
 def _require_catalog_decisions(decisions: List[Decision]) -> None:
@@ -260,123 +360,25 @@ def evaluate_decisions(
     """
     Evaluate specific add/drop/adjust decisions.
 
-    ADD: Simulate the item and compute net value.
-    DROP: Negate the item's effect; cost becomes savings.
+    ADD: Simulate the item exactly as ``simulate_catalog`` does (same draws,
+    harm model and interaction rules), with any overrides applied on top, and
+    compute net value. With no overrides the row matches the item's catalog
+    row field for field.
+    DROP: The exact negation of the ADD with the same overrides: the item's
+    effect is negated and cost becomes savings.
     ADJUST: Simulate with overridden parameters.
+
+    Point estimates, P(benefit), P(harm), the 95% interval (``ci_low``,
+    ``ci_high``, in days), the 80% ``net_qaly_ci`` and the expected upside and
+    downside all describe the same total-QALY draws (mortality and harms, QoL,
+    sleep QoL).
 
     Returns list of dicts sorted by net_value descending. Product changes raise
     UnsupportedProductChangeError with quantity accounting before any simulation;
     even full ingredient removal needs a separately validated effect mapping.
     """
     _require_catalog_decisions(decisions)
-    results = []
-
-    for d in decisions:
-        entry = CATALOG.get(d.item_id)
-
-        if d.type == "add":
-            if entry is None:
-                raise ValueError(f"Unknown catalog item: {d.item_id}")
-            if d.override_hr is None:
-                hr = entry.corrected_hr_observed(
-                    config.pub_bias_shrinkage, config.profile
-                )
-            else:
-                hr = publication_bias_correct(d.override_hr, config.pub_bias_shrinkage)
-            cost = d.override_cost if d.override_cost is not None else entry.annual_cost
-            qol = (
-                d.override_qol
-                if d.override_qol is not None
-                else entry.effective_qol_annual()
-            )
-            sleep_qol = entry.sleep_qol_annual(config.sleep_estimate)
-            sleep_mortality_hr_multiplier = entry.sleep_mortality_hr_multiplier(
-                config.sleep_estimate
-            )
-            r = _simulate_one(
-                d.label,
-                hr,
-                entry.log_sd,
-                entry.conf_alpha,
-                entry.conf_beta,
-                _decision_has_mortality_arm(entry, d),
-                cost,
-                qol,
-                entry.qol_years,
-                sleep_qol,
-                sleep_mortality_hr_multiplier,
-                config,
-            )
-
-        elif d.type == "drop":
-            if entry is None:
-                raise ValueError(f"Unknown catalog item: {d.item_id}")
-            # Dropping = you LOSE the item's benefit and GAIN cost savings
-            hr = entry.corrected_hr_observed(config.pub_bias_shrinkage, config.profile)
-            sleep_qol = entry.sleep_qol_annual(config.sleep_estimate)
-            sleep_mortality_hr_multiplier = entry.sleep_mortality_hr_multiplier(
-                config.sleep_estimate
-            )
-            r = _simulate_one(
-                d.label,
-                hr,
-                entry.log_sd,
-                entry.conf_alpha,
-                entry.conf_beta,
-                _decision_has_mortality_arm(entry, d),
-                -entry.annual_cost,  # Savings
-                -entry.effective_qol_annual(),  # Lose QoL benefit
-                entry.qol_years,
-                -sleep_qol,  # Lose sleep-related QoL benefit
-                sleep_mortality_hr_multiplier,
-                config,
-            )
-
-        elif d.type == "adjust":
-            # User provides override params for the adjusted version
-            if entry is None:
-                raise ValueError(f"Unknown catalog item: {d.item_id}")
-            hr_raw = d.override_hr if d.override_hr is not None else entry.hr_observed
-            if d.override_hr is None:
-                hr = entry.corrected_hr_observed(
-                    config.pub_bias_shrinkage, config.profile
-                )
-            else:
-                hr = publication_bias_correct(hr_raw, config.pub_bias_shrinkage)
-            cost = d.override_cost if d.override_cost is not None else 0
-            qol = d.override_qol if d.override_qol is not None else 0
-            sleep_qol = entry.sleep_qol_annual(config.sleep_estimate)
-            sleep_mortality_hr_multiplier = entry.sleep_mortality_hr_multiplier(
-                config.sleep_estimate
-            )
-            r = _simulate_one(
-                d.label,
-                hr,
-                entry.log_sd,
-                entry.conf_alpha,
-                entry.conf_beta,
-                _decision_has_mortality_arm(entry, d),
-                cost,
-                qol,
-                entry.qol_years,
-                sleep_qol,
-                sleep_mortality_hr_multiplier,
-                config,
-            )
-
-        r["decision_type"] = d.type
-        r["item_id"] = d.item_id
-        r["label"] = d.label
-
-        if r["net_value"] > 0:
-            r["verdict"] = "DO IT"
-        elif r["net_value"] > -2000:
-            r["verdict"] = "MARGINAL"
-        else:
-            r["verdict"] = "SKIP"
-
-        results.append(r)
-
+    results = [_evaluate_decision(d, config)[0] for d in decisions]
     results.sort(key=lambda x: x["net_value"], reverse=True)
     return results
 
@@ -456,13 +458,14 @@ def analyze(
             )
         current_stack_groups[exclusive_group] = item_id
 
-    baseline_stack_set = set(baseline_stack)
-    excluded_exclusive_alternatives = [
-        item_id
+    # Mutually exclusive alternatives (e.g. two HIIT schedules). The optimizer
+    # never selects a second member of a group, whether the first came from
+    # the current stack or was selected earlier in the greedy path.
+    exclusive_groups = {
+        item_id: entry.exclusive_group
         for item_id, entry in entries.items()
-        if item_id not in baseline_stack_set
-        and entry.exclusive_group in current_stack_groups
-    ]
+        if entry.exclusive_group
+    }
 
     # 1. Simulate all catalog items
     item_results = simulate_catalog(
@@ -538,7 +541,6 @@ def analyze(
         cost_values=cost_values,
         wtp=config.wtp,
         horizon_years=config.horizon_years,
-        exclude=excluded_exclusive_alternatives,
         preselected=baseline_stack,
         stack_interaction_penalty_fn=penalty_fn,
         marginal_cost_value_fn=marginal_cost_value_fn,
@@ -547,6 +549,7 @@ def analyze(
         item_mortality_hrs=item_mortality_hrs,
         item_qol_qalys=item_qol_qalys,
         mortality_qaly_fn=_stack_mortality_qaly,
+        exclusive_groups=exclusive_groups,
     )
 
     # 3. Bundle recommendations

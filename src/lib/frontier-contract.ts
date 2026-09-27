@@ -30,6 +30,8 @@ import {
   parseOptionalArray,
   parseOptionalConfidenceInterval,
   parseOptionalBoundedNumber,
+  parseOutcomeProbabilities,
+  parseProbability,
   parseString,
   parseStringArray,
 } from "@/lib/contract-validation";
@@ -84,8 +86,7 @@ function parseDecisionOptionItem(value: unknown): FrontierDecisionOptionItem | n
   const days = parseFiniteNumber(value.days);
   const annualCost = parseNullableFiniteNumber(value.annual_cost);
   const costPerQaly = parseNullableFiniteNumber(value.cost_per_qaly);
-  const pBenefit = parseFiniteNumber(value.p_benefit);
-  const pHarm = parseFiniteNumber(value.p_harm);
+  const outcomes = parseOutcomeProbabilities(value.p_benefit, value.p_harm);
   const access = parseAccessProfile(value.access);
 
   if (
@@ -94,8 +95,7 @@ function parseDecisionOptionItem(value: unknown): FrontierDecisionOptionItem | n
     days === null ||
     annualCost === INVALID ||
     costPerQaly === INVALID ||
-    pBenefit === null ||
-    pHarm === null ||
+    outcomes === null ||
     access === null
   ) {
     return null;
@@ -107,8 +107,8 @@ function parseDecisionOptionItem(value: unknown): FrontierDecisionOptionItem | n
     days,
     annual_cost: annualCost,
     cost_per_qaly: costPerQaly,
-    p_benefit: pBenefit,
-    p_harm: pHarm,
+    p_benefit: outcomes.pBenefit,
+    p_harm: outcomes.pHarm,
     access,
   };
 }
@@ -360,8 +360,7 @@ function parseFrontierItem(value: unknown): FrontierItem | null {
   const netQalyCi = parseOptionalConfidenceInterval(value.net_qaly_ci);
   const netDaysCi = parseOptionalConfidenceInterval(value.net_days_ci);
   const days = parseFiniteNumber(value.days);
-  const pBenefit = parseFiniteNumber(value.p_benefit);
-  const pHarm = parseFiniteNumber(value.p_harm);
+  const outcomes = parseOutcomeProbabilities(value.p_benefit, value.p_harm);
   const mortQaly = parseFiniteNumber(value.mort_qaly);
   const harmQaly = parseFiniteNumber(value.harm_qaly);
   const qolQaly = parseFiniteNumber(value.qol_qaly);
@@ -369,7 +368,7 @@ function parseFrontierItem(value: unknown): FrontierItem | null {
   const profileEffectMultiplier = parseFiniteNumber(value.profile_effect_multiplier);
   const airwayEffectMultiplier = parseFiniteNumber(value.airway_effect_multiplier);
   const sleepMortalityHrMultiplier = parseFiniteNumber(value.sleep_mortality_hr_multiplier);
-  const sleepMortalityReliefFraction = parseFiniteNumber(value.sleep_mortality_relief_fraction);
+  const sleepMortalityReliefFraction = parseProbability(value.sleep_mortality_relief_fraction);
   const interactionTags = parseStringArray(value.interaction_tags);
   const benefitTags = parseStringArray(value.benefit_tags);
   const notes = parseString(value.notes);
@@ -400,8 +399,7 @@ function parseFrontierItem(value: unknown): FrontierItem | null {
     netQalyCi === INVALID ||
     netDaysCi === INVALID ||
     days === null ||
-    pBenefit === null ||
-    pHarm === null ||
+    outcomes === null ||
     mortQaly === null ||
     harmQaly === null ||
     qolQaly === null ||
@@ -436,8 +434,8 @@ function parseFrontierItem(value: unknown): FrontierItem | null {
     ...(netQalyCi !== undefined ? { net_qaly_ci: netQalyCi } : {}),
     ...(netDaysCi !== undefined ? { net_days_ci: netDaysCi } : {}),
     days,
-    p_benefit: pBenefit,
-    p_harm: pHarm,
+    p_benefit: outcomes.pBenefit,
+    p_harm: outcomes.pHarm,
     mort_qaly: mortQaly,
     harm_qaly: harmQaly,
     qol_qaly: qolQaly,
@@ -536,11 +534,11 @@ function parseSleepEstimate(value: unknown): FrontierSleepEstimate | null {
       return null;
     }
 
-    const upperAirwayProbability = parseFiniteNumber(value.airway.upper_airway_probability);
-    const nasalInflammationProbability = parseFiniteNumber(
+    const upperAirwayProbability = parseProbability(value.airway.upper_airway_probability);
+    const nasalInflammationProbability = parseProbability(
       value.airway.nasal_inflammation_probability
     );
-    const mucusProbability = parseFiniteNumber(value.airway.mucus_probability);
+    const mucusProbability = parseProbability(value.airway.mucus_probability);
     const responseSignal = parseFiniteNumber(value.airway.response_signal);
 
     if (

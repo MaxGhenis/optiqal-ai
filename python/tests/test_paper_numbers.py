@@ -1,12 +1,15 @@
-"""Keep the paper's derived confounding statistics tied to executable results."""
+"""Keep the paper's derived statistics and summaries tied to executable results."""
 
 from __future__ import annotations
 
+import dataclasses
 import importlib.util
 import sys
 from pathlib import Path
 
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 from scipy import stats
 
 from optiqal.confounding import CATEGORY_PRIORS, calculate_e_value
@@ -24,6 +27,9 @@ def _load_paper_results():
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module.r
+
+
+_PAPER_RESULTS = _load_paper_results()
 
 
 def test_paper_confounding_statistics_match_scipy() -> None:
@@ -80,3 +86,111 @@ def test_paper_renders_corrected_values_from_eval_properties() -> None:
         "vary this prior by ±1 standard deviation",
     ):
         assert stale_text not in paper
+
+
+def _displayed_table_rows(results) -> list[tuple[str, float, float]]:
+    """Parse (category, QALYs, life years) from the rendered intervention table."""
+    rows = []
+    for line in results.intervention_table().splitlines()[2:]:
+        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        _, category, qalys, _, life_years, _ = cells
+        rows.append((category, float(qalys), float(life_years)))
+    return rows
+
+
+def _parse_range(text: str) -> tuple[float, float]:
+    low, high = text.split("-")
+    return float(low), float(high)
+
+
+def test_paper_summary_ranges_match_the_displayed_estimates() -> None:
+    # Audit regression: the abstract said 0.05-1.15 while the lowest of the
+    # ten displayed estimates (consistent_bedtime) is 0.07.
+    results = _load_paper_results()
+    table = _displayed_table_rows(results)
+
+    assert results.qaly_range == "0.07-1.15"
+    assert results.life_years_range == "0.2-4.4"
+    assert results.months_range == "2-53"
+    assert results.intervention_count == len(table) == 10
+    assert results.category_count == len({row[0] for row in table}) == 5
+
+    qalys = [row[1] for row in table]
+    life_years = [row[2] for row in table]
+    assert _parse_range(results.qaly_range) == (min(qalys), max(qalys))
+    assert _parse_range(results.life_years_range) == (min(life_years), max(life_years))
+    months = [row.life_years * 12 for row in results.all_interventions()]
+    assert results.months_range == f"{min(months):.0f}-{max(months):.0f}"
+
+
+def test_paper_ranges_cover_every_intervention_the_paper_defines() -> None:
+    results = _load_paper_results()
+    intervention_type = type(results.exercise)
+    defined = {
+        id(value)
+        for value in vars(results).values()
+        if isinstance(value, intervention_type)
+    }
+    assert defined == {id(row) for row in results.all_interventions()}
+
+
+def test_paper_renders_summary_ranges_from_eval_properties() -> None:
+    paper = (REPO_ROOT / "docs" / "index.md").read_text(encoding="utf-8")
+    for property_name in (
+        "qaly_range",
+        "life_years_range",
+        "months_range",
+        "intervention_count",
+        "category_count",
+    ):
+        assert f"{{eval}}`r.{property_name}`" in paper
+    assert "0.05-1.15" not in paper
+
+
+_NON_NEGATIVE = st.floats(min_value=0.0, max_value=10.0, allow_nan=False)
+
+
+@settings(max_examples=200, deadline=None)
+@given(
+    rows=st.lists(
+        st.tuples(
+            _NON_NEGATIVE,
+            _NON_NEGATIVE,
+            st.sampled_from(("exercise", "diet", "sleep", "stress", "substance")),
+        ),
+        min_size=10,
+        max_size=10,
+    )
+)
+def test_paper_summaries_track_edited_estimates(rows) -> None:
+    # Editing any displayed literal must move the summaries with it.
+    results = type(_PAPER_RESULTS)()
+    names = [
+        name
+        for name, value in vars(results).items()
+        if isinstance(value, type(results.exercise))
+    ]
+    for name, (qaly, life_years, category) in zip(names, rows, strict=True):
+        edited = dataclasses.replace(
+            getattr(results, name),
+            qaly_mean=qaly,
+            life_years=life_years,
+            category=category,
+        )
+        setattr(results, name, edited)
+
+    qalys = [row[0] for row in rows]
+    life_years = [row[1] for row in rows]
+    assert results.qaly_range == f"{min(qalys):.2f}-{max(qalys):.2f}"
+    assert results.life_years_range == f"{min(life_years):.1f}-{max(life_years):.1f}"
+    assert (
+        results.months_range == f"{min(life_years) * 12:.0f}-{max(life_years) * 12:.0f}"
+    )
+    assert results.intervention_count == len(rows)
+    assert results.category_count == len({row[2] for row in rows})
+
+    # Each displayed value lies inside its summary range, whose ends are attained.
+    low, high = _parse_range(results.qaly_range)
+    shown = [float(row.qaly) for row in results.all_interventions()]
+    assert all(low <= value <= high for value in shown)
+    assert low in shown and high in shown

@@ -42,6 +42,52 @@ export function parseBoundedNumber(
   return num;
 }
 
+/**
+ * Parse a probability or fraction: a finite number in [0, 1]. Model responses
+ * that break this are rejected whole rather than displayed.
+ */
+export function parseProbability(value: unknown): number | null {
+  return parseBoundedNumber(value, 0, 1);
+}
+
+/**
+ * Slack allowed above 1 on p_benefit + p_harm.
+ *
+ * The web API takes both from the same Monte Carlo draws: p_benefit is the
+ * share of simulated QALY gains above zero and p_harm the share below zero
+ * (`prob_positive` / `prob_negative` from `_posterior_decision_metrics` in
+ * python/optiqal/simulate.py). The events are disjoint, so the unrounded sum
+ * is at most 1.
+ * build_frontier_response_with_policy in python/optiqal/web_api.py then rounds
+ * each one to 2 decimals on its own (`round(float(raw["p_benefit"]), 2)`),
+ * which moves each by at most 0.005, so the returned sum is at most
+ * 1 + 2 * 0.005 = 1.01. That bound is reached: 9 and 31 of 40 draws round to
+ * 0.23 and 0.78. The extra 1e-9 covers binary representation error in adding
+ * two 2-decimal numbers.
+ */
+export const OUTCOME_PROBABILITY_SUM_TOLERANCE = 0.01 + 1e-9;
+
+/**
+ * Parse the benefit/harm probabilities of one intervention: each must be a
+ * probability, and together they may exceed 1 only by the rounding slack
+ * above.
+ */
+export function parseOutcomeProbabilities(
+  pBenefit: unknown,
+  pHarm: unknown
+): { pBenefit: number; pHarm: number } | null {
+  const benefit = parseProbability(pBenefit);
+  const harm = parseProbability(pHarm);
+  if (
+    benefit === null ||
+    harm === null ||
+    benefit + harm > 1 + OUTCOME_PROBABILITY_SUM_TOLERANCE
+  ) {
+    return null;
+  }
+  return { pBenefit: benefit, pHarm: harm };
+}
+
 export function parseBoolean(value: unknown): boolean | null {
   return typeof value === "boolean" ? value : null;
 }
@@ -141,6 +187,12 @@ export function parseNumberRecord(value: unknown): Record<string, number> | null
 
 export const INVALID = Symbol("invalid-optional-value");
 
+/**
+ * Parse an optional [low, high] interval. Absent (undefined or null) gives
+ * undefined; anything other than two finite numbers with low <= high is
+ * INVALID. Degenerate intervals (low === high) are allowed: the baseline
+ * returns [0, 0] past the end of the life table.
+ */
 export function parseOptionalConfidenceInterval(
   value: unknown
 ): [number, number] | undefined | typeof INVALID {
@@ -152,7 +204,7 @@ export function parseOptionalConfidenceInterval(
   }
   const low = parseFiniteNumber(value[0]);
   const high = parseFiniteNumber(value[1]);
-  if (low === null || high === null) {
+  if (low === null || high === null || low > high) {
     return INVALID;
   }
   return [low, high];

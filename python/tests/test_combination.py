@@ -491,7 +491,8 @@ class TestCombineInterventionEffects:
 
         # Rebuild the same synthetic combined intervention the function uses,
         # then simulate it applying the modifier exactly once vs. twice. Point
-        # HRs with no confounding prior make these deterministic.
+        # HRs with no confounding prior plus a shared seed (the engine samples
+        # person-level quality offsets) make these deterministic.
         synth = deepcopy(a)
         synth.mortality = MortalityEffect(
             hazard_ratio=Distribution(
@@ -503,6 +504,7 @@ class TestCombineInterventionEffects:
             prof,
             n_simulations=100,
             apply_confounding=False,
+            random_state=0,
             apply_intervention_modifier=False,
         )
         twice = simulate_qaly_profile(
@@ -510,12 +512,13 @@ class TestCombineInterventionEffects:
             prof,
             n_simulations=100,
             apply_confounding=False,
+            random_state=0,
             apply_intervention_modifier=True,
         )
         # The exercise modifier is non-unity here, so once != twice.
         assert abs(once.mean - twice.mean) > 1e-4
 
-        result = simulate_combined_qaly([a, b], prof, n_simulations=100)
+        result = simulate_combined_qaly([a, b], prof, n_simulations=100, random_state=0)
         # simulate_combined_qaly must match the single-application result.
         assert result.mean == pytest.approx(once.mean, rel=1e-9)
 

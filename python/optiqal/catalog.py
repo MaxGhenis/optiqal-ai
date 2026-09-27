@@ -4356,6 +4356,282 @@ def _simulate_qol_effect_draws(
     return raw_qol_draws, qol_draws, component_summaries
 
 
+def _entry_qol_rng(
+    entry_id: str,
+    random_state: Optional[int],
+) -> np.random.Generator:
+    """Generator for one entry's QoL-effect draws, keyed by the entry's id.
+
+    The stream depends only on ``random_state`` and the entry id, which enters
+    through a sha256 digest (``stable_seed``) and so does not depend on
+    ``PYTHONHASHSEED``. It never depends on the entry's position among the
+    entries simulated alongside it, so an entry's row is the same whether it
+    is simulated alone, in any subset of the catalog, or in any order.
+    """
+    from .qol_evidence import stable_seed
+
+    return np.random.default_rng(
+        np.random.SeedSequence(
+            [
+                int(random_state) if random_state is not None else 0,
+                stable_seed(entry_id, "catalog_qol_effects"),
+            ]
+        )
+    )
+
+
+def simulate_catalog_entry(
+    entry: CatalogEntry,
+    profile,
+    *,
+    n_simulations: int = 50_000,
+    random_state: int = 42,
+    pub_bias_shrinkage: float = 0.30,
+    horizon_years: float = 40,
+    qaly_discount_rate: float = DEFAULT_QALY_DISCOUNT_RATE,
+    cost_discount_rate: float = DEFAULT_COST_DISCOUNT_RATE,
+    wtp: float = 200_000,
+    active_interaction_tags: Optional[List[str]] = None,
+    sleep_estimate: Optional[SleepBurdenEstimate] = None,
+    insurance: Optional[InsuranceContext] = None,
+    intervention: Optional[Intervention] = None,
+    annual_qol_override: Optional[float] = None,
+    annual_cost_override: Optional[float] = None,
+    residual_mode: ResidualMode = "evidence_rule",
+) -> tuple[Dict[str, Any], np.ndarray]:
+    """Simulate one catalog entry and return its row and its total-QALY draws.
+
+    This is the per-entry body of ``simulate_catalog``, and the decision
+    analyzer calls it too, so a decision without overrides reproduces the
+    catalog row exactly. The returned draws are the per-simulation total QALY
+    change: the mortality-and-harm draws of the vectorized simulation plus the
+    QoL-effect draws plus the (deterministic) sleep QoL. ``total_qaly`` is
+    their mean, and ``p_benefit``, ``p_harm``, the 95% interval (``ci_low``,
+    ``ci_high``, ``total_qaly_ci95``), the 80% ``net_qaly_ci`` and the expected
+    upside and downside are all computed from the same draws.
+
+    The optional overrides describe a changed version of the entry:
+
+    - ``intervention`` replaces ``entry.to_intervention(...)``, for example
+      with a different hazard ratio. Build it from ``to_intervention`` to keep
+      the entry's harm model and interaction rules.
+    - ``annual_qol_override`` replaces the entry's evidence-adjusted annual QoL
+      effect. The QoL draws become the constant
+      ``annual_qol_override * qol_factor`` and no evidence discount is taken
+      on them.
+    - ``annual_cost_override`` replaces the effective annual cost that prices
+      ``total_cost``, ``cost_per_qaly`` and ``gross_value``. The entry's price
+      fields (``annual_cost``, ``retail_annual_cost``) are reported unchanged.
+
+    ``residual_mode`` selects the sleep-residual rule for the entry's scalar QoL
+    component, as in ``simulate_catalog``.
+    """
+    from .simulate import (
+        effective_qol_factor_for_years,
+        simulate_qaly_profile_vectorized,
+    )
+
+    qaly_discount_rate = validate_qaly_discount_rate(qaly_discount_rate)
+    baseline_sleep_hazard_multiplier = sleep_baseline_mortality_multiplier(
+        sleep_estimate
+    )
+    effect_multiplier = entry.profile_effect_multiplier(profile)
+    evidence_multiplier = entry.evidence_effect_multiplier()
+    effective_shrinkage = entry.effective_pub_bias_shrinkage(
+        fallback=pub_bias_shrinkage
+    )
+    if intervention is None:
+        intervention = entry.to_intervention(pub_bias_shrinkage, profile=profile)
+    sleep_mortality_hr_multiplier = entry.sleep_mortality_hr_multiplier(sleep_estimate)
+    sleep_mortality_relief_fraction = entry.sleep_mortality_relief_fraction(
+        sleep_estimate
+    )
+    airway_effect_multiplier = entry.airway_effect_multiplier(sleep_estimate)
+    r, base_qaly_draws = simulate_qaly_profile_vectorized(
+        intervention,
+        profile,
+        n_simulations=n_simulations,
+        discount_rate=qaly_discount_rate,
+        cost_discount_rate=cost_discount_rate,
+        active_interaction_tags=active_interaction_tags,
+        baseline_hazard_multiplier=baseline_sleep_hazard_multiplier,
+        global_intervention_hr_multiplier=sleep_mortality_hr_multiplier,
+        random_state=random_state,
+        return_qaly_gains=True,
+    )
+    hr_corrected = publication_bias_correct(
+        entry.hr_observed,
+        shrinkage=effective_shrinkage,
+    )
+    harm_qaly = r.expected_harm_qalys + r.expected_interaction_harm_qalys
+    mort_qaly = r.mean - harm_qaly
+    qol_years = min(float(entry.qol_years), float(horizon_years))
+    qol_factor = effective_qol_factor_for_years(
+        r.expected_qol_weights,
+        qol_years,
+        r.expected_qol_factor,
+    )
+    if annual_qol_override is None:
+        raw_qol_draws, qol_draws, qol_effect_summaries = _simulate_qol_effect_draws(
+            entry,
+            qol_factor=qol_factor,
+            evidence_multiplier=evidence_multiplier,
+            n_simulations=n_simulations,
+            rng=_entry_qol_rng(entry.id, random_state),
+            residual_mode=residual_mode,
+        )
+    else:
+        raw_qol_draws = np.full(n_simulations, float(annual_qol_override) * qol_factor)
+        qol_draws = raw_qol_draws.copy()
+        qol_effect_summaries = []
+    raw_qol_qaly = float(np.mean(raw_qol_draws))
+    qol_qaly = float(np.mean(qol_draws))
+    raw_sleep_qol_annual = entry.raw_sleep_qol_annual(sleep_estimate)
+    sleep_qol_annual = entry.sleep_qol_annual(sleep_estimate)
+    raw_sleep_qol_qaly = raw_sleep_qol_annual * qol_factor
+    sleep_qol_qaly = sleep_qol_annual * qol_factor
+    evidence_discount_qaly = (raw_qol_qaly - qol_qaly) + (
+        raw_sleep_qol_qaly - sleep_qol_qaly
+    )
+    total_qaly_draws = base_qaly_draws + qol_draws + sleep_qol_qaly
+    total_qaly = float(np.mean(total_qaly_draws))
+    total_qaly_ci95 = (
+        float(np.percentile(total_qaly_draws, 2.5)),
+        float(np.percentile(total_qaly_draws, 97.5)),
+    )
+    # 80% interval (p10, p90) of the same total-QALY draws (mortality and
+    # harms + QoL + sleep QoL) whose mean is total_qaly, so the interval and
+    # the point estimate describe the same quantity. A percentile interval
+    # need not contain the mean: a skewed draw distribution, such as a rare
+    # large harm event, can put the mean outside it. Consumed by the frontend
+    # as net_qaly_ci / net_days_ci.
+    if total_qaly_draws is not None and len(total_qaly_draws) > 0:
+        net_qaly_ci = [
+            float(np.percentile(total_qaly_draws, 10)),
+            float(np.percentile(total_qaly_draws, 90)),
+        ]
+    else:
+        net_qaly_ci = [0.0, 0.0]
+    # Survival-weighted discounted cost. Uses effective_annual_cost so
+    # bundled items (NR, ubiquinol, astaxanthin, etc.) get their allocated
+    # share of the Blueprint Essentials bundle price instead of free-riding.
+    effective_cost = (
+        entry.effective_annual_cost(insurance)
+        if annual_cost_override is None
+        else float(annual_cost_override)
+    )
+    total_cost = effective_cost * r.expected_discounted_cost_factor
+    cost_per_qaly = (
+        total_cost / total_qaly if total_qaly > 0 and effective_cost > 0 else None
+    )
+    component_breakdown = {
+        "mortality_qaly": mort_qaly,
+        "direct_qol_qaly": qol_qaly,
+        "sleep_qol_qaly": sleep_qol_qaly,
+        "direct_harm_qaly": r.expected_harm_qalys,
+        "interaction_harm_qaly": r.expected_interaction_harm_qalys,
+        "evidence_discount_qaly": -evidence_discount_qaly,
+    }
+    top_positive_component = max(
+        (
+            ("mortality_qaly", mort_qaly),
+            ("direct_qol_qaly", qol_qaly),
+            ("sleep_qol_qaly", sleep_qol_qaly),
+        ),
+        key=lambda item: item[1],
+    )[0]
+    top_negative_component = min(
+        (
+            ("direct_harm_qaly", r.expected_harm_qalys),
+            ("interaction_harm_qaly", r.expected_interaction_harm_qalys),
+            ("evidence_discount_qaly", -evidence_discount_qaly),
+        ),
+        key=lambda item: item[1],
+    )[0]
+
+    row = {
+        "id": entry.id,
+        "name": entry.name,
+        "category": entry.category,
+        "hr_observed": entry.hr_observed,
+        # hr_corrected = publication-bias-only HR (what the literature
+        # "actually shows" after naive bias correction). Kept for back-compat.
+        "hr_corrected": hr_corrected,
+        # hr_posterior* = HR the simulator actually applies after pub bias
+        # PLUS Bayesian confounding + profile transport + evidence shrinkage.
+        # This is the column a reader should compare items on.
+        "hr_posterior_mean": r.posterior_hr_mean,
+        "hr_posterior_median": r.posterior_hr_median,
+        "hr_posterior_ci95": r.posterior_hr_ci95,
+        "pub_bias_shrinkage": effective_shrinkage,
+        "study_quality": entry.study_quality,
+        "profile_effect_multiplier": effect_multiplier,
+        "evidence_quality": entry.evidence_quality,
+        "evidence_effect_multiplier": evidence_multiplier,
+        "baseline_sleep_hazard_multiplier": baseline_sleep_hazard_multiplier,
+        "airway_effect_multiplier": airway_effect_multiplier,
+        "sleep_mortality_relief_fraction": sleep_mortality_relief_fraction,
+        "sleep_mortality_hr_multiplier": sleep_mortality_hr_multiplier,
+        "mort_qaly": mort_qaly,
+        "harm_qaly": harm_qaly,
+        "direct_harm_qaly": r.expected_harm_qalys,
+        "interaction_harm_qaly": r.expected_interaction_harm_qalys,
+        "raw_qol_qaly": raw_qol_qaly,
+        "qol_qaly": qol_qaly,
+        "residual_mode": residual_mode,
+        "qol_effects": qol_effect_summaries,
+        "qol_years": qol_years,
+        "raw_sleep_qol_annual": raw_sleep_qol_annual,
+        "sleep_qol_annual": sleep_qol_annual,
+        "raw_sleep_qol_qaly": raw_sleep_qol_qaly,
+        "sleep_qol_qaly": sleep_qol_qaly,
+        "evidence_discount_qaly": evidence_discount_qaly,
+        "component_breakdown": component_breakdown,
+        "top_positive_component": top_positive_component,
+        "top_negative_component": top_negative_component,
+        "total_qaly": total_qaly,
+        "days": total_qaly * 365.25,
+        "total_qaly_ci95": total_qaly_ci95,
+        "net_qaly_ci": net_qaly_ci,
+        "ci_low": total_qaly_ci95[0] * 365.25,
+        "ci_high": total_qaly_ci95[1] * 365.25,
+        # Median QALY of the mortality arm — convexity-invariant
+        # diagnostic. Do NOT substitute for total_qaly in ICER / net-
+        # monetary-benefit calculations; CEA arithmetic requires expected
+        # values, not medians. Median can hide discrete large-loss harm
+        # draws and reorder the frontier vs. the mean. Surface this
+        # alongside total_qaly to spot cases where the mean has material
+        # Jensen-on-survival bias or heavy-tail harm exposure.
+        "mortality_qaly_median": float(r.median),
+        "mortality_qaly_mean": float(r.mean),
+        "p_benefit": float(np.mean(total_qaly_draws > 0)),
+        "p_harm": float(np.mean(total_qaly_draws < 0)),
+        "expected_upside_days": float(
+            np.mean(np.clip(total_qaly_draws, 0, None)) * 365.25
+        ),
+        "expected_downside_days": float(
+            np.mean(np.clip(total_qaly_draws, None, 0)) * 365.25
+        ),
+        # Patient-facing price. Downstream reports read this field, so
+        # insurance has to be applied here too or it never reaches the
+        # published tables. A no-op when ``insurance`` is None.
+        "annual_cost": (
+            entry.annual_cost
+            if insurance is None
+            else insurance.patient_cost(entry.annual_cost, entry.access_profile)
+        ),
+        "retail_annual_cost": entry.annual_cost,
+        "effective_annual_cost": effective_cost,
+        "bundle_cost_share": entry.bundle_cost_share,
+        "bundle_id": entry.bundle_id,
+        "total_cost": total_cost,
+        "cost_per_qaly": cost_per_qaly,
+        "expected_discounted_cost_factor": r.expected_discounted_cost_factor,
+        "gross_value": total_qaly * wtp - total_cost,
+    }
+    return row, total_qaly_draws
+
+
 def simulate_catalog(
     profile,
     n_simulations: int = 50_000,
@@ -4377,6 +4653,9 @@ def simulate_catalog(
 
     Returns list of dicts with: id, name, category, hr_observed, hr_corrected,
     total_qaly, days, p_benefit, annual_cost, gross_value, cost_per_qaly.
+    Rows are sorted by gross_value descending, exact ties by id. Each row comes
+    from ``simulate_catalog_entry`` and depends only on its own entry and the
+    arguments here, not on which other entries are simulated or their order.
 
     Costs and QALYs use the shared reference-case discount defaults unless
     explicitly overridden for sensitivity analysis.
@@ -4389,11 +4668,6 @@ def simulate_catalog(
     leaves every price at retail, which understates the relative value of
     anything a payer would have covered.
     """
-    from .simulate import (
-        effective_qol_factor_for_years,
-        simulate_qaly_profile_vectorized,
-    )
-
     qaly_discount_rate = validate_qaly_discount_rate(qaly_discount_rate)
 
     if catalog_entries is not None:
@@ -4402,206 +4676,24 @@ def simulate_catalog(
             entries = {k: v for k, v in entries.items() if v.category in categories}
     else:
         entries = get_catalog(categories)
-    results = []
-    baseline_sleep_hazard_multiplier = sleep_baseline_mortality_multiplier(
-        sleep_estimate
-    )
 
-    for entry_index, entry in enumerate(entries.values()):
-        effect_multiplier = entry.profile_effect_multiplier(profile)
-        evidence_multiplier = entry.evidence_effect_multiplier()
-        effective_shrinkage = entry.effective_pub_bias_shrinkage(
-            fallback=pub_bias_shrinkage
-        )
-        intervention = entry.to_intervention(pub_bias_shrinkage, profile=profile)
-        sleep_mortality_hr_multiplier = entry.sleep_mortality_hr_multiplier(
-            sleep_estimate
-        )
-        sleep_mortality_relief_fraction = entry.sleep_mortality_relief_fraction(
-            sleep_estimate
-        )
-        airway_effect_multiplier = entry.airway_effect_multiplier(sleep_estimate)
-        r, base_qaly_draws = simulate_qaly_profile_vectorized(
-            intervention,
+    results = [
+        simulate_catalog_entry(
+            entry,
             profile,
             n_simulations=n_simulations,
-            discount_rate=qaly_discount_rate,
-            cost_discount_rate=cost_discount_rate,
-            active_interaction_tags=active_interaction_tags,
-            baseline_hazard_multiplier=baseline_sleep_hazard_multiplier,
-            global_intervention_hr_multiplier=sleep_mortality_hr_multiplier,
             random_state=random_state,
-            return_qaly_gains=True,
-        )
-        hr_corrected = publication_bias_correct(
-            entry.hr_observed,
-            shrinkage=effective_shrinkage,
-        )
-        harm_qaly = r.expected_harm_qalys + r.expected_interaction_harm_qalys
-        mort_qaly = r.mean - harm_qaly
-        qol_years = min(float(entry.qol_years), float(horizon_years))
-        qol_factor = effective_qol_factor_for_years(
-            r.expected_qol_weights,
-            qol_years,
-            r.expected_qol_factor,
-        )
-        qol_rng = np.random.default_rng(
-            np.random.SeedSequence(
-                [
-                    int(random_state) if random_state is not None else 0,
-                    entry_index,
-                    9917,
-                ]
-            )
-        )
-        raw_qol_draws, qol_draws, qol_effect_summaries = _simulate_qol_effect_draws(
-            entry,
-            qol_factor=qol_factor,
-            evidence_multiplier=evidence_multiplier,
-            n_simulations=n_simulations,
-            rng=qol_rng,
+            pub_bias_shrinkage=pub_bias_shrinkage,
+            horizon_years=horizon_years,
+            qaly_discount_rate=qaly_discount_rate,
+            cost_discount_rate=cost_discount_rate,
+            wtp=wtp,
+            active_interaction_tags=active_interaction_tags,
+            sleep_estimate=sleep_estimate,
+            insurance=insurance,
             residual_mode=residual_mode,
-        )
-        raw_qol_qaly = float(np.mean(raw_qol_draws))
-        qol_qaly = float(np.mean(qol_draws))
-        raw_sleep_qol_annual = entry.raw_sleep_qol_annual(sleep_estimate)
-        sleep_qol_annual = entry.sleep_qol_annual(sleep_estimate)
-        raw_sleep_qol_qaly = raw_sleep_qol_annual * qol_factor
-        sleep_qol_qaly = sleep_qol_annual * qol_factor
-        evidence_discount_qaly = (raw_qol_qaly - qol_qaly) + (
-            raw_sleep_qol_qaly - sleep_qol_qaly
-        )
-        total_qaly_draws = base_qaly_draws + qol_draws + sleep_qol_qaly
-        total_qaly = float(np.mean(total_qaly_draws))
-        total_qaly_ci95 = (
-            float(np.percentile(total_qaly_draws, 2.5)),
-            float(np.percentile(total_qaly_draws, 97.5)),
-        )
-        # 80% interval (p10, p90) of the full net-QALY draws (mortality + QoL +
-        # sleep QoL). total_qaly is the mean of these draws, so this brackets it
-        # by construction. Consumed by the frontend as net_qaly_ci / net_days_ci.
-        if total_qaly_draws is not None and len(total_qaly_draws) > 0:
-            net_qaly_ci = [
-                float(np.percentile(total_qaly_draws, 10)),
-                float(np.percentile(total_qaly_draws, 90)),
-            ]
-        else:
-            net_qaly_ci = [0.0, 0.0]
-        # Survival-weighted discounted cost. Uses effective_annual_cost so
-        # bundled items (NR, ubiquinol, astaxanthin, etc.) get their allocated
-        # share of the Blueprint Essentials bundle price instead of free-riding.
-        effective_cost = entry.effective_annual_cost(insurance)
-        total_cost = effective_cost * r.expected_discounted_cost_factor
-        cost_per_qaly = (
-            total_cost / total_qaly if total_qaly > 0 and effective_cost > 0 else None
-        )
-        component_breakdown = {
-            "mortality_qaly": mort_qaly,
-            "direct_qol_qaly": qol_qaly,
-            "sleep_qol_qaly": sleep_qol_qaly,
-            "direct_harm_qaly": r.expected_harm_qalys,
-            "interaction_harm_qaly": r.expected_interaction_harm_qalys,
-            "evidence_discount_qaly": -evidence_discount_qaly,
-        }
-        top_positive_component = max(
-            (
-                ("mortality_qaly", mort_qaly),
-                ("direct_qol_qaly", qol_qaly),
-                ("sleep_qol_qaly", sleep_qol_qaly),
-            ),
-            key=lambda item: item[1],
         )[0]
-        top_negative_component = min(
-            (
-                ("direct_harm_qaly", r.expected_harm_qalys),
-                ("interaction_harm_qaly", r.expected_interaction_harm_qalys),
-                ("evidence_discount_qaly", -evidence_discount_qaly),
-            ),
-            key=lambda item: item[1],
-        )[0]
-
-        results.append(
-            {
-                "id": entry.id,
-                "name": entry.name,
-                "category": entry.category,
-                "hr_observed": entry.hr_observed,
-                # hr_corrected = publication-bias-only HR (what the literature
-                # "actually shows" after naive bias correction). Kept for back-compat.
-                "hr_corrected": hr_corrected,
-                # hr_posterior* = HR the simulator actually applies after pub bias
-                # PLUS Bayesian confounding + profile transport + evidence shrinkage.
-                # This is the column a reader should compare items on.
-                "hr_posterior_mean": r.posterior_hr_mean,
-                "hr_posterior_median": r.posterior_hr_median,
-                "hr_posterior_ci95": r.posterior_hr_ci95,
-                "pub_bias_shrinkage": effective_shrinkage,
-                "study_quality": entry.study_quality,
-                "profile_effect_multiplier": effect_multiplier,
-                "evidence_quality": entry.evidence_quality,
-                "evidence_effect_multiplier": evidence_multiplier,
-                "baseline_sleep_hazard_multiplier": baseline_sleep_hazard_multiplier,
-                "airway_effect_multiplier": airway_effect_multiplier,
-                "sleep_mortality_relief_fraction": sleep_mortality_relief_fraction,
-                "sleep_mortality_hr_multiplier": sleep_mortality_hr_multiplier,
-                "mort_qaly": mort_qaly,
-                "harm_qaly": harm_qaly,
-                "direct_harm_qaly": r.expected_harm_qalys,
-                "interaction_harm_qaly": r.expected_interaction_harm_qalys,
-                "raw_qol_qaly": raw_qol_qaly,
-                "qol_qaly": qol_qaly,
-                "residual_mode": residual_mode,
-                "qol_effects": qol_effect_summaries,
-                "qol_years": qol_years,
-                "raw_sleep_qol_annual": raw_sleep_qol_annual,
-                "sleep_qol_annual": sleep_qol_annual,
-                "raw_sleep_qol_qaly": raw_sleep_qol_qaly,
-                "sleep_qol_qaly": sleep_qol_qaly,
-                "evidence_discount_qaly": evidence_discount_qaly,
-                "component_breakdown": component_breakdown,
-                "top_positive_component": top_positive_component,
-                "top_negative_component": top_negative_component,
-                "total_qaly": total_qaly,
-                "days": total_qaly * 365.25,
-                "total_qaly_ci95": total_qaly_ci95,
-                "net_qaly_ci": net_qaly_ci,
-                "ci_low": total_qaly_ci95[0] * 365.25,
-                "ci_high": total_qaly_ci95[1] * 365.25,
-                # Median QALY of the mortality arm — convexity-invariant
-                # diagnostic. Do NOT substitute for total_qaly in ICER / net-
-                # monetary-benefit calculations; CEA arithmetic requires expected
-                # values, not medians. Median can hide discrete large-loss harm
-                # draws and reorder the frontier vs. the mean. Surface this
-                # alongside total_qaly to spot cases where the mean has material
-                # Jensen-on-survival bias or heavy-tail harm exposure.
-                "mortality_qaly_median": float(r.median),
-                "mortality_qaly_mean": float(r.mean),
-                "p_benefit": float(np.mean(total_qaly_draws > 0)),
-                "p_harm": float(np.mean(total_qaly_draws < 0)),
-                "expected_upside_days": float(
-                    np.mean(np.clip(total_qaly_draws, 0, None)) * 365.25
-                ),
-                "expected_downside_days": float(
-                    np.mean(np.clip(total_qaly_draws, None, 0)) * 365.25
-                ),
-                # Patient-facing price. Downstream reports read this field, so
-                # insurance has to be applied here too or it never reaches the
-                # published tables. A no-op when ``insurance`` is None.
-                "annual_cost": (
-                    entry.annual_cost
-                    if insurance is None
-                    else insurance.patient_cost(entry.annual_cost, entry.access_profile)
-                ),
-                "retail_annual_cost": entry.annual_cost,
-                "effective_annual_cost": effective_cost,
-                "bundle_cost_share": entry.bundle_cost_share,
-                "bundle_id": entry.bundle_id,
-                "total_cost": total_cost,
-                "cost_per_qaly": cost_per_qaly,
-                "expected_discounted_cost_factor": r.expected_discounted_cost_factor,
-                "gross_value": total_qaly * wtp - total_cost,
-            }
-        )
-
-    results.sort(key=lambda x: x["gross_value"], reverse=True)
+        for entry in entries.values()
+    ]
+    results.sort(key=lambda row: (-row["gross_value"], row["id"]))
     return results

@@ -88,7 +88,9 @@ $$
 q_a^{\text{int}} = q_a \times \left(f_{\text{CVD}} \times \text{HR}_{\text{CVD}} + f_{\text{cancer}} \times \text{HR}_{\text{cancer}} + f_{\text{other}} \times \text{HR}_{\text{other}}\right)
 $$
 
-For most interventions, the observed hazard ratio $\text{HR}_{\text{obs}}$ is distributed across pathways with differential weighting. The framework uses:
+`LifecycleModel` accepts pathway-specific hazard ratios in this form for callers that have them. The Monte Carlo simulator does not split an intervention's hazard ratio across pathways for survival: every `simulate_*` entry point runs one integrator, which applies the sampled all-cause hazard ratio flat to baseline mortality, $q_a^{\text{int}} = \min(q_a \times \text{HR}, 0.99)$. Splitting it with pathway weights inside the survival integral attenuated every effect toward the null in an age-dependent way.
+
+The simulator uses pathway weights only to report how an effect decomposes across causes:
 
 $$
 \log(\text{HR}_{\text{pathway}}) = w_{\text{pathway}} \times \log(\text{HR}_{\text{obs}})
@@ -99,7 +101,7 @@ where default weights are:
 - Cancer: $w_{\text{cancer}} = 0.8$
 - Other: $w_{\text{other}} = 0.6$
 
-These weights are calibrated to meta-analytic evidence on cause-specific mortality effects (Aune et al., 2016).
+These weights are calibrated to meta-analytic evidence on cause-specific mortality effects (Aune et al., 2016). The reported contributions are each pathway's share of the median-HR mortality reduction, so they sum to 1 for a protective effect.
 
 ## Causal Inference: Confounding Adjustment
 
@@ -185,10 +187,10 @@ For each intervention, the framework samples from both the hazard ratio distribu
 1. Sample $\text{HR}_{\text{obs}} \sim \text{LogNormal}(\mu, \sigma)$ from intervention definition
 2. Sample $\theta \sim \text{Beta}(\alpha, \beta)$ from confounding prior
 3. Calculate adjusted HR: $\text{HR}_{\text{causal}} = \exp(\theta \times \log(\text{HR}_{\text{obs}}))$
-4. Run lifecycle simulation with adjusted HR
+4. Integrate expected survival, quality and discounting with the adjusted HR, and the expected loss from any harms given that draw's harm parameters
 5. Repeat 5,000-10,000 times to estimate median, mean, and credible intervals
 
-This propagates both epistemic uncertainty (parameter uncertainty) and causal uncertainty (confounding) into final estimates.
+This propagates both epistemic uncertainty (parameter uncertainty) and causal uncertainty (confounding) into final estimates. Each draw is an expectation given its parameters: it integrates the expected survival curve rather than sampling an age at death, and it carries the expected loss from a harmful event rather than a sampled occurrence (see [Harm events](#harm-events)). The draws therefore describe parameter uncertainty only, the convention of probabilistic sensitivity analysis. The benefit and harm probabilities and the intervals built from them do not mix in individual chance.
 
 Note: the Beta parameters in this section are the live values in
 `python/optiqal/data/priors.yaml`. That file is canonical; if the two ever
@@ -495,31 +497,47 @@ confounding:
 
 ## Time Horizon and Temporal Effects
 
-### Onset Delay
+An intervention's declared mortality timing scales how much of its hazard-ratio effect applies at each time $\tau$ (years since starting). All three parameters default to 0, the full effect from the first day, so only declared timing changes results. Catalog items declare none; some packaged intervention definitions do.
 
-Some interventions have delayed benefits (e.g., smoking cessation takes years to fully reduce cancer risk). The onset delay parameter $t_{\text{onset}}$ delays the start of HR application.
+### Onset delay
 
-### Ramp-Up Period
+Some interventions have delayed benefits (e.g., smoking cessation takes years to fully reduce cancer risk). Before the onset delay $t_{\text{onset}}$ the hazard ratio is 1.
 
-Effects gradually increase over time with ramp-up period $t_{\text{ramp}}$:
+### Ramp-up period
+
+After onset the effect grows linearly to its full size over the ramp-up period $t_{\text{ramp}}$. With effect fraction $f(\tau)$:
 
 $$
-\text{HR}_{\text{effective}}(t) = \begin{cases}
-1 & \text{if } t < t_{\text{onset}} \\
-1 - \frac{t - t_{\text{onset}}}{t_{\text{ramp}}} \times (1 - \text{HR}) & \text{if } t_{\text{onset}} \le t < t_{\text{onset}} + t_{\text{ramp}} \\
-\text{HR} & \text{if } t \ge t_{\text{onset}} + t_{\text{ramp}}
+f(\tau) = \begin{cases}
+0 & \text{if } \tau < t_{\text{onset}} \\
+\frac{\tau - t_{\text{onset}}}{t_{\text{ramp}}} & \text{if } t_{\text{onset}} \le \tau < t_{\text{onset}} + t_{\text{ramp}} \\
+1 & \text{if } \tau \ge t_{\text{onset}} + t_{\text{ramp}}
 \end{cases}
 $$
 
-### Decay Rate
+### Decay rate
 
-For interventions with adherence decay, the effect diminishes over time:
+For interventions whose effect fades, the fraction is multiplied by $e^{-\lambda (\tau - t_{\text{onset}})}$ from onset on, where $\lambda$ is the decay rate. Most interventions assume $\lambda = 0$ (persistent effects).
+
+### Annual integration
+
+The model advances in whole years. In model year $t$ the hazard multiplier is
 
 $$
-\text{HR}(t) = 1 - (1 - \text{HR}_0) \times e^{-\lambda t}
+1 + a_t \, \bar f_t \, (\text{HR} - 1), \qquad \bar f_t = \int_t^{t+1} f(\tau) \, d\tau,
 $$
 
-where $\lambda$ is the decay rate. Most interventions assume $\lambda = 0$ (persistent effects with perfect adherence).
+where $a_t$ is the adherence or active-duration exposure for that year and $\bar f_t$ is the exact average of the effect fraction over the year, from closed-form integrals. Costs, harms and quality-of-life effects follow $a_t$ alone. The intervention is paid for and taken from the start, whether or not its mortality effect has begun. An onset at or beyond the remaining horizon therefore gives no mortality benefit.
+
+### Harm events
+
+A harm can be an annual QALY loss while the intervention is active, a discrete event, or both. For an event with annual probability $p$ and QALY loss $L$, a person alive at the start of model year $t$ (survival $S_t$) has the event with chance $q_t = a_t \, p$, at most once per year. The loss is valued at the same start-of-year discount factor $d_t = (1+r)^{-t}$ that year-$t$ QALYs receive. When only the first event counts (the default), the expected loss is
+
+$$
+L \sum_t d_t \, S_t \, q_t \prod_{u<t} (1 - q_u),
+$$
+
+because a first event can only happen in a year that is still event-free. When the first $k$ events count, the product becomes the probability that fewer than $k$ events occurred in earlier years. Each Monte Carlo draw carries this expected loss given its sampled $p$, $L$ and survival curve. Stack-level interaction penalties use the same formula.
 
 ## Limitations
 
