@@ -197,6 +197,24 @@ def _build_sleep_metrics(
     return SleepMetrics(**fields)
 
 
+def _request_sleep_metrics(
+    profile_payload: Dict[str, Any], sleep_payload: Dict[str, Any]
+) -> Optional[SleepMetrics]:
+    """The one reading of a request's sleep inputs, shared by both endpoints.
+
+    The profile's ``sleep_hours_per_night`` is validated on every request and
+    supplies the duration whenever ``sleep_metrics`` omits ``duration_hours``,
+    so adding other sleep metrics never discards the reported sleep duration.
+    """
+    sleep_hours = _optional_bounded_number(
+        profile_payload.get("sleep_hours_per_night"),
+        name="sleep_hours_per_night",
+        low=0,
+        high=24,
+    )
+    return _build_sleep_metrics(sleep_payload, sleep_hours)
+
+
 def _get_calibration_factor(age: int, sex: Sex) -> float:
     for min_age, max_age, label in AGE_GROUP_BOUNDS:
         if min_age <= age <= max_age:
@@ -331,15 +349,9 @@ def build_baseline_response(payload: Dict[str, Any]) -> dict[str, Any]:
     has_diabetes = bool(profile_payload.get("has_diabetes"))
     has_hypertension = bool(profile_payload.get("has_hypertension"))
     activity_level = str(profile_payload.get("activity_level", "light"))
-    sleep_hours = _optional_bounded_number(
-        profile_payload.get("sleep_hours_per_night"),
-        name="sleep_hours_per_night",
-        low=0,
-        high=24,
-    )
 
     bmi_category = _bmi_category(weight_kg, height_cm)
-    sleep_metrics = _build_sleep_metrics(sleep_payload, sleep_hours)
+    sleep_metrics = _request_sleep_metrics(profile_payload, sleep_payload)
     sleep_estimate = (
         estimate_sleep_burden(sleep_metrics) if sleep_metrics is not None else None
     )
@@ -619,16 +631,7 @@ def build_frontier_response_with_policy(
         activity_level=profile_payload.get("activity_level", "light"),
     )
 
-    sleep_metrics = _build_sleep_metrics(sleep_payload)
-    if sleep_metrics is None:
-        duration_hours = _optional_bounded_number(
-            profile_payload.get("sleep_hours_per_night"),
-            name="sleep_hours_per_night",
-            low=0,
-            high=24,
-        )
-        if duration_hours is not None:
-            sleep_metrics = SleepMetrics(duration_hours=duration_hours)
+    sleep_metrics = _request_sleep_metrics(profile_payload, sleep_payload)
 
     n_simulations = _bounded_simulations(payload.get("n_simulations", 5000))
     categories = payload.get("categories")

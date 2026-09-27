@@ -1,10 +1,12 @@
-"""Invariants of the web API's baseline response.
+"""Invariants of the web API's baseline and frontier responses.
 
 The baseline checks compare ``build_baseline_response`` with an independent
 oracle: a from-scratch life-table recurrence written here, which takes only
 data (the CDC life table, the quality-weight table, the risk tables and the
 calibration table) as input. They run over an exhaustive age grid for every
-sex value and over Hypothesis-generated profiles.
+sex value and over Hypothesis-generated profiles. The sleep checks require
+both endpoints to read a request's sleep inputs identically, with the
+profile's nightly hours standing in for a missing sleep duration.
 """
 
 from __future__ import annotations
@@ -18,6 +20,8 @@ import pytest
 from hypothesis import example, given, settings
 from hypothesis import strategies as st
 
+from optiqal import web_api
+from optiqal.analyzer import AnalysisConfig
 from optiqal.lifecycle import CDC_LIFE_TABLE, CONDITION_DECREMENTS, QUALITY_WEIGHTS
 from optiqal.profile import (
     ACTIVITY_MORTALITY_RR,
@@ -27,6 +31,8 @@ from optiqal.profile import (
     SMOKING_MORTALITY_RR,
 )
 from optiqal.sleep import (
+    COMPONENT_MAX_ANNUAL_QALY_LOSS,
+    MORTALITY_COMPONENT_WEIGHTS,
     SleepMetrics,
     estimate_sleep_burden,
     sleep_baseline_mortality_multiplier,
@@ -378,7 +384,7 @@ def test_baseline_invariants_hold_for_generated_profiles(profile):
 # ---------------------------------------------------------------------------
 
 # SHA-256 of ``json.dumps(response)`` (what scripts/web_baseline.py writes) from
-# commit 3028e59f, before the "other" cohort was mixed on a common age grid.
+# origin/main e32aa802, before the "other" cohort was mixed on a common age grid.
 # Only "other" may move; male and female output must stay byte-identical.
 PINNED_BASELINE_DIGESTS = {
     "male_35_healthy_7h": (
@@ -431,7 +437,7 @@ PINNED_BASELINE_DIGESTS = {
                 "routine_score": 60,
             },
         },
-        "b586967a53182ddf87dab23df72b7b7e846cda38ef48db10288757896f0dc0a1",
+        "da33de7184deb47c889e4cf4cc0451e2c74659241f145ddd5db999f17ef7bb41",
     ),
 }
 
@@ -441,3 +447,193 @@ def test_male_and_female_baseline_output_is_byte_identical(name):
     request, digest = PINNED_BASELINE_DIGESTS[name]
     text = json.dumps(build_baseline_response(request))
     assert hashlib.sha256(text.encode()).hexdigest() == digest, text
+
+
+# ---------------------------------------------------------------------------
+# Sleep inputs are read the same way by both endpoints
+# ---------------------------------------------------------------------------
+
+# The API's sleep_metrics fields and their accepted ranges.
+SLEEP_FIELD_BOUNDS = {
+    "duration_hours": (0, 24),
+    "recovery_score": (0, 100),
+    "sleep_quality_score": (0, 100),
+    "waso_min": (0, 1440),
+    "routine_score": (0, 100),
+    "social_jetlag_min": (0, 1440),
+    "latency_min": (0, 1440),
+    "breathing_score": (0, 1),
+    "spo2": (0, 100),
+    "snore_pct": (0, 100),
+    "sleep_debt_min": (0, 1440),
+    "airway_response_signal": (0, 1),
+}
+sleep_hours = st.floats(min_value=0, max_value=24)
+partial_sleep_metrics = st.fixed_dictionaries(
+    {},
+    optional={
+        field: st.floats(min_value=low, max_value=high)
+        for field, (low, high) in SLEEP_FIELD_BOUNDS.items()
+        if field != "duration_hours"
+    },
+)
+any_sleep_metrics = st.fixed_dictionaries(
+    {},
+    optional={
+        field: st.floats(min_value=low, max_value=high)
+        for field, (low, high) in SLEEP_FIELD_BOUNDS.items()
+    },
+)
+
+# Age 75, 95 kg, 175 cm, smoker with diabetes and hypertension, sedentary: the
+# audit verifier's profile, where sleep duration moves treatment estimates.
+SLEEP_SENSITIVE_PROFILE = {
+    "age": 75,
+    "sex": "male",
+    "weight_kg": 95,
+    "height_cm": 175,
+    "smoker": True,
+    "has_diabetes": True,
+    "has_hypertension": True,
+    "activity_level": "sedentary",
+}
+
+
+class _ConfigCapturedError(Exception):
+    """Raised once the frontier has built its analysis config."""
+
+
+def frontier_analysis_config(request: dict) -> AnalysisConfig:
+    """The AnalysisConfig the frontier builds for ``request``, without the
+    Monte Carlo run that follows it."""
+    captured = {}
+
+    def capture(**kwargs):
+        captured["config"] = AnalysisConfig(**kwargs)
+        raise _ConfigCapturedError
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(web_api, "AnalysisConfig", capture)
+        with pytest.raises(_ConfigCapturedError):
+            web_api.build_frontier_response(request)
+    return captured["config"]
+
+
+def baseline_sleep_metrics(request: dict):
+    """The SleepMetrics the baseline scores for ``request`` (None if none)."""
+    captured = []
+
+    def capture(metrics):
+        captured.append(metrics)
+        return estimate_sleep_burden(metrics)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(web_api, "estimate_sleep_burden", capture)
+        build_baseline_response(request)
+    assert len(captured) <= 1
+    return captured[0] if captured else None
+
+
+def expected_sleep_metrics(profile: dict, sleep_metrics: dict):
+    """The documented reading: each supplied field as given, with the
+    profile's nightly hours as the duration when duration_hours is absent."""
+    fields = {field: sleep_metrics.get(field) for field in SLEEP_FIELD_BOUNDS}
+    if fields["duration_hours"] is None:
+        fields["duration_hours"] = profile.get("sleep_hours_per_night")
+    if all(value is None for value in fields.values()):
+        return None
+    return SleepMetrics(
+        **{
+            field: None if value is None else float(value)
+            for field, value in fields.items()
+        }
+    )
+
+
+@settings(max_examples=200, deadline=None)
+@given(profile=baseline_profiles, sleep_metrics=any_sleep_metrics)
+@example(
+    profile={**SLEEP_SENSITIVE_PROFILE, "sleep_hours_per_night": 3},
+    sleep_metrics={"routine_score": 90},
+)
+def test_both_endpoints_derive_the_same_sleep_metrics_and_burden(
+    profile, sleep_metrics
+):
+    request = {"profile": profile, "sleep_metrics": sleep_metrics}
+    expected = expected_sleep_metrics(profile, sleep_metrics)
+
+    config = frontier_analysis_config(request)
+    assert baseline_sleep_metrics(request) == expected
+    assert config.sleep_metrics == expected
+    if expected is None:
+        assert config.sleep_estimate is None
+    else:
+        assert config.sleep_estimate == estimate_sleep_burden(expected)
+
+
+@settings(max_examples=200, deadline=None)
+@given(
+    profile=baseline_profiles, sleep_metrics=partial_sleep_metrics, hours=sleep_hours
+)
+def test_baseline_reads_profile_hours_as_the_missing_sleep_duration(
+    profile, sleep_metrics, hours
+):
+    profile = {**profile, "sleep_hours_per_night": hours}
+    implicit = build_baseline_response(
+        {"profile": profile, "sleep_metrics": sleep_metrics}
+    )
+    explicit = build_baseline_response(
+        {
+            "profile": profile,
+            "sleep_metrics": {**sleep_metrics, "duration_hours": hours},
+        }
+    )
+    assert implicit == explicit
+
+
+@settings(max_examples=4, deadline=None)
+@given(sleep_metrics=partial_sleep_metrics, hours=sleep_hours)
+@example(sleep_metrics={"routine_score": 90}, hours=3)
+def test_frontier_reads_profile_hours_as_the_missing_sleep_duration(
+    sleep_metrics, hours
+):
+    profile = {**SLEEP_SENSITIVE_PROFILE, "sleep_hours_per_night": hours}
+    request = {"profile": profile, "sleep_metrics": sleep_metrics, "n_simulations": 8}
+    implicit = web_api.build_frontier_response(request)
+    explicit = web_api.build_frontier_response(
+        {**request, "sleep_metrics": {**sleep_metrics, "duration_hours": hours}}
+    )
+    assert implicit == explicit
+
+    # The frontier reports the same sleep burden as the baseline.
+    baseline = build_baseline_response(request)["sleep_estimate"]
+    for key in ("annual_qaly_loss", "mortality_signal", "component_losses"):
+        assert implicit["sleep_estimate"][key] == baseline[key]
+
+
+@pytest.mark.parametrize("hours", [3, 12])
+def test_neutral_sleep_metric_keeps_profile_sleep_duration(hours):
+    """Audit 2026-09-25 verifier input: with 3 (or 12) hours of sleep on the
+    profile, adding a neutral ``{"routine_score": 90}`` dropped the duration
+    burden to zero in the frontier (annual sleep loss 0.0057 -> 0.0) and moved
+    statin_5mg from 104.7 to 107.1 days and semaglutide from 159.0 to 162.6
+    at 30 draws, while the baseline was unchanged."""
+    profile = {**SLEEP_SENSITIVE_PROFILE, "sleep_hours_per_night": hours}
+    request = {"profile": profile, "n_simulations": 30}
+    plain = web_api.build_frontier_response(request)
+    partial = web_api.build_frontier_response(
+        {**request, "sleep_metrics": {"routine_score": 90}}
+    )
+    assert partial == plain
+
+    # 3 h and 12 h both carry the full duration burden and nothing else: a
+    # routine score of 90 is above the 85 point where regularity burden starts.
+    estimate = partial["sleep_estimate"]
+    assert estimate["component_burdens"]["duration"] == 1.0
+    assert estimate["component_burdens"]["regularity"] == 0.0
+    assert estimate["annual_qaly_loss"] == round(
+        COMPONENT_MAX_ANNUAL_QALY_LOSS["duration"], 4
+    )
+    assert estimate["mortality_signal"] == round(
+        MORTALITY_COMPONENT_WEIGHTS["duration"], 4
+    )
