@@ -37,7 +37,23 @@ from .intervention import (
 )
 from .priors import load_priors
 from .profile import Profile
+from .provisional_params import (
+    EIGHT_SLEEP_POD6_AIRWAY_TARGET_WEIGHTS,
+    EIGHT_SLEEP_POD6_ANNUAL_COST,
+    EIGHT_SLEEP_POD6_HR,
+    EIGHT_SLEEP_POD6_QOL_ANNUAL,
+    EIGHT_SLEEP_POD6_QOL_YEARS,
+    EIGHT_SLEEP_POD6_SLEEP_COMPONENT_RELIEF,
+    EIGHT_SLEEP_POD6_UPGRADE_ID,
+    L_THEANINE_BEDTIME_HR,
+    L_THEANINE_BEDTIME_ID,
+    L_THEANINE_BEDTIME_INTERACTION_TAGS,
+    L_THEANINE_BEDTIME_QOL_ANNUAL,
+    L_THEANINE_BEDTIME_QOL_YEARS,
+    L_THEANINE_BEDTIME_SLEEP_COMPONENT_RELIEF,
+)
 from .sleep import (
+    SLEEP_COMPONENT_BENEFIT_TAGS,
     SleepBurdenEstimate,
     effective_sleep_component_relief,
     estimate_airway_target_multiplier,
@@ -46,6 +62,7 @@ from .sleep import (
     sleep_baseline_mortality_multiplier,
     sleep_intervention_mortality_hr_multiplier,
 )
+from .sleep_residual import ResidualMode, apply_sleep_residual_rule
 
 
 @dataclass(frozen=True)
@@ -624,19 +641,29 @@ class CatalogEntry:
     def evidence_confidence(self) -> Literal["high", "medium", "low"]:
         return EVIDENCE_CONFIDENCE_LABELS[self.evidence_quality]
 
-    def raw_qol_annual(self) -> float:
-        """Expected annual non-mortality QALY before evidence shrinkage."""
-        return self.qol_annual + sum(
-            effect.annual_qaly.mean for effect in self.qol_effects
+    def raw_qol_annual(self, residual_mode: ResidualMode = "evidence_rule") -> float:
+        """Annual non-mortality QALY after the residual rule, before shrinkage."""
+        residual = apply_sleep_residual_rule(
+            self.id,
+            self.qol_annual,
+            residual_mode,
+            sleep_component_relief=self.sleep_component_relief,
         )
+        return residual + sum(effect.annual_qaly.mean for effect in self.qol_effects)
 
-    def effective_qol_annual(self) -> float:
+    def effective_qol_annual(
+        self, residual_mode: ResidualMode = "evidence_rule"
+    ) -> float:
         # Same replacement rule as the draw path: calibrated guard for
         # annotated positive claims, legacy flat multiplier otherwise.
         from .qol_annotations import general_qol_evidence_for
 
-        raw = self.raw_qol_annual()
-        evidence = general_qol_evidence_for(self.id)
+        raw = self.raw_qol_annual(residual_mode)
+        evidence = general_qol_evidence_for(
+            self.id,
+            residual_mode=residual_mode,
+            sleep_component_relief=self.sleep_component_relief,
+        )
         if evidence is not None and raw > 0:
             return raw * evidence.multiplier_mean
         return raw * self.evidence_effect_multiplier()
@@ -850,7 +877,10 @@ SEDATION_STACK_RULE = InteractionRule(
     requires_tags=["sedating"],
     minimum_matches=2,
     allocation="split_across_matches",
-    description="Extra grogginess and coordination cost from stacking sedating agents.",
+    description=(
+        "Unsourced judgment: extra grogginess and coordination cost from stacking "
+        "pharmacologic hypnotics."
+    ),
     annual_qaly_loss=Distribution(type="point", params={"value": 0.0015}),
 )
 
@@ -1401,6 +1431,49 @@ _add(
 )
 _add(
     _catalog_entry(
+        EIGHT_SLEEP_POD6_UPGRADE_ID,
+        "Eight Sleep Pod 6 upgrade",
+        "sleep_candidate",
+        hr_observed=EIGHT_SLEEP_POD6_HR,
+        log_sd=0.05,
+        annual_cost=EIGHT_SLEEP_POD6_ANNUAL_COST,
+        qol_annual=EIGHT_SLEEP_POD6_QOL_ANNUAL,
+        qol_years=EIGHT_SLEEP_POD6_QOL_YEARS,
+        has_direct_mortality_effect=False,
+        sleep_component_relief=dict(EIGHT_SLEEP_POD6_SLEEP_COMPONENT_RELIEF),
+        airway_target_weights=dict(EIGHT_SLEEP_POD6_AIRWAY_TARGET_WEIGHTS),
+        benefit_tags=[
+            SLEEP_COMPONENT_BENEFIT_TAGS[component]
+            for component in EIGHT_SLEEP_POD6_SLEEP_COMPONENT_RELIEF
+        ],
+        access_profile=AccessProfile(
+            tier="cash_pay",
+            coverage_outlook="na",
+            friction="low",
+            notes=(
+                "One-time hardware purchase (Pod 6 King cover + hub; the Pod 5 "
+                "Base and the Autopilot plan carry over). 30-night trial."
+            ),
+        ),
+        notes=(
+            "Upgrade from a Pod 5 already in nightly use, modeled as the delta "
+            "over it. PROVISIONAL: relief is the expected value of a sleep apnea "
+            "mitigation feature that is filed but not cleared, plus a small "
+            "thermal allowance; see optiqal/provisional_params.py. The one-time "
+            "price is annualized over the device life so the engine's discounted "
+            "cost equals it."
+        ),
+        sources=[
+            "https://help.eightsleep.com/en_us/upgrading-to-pod-6-as-an-existing-member-SyypGUZWxl",
+            "https://pubmed.ncbi.nlm.nih.gov/41133665/",
+            "https://pubmed.ncbi.nlm.nih.gov/38671774/",
+            "https://pubmed.ncbi.nlm.nih.gov/28647854/",
+        ],
+        evidence_quality="very-low",
+    )
+)
+_add(
+    _catalog_entry(
         "apap_nightly",
         "APAP nightly",
         "sleep_candidate",
@@ -1937,7 +2010,7 @@ _add(
             "mucus": 0.75,
             "upper_airway": 0.25,
         },
-        benefit_tags=["sleep_breathing_support"],
+        benefit_tags=["sleep_breathing_support", "sleep_quality_support"],
         notes=(
             "Best-supported as a mucolytic in chronic bronchitis/COPD. Much weaker for "
             "upper-airway sleep problems, so any sleep benefit is scaled to mucus-heavy phenotypes."
@@ -2018,8 +2091,6 @@ _add(
                 ),
             ),
         ],
-        interaction_tags=["sedating"],
-        interaction_rules=[SEDATION_STACK_RULE],
         sleep_component_relief={
             "duration": 0.08,
             "continuity": 0.12,
@@ -2340,8 +2411,6 @@ _add(
         annual_cost=28,  # $17.40 / 227 doses (1lb/151×3g servings, 2g dose) * 365
         qol_annual=0.0002,
         has_direct_mortality_effect=False,
-        interaction_tags=["sedating"],
-        interaction_rules=[SEDATION_STACK_RULE],
         sleep_component_relief={
             "duration": 0.06,
             "quality": 0.14,
@@ -2371,7 +2440,6 @@ _add(
         log_sd=0.12,
         annual_cost=76,  # $24.95 / 120 caps * 365
         qol_annual=0.0003,
-        interaction_tags=["sedating"],
         interaction_rules=[SEDATION_STACK_RULE],
         sleep_component_relief={
             "quality": 0.12,
@@ -2598,7 +2666,7 @@ _add(
                 source="https://www.ncbi.nlm.nih.gov/books/NBK548536/",
             ),
         ],
-        interaction_tags=["sedating", "thyroid_active"],
+        interaction_tags=["thyroid_active"],
         interaction_rules=[SEDATION_STACK_RULE],
         sleep_component_relief={
             "duration": 0.05,
@@ -2871,6 +2939,34 @@ _add(
             "https://pmc.ncbi.nlm.nih.gov/articles/PMC6836118/",
         ),
         study_quality="rct_standard",
+        evidence_quality="low",
+    )
+)
+_add(
+    _catalog_entry(
+        L_THEANINE_BEDTIME_ID,
+        "L-Theanine 200mg bedtime",
+        "supplement_current",
+        hr_observed=L_THEANINE_BEDTIME_HR,
+        log_sd=0.05,
+        annual_cost=60.0,
+        qol_annual=L_THEANINE_BEDTIME_QOL_ANNUAL,
+        qol_years=L_THEANINE_BEDTIME_QOL_YEARS,
+        has_direct_mortality_effect=False,
+        interaction_tags=list(L_THEANINE_BEDTIME_INTERACTION_TAGS),
+        sleep_component_relief=dict(L_THEANINE_BEDTIME_SLEEP_COMPONENT_RELIEF),
+        benefit_tags=[
+            SLEEP_COMPONENT_BENEFIT_TAGS[component]
+            for component in L_THEANINE_BEDTIME_SLEEP_COMPONENT_RELIEF
+        ],
+        notes=(
+            "Standalone L-theanine 200 mg taken before bed, a separate product "
+            "from the 200 mg in the morning Blueprint Longevity Mix "
+            "(l_theanine_200). PROVISIONAL: the sleep-relief fractions and the "
+            "QoL-guard tier are placeholders in optiqal/provisional_params.py "
+            "until the evidence is adjudicated; no study is linked yet and no "
+            "mortality or general-QoL effect is modeled."
+        ),
         evidence_quality="low",
     )
 )
@@ -3245,8 +3341,6 @@ EXTRA_BENEFIT_TAGS: Dict[str, List[str]] = {
     "ginger_400": ["anti_inflammatory"],
     "quercetin_500": ["anti_inflammatory", "senolytic_support"],
     "egcg_400": ["anti_inflammatory"],
-    "apigenin_50": ["anti_inflammatory", "senolytic_support"],
-    "ashwagandha_600": ["anti_inflammatory"],
     "black_seed_oil_1g": ["anti_inflammatory"],
     "fisetin_100": ["senolytic_support", "anti_inflammatory", "antioxidant_support"],
     "fisetin_100_unbundled": [
@@ -4187,6 +4281,7 @@ def _simulate_qol_effect_draws(
     evidence_multiplier: float,
     n_simulations: int,
     rng: np.random.Generator,
+    residual_mode: ResidualMode = "evidence_rule",
 ) -> tuple[np.ndarray, np.ndarray, List[Dict[str, Any]]]:
     """Sample named QoL components and preserve the legacy scalar component."""
     from .qol_annotations import general_qol_evidence_for
@@ -4200,7 +4295,17 @@ def _simulate_qol_effect_draws(
     # annotated positive claims (replacement, never stacked). Negative
     # (harm-side) components keep the legacy multiplier: shrinking a claimed
     # harm would flatter the intervention.
-    general_evidence = general_qol_evidence_for(entry.id)
+    residual = apply_sleep_residual_rule(
+        entry.id,
+        entry.qol_annual,
+        residual_mode,
+        sleep_component_relief=entry.sleep_component_relief,
+    )
+    general_evidence = general_qol_evidence_for(
+        entry.id,
+        residual_mode=residual_mode,
+        sleep_component_relief=entry.sleep_component_relief,
+    )
 
     def _guard(raw_component: np.ndarray, component_name: str) -> np.ndarray:
         if general_evidence is None or float(np.mean(raw_component)) <= 0:
@@ -4211,8 +4316,8 @@ def _simulate_qol_effect_draws(
         )
         return raw_component * (1.0 - general_evidence.shrinkage) * theta
 
-    if entry.qol_annual != 0:
-        raw_component = np.full(n_simulations, entry.qol_annual * qol_factor)
+    if residual != 0:
+        raw_component = np.full(n_simulations, residual * qol_factor)
         component = _guard(raw_component, "qol_annual")
         raw_qol_draws += raw_component
         qol_draws += component
@@ -4265,6 +4370,7 @@ def simulate_catalog(
     active_interaction_tags: Optional[List[str]] = None,
     sleep_estimate: Optional[SleepBurdenEstimate] = None,
     insurance: Optional[InsuranceContext] = None,
+    residual_mode: ResidualMode = "evidence_rule",
 ) -> List[Dict]:
     """
     Simulate all catalog entries and return sorted results.
@@ -4274,6 +4380,9 @@ def simulate_catalog(
 
     Costs and QALYs use the shared reference-case discount defaults unless
     explicitly overridden for sensitivity analysis.
+
+    ``residual_mode="authored"`` restores duplicate sleep residuals for
+    sensitivity analysis; the default uses the shared bedtime evidence rule.
 
     ``insurance`` prices coverable items (prescriptions, DME, specialist
     devices) at expected out-of-pocket rather than cash retail. Omitting it
@@ -4351,6 +4460,7 @@ def simulate_catalog(
             evidence_multiplier=evidence_multiplier,
             n_simulations=n_simulations,
             rng=qol_rng,
+            residual_mode=residual_mode,
         )
         raw_qol_qaly = float(np.mean(raw_qol_draws))
         qol_qaly = float(np.mean(qol_draws))
@@ -4440,6 +4550,7 @@ def simulate_catalog(
                 "interaction_harm_qaly": r.expected_interaction_harm_qalys,
                 "raw_qol_qaly": raw_qol_qaly,
                 "qol_qaly": qol_qaly,
+                "residual_mode": residual_mode,
                 "qol_effects": qol_effect_summaries,
                 "qol_years": qol_years,
                 "raw_sleep_qol_annual": raw_sleep_qol_annual,

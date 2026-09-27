@@ -5,17 +5,17 @@
    "oral_appliance_custom",
    "nasacort_nightly",
    "nasal_strips_nightly",
-   "daridorexant_25mg"
+   "head_elevation_nightly"
   ],
   "items": {
    "daridorexant_25mg": {
     "total_qaly": [
-     -0.0004,
-     0.0026
+     -0.003,
+     -0.0
     ],
     "p_harm": [
-     0.2992,
-     0.4048
+     0.5971,
+     0.8079
     ]
    },
    "apap_nightly": {
@@ -49,30 +49,30 @@
   "items": {
    "apap_nightly": {
     "total_qaly": [
-     0.041,
-     0.0555
+     0.0314,
+     0.0425
     ],
     "sleep_qol_qaly": [
-     0.0336,
-     0.0454
+     0.029,
+     0.0392
     ]
    },
    "oral_appliance_custom": {
     "total_qaly": [
-     0.0276,
-     0.0373
+     0.0218,
+     0.0295
     ]
    },
    "nasacort_nightly": {
     "total_qaly": [
-     0.0145,
-     0.0197
+     0.01,
+     0.0135
     ]
    },
    "mouth_tape_nightly": {
     "total_qaly": [
-     -0.0025,
-     0.0005
+     -0.003,
+     -0.0
     ]
    }
   }
@@ -91,13 +91,13 @@
     "status_quo"
    ],
    "rx_after_apap_if_needed": [
-    "daridorexant_25mg",
     "no_insomnia_rx",
+    "daridorexant_25mg",
     "lemborexant_5mg"
    ],
    "rx_after_oral_appliance_if_needed": [
-    "daridorexant_25mg",
     "no_insomnia_rx",
+    "daridorexant_25mg",
     "lemborexant_5mg"
    ]
   },
@@ -105,42 +105,42 @@
    "conservative_airway_support": {
     "combined_airway_support": {
      "marginal_qaly": [
-      0.0222,
-      0.03
+      0.0162,
+      0.0218
      ]
     }
    },
    "primary_osa_therapy_choice": {
     "apap_nightly": {
      "marginal_qaly": [
-      0.0411,
-      0.0555
+      0.0314,
+      0.0425
      ]
     },
     "oral_appliance_custom": {
      "marginal_qaly": [
-      0.0275,
-      0.0373
+      0.0218,
+      0.0294
      ]
     }
    },
    "rx_after_apap_if_needed": {
     "daridorexant_25mg": {
      "marginal_qaly": [
-      -0.0009,
-      0.0021
+      -0.003,
+      0.0
      ]
     },
     "trazodone_50mg": {
      "marginal_qaly": [
-      -0.0183,
-      -0.0135
+      -0.0258,
+      -0.019
      ]
     },
     "doxepin_3mg": {
      "marginal_qaly": [
-      -0.0047,
-      -0.0017
+      -0.0073,
+      -0.0043
      ]
     }
    }

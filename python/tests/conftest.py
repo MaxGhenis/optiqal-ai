@@ -25,6 +25,9 @@ _SLEEP_COLUMNS = [
     "whoop_spo2",
     "whoop_strain",
     "whoop_sleep_hours",
+    "whoop_light_min",
+    "whoop_deep_min",
+    "whoop_rem_min",
     "whoop_sleep_perf",
     "eight_score",
     "eight_quality_score",
@@ -63,6 +66,9 @@ def _build_synthetic_health_db(path: str) -> None:
         "whoop_spo2": 96.0,
         "whoop_strain": 12.0,
         "whoop_sleep_hours": 7.0,
+        "whoop_light_min": 240.0,
+        "whoop_deep_min": 90.0,
+        "whoop_rem_min": 90.0,
         "whoop_sleep_perf": 85.0,
         "eight_score": 80.0,
         "eight_quality_score": 80.0,
@@ -153,6 +159,6 @@ def pytest_configure(config):
     import tempfile
 
     db_dir = tempfile.mkdtemp(prefix="optiqal-health-")
-    db_path = os.path.join(db_dir, "synthetic_health.db")
+    db_path = os.path.join(db_dir, "synthetic.sqlite")
     _build_synthetic_health_db(db_path)
     os.environ["OPTIQAL_HEALTH_DB"] = db_path

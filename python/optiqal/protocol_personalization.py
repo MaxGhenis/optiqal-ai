@@ -18,6 +18,7 @@ from .protocol_ground_up import (
     load_protocol_items as _load_protocol_items,
 )
 from .sleep import AirwayContributorEstimate, SleepBurdenEstimate
+from .sleep_residual import ResidualMode, apply_sleep_residual_rule
 
 
 def load_protocol_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
@@ -73,8 +74,10 @@ def apply_protocol_spec(
 
 def protocol_metadata_from_specs(
     specs: dict[str, Any],
+    *,
+    residual_mode: ResidualMode = "evidence_rule",
 ) -> dict[str, dict[str, Any]]:
-    """Convert protocol specs into the metadata shape used by exporters."""
+    """Export effective assumptions and retain authored residuals for sensitivity."""
     metadata: dict[str, dict[str, Any]] = {}
     for item_id, spec in specs.items():
         resolved = resolve_stack_spec(spec)
@@ -89,7 +92,14 @@ def protocol_metadata_from_specs(
                     "alpha": resolved.conf_alpha,
                     "beta": resolved.conf_beta,
                 },
-                "qol_annual": resolved.qol_annual,
+                "qol_annual": apply_sleep_residual_rule(
+                    item_id,
+                    resolved.qol_annual,
+                    residual_mode,
+                    sleep_component_relief=resolved.sleep_component_relief,
+                ),
+                "authored_qol_annual": resolved.qol_annual,
+                "residual_mode": residual_mode,
                 "qol_years": resolved.qol_years,
                 "sleep_component_relief": dict(resolved.sleep_component_relief),
                 "airway_target_weights": dict(resolved.airway_target_weights),
@@ -119,6 +129,9 @@ def protocol_sleep_estimate_from_baseline(
         component_losses={k: float(v) for k, v in component_losses.items()},
         annual_qaly_loss=float(derived.get("sleep_burden_annual_qaly", 0.0)),
         mortality_signal=float(derived.get("sleep_mortality_signal", 0.0)),
+        breathing_mortality_gate=float(
+            derived.get("sleep_breathing_mortality_gate", 0.0)
+        ),
         airway=(
             AirwayContributorEstimate(
                 upper_airway_probability=float(

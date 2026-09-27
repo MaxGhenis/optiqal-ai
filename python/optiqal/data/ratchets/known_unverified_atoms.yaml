@@ -88,6 +88,15 @@
 - id: catalog:doxepin_3mg:target-tier
   reason: target-tier catalog claim has no identifiable abstract-supported study row
   since: '2026-09-04'
+- id: catalog:eight_sleep_pod6_upgrade:pmid:28647854
+  reason: 'catalog citation has no abstract-supported study row: 28647854'
+  since: '2026-09-25'
+- id: catalog:eight_sleep_pod6_upgrade:pmid:38671774
+  reason: 'catalog citation has no abstract-supported study row: 38671774'
+  since: '2026-09-25'
+- id: catalog:eight_sleep_pod6_upgrade:pmid:41133665
+  reason: 'catalog citation has no abstract-supported study row: 41133665'
+  since: '2026-09-25'
 - id: catalog:garlic_1200:target-tier
   reason: target-tier catalog claim has no identifiable abstract-supported study row
   since: '2026-09-04'

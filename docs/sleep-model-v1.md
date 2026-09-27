@@ -147,6 +147,72 @@ The current core integration now supports:
 
 The protocol script can still layer additional customization on top, but sleep is no longer protocol-only.
 
+## Ground-up protocol composition
+
+The ground-up protocol and exhaustive sleep-stack search share
+[`ProtocolInteractionEvaluator`](../python/optiqal/protocol_overlap.py). Their
+default `ProtocolContext.overlap_mode = "component"` uses each item's
+full-precision, evidence-guarded relief after airway personalization. The
+serialized `sleep_overlap` payload records these fractions, component annual
+losses, and each component's standalone discounted QoL benefit.
+
+For component c, let L_c be its annual QoL loss and r_ic the guarded fraction
+relieved by item i. Split time at every item's `qol_years` horizon. In each
+window w, A_w is the set of active items and D_w its discounted duration:
+
+```text
+state_sleep_qol = Σ_c L_c · Σ_w D_w · (1 − Π_{i∈A_w}(1 − r_ic))
+sleep_qol_interaction = state_sleep_qol − Σ_i standalone_sleep_qol_i
+```
+
+Discounting follows the standalone QoL stream: year t has weight
+`(1 + discount_rate)^(-t)`, and a window's fractional year contributes exactly
+its fraction of that weight. Composition therefore preserves every standalone
+value, handles unequal and fractional treatment windows exactly, and gives zero
+interaction between items targeting disjoint components. Shared-component
+interactions are nonpositive. Implementation and invariant tests are in
+[`sleep_overlap.py`](../python/optiqal/sleep_overlap.py) and
+[`test_sleep_overlap.py`](../python/tests/test_sleep_overlap.py).
+
+Sleep-derived mortality is isolated by paired simulations with and without
+sleep relief, using the same seed and direct HR. The mortality interaction uses
+the same component composition, allocating each window's combined relief among
+its active contributors in proportion to their relief fractions. Each item's
+retained exposure scales its standalone sleep-derived mortality QALY. Exposure
+weights are life-table derivatives for a temporary log-hazard change: treatment
+ends at `qol_years`, while downstream survival gains accrue through the modeled
+age-100 horizon. This is a first-order mortality approximation.
+`mortality_approximation_bound` compares it with exact expected-quality survival
+integration for composed sleep HRs on the common baseline and gives a
+conservative absolute-error bound for every subset of the supplied items. The
+bound includes the spread in paired-simulation slopes; it does not assert an
+exact joint model of direct HR effects.
+
+The isolated `ab-stageB` check on 2026-09-23, with the profile's age fallback,
+bounded mortality error across every subset of all 19 sleep-relief items at
+`1.994e-8 QALY`. The all-items absolute difference was `1.244e-9 QALY`:
+`0.000130986525` under proportional allocation versus `0.000130985281` under
+exact expected-quality integration. The repaired inputs leave only one item
+with positive sleep-derived mortality benefit, so this run has no overlapping
+mortality relief. Synthetic tests additionally check shared mortality
+components with different horizons and the bound across their subsets.
+
+Non-sleep tags retain their existing schedules, applied only to positive
+general QoL and direct-HR mortality benefit. Each item receives only its largest
+non-sleep-tag penalty. `overlap_mode = "legacy_rank_retention"` restores the
+historical retention arithmetic and the benefit-tag changes associated with
+this component-overlap repair. It operates on the supplied baseline and item
+estimates; input repairs and sedation-tag changes remain separate.
+
+`ProtocolContext.residual_mode = "evidence_rule"` applies the shared
+[`sleep residual rule`](../python/optiqal/sleep_residual.py): the reviewed bedtime
+items receive no extra general-QoL credit for their sleep outcomes. Ashwagandha
+retains its separately guarded stress/anxiety term. New sleep interventions
+default to no general residual. `residual_mode = "authored"` restores authored
+values for sensitivity analysis. Integration tests check both overlap modes
+against full protocol-state evaluation to `1e-9` in
+[`test_protocol_overlap.py`](../python/tests/test_protocol_overlap.py).
+
 ## Known Gaps
 
 Sleep Model V1 is not finished. Remaining gaps include:

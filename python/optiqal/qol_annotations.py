@@ -25,7 +25,16 @@ from __future__ import annotations
 
 from typing import Dict, Optional
 
+from .provisional_params import (
+    EIGHT_SLEEP_POD6_QOL_CATEGORY,
+    EIGHT_SLEEP_POD6_QOL_STUDY_QUALITY,
+    EIGHT_SLEEP_POD6_UPGRADE_ID,
+    L_THEANINE_BEDTIME_ID,
+    L_THEANINE_BEDTIME_QOL_CATEGORY,
+    L_THEANINE_BEDTIME_QOL_STUDY_QUALITY,
+)
 from .qol_evidence import QolEvidence
+from .sleep_residual import ResidualMode, apply_sleep_residual_rule
 
 # --------------------------------------------------------------------------
 # General QoL (qol_annual) claims — anchor: authored_shaded unless noted.
@@ -147,6 +156,11 @@ GENERAL_QOL_EVIDENCE: Dict[str, QolEvidence] = {
         "supplement_industry_rct",
         "mood_stress",
         note="Small acute-stress trials, subjective endpoints.",
+    ),
+    L_THEANINE_BEDTIME_ID: QolEvidence(
+        L_THEANINE_BEDTIME_QOL_STUDY_QUALITY,
+        L_THEANINE_BEDTIME_QOL_CATEGORY,
+        note="PROVISIONAL tier (glycine_2g's) pending evidence adjudication; see provisional_params.py.",
     ),
     "lithium_5mg": QolEvidence(
         "observational_symptom",
@@ -418,6 +432,15 @@ SLEEP_RELIEF_EVIDENCE: Dict[str, QolEvidence] = {
         _SLEEP,
         note="Small uncontrolled positional studies.",
     ),
+    EIGHT_SLEEP_POD6_UPGRADE_ID: QolEvidence(
+        EIGHT_SLEEP_POD6_QOL_STUDY_QUALITY,
+        EIGHT_SLEEP_POD6_QOL_CATEGORY,
+        _SLEEP,
+        note=(
+            "PROVISIONAL: no trial of any Pod 6 feature; the apnea mitigation "
+            "feature is filed, not cleared. See provisional_params.py."
+        ),
+    ),
     "humidifier_nightly": QolEvidence(
         "mechanistic_or_self_experiment",
         "respiratory_airway",
@@ -464,6 +487,12 @@ SLEEP_RELIEF_EVIDENCE: Dict[str, QolEvidence] = {
         _SLEEP,
         note="Manufacturer-affiliated trials.",
     ),
+    L_THEANINE_BEDTIME_ID: QolEvidence(
+        L_THEANINE_BEDTIME_QOL_STUDY_QUALITY,
+        L_THEANINE_BEDTIME_QOL_CATEGORY,
+        _SLEEP,
+        note="PROVISIONAL tier (glycine_2g's) pending evidence adjudication; see provisional_params.py.",
+    ),
     "apigenin_50": QolEvidence(
         "mechanistic_or_self_experiment",
         "sleep_symptom",
@@ -498,7 +527,24 @@ SLEEP_RELIEF_EVIDENCE: Dict[str, QolEvidence] = {
 }
 
 
-def general_qol_evidence_for(item_id: str) -> Optional[QolEvidence]:
+def general_qol_evidence_for(
+    item_id: str,
+    *,
+    residual_mode: ResidualMode = "evidence_rule",
+    sleep_component_relief: dict[str, float] | None = None,
+) -> Optional[QolEvidence]:
+    """Return evidence for general QoL retained by the selected residual rule.
+
+    The default omits duplicate sleep-only claims. Historical annotations
+    remain available explicitly through ``residual_mode="authored"``.
+    """
+    if (
+        apply_sleep_residual_rule(
+            item_id, 1.0, residual_mode, sleep_component_relief=sleep_component_relief
+        )
+        == 0
+    ):
+        return None
     return GENERAL_QOL_EVIDENCE.get(item_id)
 
 

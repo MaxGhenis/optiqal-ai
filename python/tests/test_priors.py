@@ -79,16 +79,40 @@ def _literal_projection(priors: dict) -> dict:
     }
 
 
+# Catalog prior rows added after the 2026-09-04 fixture was frozen. The fixture
+# is never edited to admit them: everything else must still equal it exactly,
+# and every extra row must be declared here.
+POST_FREEZE_INTERVENTION_PRIORS = frozenset(
+    {"l_theanine_200_bedtime", "eight_sleep_pod6_upgrade"}
+)
+
+
+def _without_post_freeze_rows(priors: dict) -> dict:
+    trimmed = deepcopy(priors)
+    for key in POST_FREEZE_INTERVENTION_PRIORS:
+        trimmed["confounding"]["interventions"].pop(key)
+    return trimmed
+
+
 def test_loaded_priors_equal_frozen_fixture() -> None:
     expected = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
-    assert load_priors() == expected
+    loaded = load_priors()
+    added = set(loaded["confounding"]["interventions"]) - set(
+        expected["confounding"]["interventions"]
+    )
+    assert added == POST_FREEZE_INTERVENTION_PRIORS
+    assert _without_post_freeze_rows(loaded) == expected
 
 
 def test_runtime_tables_equal_frozen_fixture() -> None:
     expected = _literal_projection(json.loads(FIXTURE_PATH.read_text(encoding="utf-8")))
     confounding = expected["confounding"]
     assert _runtime_beta_values(CATEGORY_PRIORS) == confounding["categories"]
-    assert _runtime_beta_values(INTERVENTION_PRIORS) == confounding["interventions"]
+    assert {
+        key: value
+        for key, value in _runtime_beta_values(INTERVENTION_PRIORS).items()
+        if key not in POST_FREEZE_INTERVENTION_PRIORS
+    } == confounding["interventions"]
     assert (
         _runtime_beta_values(PROTOCOL_INTERVENTION_PRIORS)
         == confounding["protocol_interventions"]
