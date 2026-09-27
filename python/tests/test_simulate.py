@@ -236,13 +236,15 @@ class TestSimulateQALY:
             n_simulations=1000,
             random_state=42,
         )
-        total = (
-            result.cvd_contribution
-            + result.cancer_contribution
-            + result.other_contribution
+        contributions = (
+            result.cvd_contribution,
+            result.cancer_contribution,
+            result.other_contribution,
         )
-        # Allow some tolerance
-        assert abs(total - result.median) < 0.5
+        # simulate_qaly runs the vectorized engine, which reports each pathway's
+        # share of a protective effect, so the shares are fractions summing to 1.
+        assert all(0.0 <= share <= 1.0 for share in contributions)
+        assert sum(contributions) == pytest.approx(1.0)
 
     def test_confounding_reduces_effect(self, protective_intervention):
         with_confounding = simulate_qaly(

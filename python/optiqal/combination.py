@@ -188,6 +188,7 @@ def simulate_combined_qaly(
     n_simulations: int = 5000,
     discount_rate: float = 0.03,
     apply_overlap: bool = True,
+    random_state: Optional[int] = None,
 ) -> SimulationResult:
     """
     Simulate QALY gains from a combination of interventions.
@@ -195,12 +196,23 @@ def simulate_combined_qaly(
     This creates a synthetic "combined intervention" with the combined
     hazard ratio and runs the standard simulation.
 
+    The synthetic intervention carries every member's direct harms and the
+    stack's interaction harms: its interaction tags are all members' tags
+    together, and each distinct interaction rule (by id) is charged once, at
+    its full stack-level size, when those tags trigger it. That is the
+    stack-level convention of
+    :func:`optiqal.stack_interactions.expected_stack_interaction_qaly`; charging
+    each carrier of a shared rule would count the one stack harm repeatedly.
+    The joint HR applies from the first year: members' onset, ramp-up and
+    decay timing is not carried into the combined effect.
+
     Args:
         interventions: List of interventions to combine
         profile: Demographic profile
         n_simulations: Number of Monte Carlo samples
         discount_rate: Annual discount rate for future QALYs
         apply_overlap: Whether to apply overlap corrections
+        random_state: Random seed for reproducibility
 
     Returns:
         SimulationResult with combined QALY estimate
@@ -215,6 +227,7 @@ def simulate_combined_qaly(
             profile,
             n_simulations=n_simulations,
             discount_rate=discount_rate,
+            random_state=random_state,
         )
 
     # Combine effects
@@ -231,6 +244,7 @@ def simulate_combined_qaly(
     # For combined interventions, we need to create a modified copy
     # that uses the combined HR
     from copy import deepcopy
+    from dataclasses import replace
 
     combined_intervention = deepcopy(base_intervention)
     combined_intervention.id = "+".join(i.id for i in interventions)
@@ -241,6 +255,25 @@ def simulate_combined_qaly(
     combined_intervention.mortality = MortalityEffect(
         hazard_ratio=Distribution(type="point", params={"value": combined.combined_hr})
     )
+    # Every member's own harms, not only the template's.
+    combined_intervention.harm_model = [
+        deepcopy(harm) for member in interventions for harm in member.harm_model
+    ]
+    # All members' tags together are the tag context each member sees inside
+    # the stack. Rules are deduplicated by id so a rule several members carry
+    # is charged once; the synthetic intervention stands for every contributor,
+    # so a rule's split allocation would only shrink that single stack-level
+    # charge and is set to the whole-rule "per_item" charge instead.
+    combined_intervention.interaction_tags = [
+        tag for member in interventions for tag in member.interaction_tags
+    ]
+    stack_rules = {}
+    for member in interventions:
+        for rule in member.interaction_rules:
+            stack_rules.setdefault(
+                rule.id, replace(deepcopy(rule), allocation="per_item")
+            )
+    combined_intervention.interaction_rules = list(stack_rules.values())
 
     # Run simulation with combined intervention. combine_intervention_effects
     # already baked each intervention's profile effect-modifier into
@@ -252,6 +285,7 @@ def simulate_combined_qaly(
         profile,
         n_simulations=n_simulations,
         discount_rate=discount_rate,
+        random_state=random_state,
         apply_intervention_modifier=False,
     )
 
