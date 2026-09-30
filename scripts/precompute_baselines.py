@@ -81,7 +81,7 @@ def precompute_baselines():
     data = {
         "metadata": {
             "version": "1.0.0",
-            "source": "CDC National Vital Statistics Life Tables (2021)",
+            "source": "NVSR 72-12 United States Life Tables, 2021, Tables 2-3, via optiqal/data/snapshots/cdc_life_table.json",
             "discount_rate": 0.03,
             "max_age": 100,
         },
