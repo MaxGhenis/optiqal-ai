@@ -9,8 +9,9 @@
     "doi": "10.15620/cdc:132418",
     "male_spreadsheet": "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/NVSR/72-12/Table02.xlsx",
     "female_spreadsheet": "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/NVSR/72-12/Table03.xlsx",
-    "status": "published qx transcribed from and verified against the official PDF; comparison computed mechanically",
-    "generator_note": "The generator validates this committed evidence and prints manual refresh steps; it does not fetch the source.",
+    "status": "historical evidence; published qx transcribed from and verified against the official PDF; comparison computed mechanically",
+    "generator_note": "The generator validates this committed evidence and checks every published_qx against its parse of optiqal/data/cdc/nvsr72-12_tables_2_3.txt; it does not fetch the source.",
+    "history_note": "snapshot_qx is the legacy runtime value from Optiqal commit 5e472e22. The runtime life table was regenerated from NVSR 72-12 Tables 2-3 on 2026-09-27, so these rows record why the numbers changed; they no longer describe the runtime.",
     "sha256_of_data": "574890b25cfd151c6948c68aeb79c1b0a36ebaf6558f819d2061e5641c434954"
   },
   "data": {
