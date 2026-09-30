@@ -87,7 +87,12 @@ it to audit the snapshots without regenerating them.
   a constant hazard whose mean remaining life equals the published `e100`
   (males 0.401232, `e100` 1.95; females 0.363386, `e100` 2.21). It applies at
   every age from 100 on. The baseline projection runs to age 110; the
-  intervention engine stops at 99.
+  intervention engine stops at 99. Because `l100` and `T100` are printed as
+  whole persons, the rate is determined only to about ±0.0004. NCHS's own
+  central-rate conversion, `qx = Mx / (1 + Mx/2)` (NVSR 72-12 technical notes,
+  eq. 11), would give 0.408201 and 0.368407. Using it instead would move the
+  baseline's remaining life expectancy by 0.04 years at age 100, under 0.01 at
+  95, and under 0.002 at every age up to 65.
 - **Lookup.** `get_mortality_rate` returns the table value exactly at an integer
   age and interpolates log-linearly between adjacent single years for a
   fractional age. The web API baseline, the simulation engine, stack
