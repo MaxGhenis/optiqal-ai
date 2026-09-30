@@ -236,7 +236,7 @@ def test_runtime_age_pins_match_the_committed_snapshots():
     assert tuple(lifecycle.CDC_LIFE_TABLE["female"]) == lifecycle.LIFE_TABLE_AGES
     assert tuple(lifecycle.QUALITY_WEIGHTS) == lifecycle.QUALITY_WEIGHT_AGES
     assert tuple(lifecycle.CAUSE_FRACTIONS) == lifecycle.CAUSE_FRACTION_AGES
-    assert len(lifecycle.LIFE_TABLE_AGES) == 22
+    assert len(lifecycle.LIFE_TABLE_AGES) == 101
     assert len(lifecycle.QUALITY_WEIGHT_AGES) == 8
     assert len(lifecycle.CAUSE_FRACTION_AGES) == 6
 
@@ -361,12 +361,18 @@ def _assert_nested_close(actual, expected, path: str = "fixture") -> None:
 
 
 def test_loaded_lifecycle_values_match_pre_refactor_literals():
+    """The snapshot refactor preserved every block it did not mean to change.
+
+    The life table was deliberately replaced by NVSR 72-12 Tables 2-3 on
+    2026-09-27; test_cdc_life_table.py pins it to that source and ties the
+    fixture's legacy life table to the comparison evidence.
+    """
     fixture_path = (
         Path(__file__).parent / "fixtures" / "lifecycle_constants_2026-09-04.json"
     )
     expected = json.loads(fixture_path.read_text(encoding="utf-8"))
+    del expected["CDC_LIFE_TABLE"]
     actual = {
-        "CDC_LIFE_TABLE": lifecycle.CDC_LIFE_TABLE,
         "CAUSE_FRACTIONS": lifecycle.CAUSE_FRACTIONS,
         "QUALITY_WEIGHTS": lifecycle.QUALITY_WEIGHTS,
         "QUALITY_WEIGHT_STD": lifecycle.QUALITY_WEIGHT_STD,

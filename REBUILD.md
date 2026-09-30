@@ -164,7 +164,9 @@ A card with `verification_state: heuristic` never reaches the public site.
 - The production life-table anchors are transcribed legacy data. A committed
   comparison against NVSR 72-12 Tables 2–3 finds zero matches across 44 anchors;
   production is not using the CDC 2021 table the earlier docs cited. Correcting
-  those values requires a later behavior-changing PR.
+  those values requires a later behavior-changing PR. (Done 2026-09-27: the
+  runtime table is now generated from NVSR 72-12 Tables 2–3; see
+  `docs/DATA_PROVENANCE.md`.)
 - Cause fractions remain a transcribed approximation because no saved CDC WONDER
   query or export exists. Their pinned validator prints the raw evidence a
   future replacement must record instead of inventing a regeneration path.

@@ -1,7 +1,8 @@
 """
 Lifecycle QALY Model
 
-CDC life tables, pathway decomposition, and survival curve integration.
+CDC single-year life tables (NVSR 72-12, United States Life Tables, 2021),
+pathway decomposition, and survival curve integration.
 Based on whatnut methodology.
 """
 
@@ -16,39 +17,20 @@ from .snapshots import load_snapshot
 
 # The exact anchor ages the interpolators expect. Pinned so a snapshot that has
 # lost or gained an age fails at import instead of being silently interpolated
-# across the hole. `data_build.cdc_life_table.EXPECTED_AGES` and
+# across the hole. The life table is single-year, ages 0-100, with age 100 the
+# annual rate derived from CDC's open-ended "100 and older" row; an integer-age
+# lookup below 100 therefore returns a published qx with no interpolation.
+# `data_build.cdc_life_table.EXPECTED_AGES` and
 # `data_build.cause_fractions.EXPECTED_AGES` repeat the life-table and
 # cause-fraction sets for standalone validation; test_snapshots.py holds each
 # pair equal.
-LIFE_TABLE_AGES = (
-    0,
-    1,
-    5,
-    10,
-    15,
-    20,
-    25,
-    30,
-    35,
-    40,
-    45,
-    50,
-    55,
-    60,
-    65,
-    70,
-    75,
-    80,
-    85,
-    90,
-    95,
-    100,
-)
+LIFE_TABLE_AGES = tuple(range(101))
 QUALITY_WEIGHT_AGES = (25, 35, 45, 55, 65, 75, 85, 95)
 CAUSE_FRACTION_AGES = (40, 50, 60, 70, 80, 90)
 
 # Runtime data is loaded and validated at import. The snapshot provenance records
-# which values are derived, authored, or only transcribed from the legacy engine.
+# which values are generated from a committed source, derived, authored, or only
+# transcribed from the legacy engine.
 _LIFE_TABLE_SNAPSHOT = load_snapshot("cdc_life_table")
 CDC_LIFE_TABLE = {
     "male": _LIFE_TABLE_SNAPSHOT.age_table(
@@ -89,6 +71,9 @@ CONDITION_DECREMENTS = _QUALITY_WEIGHT_SNAPSHOT.named_table(
 
 def interpolate_table(table: dict, age: float) -> float:
     """Log-linear interpolation for mortality rates."""
+    # An anchor age returns its value exactly; exp(log(q)) is off by an ulp.
+    if age in table:
+        return table[age]
     ages = sorted(table.keys())
 
     if age <= ages[0]:
