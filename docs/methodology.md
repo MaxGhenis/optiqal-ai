@@ -6,7 +6,7 @@ This document describes the technical methodology underlying the Optiqal Quality
 
 Optiqal estimates the lifetime QALY gains from health interventions using a lifecycle simulation model with Monte Carlo uncertainty quantification. The framework incorporates:
 
-1. CDC life tables adjusted for individual risk profiles
+1. A legacy U.S. life table, attributed to but not matching the CDC's 2021 tables, adjusted for individual risk profiles
 2. Pathway-specific hazard ratios (cardiovascular disease, cancer, other causes)
 3. Evidence-calibrated confounding adjustment
 4. Profile-specific intervention effect modifiers
@@ -36,7 +36,7 @@ $$
 S(t) = \prod_{i=0}^{t-1} \left(1 - q_{\text{age}_0 + i}\right)
 $$
 
-where $q_a$ is the annual mortality rate (probability of death) for age $a$, obtained from CDC National Vital Statistics Life Tables (2021) with log-linear interpolation.
+where $q_a$ is the annual mortality rate (probability of death) for age $a$, interpolated log-linearly between 22 anchor ages per sex (0, 1, 5, 10, ..., 100). The anchors are a legacy transcription attributed to the CDC's *United States Life Tables, 2021* (NVSR 72-12), and none of the 44 anchors (22 per sex) matches the published Tables 2-3 ([data provenance](https://github.com/MaxGhenis/optiqal-ai/blob/main/docs/DATA_PROVENANCE.md)).
 
 ### Quality-of-Life Weights
 
@@ -529,7 +529,7 @@ where $\lambda$ is the decay rate. Most interventions assume $\lambda = 0$ (pers
 
 2. **Pathway independence**: CVD, cancer, and other mortality pathways are assumed to be conditionally independent given the intervention. Shared biological mechanisms may induce correlations.
 
-3. **Life table limitations**: CDC life tables represent population averages and may not fully capture heterogeneity within demographic groups.
+3. **Life table limitations**: The baseline life table represents population averages and may not fully capture heterogeneity within demographic groups. Its rates are a legacy transcription that does not match the CDC 2021 tables it is attributed to.
 
 ### Causal Inference
 

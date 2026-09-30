@@ -295,14 +295,14 @@ This approach separates the causal pathway: Intervention → Biomarkers → Cond
 ### Lifecycle Integration
 
 We propagate mortality and quality effects through a lifecycle model:
-- CDC life tables for age-specific mortality
+- Age-specific mortality from a legacy U.S. life table, attributed to the CDC's 2021 life tables but not matching the published values ([data provenance](https://github.com/MaxGhenis/optiqal-ai/blob/main/docs/DATA_PROVENANCE.md))
 - Age-varying cause fractions (CVD, cancer, other)
 - Condition-based quality weights (see above)
 - 3% annual discounting (for ICER calculations)
 
 ### Population Calibration Using NHANES
 
-A fundamental challenge arises when applying hazard ratios to life table estimates: published life expectancy figures already reflect the population distribution of risk factors. The CDC life tables report mortality for the *average* American, who already has some probability of smoking, being obese, being sedentary, etc. Naive application of hazard ratios to these population averages leads to double-counting—we compare individuals against a baseline that already incorporates the very conditions we are adjusting for.
+A fundamental challenge arises when applying hazard ratios to life table estimates: published life expectancy figures already reflect the population distribution of risk factors. Period life tables report mortality for the *average* American, who already has some probability of smoking, being obese, being sedentary, etc. Naive application of hazard ratios to these population averages leads to double-counting—we compare individuals against a baseline that already incorporates the very conditions we are adjusting for.
 
 **The calibration problem**: Consider a sedentary individual. The life table expectancy already includes sedentary people in the population average. If we apply a sedentary penalty (HR > 1) to this already-reduced baseline, we overestimate mortality. Conversely, for an active individual, we should credit them with *better* than population-average life expectancy, not merely the average itself.
 
