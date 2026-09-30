@@ -45,8 +45,19 @@ export default function AboutPage() {
             </p>
             <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-4 mt-3">
               <li>
-                <strong className="text-foreground">CDC Life Tables</strong> — U.S. mortality data
-                providing baseline life expectancy by age and sex
+                <strong className="text-foreground">Legacy U.S. life table</strong> — mortality
+                rates by age and sex that set baseline life expectancy. The rates are a legacy
+                transcription attributed to the CDC&apos;s 2021 U.S. life tables, and none of
+                their 44 age-and-sex anchors matches the published tables. Our{" "}
+                <a
+                  href="https://github.com/MaxGhenis/optiqal-ai/blob/main/docs/DATA_PROVENANCE.md"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  data provenance notes
+                </a>{" "}
+                record the comparison.
               </li>
               <li>
                 <strong className="text-foreground">Global Burden of Disease (GBD) 2019</strong> —

@@ -125,12 +125,12 @@ export default function WritingPage() {
         >
           <div className="space-y-2">
             <Example correct>
-              Optiqal estimates your remaining life expectancy using CDC life
-              tables.
+              Optiqal estimates your remaining life expectancy from mortality
+              rates by age and sex.
             </Example>
             <Example correct={false}>
-              Your remaining life expectancy is estimated by Optiqal using CDC
-              life tables.
+              Your remaining life expectancy is estimated by Optiqal from
+              mortality rates by age and sex.
             </Example>
             <Example correct>
               Meta-analyses suggest that regular exercise extends lifespan.
@@ -273,7 +273,7 @@ export default function WritingPage() {
                 {
                   term: "Life table",
                   definition:
-                    "Actuarial table showing mortality rates and life expectancy by age. Optiqal uses CDC period life tables as baseline.",
+                    "Actuarial table showing mortality rates and life expectancy by age. Optiqal's baseline uses a legacy U.S. period life table attributed to the CDC's 2021 tables; it does not match the published tables.",
                 },
               ].map((item) => (
                 <div key={item.term} className="flex gap-4">
@@ -343,7 +343,8 @@ export default function WritingPage() {
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed ml-8">
                 Optiqal generates personalized predictions by applying hazard
-                ratios from peer-reviewed meta-analyses to CDC life tables.
+                ratios from peer-reviewed meta-analyses to baseline mortality
+                rates by age and sex.
                 Prediction intervals reflect uncertainty in the underlying
                 research. Your actual outcomes may differ due to genetics and
                 other unmodeled factors. Not medical advice—consult a healthcare

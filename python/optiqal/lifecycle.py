@@ -1,7 +1,9 @@
 """
 Lifecycle QALY Model
 
-CDC life tables, pathway decomposition, and survival curve integration.
+Legacy life-table anchors (attributed to, but not matching, the CDC's 2021
+tables; see docs/DATA_PROVENANCE.md), pathway decomposition, and survival curve
+integration.
 Based on whatnut methodology.
 """
 

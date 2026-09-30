@@ -84,6 +84,12 @@ snapshots without regenerating them.
 - **Consumer and determinism.** `get_mortality_rate` performs deterministic
   lookup/interpolation over the snapshot; it feeds the analyzer, web API, and
   baseline calculations.
+- **Public attribution.** The About page, the FAQ, the brand writing guide, the
+  paper (`docs/index.md`), and `docs/methodology.md` describe these values as a
+  legacy transcription attributed to, but not matching, the CDC 2021 tables.
+  `python/tests/test_public_data_attribution.py` reads the snapshot's
+  `provenance.status` and fails if any of those surfaces ties Optiqal's
+  baseline to CDC life tables without disclosing the mismatch.
 
 ## Cause-of-death fractions
 

@@ -18,7 +18,7 @@ const faqs = [
   {
     question: "Where does the data come from?",
     answer:
-      "CDC life tables for baseline mortality, hazard ratios from Cochrane/Lancet/JAMA meta-analyses for risk factors, and GBD 2019 for disease burden. We use Monte Carlo simulation to propagate uncertainty through the calculations, giving you prediction intervals that reflect the limits of current research.",
+      "Baseline mortality comes from a legacy U.S. life table of death rates by age and sex. It is attributed to the CDC's 2021 U.S. life tables but does not match the published tables; the data provenance notes in our GitHub repository record the comparison. Risk-factor hazard ratios come from Cochrane/Lancet/JAMA meta-analyses, and disease-burden estimates from GBD 2019. We use Monte Carlo simulation to propagate uncertainty through the calculations, giving you prediction intervals that reflect the limits of current research.",
   },
   {
     question: "Is this medical advice?",
