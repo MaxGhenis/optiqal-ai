@@ -287,18 +287,20 @@ def assert_matches_oracle(profile: dict, response: dict) -> None:
 def test_other_sex_survival_minimized_audit_input_is_the_mixed_cohort():
     """Audit 2026-09-25 minimized input: survival read 0.0176 at 109 and
     0.0223 at 110, because age 109 carried only the male curve's point while
-    age 110 averaged both sexes."""
+    age 110 averaged both sexes. On the NVSR 72-12 table the same input puts the
+    male curve under the tail threshold at 103-104 while the mixed cohort stays
+    above it until 105, so the check moved there."""
     profile = {**HEALTHY, "age": 18, "sex": "other"}
     response = build_baseline_response({"profile": profile})
     by_age = {p["age"]: p["survival_probability"] for p in response["survival_curve"]}
 
     oracle = oracle_projection(profile)
-    mixed_109, mixed_110 = oracle.survival[109 - 18], oracle.survival[110 - 18]
-    assert mixed_109 > mixed_110 > CURVE_TAIL_SURVIVAL
+    mixed_104, mixed_105 = oracle.survival[104 - 18], oracle.survival[105 - 18]
+    assert mixed_104 > mixed_105 > CURVE_TAIL_SURVIVAL
     # 109 is neither a fifth age nor under the tail threshold for the mixture,
     # so it is not published; 110 is the mixed cohort's survival.
-    assert 109 not in by_age
-    assert by_age[110] == round(mixed_110, 4) == 0.0223
+    assert 104 not in by_age
+    assert by_age[105] == round(mixed_105, 4) == 0.0202
     assert_baseline_invariants(profile, response)
     assert_matches_oracle(profile, response)
 
@@ -384,12 +386,13 @@ def test_baseline_invariants_hold_for_generated_profiles(profile):
 # ---------------------------------------------------------------------------
 
 # SHA-256 of ``json.dumps(response)`` (what scripts/web_baseline.py writes) from
-# origin/main e32aa802, before the "other" cohort was mixed on a common age grid.
+# main with the NVSR 72-12 life table (life-table-nvsr-2021-20260927 00da92f4),
+# before the "other" cohort was mixed on a common age grid.
 # Only "other" may move; male and female output must stay byte-identical.
 PINNED_BASELINE_DIGESTS = {
     "male_35_healthy_7h": (
         {"profile": {**HEALTHY, "age": 35, "sex": "male", "sleep_hours_per_night": 7}},
-        "71632a1d841f0b5033349ab9234866b19604966362105a9ab81195297c4959f4",
+        "03fa43c46f5f9d88ad4e2b8b42c600a0a63ed06c3f780e53b91966090926ee23",
     ),
     "female_35_healthy_7h": (
         {
@@ -400,23 +403,23 @@ PINNED_BASELINE_DIGESTS = {
                 "sleep_hours_per_night": 7,
             }
         },
-        "4810abe7d473a6cc07de201b51e9ffec11aeebb2a0837308d00a3e75c420c165",
+        "25cbbe9a33626aff214f6c815016fa4fb9227a1715536a67e9bf30d7644d6abb",
     ),
     "male_18_healthy": (
         {"profile": {**HEALTHY, "age": 18, "sex": "male"}},
-        "abe993cc7973dadb0b19cb7b652c4701f410b1b3ed80ea4ea6831934d7567086",
+        "8f0ed3aa3f6836530c193fe7c8f9c45bbaac45a5c1ecaab7e8342d58a56cfed3",
     ),
     "female_75_high_risk": (
         {"profile": {**HIGH_RISK, "age": 75, "sex": "female"}},
-        "08c6551ede3e1bd29c96f4498104c53c914f7ea7be1f60d5490f420f65d5b381",
+        "e07d6a3e3716ceda6809cef8891bb41d1275b169e34bb045938248a171b5593e",
     ),
     "male_0_high_risk": (
         {"profile": {**HIGH_RISK, "age": 0, "sex": "male"}},
-        "c5c851b1ae8bfd4b1ca06ce66d09a8a9739f818d97561ce1b055ccf6063ba36d",
+        "8ede44cf572011afabe63d729ea0df1ba5cf5c048f51b4ca60e5430e9178522c",
     ),
     "female_100_healthy": (
         {"profile": {**HEALTHY, "age": 100, "sex": "female"}},
-        "bf8643b946556aa1b16f38e323674291f900c912d6869215835a5ea82eca208f",
+        "7740c49e1d175d2cbb3ce59899c827b7ba7f067555924cc290c0d0ca14dbf4a8",
     ),
     "male_110_healthy": (
         {"profile": {**HEALTHY, "age": 110, "sex": "male"}},
@@ -437,7 +440,7 @@ PINNED_BASELINE_DIGESTS = {
                 "routine_score": 60,
             },
         },
-        "da33de7184deb47c889e4cf4cc0451e2c74659241f145ddd5db999f17ef7bb41",
+        "48ca54ce8cd003826d230c4a838d63143dcc9183478fe0824c52533cb1fbf2b6",
     ),
 }
 

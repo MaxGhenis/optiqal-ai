@@ -429,7 +429,9 @@ def test_public_wrappers_return_the_vectorized_result_field_for_field(
 
 
 SCALAR_VECTOR_CASES = [
-    # (age, sex, hr, audited scalar value where the audit recorded one)
+    # (age, sex, hr, audited scalar value where the audit recorded one). The
+    # audit measured these on the legacy life table; since the NVSR 72-12
+    # table, the scalar == vector == reference checks carry the regression.
     (40, "male", 0.8, 0.580388223690651),
     (20, "female", 1.2, -0.2629746958726642),
     (90, "male", 0.0001, 3.058797176716233),
@@ -461,7 +463,7 @@ def test_audit_scalar_and_vector_engines_agree(age, sex, hr, audited_scalar):
     if audited_scalar is not None:
         assert not math.isclose(scalar.mean, audited_scalar, abs_tol=1e-3)
     if (age, sex, hr) == (40, "male", 0.8):
-        assert vector.mean == pytest.approx(0.6604002678252101, abs=1e-12)
+        assert vector.mean == pytest.approx(0.7035799833893037, abs=1e-12)
 
 
 def test_simulate_qaly_counts_harms_and_cost_exposure_without_a_mortality_arm():
@@ -813,9 +815,10 @@ def test_audit_first_event_risk_is_not_overcounted(survival, probability, expect
 @pytest.mark.parametrize(
     "age,probability,expected",
     [
-        # Audited engine: .6712 and .78332 over 100,000 Bernoulli draws.
-        (95, 0.3, 0.6381638811877043),
-        (97, 0.5, 0.7668374360993012),
+        # Audited engine, on the legacy life table: .6712 and .78332 over
+        # 100,000 Bernoulli draws. Expected values are the NVSR 72-12 oracle.
+        (95, 0.3, 0.5811855116311794),
+        (97, 0.5, 0.7277124221457499),
     ],
 )
 def test_audit_public_first_event_probability(age, probability, expected):
