@@ -113,6 +113,26 @@ def _build_synthetic_health_db(path: str) -> None:
             (day, 68.0, 14.0, 34.0, "synthetic"),
         )
 
+    # Which product supplies which catalog item. Real product names, synthetic
+    # coverage: enough for the co-packaging/droppability logic to be exercised,
+    # including one item co-packaged with others and one sold on its own.
+    cur.execute(
+        "CREATE TABLE catalog_product_mappings (catalog_id TEXT PRIMARY KEY, "
+        "product_name TEXT NOT NULL, notes TEXT)"
+    )
+    for catalog_id, product_name in (
+        ("vitamin_d_2000", "Blueprint Essential Capsules"),
+        ("nr_300", "Blueprint Essential Capsules"),
+        ("fisetin_100", "Blueprint Essential Capsules"),
+        ("hyaluronic_acid_120", "Blueprint Longevity Mix"),
+        ("trazodone_50mg", "Trazodone"),
+    ):
+        cur.execute(
+            "INSERT INTO catalog_product_mappings (catalog_id, product_name) "
+            "VALUES (?, ?)",
+            (catalog_id, product_name),
+        )
+
     conn.commit()
     conn.close()
 

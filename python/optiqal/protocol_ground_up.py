@@ -150,6 +150,38 @@ class ProtocolContext:
     home_sleep_study: SleepStudyResult
 
 
+BIRTH_DATE_ENV = "OPTIQAL_BIRTH_DATE"
+PROFILE_AGE_FALLBACK = 39
+
+
+def resolve_profile_age(
+    fallback_age: int = PROFILE_AGE_FALLBACK,
+    *,
+    today: date | None = None,
+) -> int:
+    """Age for the personalized profile, derived from a private birth date.
+
+    This repository is public, so no birth date is committed here. Set
+    ``OPTIQAL_BIRTH_DATE=YYYY-MM-DD`` in the environment and the profile age
+    tracks the calendar; otherwise the declared fallback is used. Age feeds the
+    CDC life-table lookup, so a hardcoded literal goes silently wrong on the
+    next birthday rather than failing.
+    """
+    raw = os.environ.get(BIRTH_DATE_ENV, "").strip()
+    if not raw:
+        return fallback_age
+    try:
+        birth = date.fromisoformat(raw)
+    except ValueError:
+        return fallback_age
+    today = today or date.today()
+    if birth >= today:
+        return fallback_age
+    return (
+        today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
+    )
+
+
 DEFAULT_PROTOCOL_CONTEXT = ProtocolContext(
     root=Path.home() / "maxghenis.com",
     protocol_json=Path.home() / "maxghenis.com" / "src" / "data" / "protocol-data.json",
@@ -161,7 +193,7 @@ DEFAULT_PROTOCOL_CONTEXT = ProtocolContext(
     / "protocol-ground-up.json",
     output_md=Path.home() / "maxghenis.com" / "src" / "data" / "protocol-ground-up.md",
     profile=Profile(
-        age=39,
+        age=resolve_profile_age(),
         sex="male",
         bmi_category="normal",
         smoking_status="never",
@@ -1579,6 +1611,27 @@ def load_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
         FROM recent
         """,
     )
+    # Which physical product supplies each tracked item. Several catalog items
+    # share one capsule or powder, so they cannot be dropped independently —
+    # see co_packaged_item_ids(). Optional: CI fixtures carry only the tables
+    # the model needs to simulate, and the catalog's own bundle ids cover most
+    # of this mapping anyway.
+    has_product_mappings = bool(
+        conn.execute(
+            "SELECT name FROM sqlite_master "
+            "WHERE type = 'table' AND name = 'catalog_product_mappings'"
+        ).fetchone()
+    )
+    supplying_products = (
+        {
+            str(row["catalog_id"]): str(row["product_name"])
+            for row in conn.execute(
+                "SELECT catalog_id, product_name FROM catalog_product_mappings"
+            )
+        }
+        if has_product_mappings
+        else {}
+    )
     conn.close()
 
     combined_sleep = (
@@ -1781,6 +1834,7 @@ def load_baseline(context: ProtocolContext | None = None) -> dict[str, Any]:
             "eGFR": labs.get("eGFR"),
             "Creatinine": labs.get("Creatinine"),
         },
+        "supplying_products": supplying_products,
         "derived": {
             "combined_sleep_h_90d": round(combined_sleep, 2),
             "sleep_need": round(sleep_need, 3),
@@ -3736,18 +3790,28 @@ def format_continue_cost_per_qaly_for_drop(row: dict[str, Any]) -> str:
     return "—" if cost_per is None else f"${cost_per:,}"
 
 
+def format_drop_granularity(row: dict[str, Any]) -> str:
+    """How a drop can actually be executed, given co-packaged ingredients."""
+    if row.get("separably_droppable") is not False:
+        return "on its own"
+    product = row.get("supplying_product") or "shared product"
+    n_others = len(row.get("co_packaged_with") or [])
+    return f"only with {product} ({n_others} others)"
+
+
 def render_current_stack_drop_table(rows: list[dict[str, Any]]) -> list[str]:
     if not rows:
         return ["_None._"]
     lines = [
-        "| Item | Status | Drop ΔQALY | Drop days | Drop helps | Continue $/QALY | Lineage |",
-        "| --- | --- | ---: | ---: | ---: | ---: | --- |",
+        "| Item | Status | Drop ΔQALY | Drop days | Drop helps | Continue $/QALY | Droppable | Lineage |",
+        "| --- | --- | ---: | ---: | ---: | ---: | --- | --- |",
     ]
     for row in rows:
         lines.append(
             f"| {row['name']} | {row['status']} | {row['drop_qaly']:+.4f} | "
             f"{row['drop_days']:+.1f} | {row['p_drop_benefit']:.1%} | "
             f"{format_continue_cost_per_qaly_for_drop(row)} | "
+            f"{format_drop_granularity(row)} | "
             f"{row['reference_case_status']} |"
         )
     return lines
@@ -4133,8 +4197,18 @@ def draw_correlation(a: np.ndarray, b: np.ndarray) -> float | None:
 
 
 def format_marginal_cost_per_qaly(row: dict[str, Any]) -> str:
-    if row["delta_qaly"] <= 0:
+    if row["delta_qaly"] < 0:
         return "net negative"
+    if row["delta_qaly"] == 0:
+        # A zero-QALY move is not automatically a bad one: if it also frees up
+        # money it dominates, and if nothing changes either way it is flat.
+        # Collapsing all three into "net negative" argued against strictly
+        # cost-saving drops.
+        if row["delta_cost"] < 0:
+            return "dominant"
+        if row["delta_cost"] == 0:
+            return "flat"
+        return "cost, no gain"
     if row["delta_cost"] < 0:
         return "dominant"
     if row["delta_cost"] == 0:
@@ -4143,11 +4217,66 @@ def format_marginal_cost_per_qaly(row: dict[str, Any]) -> str:
     return "—" if cost_per is None else f"${cost_per:,}"
 
 
+def resolve_supplying_products(
+    baseline: dict[str, Any],
+    state_ids: list[str],
+) -> dict[str, str]:
+    """Map each item to the physical product that supplies it.
+
+    health.db maps most items to their product by name; the catalog knows bundle
+    membership by id. Neither covers everything (the Longevity Mix actives are
+    mostly catalog-only), so resolve each bundle id to a product name using the
+    items that carry both, then fill the gaps.
+    """
+    supplying = dict(baseline.get("supplying_products") or {})
+    bundle_product_names = {
+        CATALOG[item_id].bundle_id: product
+        for item_id, product in supplying.items()
+        if item_id in CATALOG and CATALOG[item_id].bundle_id
+    }
+    for item_id in state_ids:
+        bundle_id = getattr(CATALOG.get(item_id), "bundle_id", None)
+        if item_id not in supplying and bundle_id:
+            supplying[item_id] = bundle_product_names.get(bundle_id, bundle_id)
+    return supplying
+
+
+def co_packaged_item_ids(
+    baseline: dict[str, Any],
+    state_ids: list[str],
+) -> dict[str, list[str]]:
+    """Map each item to the other in-stack items sharing its physical product.
+
+    Several tracked items arrive in one capsule or powder (Blueprint Essential
+    Capsules supplies nine of them). "Stop the vitamin D inside the capsule you
+    keep taking" is not an executable action, so drop rows carry this so the
+    report can say which drops only work at product granularity.
+    """
+    supplying = resolve_supplying_products(baseline, state_ids)
+    in_state = set(state_ids)
+    by_product: dict[str, list[str]] = {}
+    for item_id in _ordered_state_ids(state_ids):
+        product = supplying.get(item_id)
+        if product:
+            by_product.setdefault(product, []).append(item_id)
+
+    return {
+        item_id: [
+            sibling
+            for sibling in by_product.get(supplying.get(item_id, ""), [])
+            if sibling != item_id and sibling in in_state
+        ]
+        for item_id in in_state
+        if supplying.get(item_id)
+    }
+
+
 def build_state_marginal_decision_table(
     protocol_items: list[dict[str, Any]],
     estimates_by_id: dict[str, dict[str, Any]],
     specs: dict[str, StackSpec],
     context: ProtocolContext,
+    baseline: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Compute add/drop decisions as V(new full state) - V(current full state)."""
     current_ids = active_state_item_ids(protocol_items)
@@ -4156,6 +4285,8 @@ def build_state_marginal_decision_table(
     )
     current_draws = current_state["_draws"]
     current_cost = float(current_state["modeled_total_cost"])
+    supplying_products = resolve_supplying_products(baseline or {}, current_ids)
+    co_packaged = co_packaged_item_ids(baseline or {}, current_ids)
 
     rows: list[dict[str, Any]] = []
     for item in protocol_items:
@@ -4213,6 +4344,7 @@ def build_state_marginal_decision_table(
             "qaly_lineage_issues": list(estimate["qaly_lineage"]["issues"]),
         }
         if action == "drop":
+            siblings = co_packaged.get(item_id, [])
             row.update(
                 {
                     "continue_total_qaly": estimate["total_qaly"],
@@ -4221,6 +4353,11 @@ def build_state_marginal_decision_table(
                     "p_drop_benefit": row["p_positive"],
                     "continue_cost_per_qaly": estimate.get("cost_per_qaly"),
                     "modeled_total_cost": estimate.get("modeled_total_cost"),
+                    "supplying_product": supplying_products.get(item_id),
+                    "co_packaged_with": siblings,
+                    # A drop is only executable on its own if nothing else in
+                    # the stack ships in the same product.
+                    "separably_droppable": not siblings,
                 }
             )
         rows.append(row)
@@ -4724,7 +4861,9 @@ def render_markdown(payload: dict[str, Any]) -> str:
     lines.append("")
     lines.append(
         "Positive Drop ΔQALY means stopping the item is expected to help; negative means stopping is expected to hurt. "
-        "These are full-state marginal drop values."
+        "These are full-state marginal drop values. The Droppable column reads from health.db product mappings: items "
+        "that share one capsule or powder with something else in the stack cannot be stopped individually, so their "
+        "drop row is a modeling counterfactual rather than an action."
     )
     lines.append("")
     lines.extend(render_current_stack_drop_table(payload["current_stack_drop_table"]))
@@ -4833,6 +4972,7 @@ def main(context: ProtocolContext | None = None) -> None:
         estimates_by_id,
         specs,
         context,
+        baseline,
     )
     protocol_optimizers = build_protocol_optimizers(
         protocol_items,
