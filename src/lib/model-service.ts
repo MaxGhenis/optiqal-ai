@@ -20,15 +20,15 @@ function getConfiguredModelCookie(): string | undefined {
   );
 }
 
-function isCrossOriginVercelService(remoteBaseUrl: string, requestOrigin: string): boolean {
+function isCrossOriginService(remoteBaseUrl: string, requestOrigin: string): boolean {
   try {
     const remoteUrl = new URL(remoteBaseUrl);
     const originUrl = new URL(requestOrigin);
-    return (
-      remoteUrl.origin !== originUrl.origin && remoteUrl.hostname.endsWith(".vercel.app")
-    );
+    return remoteUrl.origin !== originUrl.origin;
   } catch {
-    return false;
+    // Fail closed: malformed origin metadata must never cause request cookies
+    // or deployment-protection credentials to be forwarded elsewhere.
+    return true;
   }
 }
 
@@ -58,12 +58,12 @@ export function getRemoteModelHeaders(
   const needsDedicatedBypass =
     options?.remoteBaseUrl &&
     options?.requestOrigin &&
-    isCrossOriginVercelService(options.remoteBaseUrl, options.requestOrigin);
+    isCrossOriginService(options.remoteBaseUrl, options.requestOrigin);
 
   return {
     cookie:
       needsDedicatedBypass
-        ? configuredCookie ?? headers.get("cookie") ?? undefined
+        ? configuredCookie ?? undefined
         : headers.get("cookie") ?? undefined,
     "x-vercel-protection-bypass":
       needsDedicatedBypass

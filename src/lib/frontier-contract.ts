@@ -347,6 +347,12 @@ function parseFrontierItem(value: unknown): FrontierItem | null {
   const category = parseString(value.category);
   const displayCategory = parseString(value.display_category);
   const publicLane = parseString(value.public_lane);
+  const exclusiveGroup =
+    value.exclusive_group === undefined
+      ? undefined
+      : value.exclusive_group === null
+        ? null
+        : parseString(value.exclusive_group);
   const annualCost = parseNullableFiniteNumber(value.annual_cost);
   const totalCost = parseFiniteNumber(value.total_cost);
   const costPerQaly = parseNullableFiniteNumber(value.cost_per_qaly);
@@ -384,6 +390,9 @@ function parseFrontierItem(value: unknown): FrontierItem | null {
       publicLane !== "conditional_public" &&
       publicLane !== "personal_only"
     ) ||
+    (value.exclusive_group !== undefined &&
+      value.exclusive_group !== null &&
+      exclusiveGroup === null) ||
     annualCost === INVALID ||
     totalCost === null ||
     costPerQaly === INVALID ||
@@ -419,6 +428,7 @@ function parseFrontierItem(value: unknown): FrontierItem | null {
     category,
     display_category: displayCategory,
     public_lane: publicLane,
+    ...(exclusiveGroup !== undefined ? { exclusive_group: exclusiveGroup } : {}),
     annual_cost: annualCost,
     total_cost: totalCost,
     cost_per_qaly: costPerQaly,
@@ -769,17 +779,40 @@ export function parseFrontierRequest(value: unknown): FrontierRequest | null {
 
   const profile = parseAnalysisProfileInput(value.profile);
   const sleepMetrics = parseAnalysisSleepInput(value.sleep_metrics);
+  const currentInterventions = parseOptionalArray(
+    value.current_stack_ids,
+    parseString
+  );
   // Bound simulation count: an unbounded value lets a single request make the
   // engine allocate/iterate arbitrarily large arrays (CPU/memory exhaustion).
   const nSimulations = parseOptionalBoundedNumber(value.n_simulations, 1, 20000);
 
-  if (profile === null || sleepMetrics === INVALID || nSimulations === INVALID) {
+  if (
+    profile === null ||
+    sleepMetrics === INVALID ||
+    currentInterventions === INVALID ||
+    nSimulations === INVALID
+  ) {
+    return null;
+  }
+
+  if (
+    currentInterventions &&
+    (currentInterventions.length > 50 ||
+      currentInterventions.some(
+        (itemId) => itemId.trim().length === 0 || itemId !== itemId.trim()
+      ) ||
+      new Set(currentInterventions).size !== currentInterventions.length)
+  ) {
     return null;
   }
 
   return {
     profile,
     ...(sleepMetrics !== undefined ? { sleep_metrics: sleepMetrics } : {}),
+    ...(currentInterventions !== undefined
+      ? { current_stack_ids: currentInterventions }
+      : {}),
     ...(typeof nSimulations === "number" ? { n_simulations: nSimulations } : {}),
   };
 }

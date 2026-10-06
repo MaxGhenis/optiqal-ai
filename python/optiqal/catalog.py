@@ -1513,7 +1513,7 @@ _add(
         has_direct_mortality_effect=False,
         exclusive_group="strength_mode",
         notes=(
-            "Structured maintenance lifting. Kept near flat because you already do strength work daily."
+            "Structured resistance training intended to preserve strength. Modeled conservatively because its marginal value depends heavily on the training already in your routine."
         ),
         sources=[
             "https://pubmed.ncbi.nlm.nih.gov/38599681/",

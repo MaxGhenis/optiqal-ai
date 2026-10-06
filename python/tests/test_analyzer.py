@@ -246,6 +246,196 @@ class TestAnalyze:
         assert result.selected_ids == ["a", "b"]
         assert result.total_annual_cost == pytest.approx(100.0)
 
+    def test_current_stack_is_the_portfolio_baseline(self, config):
+        custom_catalog = {
+            "a": CatalogEntry(
+                id="a",
+                name="A",
+                category="supplement_current",
+                hr_observed=1.0,
+                log_sd=0.05,
+                conf_alpha=1.0,
+                conf_beta=1.0,
+                annual_cost=0,
+                qol_annual=0.003,
+            ),
+            "b": CatalogEntry(
+                id="b",
+                name="B",
+                category="supplement_candidate",
+                hr_observed=1.0,
+                log_sd=0.05,
+                conf_alpha=1.0,
+                conf_beta=1.0,
+                annual_cost=0,
+                qol_annual=0.002,
+            ),
+        }
+
+        result = analyze(
+            config,
+            current_stack=["a"],
+            catalog_entries=custom_catalog,
+        )
+
+        assert result.portfolio[0]["added_intervention"] == "b"
+        assert result.portfolio[0]["preselected_interventions"] == ["a"]
+        assert result.selected_ids == ["a", "b"]
+
+    def test_current_stack_uses_effective_annual_cost_without_additions(self, config):
+        custom_catalog = {
+            "bundled": CatalogEntry(
+                id="bundled",
+                name="Bundled",
+                category="supplement_current",
+                hr_observed=1.0,
+                log_sd=0.05,
+                conf_alpha=1.0,
+                conf_beta=1.0,
+                annual_cost=0,
+                bundle_cost_share=100,
+                qol_annual=0.003,
+            )
+        }
+
+        result = analyze(
+            config,
+            current_stack=["bundled"],
+            catalog_entries=custom_catalog,
+        )
+
+        assert result.portfolio == []
+        assert result.selected_ids == ["bundled"]
+        assert result.total_annual_cost == pytest.approx(100.0)
+        assert result.total_qaly > 0
+        assert result.total_days == pytest.approx(result.total_qaly * 365.25)
+
+    def test_current_stack_rejects_unknown_and_duplicate_ids(self, config):
+        custom_catalog = {
+            "a": CatalogEntry(
+                id="a",
+                name="A",
+                category="supplement_current",
+                hr_observed=1.0,
+                log_sd=0.05,
+                conf_alpha=1.0,
+                conf_beta=1.0,
+                annual_cost=0,
+                qol_annual=0.003,
+            )
+        }
+
+        with pytest.raises(ValueError, match="duplicate"):
+            analyze(
+                config,
+                current_stack=["a", "a"],
+                catalog_entries=custom_catalog,
+            )
+
+        with pytest.raises(ValueError, match="unknown"):
+            analyze(
+                config,
+                current_stack=["missing"],
+                catalog_entries=custom_catalog,
+            )
+
+    def test_current_stack_rejects_mutually_exclusive_ids(self, config):
+        custom_catalog = {
+            item_id: CatalogEntry(
+                id=item_id,
+                name=item_id.upper(),
+                category="supplement_current",
+                hr_observed=1.0,
+                log_sd=0.05,
+                conf_alpha=1.0,
+                conf_beta=1.0,
+                annual_cost=0,
+                qol_annual=qol_annual,
+                exclusive_group="mode",
+            )
+            for item_id, qol_annual in (("a", 0.003), ("b", 0.002))
+        }
+
+        with pytest.raises(ValueError, match="mutually exclusive"):
+            analyze(
+                config,
+                current_stack=["a", "b"],
+                catalog_entries=custom_catalog,
+            )
+
+    def test_current_stack_blocks_exclusive_alternative_additions(self, config):
+        custom_catalog = {
+            "a": CatalogEntry(
+                id="a",
+                name="A",
+                category="supplement_current",
+                hr_observed=1.0,
+                log_sd=0.05,
+                conf_alpha=1.0,
+                conf_beta=1.0,
+                annual_cost=0,
+                qol_annual=0.001,
+                exclusive_group="mode",
+            ),
+            "b": CatalogEntry(
+                id="b",
+                name="B",
+                category="supplement_candidate",
+                hr_observed=1.0,
+                log_sd=0.05,
+                conf_alpha=1.0,
+                conf_beta=1.0,
+                annual_cost=0,
+                qol_annual=0.003,
+                exclusive_group="mode",
+            ),
+            "c": CatalogEntry(
+                id="c",
+                name="C",
+                category="supplement_candidate",
+                hr_observed=1.0,
+                log_sd=0.05,
+                conf_alpha=1.0,
+                conf_beta=1.0,
+                annual_cost=0,
+                qol_annual=0.002,
+            ),
+        }
+
+        result = analyze(
+            config,
+            current_stack=["a"],
+            catalog_entries=custom_catalog,
+        )
+
+        assert result.selected_ids == ["a", "c"]
+        assert all(step["added_intervention"] != "b" for step in result.portfolio)
+
+    def test_current_stack_baseline_cost_uses_callback(self, config):
+        custom_catalog = {
+            "bundled": CatalogEntry(
+                id="bundled",
+                name="Bundled",
+                category="supplement_current",
+                hr_observed=1.0,
+                log_sd=0.05,
+                conf_alpha=1.0,
+                conf_beta=1.0,
+                annual_cost=100,
+                qol_annual=0.003,
+            )
+        }
+
+        result = analyze(
+            config,
+            current_stack=["bundled"],
+            catalog_entries=custom_catalog,
+            total_annual_cost_fn=lambda selected: 25.0 if selected else 0.0,
+        )
+
+        assert result.portfolio == []
+        assert result.total_annual_cost == pytest.approx(25.0)
+
 
 class TestDecisions:
     def test_add_decision(self, config):

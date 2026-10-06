@@ -2,13 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import type { FrontierRequest, FrontierResponse } from "@/lib/frontier-types";
 import { parseFrontierRequest, parseFrontierResponse } from "@/lib/frontier-contract";
 import { getRemoteModelBaseUrl, getRemoteModelHeaders } from "@/lib/model-service";
-import { runPythonJson } from "@/lib/python-bridge";
+import { PythonBridgeClientError, runPythonJson } from "@/lib/python-bridge";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const FRONTIER_TIMEOUT_MS = 45_000;
-const FRONTIER_CACHE_TTL_MS = process.env.NODE_ENV === "production" ? 60_000 : 5_000;
 
 async function runPythonFrontier(
   payload: FrontierRequest,
@@ -27,7 +26,6 @@ async function runPythonFrontier(
       requestOrigin: request.nextUrl.origin,
     }),
     timeoutMs: FRONTIER_TIMEOUT_MS,
-    cacheTtlMs: FRONTIER_CACHE_TTL_MS,
   });
 }
 
@@ -46,6 +44,13 @@ export async function POST(request: NextRequest) {
     const result = await runPythonFrontier(payload, request);
     return NextResponse.json(result);
   } catch (error) {
+    if (error instanceof PythonBridgeClientError) {
+      return NextResponse.json(
+        { error: "Current routine is invalid. Clear or update it and try again." },
+        { status: 400 }
+      );
+    }
+
     // Log full detail server-side, but never return it to the client: bridge
     // errors can carry raw Python stderr (tracebacks, absolute paths).
     console.error("Error in /api/frontier:", error);

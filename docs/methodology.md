@@ -25,7 +25,7 @@ $$
 where:
 - $S(t)$ is the survival probability at time $t$ years from baseline
 - $Q(t)$ is the quality-of-life weight at age $\text{age}_0 + t$
-- $D(t) = (1 + r)^{-t}$ is the discount factor with rate $r$ (default 0% for QALYs)
+- $D(t) = (1 + r)^{-t}$ is the discount factor with rate $r$ (default 3% for QALYs)
 - $T_{\max} = 100$ is the maximum age in the life table
 
 ### Survival Probability
@@ -57,7 +57,7 @@ Values are linearly interpolated between age points.
 
 ### Discount Rate
 
-Future QALYs are not discounted in the default Optiqal configuration. This treats a healthy year later in life as equally valuable to a healthy year sooner in life, while leaving cost discounting to handle opportunity cost separately.
+Future QALYs are discounted at 3% annually in the default Optiqal configuration, matching the engine's reference-case default. Alternative rates from 0% to 10% are supported for sensitivity analysis.
 
 ## Pathway Decomposition
 

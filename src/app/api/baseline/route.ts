@@ -8,7 +8,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const BASELINE_TIMEOUT_MS = 20_000;
-const BASELINE_CACHE_TTL_MS = process.env.NODE_ENV === "production" ? 60_000 : 5_000;
 
 async function runPythonBaseline(
   payload: BaselineRequest,
@@ -27,7 +26,6 @@ async function runPythonBaseline(
       requestOrigin: request.nextUrl.origin,
     }),
     timeoutMs: BASELINE_TIMEOUT_MS,
-    cacheTtlMs: BASELINE_CACHE_TTL_MS,
   });
 }
 

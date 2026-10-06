@@ -12,7 +12,11 @@ vi.mock("node:child_process", () => ({
   },
 }));
 
-import { clearPythonBridgeCaches, runPythonJson } from "@/lib/python-bridge";
+import {
+  clearPythonBridgeCaches,
+  PythonBridgeClientError,
+  runPythonJson,
+} from "@/lib/python-bridge";
 
 interface FakeChildProcess extends EventEmitter {
   stdout: EventEmitter;
@@ -62,6 +66,7 @@ describe("python bridge", () => {
       parseResponse: (value: unknown) =>
         typeof value === "object" && value !== null ? (value as { ok: boolean }) : null,
       cacheTtlMs: 1_000,
+      cacheKey: "frontier-age-39",
       timeoutMs: 1_000,
     };
 
@@ -105,6 +110,7 @@ describe("python bridge", () => {
             ? (value as { ok: boolean })
             : null,
         cacheTtlMs: 10_000,
+        cacheKey: `fixture-${n}`,
         timeoutMs: 1_000,
       });
 
@@ -121,6 +127,104 @@ describe("python bridge", () => {
     // 500 is the newest -> still cached, no re-fetch.
     await run(500);
     expect(fetchMock).toHaveBeenCalledTimes(502);
+  });
+
+  it("does not retain personalized responses without an explicit cache key", async () => {
+    process.env.MODEL_URL = "https://model.example/svc/model";
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: vi.fn().mockResolvedValue('{"ok":true}'),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const options = {
+      payload: { profile: { age: 39, has_diabetes: true } },
+      scriptPath: "scripts/web_frontier.py",
+      remotePath: "/frontier",
+      label: "frontier",
+      parseResponse: (value: unknown) =>
+        typeof value === "object" && value !== null ? (value as { ok: boolean }) : null,
+      cacheTtlMs: 10_000,
+      timeoutMs: 1_000,
+    };
+
+    await runPythonJson(options);
+    await runPythonJson(options);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("classifies current-stack ValueErrors from the local bridge as client errors", async () => {
+    const child = createFakeChildProcess();
+    spawnMock.mockReturnValue(child);
+
+    const request = runPythonJson({
+      payload: { profile: { age: 39 }, current_stack_ids: ["removed-item"] },
+      scriptPath: "scripts/web_frontier.py",
+      label: "frontier",
+      parseResponse: (value: unknown) =>
+        typeof value === "object" && value !== null ? (value as { ok: boolean }) : null,
+      timeoutMs: 1_000,
+    });
+
+    child.stderr.emit(
+      "data",
+      Buffer.from(
+        'Traceback (most recent call last):\n  File "web_frontier.py", line 14\nValueError: current_stack_ids contains an unknown catalog ID\n'
+      )
+    );
+    child.emit("close", 1);
+
+    await expect(request).rejects.toBeInstanceOf(PythonBridgeClientError);
+  });
+
+  it("does not misclassify unrelated backend ValueErrors as client errors", async () => {
+    const child = createFakeChildProcess();
+    spawnMock.mockReturnValue(child);
+
+    const request = runPythonJson({
+      payload: { profile: { age: 39 } },
+      scriptPath: "scripts/web_frontier.py",
+      label: "frontier",
+      parseResponse: (value: unknown) =>
+        typeof value === "object" && value !== null ? (value as { ok: boolean }) : null,
+      timeoutMs: 1_000,
+    }).catch((error: unknown) => error);
+
+    child.stderr.emit(
+      "data",
+      Buffer.from("Traceback (most recent call last):\nValueError: internal model invariant\n")
+    );
+    child.emit("close", 1);
+
+    const error = await request;
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(PythonBridgeClientError);
+  });
+
+  it("classifies remote validation responses as client errors", async () => {
+    process.env.MODEL_URL = "https://model.example/svc/model";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 422,
+        text: vi.fn().mockResolvedValue('{"detail":"invalid request"}'),
+      })
+    );
+
+    const request = runPythonJson({
+      payload: { profile: { age: 39 } },
+      scriptPath: "scripts/web_frontier.py",
+      remotePath: "/frontier",
+      label: "frontier",
+      parseResponse: (value: unknown) =>
+        typeof value === "object" && value !== null ? (value as { ok: boolean }) : null,
+      timeoutMs: 1_000,
+    });
+
+    await expect(request).rejects.toBeInstanceOf(PythonBridgeClientError);
   });
 
   it("times out long-running processes and kills them", async () => {

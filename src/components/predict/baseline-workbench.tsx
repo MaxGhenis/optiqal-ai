@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { DEFAULT_PROFILE, type UserProfile } from "@/types";
 import { useLatestRequest } from "@/hooks/use-latest-request";
+import { parseStoredUserProfile } from "@/lib/profile-storage";
 import type {
   BaselineRequest,
   BaselineResponse,
@@ -34,6 +35,11 @@ const timeFormatter = new Intl.DateTimeFormat("en-US", {
   hour: "numeric",
   minute: "2-digit",
   second: "2-digit",
+});
+
+const percentageFormatter = new Intl.NumberFormat("en-US", {
+  style: "percent",
+  maximumFractionDigits: 2,
 });
 
 function formatRunTime(timestamp: number | null): string {
@@ -88,6 +94,10 @@ function formatProbability(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
+function formatQalyDiscountRate(value: number): string {
+  return `${percentageFormatter.format(value)} QALY discount`;
+}
+
 /**
  * Render a confidence interval as a whole-number range, e.g. "range 36–46".
  * Bounds are rounded to integers to avoid implying false precision.
@@ -114,7 +124,7 @@ export function BaselineWorkbench() {
   const latestRequest = useLatestRequest();
 
   useEffect(() => {
-    const storedProfile = loadStoredJson<UserProfile>(STORAGE_KEY);
+    const storedProfile = parseStoredUserProfile(loadStoredJson<unknown>(STORAGE_KEY));
     const storedSleep = loadStoredJson<BaselineSleepInput>(SLEEP_STORAGE_KEY);
     if (storedProfile) setProfile(storedProfile);
     if (storedSleep) setSleepInputs(storedSleep);
@@ -122,12 +132,14 @@ export function BaselineWorkbench() {
   }, []);
 
   useEffect(() => {
+    if (!hydrated) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
-  }, [profile]);
+  }, [hydrated, profile]);
 
   useEffect(() => {
+    if (!hydrated) return;
     localStorage.setItem(SLEEP_STORAGE_KEY, JSON.stringify(sleepInputs));
-  }, [sleepInputs]);
+  }, [hydrated, sleepInputs]);
 
   const updateProfile = (key: keyof UserProfile, value: UserProfile[keyof UserProfile]) => {
     setProfile((prev) => ({ ...prev, [key]: value }));
@@ -223,15 +235,14 @@ export function BaselineWorkbench() {
           <div className="space-y-5">
             <div className="section-chip">
               <Activity className="h-4 w-4" />
-              Canonical baseline
+              Baseline projection
             </div>
             <div className="space-y-3">
               <h1 className="font-serif text-4xl md:text-5xl font-semibold tracking-[-0.04em] leading-[1.02]">
                 Project remaining life years and QALYs
               </h1>
               <p className="text-lg text-muted-foreground max-w-2xl leading-relaxed">
-                This replaces the old precomputed predictor. It now calls the same Python
-                lifecycle, profile, and sleep logic that powers the rest of the product.
+                Estimate remaining life years and quality-adjusted years from the profile and optional sleep details you provide.
               </p>
             </div>
           </div>
@@ -239,14 +250,14 @@ export function BaselineWorkbench() {
           <Card className="decision-card border-primary/15">
             <CardContent className="p-6 space-y-4">
               <p className="text-xs uppercase tracking-[0.22em] text-primary">
-                What changed
+                What the projection includes
               </p>
               <div className="space-y-3">
                 {[
-                  "0% QALY discount instead of the old precomputed 3% path",
-                  "Explicit profile inputs instead of browser-side imputation",
-                  "Sleep can feed into baseline hazard through the shared sleep model",
-                  "One engine for frontier ranking and baseline projection",
+                  "A profile-adjusted life-table baseline",
+                  "Model ranges around the point estimate",
+                  "Optional sleep-burden adjustment",
+                  "The same assumptions used in intervention ranking",
                 ].map((item) => (
                   <div
                     key={item}
@@ -285,7 +296,7 @@ export function BaselineWorkbench() {
                 >
                   <option value="male">Male</option>
                   <option value="female">Female</option>
-                  <option value="other">Other / average</option>
+                  <option value="other">Other (uses male life table)</option>
                 </Select>
               </div>
               <div className="space-y-2">
@@ -492,8 +503,12 @@ export function BaselineWorkbench() {
                     {results.point_estimate.remaining_qalys.toFixed(1)}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {formatIntegerRange(results.point_estimate.remaining_qalys_ci) ??
-                      "0% discount"}
+                    {[
+                      formatIntegerRange(results.point_estimate.remaining_qalys_ci),
+                      formatQalyDiscountRate(results.meta.qaly_discount_rate),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </p>
                 </CardContent>
               </Card>

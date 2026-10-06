@@ -78,7 +78,7 @@ describe("model service helpers", () => {
     });
   });
 
-  it("uses the dedicated model bypass secret for cross-project vercel model services", () => {
+  it("uses the dedicated bypass secret without forwarding frontend cookies cross-origin", () => {
     process.env.MODEL_PROTECTION_BYPASS_SECRET = "model-secret";
 
     expect(
@@ -94,8 +94,41 @@ describe("model service helpers", () => {
         }
       )
     ).toEqual({
-      cookie: "foo=bar",
+      cookie: undefined,
       "x-vercel-protection-bypass": "model-secret",
+      "x-vercel-set-bypass-cookie": undefined,
+    });
+  });
+
+  it("does not forward frontend credentials to a custom-domain cross-origin service", () => {
+    expect(
+      getRemoteModelHeaders(
+        new Headers({
+          cookie: "session=sensitive",
+          "x-vercel-protection-bypass": "frontend-secret",
+          "x-vercel-set-bypass-cookie": "true",
+        }),
+        {
+          remoteBaseUrl: "https://model.optiqal.ai",
+          requestOrigin: "https://optiqal.ai",
+        }
+      )
+    ).toEqual({
+      cookie: undefined,
+      "x-vercel-protection-bypass": undefined,
+      "x-vercel-set-bypass-cookie": undefined,
+    });
+  });
+
+  it("fails closed when cross-origin metadata is malformed", () => {
+    expect(
+      getRemoteModelHeaders(new Headers({ cookie: "session=sensitive" }), {
+        remoteBaseUrl: "not a valid URL",
+        requestOrigin: "https://optiqal.ai",
+      })
+    ).toEqual({
+      cookie: undefined,
+      "x-vercel-protection-bypass": undefined,
       "x-vercel-set-bypass-cookie": undefined,
     });
   });

@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 PYTHON_DIR = Path(__file__).resolve().parent.parent
 SCRIPT_PATH = PYTHON_DIR / "scripts" / "web_frontier.py"
 
@@ -135,6 +137,7 @@ def test_web_frontier_can_emit_support_only_sleep_pathway():
             "snore_pct": 0.8,
             "airway_response_signal": 0.06,
         },
+        "current_stack_ids": ["strength_maintenance"],
         "n_simulations": 500,
     }
 
@@ -189,6 +192,46 @@ def test_web_frontier_can_offer_humidifier_when_nasal_dryness_signal_is_strong()
     assert "humidifier_nightly" in option_ids
 
 
+def test_current_conservative_sleep_action_preserves_primary_osa_branch():
+    payload = {
+        "profile": {
+            "age": 39,
+            "sex": "male",
+            "weight_kg": 74.8,
+            "height_cm": 178.0,
+            "smoker": False,
+            "has_diabetes": False,
+            "has_hypertension": False,
+            "activity_level": "active",
+            "sleep_hours_per_night": 7.0,
+        },
+        "sleep_metrics": {
+            "duration_hours": 6.8,
+            "breathing_score": 0.78,
+            "spo2": 95.1,
+            "snore_pct": 3.2,
+            "airway_response_signal": 0.4,
+        },
+        "current_stack_ids": ["head_elevation_nightly"],
+        "n_simulations": 500,
+    }
+
+    response = run_web_frontier(payload)
+
+    assert [state["id"] for state in response["decision_states"]] == [
+        "primary_osa_therapy_choice"
+    ]
+    assert [step["id"] for step in response["decision_sequence"]] == [
+        "primary_osa_therapy_choice"
+    ]
+    therapy_state = response["decision_states"][0]
+    assert {
+        item_id
+        for option in therapy_state["options"]
+        for item_id in option["added_item_ids"]
+    } == {"apap_nightly", "oral_appliance_custom"}
+
+
 def test_frontier_ranker_receives_hazard_aware_combination(monkeypatch):
     """The deployed /frontier path must pass the multiplicative-hazard combiner
     to the ranker (not silently fall back to additive QALY summing).
@@ -217,16 +260,123 @@ def test_frontier_ranker_receives_hazard_aware_combination(monkeypatch):
                 "activity_level": "sedentary",
                 "sleep_hours_per_night": 6.5,
             },
+            "current_stack_ids": ["hiit_2x_week"],
             "n_simulations": 400,
         }
     )
 
     assert captured.get("item_mortality_hrs"), "ranker did not receive item HRs"
+    assert captured.get("preselected") == ["hiit_2x_week"]
+    assert "hiit_2x_week" in captured.get("single_qalys", {})
     fn = captured.get("mortality_qaly_fn")
     assert fn is not None, "ranker did not receive a mortality_qaly_fn"
     # The combiner integrates a joint hazard once, so two HR-0.7 effects yield
     # strictly less than twice one HR-0.7 effect (no shared-survival double-count).
     assert fn(0.7 * 0.7) < 2 * fn(0.7)
+
+
+def test_current_stack_changes_the_next_action():
+    payload = {
+        "profile": {
+            "age": 35,
+            "sex": "male",
+            "weight_kg": 75.0,
+            "height_cm": 175.0,
+            "smoker": False,
+            "has_diabetes": False,
+            "has_hypertension": False,
+            "activity_level": "light",
+            "sleep_hours_per_night": 7.0,
+        },
+        "n_simulations": 200,
+    }
+
+    initial = run_web_frontier(payload)
+    first_id = initial["frontier"][0]["added_intervention"]
+    reranked = run_web_frontier({**payload, "current_stack_ids": [first_id]})
+
+    assert first_id not in {step["added_intervention"] for step in reranked["frontier"]}
+    assert all(
+        first_id in step["selected_interventions"] for step in reranked["frontier"]
+    )
+    current_item = next(item for item in initial["items"] if item["id"] == first_id)
+    expected_candidates = [
+        item
+        for item in initial["items"]
+        if item["id"] != first_id
+        and (
+            current_item["exclusive_group"] is None
+            or item["exclusive_group"] != current_item["exclusive_group"]
+        )
+    ]
+    assert reranked["meta"]["rankable_count"] == len(expected_candidates)
+
+
+def test_current_stack_rejects_mutually_exclusive_items():
+    import optiqal.web_api as web_api
+
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        web_api.build_frontier_response(
+            {
+                "profile": {
+                    "age": 35,
+                    "sex": "male",
+                    "weight_kg": 75.0,
+                    "height_cm": 175.0,
+                    "smoker": False,
+                    "has_diabetes": False,
+                    "has_hypertension": False,
+                    "activity_level": "light",
+                },
+                "current_stack_ids": ["hiit_1x_week", "hiit_2x_week"],
+                "n_simulations": 100,
+            }
+        )
+
+    with pytest.raises(ValueError, match="non-public"):
+        web_api.build_frontier_response(
+            {
+                "profile": {
+                    "age": 35,
+                    "sex": "male",
+                    "weight_kg": 75.0,
+                    "height_cm": 175.0,
+                    "smoker": False,
+                    "has_diabetes": False,
+                    "has_hypertension": False,
+                    "activity_level": "light",
+                },
+                "current_stack_ids": ["vitamin_d_2000"],
+                "n_simulations": 100,
+            }
+        )
+
+
+def test_ineligible_public_current_item_remains_visible():
+    payload = {
+        "profile": {
+            "age": 35,
+            "sex": "male",
+            "weight_kg": 75.0,
+            "height_cm": 175.0,
+            "smoker": False,
+            "has_diabetes": False,
+            "has_hypertension": False,
+            "activity_level": "light",
+            "sleep_hours_per_night": 7.0,
+        },
+        "current_stack_ids": ["statin_5mg"],
+        "n_simulations": 200,
+    }
+
+    response = run_web_frontier(payload)
+    current_item = next(
+        item for item in response["items"] if item["id"] == "statin_5mg"
+    )
+    assert current_item["public_lane"] == "conditional_public"
+    assert current_item["pricing_status"] == "priced"
+    assert current_item["annual_cost"] == 120.0
+    assert current_item["cost_per_qaly"] is not None
 
 
 def test_web_frontier_items_carry_confidence_intervals():

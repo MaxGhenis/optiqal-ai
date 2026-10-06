@@ -21,6 +21,7 @@ describe("frontier contract", () => {
         duration_hours: 6.8,
         spo2: 95.1,
       },
+      current_stack_ids: ["hiit_2x_week"],
       n_simulations: 5000,
     });
 
@@ -39,6 +40,7 @@ describe("frontier contract", () => {
         duration_hours: 6.8,
         spo2: 95.1,
       },
+      current_stack_ids: ["hiit_2x_week"],
       n_simulations: 5000,
     });
   });
@@ -59,6 +61,22 @@ describe("frontier contract", () => {
         sleep_metrics: {
           spo2: "bad",
         },
+      })
+    ).toBeNull();
+
+    expect(
+      parseFrontierRequest({
+        profile: {
+          age: 39,
+          sex: "male",
+          weight_kg: 74.8,
+          height_cm: 178,
+          smoker: false,
+          has_diabetes: false,
+          has_hypertension: false,
+          activity_level: "active",
+        },
+        sleep_metrics: { breathing_score: 80 },
       })
     ).toBeNull();
   });
@@ -100,6 +118,27 @@ describe("frontier contract", () => {
     ).toBeNull();
     expect(
       parseFrontierRequest({ profile: validProfile, n_simulations: 0 })
+    ).toBeNull();
+  });
+
+  it("rejects malformed or duplicate current interventions", () => {
+    expect(
+      parseFrontierRequest({
+        profile: validProfile,
+        current_stack_ids: ["hiit_2x_week", "hiit_2x_week"],
+      })
+    ).toBeNull();
+    expect(
+      parseFrontierRequest({
+        profile: validProfile,
+        current_stack_ids: [""],
+      })
+    ).toBeNull();
+    expect(
+      parseFrontierRequest({
+        profile: validProfile,
+        current_stack_ids: "hiit_2x_week",
+      })
     ).toBeNull();
   });
 
@@ -173,6 +212,7 @@ describe("frontier contract", () => {
           category: "sleep",
           display_category: "sleep",
           public_lane: "conditional_public",
+          exclusive_group: "osa_primary_therapy",
           annual_cost: 300,
           total_cost: 1000,
           cost_per_qaly: 95000,
@@ -297,6 +337,7 @@ describe("frontier contract", () => {
       thresholds: [{ signal: "sleep_breathing_burden", threshold: 0.05 }],
       score_rules: [],
     });
+    expect(parsed?.items[0]?.exclusive_group).toBe("osa_primary_therapy");
   });
 
   it("parses frontier item confidence intervals when present", () => {
