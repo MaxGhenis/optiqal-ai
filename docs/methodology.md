@@ -19,14 +19,14 @@ Optiqal estimates the lifetime QALY gains from health interventions using a life
 QALYs are calculated by integrating the discounted quality-weighted survival curve over the remaining lifetime:
 
 $$
-\text{QALY} = \sum_{t=0}^{T_{\max} - \text{age}_0} S(t) \times Q(t) \times D(t)
+\text{QALY} = \sum_{t=0}^{T_{\max} - \text{age}_0 - 1} S(t) \times Q(t) \times D(t)
 $$
 
 where:
 - $S(t)$ is the survival probability at time $t$ years from baseline
 - $Q(t)$ is the quality-of-life weight at age $\text{age}_0 + t$
 - $D(t) = (1 + r)^{-t}$ is the discount factor with rate $r$ (default 3% for QALYs)
-- $T_{\max} = 100$ is the maximum age in the life table
+- $T_{\max} = 100$ is the intervention horizon: the last year summed is age 99
 
 ### Survival Probability
 
@@ -36,7 +36,7 @@ $$
 S(t) = \prod_{i=0}^{t-1} \left(1 - q_{\text{age}_0 + i}\right)
 $$
 
-where $q_a$ is the annual mortality rate (probability of death) for age $a$, obtained from CDC National Vital Statistics Life Tables (2021) with log-linear interpolation.
+where $q_a$ is the annual mortality rate (probability of death) for age $a$: the single-year $q_x$ from the CDC's *United States Life Tables, 2021* (NVSR 72-12, Table 2 for males and Table 3 for females) for ages 0-99. Intervention estimates sum to $T_{\max} = 100$ and so use only these rates. The baseline life-expectancy projection continues to age 110; from age 100 it uses the constant annual rate $1 - e^{-l_{100}/T_{100}}$, the annual death probability of a constant hazard whose mean remaining life equals the published $e_{100}$ of the open-ended "100 and older" row. That projection counts every year begun alive as a whole year, so with no profile adjustment it runs about half a year above the published $e_x$ at every age.
 
 ### Quality-of-Life Weights
 
