@@ -118,6 +118,15 @@ it to audit the snapshots without regenerating them.
   evidence, and the generator checks its published column against the parse.
 - **Consumer and determinism.** `get_mortality_rate` feeds the analyzer, web
   API, and baseline calculations. No RNG is involved.
+- **Public attribution.** The About page, FAQ, brand writing guide, paper and
+  `docs/methodology.md` attribute baseline mortality to the CDC life tables,
+  which this table now is. `python/tests/test_public_data_attribution.py`
+  reads the snapshot's `provenance.status` and scans every page and component
+  under `src/` plus the published docs. While the status names NVSR 72-12, it
+  fails if any sentence there still says the CDC table does not match. It is a
+  per-sentence pattern match: an attribution that avoids the word "table", or
+  splits the source and the table across sentences, gets past it, and any
+  "not match" wording in the sentence counts as a disclosure.
 
 ## Cause-of-death fractions
 
