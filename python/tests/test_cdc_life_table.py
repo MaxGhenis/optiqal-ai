@@ -199,8 +199,9 @@ def test_engine_survival_sum_differs_from_published_ex_only_by_year_convention()
         for age in range(101):
             projection = web_api._calculate_projection(
                 age=age,
-                sex=sex,
-                mortality_multiplier=1.0,
+                survival_by_year=web_api._annual_survival(
+                    age=age, sex=sex, mortality_multiplier=1.0
+                ),
                 quality_decrement=0.0,
                 discount_rate=0.03,
             )
