@@ -43,8 +43,8 @@ _TABLES = re.compile(r"\btables?\b", re.IGNORECASE)
 _DISCLOSURE = re.compile(
     r"\b(?:not|none of\b[^.;]*?)\s+match(?:es|ing)?\b", re.IGNORECASE
 )
-# Sentence end, except after a one-letter abbreviation such as "U.S.".
-_SENTENCE_END = re.compile(r"(?<!\b[A-Z]\.)(?<=[.!?])\s+(?=[A-Z0-9'(\[])")
+# Sentence end, except after "U.S.", which the copy writes before "life tables".
+_SENTENCE_END = re.compile(r"(?<!\bU\.S\.)(?<=[.!?])\s+(?=[A-Z0-9'(\[])")
 
 
 def public_surfaces() -> tuple[str, ...]:

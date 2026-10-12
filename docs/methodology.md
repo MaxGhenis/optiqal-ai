@@ -19,14 +19,14 @@ Optiqal estimates the lifetime QALY gains from health interventions using a life
 QALYs are calculated by integrating the discounted quality-weighted survival curve over the remaining lifetime:
 
 $$
-\text{QALY} = \sum_{t=0}^{T_{\max} - \text{age}_0} S(t) \times Q(t) \times D(t)
+\text{QALY} = \sum_{t=0}^{T_{\max} - \text{age}_0 - 1} S(t) \times Q(t) \times D(t)
 $$
 
 where:
 - $S(t)$ is the survival probability at time $t$ years from baseline
 - $Q(t)$ is the quality-of-life weight at age $\text{age}_0 + t$
 - $D(t) = (1 + r)^{-t}$ is the discount factor with rate $r$ (default 3% for QALYs)
-- $T_{\max} = 100$ is the maximum age in the life table
+- $T_{\max} = 100$ is the intervention horizon: the last year summed is age 99
 
 ### Survival Probability
 
