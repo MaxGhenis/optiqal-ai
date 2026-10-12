@@ -295,7 +295,7 @@ This approach separates the causal pathway: Intervention → Biomarkers → Cond
 ### Lifecycle Integration
 
 We propagate mortality and quality effects through a lifecycle model:
-- Age-specific mortality from a legacy U.S. life table, attributed to the CDC's 2021 life tables but not matching the published values ([data provenance](https://github.com/MaxGhenis/optiqal-ai/blob/main/docs/DATA_PROVENANCE.md))
+- Age-specific mortality from a legacy U.S. life table, attributed to the CDC's 2021 life tables but not matching the published values: its rates are lower at 40 of the 42 anchors below age 100 ([data provenance](https://github.com/MaxGhenis/optiqal-ai/blob/main/docs/DATA_PROVENANCE.md))
 - Age-varying cause fractions (CVD, cancer, other)
 - Condition-based quality weights (see above)
 - 3% annual discounting (for ICER calculations)

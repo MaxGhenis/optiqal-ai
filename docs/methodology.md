@@ -6,7 +6,7 @@ This document describes the technical methodology underlying the Optiqal Quality
 
 Optiqal estimates the lifetime QALY gains from health interventions using a lifecycle simulation model with Monte Carlo uncertainty quantification. The framework incorporates:
 
-1. A legacy U.S. life table, attributed to but not matching the CDC's 2021 tables, adjusted for individual risk profiles
+1. A legacy U.S. life table that does not match the CDC 2021 tables it is attributed to, adjusted for individual risk profiles
 2. Pathway-specific hazard ratios (cardiovascular disease, cancer, other causes)
 3. Evidence-calibrated confounding adjustment
 4. Profile-specific intervention effect modifiers
@@ -36,7 +36,7 @@ $$
 S(t) = \prod_{i=0}^{t-1} \left(1 - q_{\text{age}_0 + i}\right)
 $$
 
-where $q_a$ is the annual mortality rate (probability of death) for age $a$, interpolated log-linearly between 22 anchor ages per sex (0, 1, 5, 10, ..., 100). The anchors are a legacy transcription attributed to the CDC's *United States Life Tables, 2021* (NVSR 72-12), and none of the 44 anchors (22 per sex) matches the published Tables 2-3 ([data provenance](https://github.com/MaxGhenis/optiqal-ai/blob/main/docs/DATA_PROVENANCE.md)).
+where $q_a$ is the annual mortality rate (probability of death) for age $a$, interpolated log-linearly between 22 anchor ages per sex (0, 1, 5, 10, ..., 100). The anchors are a legacy transcription attributed to the CDC's *United States Life Tables, 2021* (NVSR 72-12), and none of the 44 anchors (22 per sex) matches the published Tables 2-3 ([data provenance](https://github.com/MaxGhenis/optiqal-ai/blob/main/docs/DATA_PROVENANCE.md)). The legacy rates are lower than the published ones at 40 of the 42 anchors below age 100, by up to 37%, which raises baseline life expectancy by about two years for a healthy adult profile.
 
 ### Quality-of-Life Weights
 

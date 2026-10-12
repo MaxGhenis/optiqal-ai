@@ -41,14 +41,17 @@ export default function AboutPage() {
           <section>
             <h2 className="text-xl font-semibold mb-3">Data Sources</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Our estimates are built on peer-reviewed research and official statistics:
+              Our estimates draw on these sources:
             </p>
             <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-4 mt-3">
               <li>
                 <strong className="text-foreground">Legacy U.S. life table</strong> — mortality
                 rates by age and sex that set baseline life expectancy. The rates are a legacy
                 transcription attributed to the CDC&apos;s 2021 U.S. life tables, and none of
-                their 44 age-and-sex anchors matches the published tables. Our{" "}
+                their 44 age-and-sex anchors matches the published tables. They are lower than
+                the published rates at 40 of the 42 anchors below age 100, by up to 37%, so
+                baseline life expectancy for a healthy adult runs about two years above what
+                the published tables give. Our{" "}
                 <a
                   href="https://github.com/MaxGhenis/optiqal-ai/blob/main/docs/DATA_PROVENANCE.md"
                   target="_blank"

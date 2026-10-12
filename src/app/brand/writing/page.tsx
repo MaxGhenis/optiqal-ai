@@ -273,7 +273,7 @@ export default function WritingPage() {
                 {
                   term: "Life table",
                   definition:
-                    "Actuarial table showing mortality rates and life expectancy by age. Optiqal's baseline uses a legacy U.S. period life table attributed to the CDC's 2021 tables; it does not match the published tables.",
+                    "Actuarial table showing mortality rates and life expectancy by age. Optiqal's baseline uses a legacy U.S. life table attributed to the CDC's 2021 tables; it does not match the published tables.",
                 },
               ].map((item) => (
                 <div key={item.term} className="flex gap-4">

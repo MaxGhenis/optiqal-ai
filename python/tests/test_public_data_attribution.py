@@ -1,14 +1,19 @@
 """Public copy attributes baseline mortality the way the runtime snapshot does.
 
 The runtime life table's ``provenance.status`` records whether its values match
-the CDC tables it names. Every public surface that ties Optiqal's baseline to
-CDC life tables must agree with that record:
+the CDC tables it names. Public copy must agree with that record:
 
-- while the status records a mismatch, each sentence that pairs CDC (or NVSR)
-  with life tables must disclose it, and the About page and FAQ must carry that
-  disclosure;
-- once the snapshot is generated from NVSR 72-12, no surface may still disclose
-  a mismatch, and the About page and FAQ must name the CDC source.
+- while the status records a mismatch, each sentence that names CDC (or NCHS,
+  or NVSR) together with tables must say the table does not match, and the
+  About page and FAQ must carry that disclosure;
+- once the snapshot is generated from NVSR 72-12, no such sentence may still
+  disclose a mismatch, and the About page and FAQ must name the CDC source.
+
+The check works one sentence at a time, over every page and component under
+``src/`` and the published docs. It is a pattern match, so it has limits: it
+does not catch an attribution that never uses the word "table", or one whose
+source and table sit in separate sentences, and it accepts any "not match"
+wording as a disclosure without reading what the sentence says does not match.
 """
 
 from __future__ import annotations
@@ -20,18 +25,37 @@ from pathlib import Path
 from optiqal.snapshots import load_snapshot
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-PUBLIC_SURFACES = (
-    "src/app/about/page.tsx",
-    "src/app/faq/page.tsx",
-    "src/app/brand/writing/page.tsx",
+DOC_SURFACES = (
+    "README.md",
     "docs/index.md",
+    "docs/appendix.md",
     "docs/methodology.md",
 )
 REQUIRED_SURFACES = ("src/app/about/page.tsx", "src/app/faq/page.tsx")
 
-_CDC = re.compile(r"\b(?:CDC|NVSR)\b")
+_CDC = re.compile(
+    r"\b(?:CDC|NCHS|NVSR)\b|Centers for Disease Control|National Vital Statistics"
+    r"|National Center for Health Statistics",
+    re.IGNORECASE,
+)
 _TABLES = re.compile(r"\btables?\b", re.IGNORECASE)
-_DISCLOSURE = re.compile(r"\b(?:not|none|no)\b[^.;]*?\bmatch", re.IGNORECASE)
+# The negated verb itself: "does not match", "not matching", "none of ... matches".
+_DISCLOSURE = re.compile(
+    r"\b(?:not|none of\b[^.;]*?)\s+match(?:es|ing)?\b", re.IGNORECASE
+)
+# Sentence end, except after a one-letter abbreviation such as "U.S.".
+_SENTENCE_END = re.compile(r"(?<!\b[A-Z]\.)(?<=[.!?])\s+(?=[A-Z0-9'(\[])")
+
+
+def public_surfaces() -> tuple[str, ...]:
+    """Every page and component source, plus the published docs."""
+    sources = sorted(
+        path.relative_to(REPO_ROOT).as_posix()
+        for folder in ("src/app", "src/components")
+        for path in (REPO_ROOT / folder).rglob("*.tsx")
+        if not path.name.endswith(".test.tsx")
+    )
+    return (*sources, *DOC_SURFACES)
 
 
 def _sentences(source: str) -> list[str]:
@@ -48,9 +72,7 @@ def _sentences(source: str) -> list[str]:
     sentences = []
     for block in text.split("\x00"):
         block = re.sub(r"\s+", " ", block).strip()
-        sentences.extend(
-            s for s in re.split(r"(?<=[.!?])\s+(?=[A-Z0-9'(\[])", block) if s
-        )
+        sentences.extend(s for s in _SENTENCE_END.split(block) if s)
     return sentences
 
 
@@ -78,10 +100,36 @@ def test_sentence_finder_sees_disclosed_and_bare_attributions():
     assert _DISCLOSURE.search(sentence)
 
 
+def test_sentence_finder_is_not_fooled_by_spelling_or_abbreviations():
+    for bare in (
+        "Baseline mortality comes from the Centers for Disease Control life tables.",
+        "Baseline mortality comes from cdc life tables.",
+        "Mortality follows the NCHS life tables.",
+        "We use the CDC's 2021 U.S. Life Tables.",
+        "We use the National Vital Statistics life tables.",
+    ):
+        [sentence] = cdc_table_sentences(bare)
+        assert sentence == bare
+        assert not _DISCLOSURE.search(sentence)
+
+
+def test_a_claimed_match_is_not_a_disclosure():
+    claim = "No adjustment is needed because our rates match the CDC life tables."
+    assert not _DISCLOSURE.search(claim)
+    for disclosure in (
+        "The rates do not match the CDC life tables.",
+        "A legacy table, attributed to but not matching the CDC tables.",
+        "None of the 44 anchors matches the CDC tables.",
+    ):
+        assert _DISCLOSURE.search(disclosure), disclosure
+
+
 def test_public_copy_agrees_with_the_life_table_provenance():
     mismatch = _snapshot_mismatch()
+    surfaces = public_surfaces()
+    assert set(REQUIRED_SURFACES) <= set(surfaces)
     found = {}
-    for relative in PUBLIC_SURFACES:
+    for relative in surfaces:
         source = (REPO_ROOT / relative).read_text(encoding="utf-8")
         found[relative] = cdc_table_sentences(source)
         for sentence in found[relative]:

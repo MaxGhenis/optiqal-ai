@@ -84,12 +84,24 @@ snapshots without regenerating them.
 - **Consumer and determinism.** `get_mortality_rate` performs deterministic
   lookup/interpolation over the snapshot; it feeds the analyzer, web API, and
   baseline calculations.
+- **Direction and size.** Below age 100, the legacy rate is lower than the
+  published one at 40 of the 42 anchors, by up to 36.8% (female age 35); it is
+  higher only at male age 10 and female age 15. Substituting the published
+  single-year table (PR #30, branch `life-table-nvsr-2021-20260927`) lowers the
+  served baseline life expectancy of a reference profile (normal BMI, never
+  smoker, light activity, no conditions) by 1.6 to 2.5 years across ages 20–90
+  and all three sex options, measured with `build_baseline_response` on
+  2026-09-30.
 - **Public attribution.** The About page, the FAQ, the brand writing guide, the
   paper (`docs/index.md`), and `docs/methodology.md` describe these values as a
-  legacy transcription attributed to, but not matching, the CDC 2021 tables.
+  legacy transcription attributed to, but not matching, the CDC 2021 tables,
+  and state the direction and size above.
   `python/tests/test_public_data_attribution.py` reads the snapshot's
-  `provenance.status` and fails if any of those surfaces ties Optiqal's
-  baseline to CDC life tables without disclosing the mismatch.
+  `provenance.status` and scans every page and component under `src/` plus the
+  published docs. It fails if a sentence there names CDC, NCHS or NVSR together
+  with tables and does not say the table does not match. It is a per-sentence
+  pattern match, so an attribution that avoids the word "table", or splits the
+  source and the table across sentences, gets past it.
 
 ## Cause-of-death fractions
 
