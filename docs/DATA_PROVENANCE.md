@@ -89,7 +89,7 @@ snapshots without regenerating them.
   higher only at male age 10 and female age 15. Substituting the published
   single-year table (PR #30, branch `life-table-nvsr-2021-20260927`) lowers the
   served baseline life expectancy of a reference profile (normal BMI, never
-  smoker, light activity, no conditions) by 1.6 to 2.5 years across ages 20–90
+  smoker, light activity, no conditions) by 1.6 to 2.4 years across ages 20–90
   and all three sex options, measured with `build_baseline_response` on
   2026-09-30.
 - **Public attribution.** The About page, the FAQ, the brand writing guide, the
@@ -101,7 +101,8 @@ snapshots without regenerating them.
   published docs. It fails if a sentence there names CDC, NCHS or NVSR together
   with tables and does not say the table does not match. It is a per-sentence
   pattern match, so an attribution that avoids the word "table", or splits the
-  source and the table across sentences, gets past it.
+  source and the table across sentences, gets past it, and any "not match"
+  wording in the sentence counts as a disclosure.
 
 ## Cause-of-death fractions
 
