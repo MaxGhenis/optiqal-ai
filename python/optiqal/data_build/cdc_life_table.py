@@ -164,10 +164,11 @@ def parse_source_text(text: str) -> dict[str, dict[int, dict[str, float]]]:
 def check_published_identities(tables: dict) -> None:
     """Hold every published column to the others, within rounding.
 
-    A row shifted by one, or any cell off by more than the printed rounding
-    allows, breaks at least one identity. An error inside rounding, such as a
-    wrong last digit of qx, can pass here; the source-text checksum pin, not
-    this check, guards against those.
+    A row shifted by one breaks at least one identity. So does a count off
+    by 3 or more, an ex off by 0.2 or more, or a qx error that moves qx * lx by
+    2.2 people or more. Smaller errors can pass, especially in qx at old ages
+    where lx is small; the source-text checksum pin, not this check, guards
+    against those.
     """
     for sex in SEXES:
         table = tables[sex]
