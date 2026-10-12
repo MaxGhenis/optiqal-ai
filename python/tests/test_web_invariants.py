@@ -297,8 +297,8 @@ def test_other_sex_survival_minimized_audit_input_is_the_mixed_cohort():
     oracle = oracle_projection(profile)
     mixed_104, mixed_105 = oracle.survival[104 - 18], oracle.survival[105 - 18]
     assert mixed_104 > mixed_105 > CURVE_TAIL_SURVIVAL
-    # 109 is neither a fifth age nor under the tail threshold for the mixture,
-    # so it is not published; 110 is the mixed cohort's survival.
+    # 104 is neither a fifth age nor under the tail threshold for the mixture,
+    # so it is not published; 105 is the mixed cohort's survival.
     assert 104 not in by_age
     assert by_age[105] == round(mixed_105, 4) == 0.0202
     assert_baseline_invariants(profile, response)

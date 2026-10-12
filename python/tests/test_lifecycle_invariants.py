@@ -565,9 +565,10 @@ def test_reference_profile_never_triggers_lifecycle_truncation():
     """Precondition for the tight tolerance below.
 
     A normal-BMI never-smoker at moderate activity has multiplier 1, and baseline
-    survival from any start age to 100 stays above 0.001 (it bottoms out near
-    0.0066, male from birth, on the NVSR 72-12 table), so LifecycleModel's early stop, which needs both curves below
-    0.001, never fires before 100. Both engines then sum the same years.
+    survival from any start age to 100 stays above 0.001 (on the NVSR 72-12
+    table it bottoms out near 0.0066, male from birth), so LifecycleModel's early
+    stop, which needs both curves below 0.001, never fires before 100. Both
+    engines then sum the same years.
     """
     for sex in ("male", "female"):
         assert get_baseline_mortality_multiplier(_reference_profile(40, sex)) == 1.0
