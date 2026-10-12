@@ -537,7 +537,7 @@ $$
 L \sum_t d_t \, S_t \, q_t \prod_{u<t} (1 - q_u),
 $$
 
-because a first event can only happen in a year that is still event-free. When the first $k$ events count, the product becomes the probability that fewer than $k$ events occurred in earlier years. Each Monte Carlo draw carries this expected loss given its sampled $p$, $L$ and survival curve. Stack-level interaction penalties use the same formula.
+because a first event can only happen in a year that is still event-free. When the first $k$ events count, the product becomes the probability that fewer than $k$ events occurred in earlier years. Each Monte Carlo draw carries this expected loss given its sampled $p$, $L$ and survival curve. Stack-level interaction penalties use the same formula, evaluated once at each rule's mean $p$ and $L$ on the profile's baseline survival curve.
 
 ## Limitations
 

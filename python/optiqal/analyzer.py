@@ -362,8 +362,10 @@ def evaluate_decisions(
 
     ADD: Simulate the item exactly as ``simulate_catalog`` does (same draws,
     harm model and interaction rules), with any overrides applied on top, and
-    compute net value. With no overrides the row matches the item's catalog
-    row field for field.
+    compute net value. With no overrides the row matches, field for field,
+    the row ``simulate_catalog`` gives for the item's entry in the shipped
+    ``CATALOG`` (decisions always read that catalog, not a custom
+    ``catalog_entries`` passed to ``analyze``).
     DROP: The exact negation of the ADD with the same overrides: the item's
     effect is negated and cost becomes savings.
     ADJUST: Simulate with overridden parameters.

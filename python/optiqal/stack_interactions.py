@@ -62,9 +62,15 @@ def _retained_fraction(tag: str, rank: int) -> float:
 
 
 def _baseline_survival(profile: Profile) -> np.ndarray:
-    """Expected baseline survival probability at the start of each future year."""
+    """Expected baseline survival probability at the start of each future year.
+
+    Empty when the profile is at or beyond the modeled horizon (age 100), so a
+    stack has no exposure, and no interaction penalty, without a modeled year.
+    """
     max_age = 100
     n_years = max_age - profile.age
+    if n_years <= 0:
+        return np.zeros(0)
     years = np.arange(n_years)
     ages = profile.age + years
     base_qx = np.array([get_mortality_rate(int(a), profile.sex) for a in ages])
