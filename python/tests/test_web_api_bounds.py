@@ -58,8 +58,20 @@ def test_frontier_rejects_out_of_range_profile(field, value):
     [web_api.build_baseline_response, web_api.build_frontier_response],
 )
 @pytest.mark.parametrize("sleep_hours", [-1, 25, 1_000_000])
-def test_web_responses_reject_out_of_range_profile_sleep(builder, sleep_hours):
-    payload = {"profile": {**VALID_PROFILE, "sleep_hours_per_night": sleep_hours}}
+@pytest.mark.parametrize(
+    "sleep_metrics",
+    [None, {"routine_score": 90}, {"duration_hours": 7}],
+    ids=["no_sleep_metrics", "partial_sleep_metrics", "explicit_duration"],
+)
+def test_web_responses_reject_out_of_range_profile_sleep(
+    builder, sleep_hours, sleep_metrics
+):
+    """Both endpoints validate the profile's sleep hours on every request, even
+    when sleep_metrics is present (the frontier used to skip the check then)."""
+    payload = {
+        "profile": {**VALID_PROFILE, "sleep_hours_per_night": sleep_hours},
+        "sleep_metrics": sleep_metrics,
+    }
     with pytest.raises(ValueError, match="sleep_hours_per_night"):
         builder(payload)
 

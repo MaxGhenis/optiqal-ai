@@ -195,12 +195,37 @@ class MechanismEffect:
 
 @dataclass
 class MortalityEffect:
-    """Mortality effect of an intervention."""
+    """Mortality effect of an intervention.
+
+    The timing fields shape how much of the hazard-ratio effect applies at each
+    time ``tau`` (years since starting): none before ``onset_delay``, a linear
+    ramp to the full effect over the following ``ramp_up`` years, and, when
+    ``decay_rate`` is positive, an exponential fade ``exp(-decay_rate * (tau -
+    onset_delay))`` measured from onset. The simulator integrates this fraction
+    over each model year (see ``simulate.mortality_effect_fraction``). All three
+    default to 0, i.e. the full effect from the first day, so only declared
+    timing changes results.
+    """
 
     hazard_ratio: Distribution
     onset_delay: float = 0
-    ramp_up: float = 0.5
+    ramp_up: float = 0
     decay_rate: float = 0
+
+    def __post_init__(self) -> None:
+        for name in ("onset_delay", "ramp_up", "decay_rate"):
+            setattr(self, name, validate_effect_timing(name, getattr(self, name)))
+
+
+def validate_effect_timing(name: str, value: Any) -> float:
+    """Return a mortality timing parameter as a finite, nonnegative float."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{name} must be a number, got {value!r}") from None
+    if not np.isfinite(number) or number < 0:
+        raise ValueError(f"{name} must be finite and nonnegative, got {value!r}")
+    return number
 
 
 @dataclass
@@ -365,10 +390,12 @@ class Intervention:
         mortality = None
         if "mortality" in data:
             mort = data["mortality"]
+            # Undeclared timing means the full effect from the start, the same
+            # default MortalityEffect uses, so only declared timing moves results.
             mortality = MortalityEffect(
                 hazard_ratio=Distribution.from_dict(mort["hazard_ratio"]),
                 onset_delay=mort.get("onset_delay", 0),
-                ramp_up=mort.get("ramp_up", 0.5),
+                ramp_up=mort.get("ramp_up", 0),
                 decay_rate=mort.get("decay_rate", 0),
             )
 

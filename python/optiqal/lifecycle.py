@@ -6,12 +6,14 @@ Based on whatnut methodology.
 """
 
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Optional
 
 import numpy as np
 
+from .defaults import validate_qaly_discount_rate
 from .snapshots import load_snapshot
 
 # The exact anchor ages the interpolators expect. Pinned so a snapshot that has
@@ -170,7 +172,10 @@ def get_quality_weight(age: float) -> float:
     )
 
 
-# Precomputed baselines cache
+# Precomputed baselines cache. These tabulated lookups (integrated to age 100 at
+# a 3% discount, rounded to 3 decimals) are for direct callers only;
+# LifecycleModel does not read them, because a table value cannot follow the
+# model's horizon, discount rate, mortality multiplier or truncation.
 _PRECOMPUTED_BASELINES: Optional[dict] = None
 
 
@@ -234,7 +239,11 @@ def get_precomputed_life_expectancy(
 
 @dataclass
 class PathwayHRs:
-    """Pathway-specific hazard ratios."""
+    """Pathway-specific hazard ratios.
+
+    Each ratio must be finite and nonnegative; ``LifecycleModel.calculate``
+    raises ``ValueError`` otherwise.
+    """
 
     cvd: float
     cancer: float
@@ -256,6 +265,23 @@ class LifecycleResult:
     discount_rate: float
 
 
+# Annual death probability ceiling, applied to the adjusted baseline and to the
+# intervention rate alike (the vectorized simulator uses the same 0.99 cap), so
+# survival stays in (0, 1] however large the multiplier or hazard ratio.
+MAX_ANNUAL_MORTALITY = 0.99
+
+# The integration stops after the first year that leaves both the baseline and
+# the intervention survival below this level. Both series always cover the
+# same years.
+SURVIVAL_TRUNCATION = 0.001
+
+
+def _require_nonnegative_finite(name: str, value: float) -> None:
+    """Raise ValueError unless ``value`` is a finite number >= 0."""
+    if not (math.isfinite(value) and value >= 0):
+        raise ValueError(f"{name} must be finite and nonnegative, got {value!r}.")
+
+
 class LifecycleModel:
     """
     Lifecycle QALY model with pathway decomposition.
@@ -266,6 +292,24 @@ class LifecycleModel:
     - S(t) = survival probability at time t
     - Q(t) = quality weight at time t
     - D(t) = discount factor at time t
+
+    The integral is an annual sum of start-of-year survival × quality ×
+    discount over ages ``start_age`` to ``max_age - 1`` (no years when
+    ``max_age <= start_age``). Baseline and intervention accumulate in one loop
+    over the same years, so every pathway HR equal to 1 gives a gain of exactly
+    zero. Baseline annual mortality is the life-table rate times
+    ``baseline_mortality_multiplier``; the intervention rate scales that by the
+    cause-fraction-weighted pathway HR. Both are capped at
+    ``MAX_ANNUAL_MORTALITY``. The loop stops early once both survival curves are
+    below ``SURVIVAL_TRUNCATION``.
+
+    ``discount_rate`` must lie in the supported 0-10% range and
+    ``baseline_mortality_multiplier`` must be finite and nonnegative; otherwise
+    the constructor raises ``ValueError``.
+
+    ``use_precomputed`` is accepted for backward compatibility and has no
+    effect: results never come from ``data/baselines.json``, whose values are
+    integrated to age 100 at a 3% discount and rounded to 3 decimals.
     """
 
     def __init__(
@@ -277,24 +321,18 @@ class LifecycleModel:
         use_precomputed: bool = True,
         baseline_mortality_multiplier: float = 1.0,
     ):
+        if not math.isfinite(discount_rate):
+            raise ValueError(f"discount_rate must be finite, got {discount_rate!r}.")
+        _require_nonnegative_finite(
+            "baseline_mortality_multiplier", baseline_mortality_multiplier
+        )
         self.start_age = start_age
         self.sex = sex
-        self.discount_rate = discount_rate
+        self.discount_rate = validate_qaly_discount_rate(discount_rate)
         self.max_age = max_age
+        # Inert; kept so existing callers that pass it keep working.
         self.use_precomputed = use_precomputed
         self.baseline_mortality_multiplier = baseline_mortality_multiplier
-
-        # Cache precomputed baseline if available
-        # Only use precomputed if no mortality adjustment (default population)
-        self._precomputed_baseline_qalys = None
-        if (
-            use_precomputed
-            and discount_rate == 0.03
-            and baseline_mortality_multiplier == 1.0
-        ):
-            self._precomputed_baseline_qalys = get_precomputed_baseline_qalys(
-                start_age, sex
-            )
 
     def calculate(self, pathway_hrs: PathwayHRs) -> LifecycleResult:
         """
@@ -303,53 +341,20 @@ class LifecycleModel:
         Args:
             pathway_hrs: Hazard ratios for each mortality pathway
                         (CVD, cancer, other). HR < 1 means reduced mortality.
+                        Each must be finite and nonnegative.
 
         Returns:
             LifecycleResult with baseline, intervention, and gain QALYs.
+
+        Raises:
+            ValueError: If a pathway HR is negative, infinite or NaN.
         """
-        # Use precomputed baseline if available (fast path)
-        # Only for default population (no mortality adjustment)
-        if self._precomputed_baseline_qalys is not None:
-            baseline_qalys = self._precomputed_baseline_qalys
-            # Still need to compute baseline_life_years
-            baseline_survival = 1.0
-            baseline_life_years = 0.0
-            for year in range(self.max_age - self.start_age):
-                current_age = self.start_age + year
-                base_qx = get_mortality_rate(current_age, self.sex)
-                baseline_life_years += baseline_survival
-                baseline_survival *= 1 - base_qx
-                if baseline_survival < 0.001:
-                    break
-        else:
-            # Full computation path (used when mortality is adjusted)
-            baseline_qalys = 0.0
-            baseline_survival = 1.0
-            baseline_life_years = 0.0
+        for pathway, hr in pathway_hrs.to_dict().items():
+            _require_nonnegative_finite(f"{pathway} hazard ratio", hr)
 
-            for year in range(self.max_age - self.start_age):
-                current_age = self.start_age + year
-                # Apply mortality multiplier for risk factors (BMI, smoking, diabetes)
-                base_qx = (
-                    get_mortality_rate(current_age, self.sex)
-                    * self.baseline_mortality_multiplier
-                )
-                # Cap at 1.0 (can't have >100% mortality probability)
-                base_qx = min(base_qx, 0.99)
-                quality = get_quality_weight(current_age)
-                discount = 1 / (1 + self.discount_rate) ** year
-
-                baseline_qaly = baseline_survival * quality * discount
-                baseline_qalys += baseline_qaly
-                baseline_life_years += baseline_survival
-
-                baseline_survival *= 1 - base_qx
-
-                if baseline_survival < 0.001:
-                    break
-
-        # Always compute intervention path
+        baseline_qalys = 0.0
         intervention_qalys = 0.0
+        baseline_life_years = 0.0
         intervention_life_years = 0.0
 
         cvd_contribution = 0.0
@@ -361,29 +366,36 @@ class LifecycleModel:
 
         for year in range(self.max_age - self.start_age):
             current_age = self.start_age + year
-            # Apply mortality multiplier for risk factors
-            base_qx = (
+            # Apply the caller's risk-factor multiplier to baseline mortality
+            base_qx = min(
                 get_mortality_rate(current_age, self.sex)
-                * self.baseline_mortality_multiplier
+                * self.baseline_mortality_multiplier,
+                MAX_ANNUAL_MORTALITY,
             )
-            base_qx = min(base_qx, 0.99)
             cause_frac = get_cause_fraction(current_age)
             quality = get_quality_weight(current_age)
             discount = 1 / (1 + self.discount_rate) ** year
 
-            # Baseline QALY (for pathway contribution tracking)
-            baseline_qaly = baseline_survival * quality * discount
-
-            # Intervention mortality rate (intervention HR applies to the adjusted baseline)
-            intervention_qx = base_qx * (
+            # Cause-weighted HR. Dividing by the fraction total (1 up to
+            # rounding) makes it exactly 1 when every pathway HR is 1, because
+            # numerator and denominator are then the same floating-point sum.
+            weighted_hr = (
                 cause_frac["cvd"] * pathway_hrs.cvd
                 + cause_frac["cancer"] * pathway_hrs.cancer
                 + cause_frac["other"] * pathway_hrs.other
+            ) / (cause_frac["cvd"] + cause_frac["cancer"] + cause_frac["other"])
+            # The intervention HR applies to the adjusted, capped baseline. A
+            # zero baseline stays zero, even for an HR so large that the
+            # weighted sum overflows (0 * inf would be NaN).
+            intervention_qx = (
+                min(base_qx * weighted_hr, MAX_ANNUAL_MORTALITY) if base_qx > 0 else 0.0
             )
 
-            # Intervention QALY
+            baseline_qaly = baseline_survival * quality * discount
             intervention_qaly = intervention_survival * quality * discount
+            baseline_qalys += baseline_qaly
             intervention_qalys += intervention_qaly
+            baseline_life_years += baseline_survival
             intervention_life_years += intervention_survival
 
             # Track pathway contributions
@@ -409,7 +421,10 @@ class LifecycleModel:
             baseline_survival *= 1 - base_qx
             intervention_survival *= 1 - intervention_qx
 
-            if baseline_survival < 0.001 and intervention_survival < 0.001:
+            if (
+                baseline_survival < SURVIVAL_TRUNCATION
+                and intervention_survival < SURVIVAL_TRUNCATION
+            ):
                 break
 
         return LifecycleResult(

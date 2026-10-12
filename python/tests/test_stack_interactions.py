@@ -1,5 +1,7 @@
 """Tests for stack-level interaction penalties."""
 
+from dataclasses import replace
+
 import pytest
 
 from optiqal import CATALOG, Profile
@@ -29,6 +31,30 @@ def test_bleeding_stack_penalty_triggers_once():
 
     assert penalty < 0
     assert [detail["id"] for detail in details] == ["bleeding_stack"]
+
+
+@pytest.mark.parametrize("age", [100, 105, 120])
+def test_stack_penalty_is_zero_without_a_modeled_year(age):
+    """No exposure without modeled years: the engine integrates to age 100, so
+    a profile at or past it has no year in which an interaction can cost
+    anything. The survival helper used to return one phantom year there, which
+    charged two sedating items the same -0.0015 QALYs at age 105 as at age 99.
+    """
+    sedating_pair = ["daridorexant_25mg", "doxepin_3mg"]
+
+    def penalty_at(profile_age):
+        return expected_stack_interaction_qaly(
+            item_ids=sedating_pair,
+            catalog_entries=CATALOG,
+            profile=replace(_profile(), age=profile_age),
+        )
+
+    last_year_penalty, _ = penalty_at(99)
+    assert last_year_penalty < 0
+
+    penalty, details = penalty_at(age)
+    assert penalty == 0
+    assert details and all(detail["penalty_qaly"] == 0 for detail in details)
 
 
 def test_duplicate_vitamin_d_penalty_uses_extra_tags():

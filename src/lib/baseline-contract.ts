@@ -9,6 +9,7 @@ import {
   parseNumberRecord,
   parseOptionalArray,
   parseOptionalConfidenceInterval,
+  parseProbability,
 } from "@/lib/contract-validation";
 
 function parseSurvivalRow(value: unknown): BaselineResponse["survival_curve"][number] | null {
@@ -17,8 +18,8 @@ function parseSurvivalRow(value: unknown): BaselineResponse["survival_curve"][nu
   }
 
   const age = parseFiniteNumber(value.age);
-  const survivalProbability = parseFiniteNumber(value.survival_probability);
-  const qualityWeight = parseFiniteNumber(value.quality_weight);
+  const survivalProbability = parseProbability(value.survival_probability);
+  const qualityWeight = parseProbability(value.quality_weight);
   const expectedQaly = parseFiniteNumber(value.expected_qaly);
 
   if (
@@ -100,7 +101,7 @@ export function parseBaselineResponse(value: unknown): BaselineResponse | null {
   const remainingLifeExpectancy = parseFiniteNumber(value.point_estimate.remaining_life_expectancy);
   const expectedDeathAge = parseFiniteNumber(value.point_estimate.expected_death_age);
   const remainingQalys = parseFiniteNumber(value.point_estimate.remaining_qalys);
-  const currentQualityWeight = parseFiniteNumber(value.point_estimate.current_quality_weight);
+  const currentQualityWeight = parseProbability(value.point_estimate.current_quality_weight);
   const remainingLifeExpectancyCi = parseOptionalConfidenceInterval(
     value.point_estimate.remaining_life_expectancy_ci
   );

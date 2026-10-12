@@ -39,7 +39,7 @@ def test_product_change_is_rejected_before_any_simulation_or_ranking(
     single_simulation = Mock(side_effect=AssertionError("must not simulate"))
     catalog_simulation = Mock(side_effect=AssertionError("must not simulate"))
     optimizer = Mock(side_effect=AssertionError("must not optimize"))
-    monkeypatch.setattr(analyzer, "_simulate_one", single_simulation)
+    monkeypatch.setattr(analyzer, "simulate_catalog_entry", single_simulation)
     monkeypatch.setattr(analyzer, "simulate_catalog", catalog_simulation)
     monkeypatch.setattr(analyzer, "find_optimal_portfolio_with_costs", optimizer)
     config = AnalysisConfig(

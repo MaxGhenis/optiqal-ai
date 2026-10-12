@@ -153,7 +153,12 @@ def format_bundle_recommendations(bundles: List[dict]) -> str:
 
 
 def format_decision_table(decisions: List[dict]) -> str:
-    """Decision recommendations table."""
+    """Decision recommendations table.
+
+    E[days], the 95% interval and P(+) all describe the same quantity: the
+    decision's change in total quality-adjusted days (mortality and harms,
+    QoL, sleep QoL), summarized from one set of draws.
+    """
     if not decisions:
         return ""
 
@@ -162,7 +167,9 @@ def format_decision_table(decisions: List[dict]) -> str:
         "=" * 110,
         "DECISION ANALYSIS",
         "=" * 110,
-        f"\n{'Decision':<55} {'E[days]':>8} {'95% CI':>18} "
+        "E[days], 95% CI and P(+) describe the change in total quality-adjusted "
+        "days (mortality and harms, QoL, sleep QoL).",
+        f"\n{'Decision':<55} {'E[days]':>8} {'95% CI, days':>18} "
         f"{'P(+)':>6} {'$/yr':>7} {'Net $':>10}",
         "-" * 110,
     ]

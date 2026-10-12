@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import random
 from dataclasses import dataclass
 from pathlib import Path
@@ -1259,10 +1260,37 @@ def compute_hybrid_public_frontier_score(
 ) -> float:
     """Combine hard benchmark score with optional judge preference score.
 
-    Hard-rule failures dominate. The judge only matters once the hard benchmark is perfect.
+    Hard-rule failures dominate. With ``w`` the judge weight clamped to [0, 1]:
+
+    - ``judge_score is None`` (hard-only mode) returns ``hard_score`` unchanged.
+    - ``hard_score < 1`` returns ``(1 - w) * hard_score``; the judge is ignored.
+    - ``hard_score == 1`` returns ``(1 - w) + w * judge_score``.
+
+    For ``w < 1`` every score with a hard-rule failure therefore ranks strictly
+    below every perfect hard score, whatever the judge says, and the result
+    never falls when a hard-rule failure is fixed (including the last one) or
+    when the judge preference rises. ``w == 0`` returns ``hard_score``. At
+    ``w == 1`` every hard-rule failure scores 0 and a perfect hard score scores
+    the judge preference, so a failure never outranks a perfect hard score but
+    ties one the judge scores 0.
+
+    Raises ``ValueError`` when ``hard_score`` or ``judge_score`` is not a
+    finite number in [0, 1] or ``judge_weight`` is not finite.
     """
-    if hard_score < 1.0 or judge_score is None:
+    if not (math.isfinite(hard_score) and 0.0 <= hard_score <= 1.0):
+        raise ValueError(f"hard_score must be in [0, 1], got {hard_score!r}")
+    if judge_score is not None and not (
+        math.isfinite(judge_score) and 0.0 <= judge_score <= 1.0
+    ):
+        raise ValueError(f"judge_score must be in [0, 1], got {judge_score!r}")
+    if not math.isfinite(judge_weight):
+        raise ValueError(f"judge_weight must be finite, got {judge_weight!r}")
+
+    if judge_score is None:
         return hard_score
 
     bounded_weight = max(0.0, min(1.0, judge_weight))
-    return (1.0 - bounded_weight) * hard_score + bounded_weight * judge_score
+    if hard_score < 1.0:
+        return (1.0 - bounded_weight) * hard_score
+    # The clamp only absorbs float rounding; the exact value never exceeds 1.
+    return min(1.0, (1.0 - bounded_weight) + bounded_weight * judge_score)

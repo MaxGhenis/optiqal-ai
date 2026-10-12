@@ -3,6 +3,7 @@ import {
   parseFrontierRequest,
   parseFrontierResponse,
 } from "@/lib/frontier-contract";
+import { getAt, modelResponse, setAt } from "@/lib/__fixtures__/model-responses";
 
 describe("frontier contract", () => {
   it("accepts valid request bodies with optional sleep metrics", () => {
@@ -696,5 +697,66 @@ describe("frontier contract", () => {
       "nasal_dryness_signal",
       "osa_therapy_signal",
     ]);
+  });
+});
+
+describe("frontier response value ranges", () => {
+  // Real model output with items, choice-state options and an airway estimate.
+  const response = modelResponse("frontier", "high_risk_current_stack");
+  const optionItem = ["decision_states", 0, "options", 0, "added_items", 0];
+  const airway = ["sleep_estimate", "airway"];
+
+  it("parses the unmodified model response", () => {
+    expect(parseFrontierResponse(response)).not.toBeNull();
+    expect(getAt(response, [...optionItem, "p_benefit"])).toEqual(expect.any(Number));
+    expect(getAt(response, [...airway, "mucus_probability"])).toEqual(
+      expect.any(Number)
+    );
+  });
+
+  it("rejects the reversed item intervals the 2026-09-25 audit found accepted", () => {
+    expect(parseFrontierResponse(setAt(response, ["items", 0, "net_qaly_ci"], [1, 0]))).toBeNull();
+    expect(parseFrontierResponse(setAt(response, ["items", 0, "net_days_ci"], [-1, -2]))).toBeNull();
+    expect(
+      parseFrontierResponse(
+        setAt(response, ["items", 0, "net_days_ci"], [Number.MAX_VALUE, -Number.MAX_VALUE])
+      )
+    ).toBeNull();
+  });
+
+  it("rejects the out-of-range item probabilities the audit found accepted", () => {
+    expect(parseFrontierResponse(setAt(response, ["items", 0, "p_benefit"], 2))).toBeNull();
+    expect(parseFrontierResponse(setAt(response, ["items", 0, "p_harm"], -0.01))).toBeNull();
+    expect(
+      parseFrontierResponse(setAt(response, ["items", 0, "p_benefit"], 1.00001))
+    ).toBeNull();
+  });
+
+  it("rejects out-of-range probabilities on decision-option items", () => {
+    expect(parseFrontierResponse(setAt(response, [...optionItem, "p_benefit"], 2))).toBeNull();
+    expect(parseFrontierResponse(setAt(response, [...optionItem, "p_harm"], -0.01))).toBeNull();
+  });
+
+  it("rejects benefit and harm probabilities that overlap beyond rounding", () => {
+    const withPair = (pBenefit: number, pHarm: number) =>
+      setAt(setAt(response, ["items", 0, "p_benefit"], pBenefit), ["items", 0, "p_harm"], pHarm);
+    // 0.23 + 0.78 = 1.01 is what the API returns for 9 and 31 of 40 draws.
+    expect(parseFrontierResponse(withPair(0.23, 0.78))).not.toBeNull();
+    expect(parseFrontierResponse(withPair(0.24, 0.78))).toBeNull();
+    expect(parseFrontierResponse(withPair(0.6, 0.6))).toBeNull();
+  });
+
+  it("rejects out-of-range airway probabilities and relief fractions", () => {
+    for (const field of [
+      "upper_airway_probability",
+      "nasal_inflammation_probability",
+      "mucus_probability",
+    ]) {
+      expect(parseFrontierResponse(setAt(response, [...airway, field], 1.5))).toBeNull();
+      expect(parseFrontierResponse(setAt(response, [...airway, field], -0.1))).toBeNull();
+    }
+    expect(
+      parseFrontierResponse(setAt(response, ["items", 0, "sleep_mortality_relief_fraction"], 1.2))
+    ).toBeNull();
   });
 });
