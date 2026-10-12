@@ -30,7 +30,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from optiqal import snapshots
+from optiqal import snapshots, web_api
 from optiqal.data_build import cdc_life_table
 from optiqal.lifecycle import CDC_LIFE_TABLE, LIFE_TABLE_AGES, get_mortality_rate
 
@@ -192,16 +192,19 @@ def test_engine_survival_sum_differs_from_published_ex_only_by_year_convention()
     ``web_api._calculate_projection`` adds the survival probability at the start
     of each year, so a year begun alive counts in full. CDC's ex counts
     person-years, about half a year in the year of death. With the published
-    table the two therefore differ by roughly one half year at every age, and
-    by nothing else.
+    table and no profile adjustment the two therefore differ by roughly one
+    half year at every age, and by nothing else.
     """
     for sex in SEXES:
         for age in range(101):
-            survival, start_of_year_sum = 1.0, 0.0
-            for current in range(age, 111):
-                start_of_year_sum += survival
-                survival *= 1 - min(get_mortality_rate(current, sex), 0.99)
-            offset = start_of_year_sum - TABLES[sex][age]["ex"]
+            projection = web_api._calculate_projection(
+                age=age,
+                sex=sex,
+                mortality_multiplier=1.0,
+                quality_decrement=0.0,
+                discount_rate=0.03,
+            )
+            offset = projection["remaining_life_expectancy"] - TABLES[sex][age]["ex"]
             assert 0.4 <= offset <= 0.6, (sex, age, offset)
 
 

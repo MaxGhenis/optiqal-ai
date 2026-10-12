@@ -12,7 +12,7 @@ incomplete. Every entry below was verified against the file it describes.
 | Cause fractions | Transcribed approximation attributed to CDC WONDER 2021; no saved query or export | `python/optiqal/data/snapshots/cause_fractions.json` | lifecycle / analyzer / web API | Runtime gap closed; historical query absent |
 | MEPS quality weights | Committed AHRQ MEPS 2019–2022 calibration, SF-12→EQ-5D (Franks 2004), plus an authored age-95 anchor | `python/optiqal/data/snapshots/meps_quality_weights.json`; calibration artifact in `python/optiqal/data/meps/` | lifecycle | Generated from calibration; authored value labeled |
 | Disability weights | Haagsma et al. (GBD-style), ECDC PDF | `python/optiqal/reference_case.py` | reference-case utilities | Documented in code |
-| `baselines.json` | Derived from the life-table and quality-weight snapshots | `python/optiqal/data/baselines.json` | lifecycle, `scripts/precompute_baselines.py` | Derived; a test holds it equal to a rebuild |
+| `baselines.json` | Derived from the life-table, cause-fraction and quality-weight snapshots | `python/optiqal/data/baselines.json` | lifecycle, `scripts/precompute_baselines.py` | Derived; a test holds it equal to a rebuild |
 | `condition_joint_distribution.json` | Comment said "from MEPS"; no embedded source | Removed at `9bbbabaa` | nothing (its only reader, `markov.py`, was deleted) | Gap closed by removal |
 | Raw MEPS parquet (5 files) | AHRQ MEPS Full-Year Consolidated | Removed at `9bbbabaa`; `fetch_meps.py` re-downloads on demand | nothing at runtime | Gap closed by removal |
 
@@ -77,9 +77,12 @@ it to audit the snapshots without regenerating them.
   and fails on a missing, duplicated, or unparseable row. It then holds the
   printed columns to each other within their rounding: `l(x+1) = lx (1 − qx)`,
   `dx = lx − l(x+1)`, `dx = qx lx`, `l(x+1) ≤ Lx ≤ lx`, `Tx = Lx + T(x+1)`, and
-  `ex = Tx / lx`. A property test corrupts one cell at a time beyond rounding and
-  confirms each corruption is caught. The 44 anchors transcribed by hand from
-  the PDF on 2026-09-04 equal the machine parse exactly.
+  `ex = Tx / lx`. A property test corrupts one cell at a time and confirms the
+  identities catch a count off by 3 or more, an `ex` off by 0.2 or more, and a
+  `qx` error that moves `qx · lx` by 2.2 people or more. Smaller errors can
+  pass, especially in `qx` at old ages; the checksum pin on the source text
+  guards against those. The 44 anchors transcribed by hand from the PDF on
+  2026-09-04 equal the machine parse exactly.
 - **Runtime values.** `cdc_life_table.json` holds the published qx for ages
   0–99 unchanged. Age 100 is CDC's open-ended "100 and older" row, whose printed
   `qx = 1.000000` is the probability of eventually dying rather than an annual
@@ -90,9 +93,12 @@ it to audit the snapshots without regenerating them.
   intervention engine stops at 99. Because `l100` and `T100` are printed as
   whole persons, the rate is determined only to about ±0.0004. NCHS's own
   central-rate conversion, `qx = Mx / (1 + Mx/2)` (NVSR 72-12 technical notes,
-  eq. 11), would give 0.408201 and 0.368407. Using it instead would move the
-  baseline's remaining life expectancy by 0.04 years at age 100, under 0.01 at
-  95, and under 0.002 at every age up to 65.
+  eq. 11), would give 0.408201 and 0.368407. Using it instead would lower
+  remaining life expectancy from the unadjusted table by 0.04 years at age 100,
+  under 0.01 at 95, and under 0.002 at every age up to 65. A healthy profile
+  survives to 100 more often, so the served baseline moves more: for the
+  reference profile (normal BMI, never smoker, light activity) by up to 0.06
+  years at age 100, about 0.01 at 65, and under 0.005 at 20.
 - **Lookup.** `get_mortality_rate` returns the table value exactly at an integer
   age and interpolates log-linearly between adjacent single years for a
   fractional age. The web API baseline, the simulation engine, stack
@@ -213,8 +219,8 @@ it to audit the snapshots without regenerating them.
   went with the TypeScript engine in rebuild PR B.
 - **Consumers.** `python/optiqal/lifecycle.py` and
   `scripts/precompute_baselines.py`.
-- **Determinism.** Pure life-table arithmetic, no RNG. Regenerated on
-  2026-09-27 with the NVSR 72-12 life table.
+- **Determinism.** Pure arithmetic on the three snapshots, no RNG. Regenerated
+  on 2026-09-27 with the NVSR 72-12 life table.
 - **Provenance status.** `python/tests/test_cdc_life_table.py` holds the
   committed file equal to what the generator writes, so it cannot drift from the
   life table it tabulates. (Before this, the committed file came from an older

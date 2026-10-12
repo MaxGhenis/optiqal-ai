@@ -36,7 +36,7 @@ $$
 S(t) = \prod_{i=0}^{t-1} \left(1 - q_{\text{age}_0 + i}\right)
 $$
 
-where $q_a$ is the annual mortality rate (probability of death) for age $a$: the single-year $q_x$ from the CDC's *United States Life Tables, 2021* (NVSR 72-12, Table 2 for males and Table 3 for females) for ages 0-99. From age 100 the model uses the constant annual rate $1 - e^{-l_{100}/T_{100}}$: the annual death probability of a constant hazard whose mean remaining life equals the published $e_{100}$ of the open-ended "100 and older" row. The sum above counts every year begun alive as a whole year, so the model's life expectancy runs about half a year above the published $e_x$ at every age.
+where $q_a$ is the annual mortality rate (probability of death) for age $a$: the single-year $q_x$ from the CDC's *United States Life Tables, 2021* (NVSR 72-12, Table 2 for males and Table 3 for females) for ages 0-99. Intervention estimates sum to $T_{\max} = 100$ and so use only these rates. The baseline life-expectancy projection continues to age 110; from age 100 it uses the constant annual rate $1 - e^{-l_{100}/T_{100}}$, the annual death probability of a constant hazard whose mean remaining life equals the published $e_{100}$ of the open-ended "100 and older" row. That projection counts every year begun alive as a whole year, so with no profile adjustment it runs about half a year above the published $e_x$ at every age.
 
 ### Quality-of-Life Weights
 
