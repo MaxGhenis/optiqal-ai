@@ -43,7 +43,7 @@ which claims are still unverified.
 - Next.js 16 + React 19 + TypeScript
 - Tailwind CSS v4
 - Vitest + Playwright
-- Python 3.10+ with NumPy and SciPy for the QALY engine, managed by `uv`
+- Python 3.11+ with NumPy and SciPy for the QALY engine, managed by `uv`
 - Evidence base: committed life-table and MEPS quality-weight snapshots, GBD-style
   disability weights, and hazard ratios from published meta-analyses, with Monte
   Carlo uncertainty and explicit confounding priors

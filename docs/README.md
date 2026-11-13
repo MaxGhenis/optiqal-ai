@@ -4,7 +4,7 @@ This guide explains how to build the paper and reproduce all results.
 
 ## Prerequisites
 
-- Python 3.10 or higher
+- Python 3.11 or higher
 - [uv](https://github.com/astral-sh/uv) package manager
 - [Bun](https://bun.sh) for running JavaScript tests
 
@@ -162,7 +162,7 @@ source .venv/bin/activate  # On macOS/Linux
 
 If code execution fails:
 1. Check that all required packages are installed (`uv sync`)
-2. Verify Python version is 3.10+
+2. Verify Python version is 3.11+
 3. Look for error messages in the build output
 
 ### Tests fail
